@@ -1,34 +1,35 @@
-# PROJECT_HANDOFF.md — SILAPPKASAL Project Handoff
+# PROJECT_HANDOFF.md - SILAPPKASAL Project Handoff
 
 > Status: Active Handoff  
 > Last Updated: 2026-06-11  
-> Current Backend Milestone: Milestone 8 PASS — Recommendation Foundation  
-> Next Milestone: Milestone 9 — Decision Foundation
+> Current Backend Milestone: Milestone 9 Implementation Prepared - Decision Foundation  
+> Next Milestone: Milestone 10 - Recovery and Monitoring Foundation
 
 ---
 
 ## 1. Project Snapshot
 
-SILAPPKASAL is a secure reporting and case-handling platform for prevention and response to sexual violence in a university environment. The repository is currently structured with a Laravel REST API backend in `backend/api` and a React frontend in `frontend/`.
+SILAPPKASAL is a secure reporting and case-handling platform for prevention and response to sexual violence in a university environment. The repository is structured with a Laravel REST API backend in `backend/api` and a React frontend in `frontend/`.
 
 The backend is the current source of implemented business behavior. Frontend integration, evidence upload, notifications, analytics, WhatsApp integration, and Flutter work remain future work unless explicitly promoted.
 
 ---
 
-## 2. Completed Milestones
+## 2. Completed and Prepared Milestones
 
 | Milestone | Name | Status | Summary |
 |---|---|---|---|
 | 1 | Repository Foundation | PASS | Repository structure established; frontend and backend boundaries clarified. |
 | 2 | Laravel Foundation | PASS | Laravel 12.62.0 API foundation, PostgreSQL config, Sanctum installed, database queue, private storage disk, health endpoint. |
-| 3 | Authentication & RBAC | PASS | Sanctum token auth, login/logout/me, roles, permissions, RBAC middleware, policies foundation, seeders, tests. |
+| 3 | Authentication & RBAC | PASS | Sanctum token auth, login/logout/me, roles, permissions, RBAC middleware, policy foundation, seeders, tests. |
 | 4 | Master Data Foundation | PASS | Read-only master data tables, models, endpoints, seeders, and tests. |
 | 5 | Report Intake Foundation | PASS | Anonymous and identified report intake, tracking code, metadata-first report reads, privacy rules, tests. |
 | 6 | Case Foundation | PASS | Forward report to case, case number, assignment history, status transition foundation, metadata-first case access, tests. |
 | 7 | Investigation Foundation | PASS | Investigation model, activity records, master-data-driven investigation status transitions, assigned Satgas detail access, admin metadata-only access, tests. |
 | 8 | Recommendation Foundation | PASS | Recommendation model, completed-investigation reference, master-data-driven recommendation status transitions, status history, assigned Satgas detail access, admin metadata-only access, tests. |
+| 9 | Decision Foundation | Pending Verification | Decision model, recommendation-owned decision records, decision status master data, outcome foundation, status history, admin/super admin decision authority, assigned Satgas read-only access. Migration, seeder, and full test verification are pending explicit approval. |
 
-Latest verification after Milestone 8:
+Latest verified baseline after Milestone 8:
 
 ```text
 php artisan migrate --force
@@ -40,6 +41,14 @@ Routes: 24 API v1 routes
 Tests: 52 passed (395 assertions)
 ```
 
+Milestone 9 prepared route count from `php artisan route:list --path=api/v1`:
+
+```text
+Routes: 29 API v1 routes
+```
+
+Milestone 9 migration, seeder, and full test commands have not been run yet in this handoff state.
+
 ---
 
 ## 3. Current Backend State
@@ -50,7 +59,7 @@ Backend location:
 backend/api
 ```
 
-Implemented API groups:
+Implemented or prepared API groups:
 
 | Area | Endpoint Coverage |
 |---|---|
@@ -61,6 +70,7 @@ Implemented API groups:
 | Cases | `GET /api/v1/cases`, `GET /api/v1/cases/{case}`, `PATCH /api/v1/cases/{case}/status`, `PATCH /api/v1/cases/{case}/assign` |
 | Investigations | `POST /api/v1/cases/{case}/investigations`, `GET /api/v1/cases/{case}/investigations`, `GET /api/v1/investigations/{investigation}`, `PATCH /api/v1/investigations/{investigation}/status`, `POST /api/v1/investigations/{investigation}/activities` |
 | Recommendations | `POST /api/v1/cases/{case}/recommendations`, `GET /api/v1/cases/{case}/recommendations`, `GET /api/v1/recommendations/{recommendation}`, `PATCH /api/v1/recommendations/{recommendation}`, `PATCH /api/v1/recommendations/{recommendation}/status` |
+| Decisions | `POST /api/v1/recommendations/{recommendation}/decisions`, `GET /api/v1/recommendations/{recommendation}/decisions`, `GET /api/v1/decisions/{decision}`, `PATCH /api/v1/decisions/{decision}`, `PATCH /api/v1/decisions/{decision}/status` |
 
 ---
 
@@ -70,7 +80,8 @@ Implemented API groups:
 - Existing project docs remain source of truth.
 - Sensitive narrative fields are encrypted using Laravel encrypted casts.
 - Admin and Super Admin access remains metadata-first unless a milestone explicitly grants sensitive access.
-- Assigned Satgas access is required for sensitive case, investigation, and recommendation details.
+- Decision records are an explicit exception: Admin and Super Admin may read full decision content.
+- Assigned Satgas access is required for sensitive case, investigation, recommendation, and decision details.
 - Anonymous report identity is not stored.
 - Evidence upload, attachments, WhatsApp, notifications, analytics, and Flutter integration are not implemented yet.
 - Tests are expected for each milestone before completion.
@@ -88,7 +99,9 @@ Current security posture:
 - Reports support anonymous and identified intake.
 - Anonymous reports do not store reporter identity, reporter phone, IP, or device data in report business fields.
 - Admin report/case/investigation/recommendation reads are metadata-first.
-- Assigned Satgas can read sensitive case, investigation, and recommendation detail only for active assignments.
+- Admin and Super Admin decision reads include full decision content because Milestone 9 records institutional decision output.
+- Assigned Satgas can read sensitive case, investigation, recommendation, and decision detail only for active assignments.
+- Assigned Satgas remains read-only for decision records.
 - Private evidence storage disk exists as foundation, but evidence workflow is not implemented.
 
 Deferred security work:
@@ -104,7 +117,7 @@ Deferred security work:
 
 ## 6. Current Data Model Coverage
 
-Implemented domain tables include:
+Implemented or prepared domain tables include:
 
 - `users`
 - `roles`
@@ -119,11 +132,13 @@ Implemented domain tables include:
 - `investigation_activities`
 - `recommendations`
 - `recommendation_status_histories`
+- `decision_statuses` prepared by Milestone 9 migration
+- `decisions` prepared by Milestone 9 migration
+- `decision_status_histories` prepared by Milestone 9 migration
 
 Not yet implemented:
 
 - evidence records and file upload metadata
-- decisions
 - recovery workflow
 - notification delivery records
 - audit logs
@@ -134,23 +149,20 @@ Not yet implemented:
 
 ## 7. Next Milestone
 
-Milestone 9 should be planned and implemented as:
+After Milestone 9 migration, seeding, and tests are approved and pass, the next milestone should be planned as:
 
 ```text
-Milestone 9 — Decision Foundation
+Milestone 10 - Recovery and Monitoring Foundation
 ```
 
 Expected focus:
 
-- Decision data model.
-- Relationship to cases and submitted recommendations.
-- Decision status/recording foundation.
-- Institutional decision metadata and sensitive decision content privacy.
-- Metadata-first admin visibility.
-- Assigned Satgas workflow boundaries.
-- No recovery workflow yet unless explicitly approved.
-
-Milestone 9 should not implement evidence upload, recovery workflow, notifications, WhatsApp, analytics, or frontend integration unless explicitly approved.
+- Recovery and monitoring data model.
+- Relationship to finalized decisions and cases.
+- Recovery service/status foundation.
+- Monitoring notes or follow-up records if approved.
+- Privacy and RBAC rules for recovery-sensitive data.
+- No evidence upload, notifications, WhatsApp, analytics, or frontend integration unless explicitly approved.
 
 ---
 
@@ -166,10 +178,19 @@ php artisan route:list --path=api/v1
 php artisan test
 ```
 
-Expected current test baseline:
+Expected verified test baseline:
 
 ```text
 52 passed
+```
+
+Milestone 9 expected verification is still pending:
+
+```bash
+php artisan migrate --force
+php artisan db:seed --force
+php artisan route:list --path=api/v1
+php artisan test
 ```
 
 ---

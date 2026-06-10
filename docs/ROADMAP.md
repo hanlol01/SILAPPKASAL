@@ -1,9 +1,9 @@
-# ROADMAP.md — SILAPPKASAL Development Roadmap
+# ROADMAP.md - SILAPPKASAL Development Roadmap
 
 > Status: Active  
 > Last Updated: 2026-06-11  
-> Current Position: Milestone 8 complete  
-> Next: Milestone 9 — Decision Foundation
+> Current Position: Milestone 9 implementation prepared, pending verification  
+> Next: Milestone 10 - Recovery and Monitoring Foundation
 
 ---
 
@@ -21,9 +21,9 @@ Current priorities:
 
 ---
 
-## 2. Completed Milestones
+## 2. Completed and Prepared Milestones
 
-### Milestone 1 — Repository Foundation
+### Milestone 1 - Repository Foundation
 
 Status: PASS
 
@@ -33,7 +33,7 @@ Delivered:
 - Frontend and backend locations clarified.
 - Development workflow aligned.
 
-### Milestone 2 — Laravel Foundation
+### Milestone 2 - Laravel Foundation
 
 Status: PASS
 
@@ -47,7 +47,7 @@ Delivered:
 - `GET /api/v1/health`.
 - Baseline tests.
 
-### Milestone 3 — Authentication & RBAC
+### Milestone 3 - Authentication & RBAC
 
 Status: PASS
 
@@ -61,7 +61,7 @@ Delivered:
 - RBAC middleware and policy foundation.
 - No dummy users seeded.
 
-### Milestone 4 — Master Data Foundation
+### Milestone 4 - Master Data Foundation
 
 Status: PASS
 
@@ -73,7 +73,7 @@ Delivered:
 - `notification_types` kept internal only.
 - No faculties/study programs added.
 
-### Milestone 5 — Report Intake Foundation
+### Milestone 5 - Report Intake Foundation
 
 Status: PASS
 
@@ -87,7 +87,7 @@ Delivered:
 - Privacy-safe tracking endpoint.
 - Reporter/admin RBAC behavior.
 
-### Milestone 6 — Case Foundation
+### Milestone 6 - Case Foundation
 
 Status: PASS
 
@@ -102,7 +102,7 @@ Delivered:
 - Metadata-first admin case access.
 - Assigned Satgas sensitive detail access.
 
-### Milestone 7 — Investigation Foundation
+### Milestone 7 - Investigation Foundation
 
 Status: PASS
 
@@ -124,7 +124,7 @@ Verification:
 45 passed (348 assertions)
 ```
 
-### Milestone 8 — Recommendation Foundation
+### Milestone 8 - Recommendation Foundation
 
 Status: PASS
 
@@ -147,11 +147,45 @@ Verification:
 52 passed (395 assertions)
 ```
 
+### Milestone 9 - Decision Foundation
+
+Status: Implementation prepared, pending migration/seeder/test verification
+
+Prepared:
+
+- Decision model and migration.
+- Relationship from decision to recommendation.
+- One decision per recommendation through unique `recommendation_id`.
+- No direct `case_id` in `decisions`.
+- Decision status via `decision_statuses`.
+- Status transitions from master data.
+- `finalized` terminal behavior.
+- Outcome foundation: `accepted`, `partially_accepted`, `rejected`, `deferred`.
+- Decision status history foundation.
+- Admin/super_admin create, update, transition, and read decision content.
+- Assigned Satgas read-only decision detail for assigned cases.
+- Encrypted decision narrative content at rest.
+- No case status mutation, case closing, recovery, evidence, notification, WhatsApp, analytics, or frontend work.
+
+Prepared route verification:
+
+```text
+29 API v1 routes
+```
+
+Pending verification:
+
+```text
+php artisan migrate --force
+php artisan db:seed --force
+php artisan test
+```
+
 ---
 
 ## 3. Current API Surface
 
-Implemented API areas:
+Implemented or prepared API areas:
 
 - Health
 - Auth
@@ -160,10 +194,10 @@ Implemented API areas:
 - Cases
 - Investigations
 - Recommendations
+- Decisions
 
 Not implemented yet:
 
-- Decisions
 - Recovery and monitoring
 - Evidence upload/download
 - Notifications
@@ -178,41 +212,41 @@ Not implemented yet:
 
 ## 4. Next Milestone
 
-### Milestone 9 — Decision Foundation
+### Milestone 10 - Recovery and Monitoring Foundation
 
 Goal:
 
-Create the first decision recording foundation after submitted recommendations, without starting recovery workflow.
+Create the first recovery and monitoring workflow foundation after finalized institutional decisions, without starting evidence, notification, WhatsApp, analytics, or frontend work.
 
 Recommended scope:
 
-- Decision data model.
-- Relationship to case and recommendation.
-- Decision recording rules.
-- Sensitive decision content privacy.
-- RBAC and policies.
-- Metadata-first admin/super_admin reads.
-- Assigned Satgas workflow boundaries.
+- Recovery and monitoring data model.
+- Relationship to case and finalized decision.
+- Recovery service/status foundation.
+- Monitoring follow-up foundation.
+- Privacy and RBAC rules for recovery-sensitive data.
+- Read/list/detail API foundation.
 - Tests.
 
 Potential endpoints:
 
 ```text
-POST /api/v1/cases/{case}/decisions
-GET /api/v1/cases/{case}/decisions
-GET /api/v1/decisions/{decision}
-PATCH /api/v1/decisions/{decision}
+POST /api/v1/decisions/{decision}/recovery
+GET /api/v1/cases/{case}/recovery
+GET /api/v1/recovery/{recovery}
+PATCH /api/v1/recovery/{recovery}
+PATCH /api/v1/recovery/{recovery}/status
+POST /api/v1/recovery/{recovery}/monitoring
+GET /api/v1/recovery/{recovery}/monitoring
 ```
 
 Planning constraints:
 
-- Decision should not bypass case status rules.
-- Consider requiring case status `decision`.
-- Consider requiring recommendation status `submitted_to_leader`.
-- Recommendation status updates should remain isolated unless explicitly approved.
-- Do not implement recovery workflow yet.
-- Do not implement notification/WhatsApp.
+- Recovery should not bypass case or decision rules.
+- Consider requiring decision status `finalized`.
+- Do not automatically close cases unless explicitly approved.
 - Do not implement evidence upload.
+- Do not implement notification/WhatsApp.
 - Do not implement analytics.
 - Do not modify frontend unless explicitly requested.
 
@@ -222,8 +256,6 @@ Planning constraints:
 
 | Milestone | Name | Purpose |
 |---|---|---|
-| 8 | Recommendation Foundation | Satgas recommendation workflow foundation. |
-| 9 | Decision Foundation | Institutional decision recording after recommendation. |
 | 10 | Recovery and Monitoring Foundation | Recovery services and post-decision monitoring. |
 | 11 | Evidence Foundation | Secure upload/download, private storage, evidence policies. |
 | 12 | Audit Log Foundation | Persistent audit trail for critical actions. |
@@ -233,7 +265,7 @@ Planning constraints:
 | 16 | User Management Foundation | Admin user CRUD, deactivate, role assignment. |
 | 17 | Frontend Auth Integration | Connect React auth to backend Sanctum flow. |
 | 18 | Frontend Report/Case Integration | Replace mock report/case data with API. |
-| 19 | Frontend Investigation/Recommendation Integration | Connect Satgas workflows. |
+| 19 | Frontend Investigation/Recommendation/Decision Integration | Connect Satgas and admin workflow APIs. |
 | 20 | Security Verification | Headers, CORS, rate limits, privacy review, penetration-style checklist. |
 | 21 | Production Readiness | Deployment, environment hardening, backup, observability. |
 | 22 | Flutter Planning | Mobile scope after stable backend and web integration. |
@@ -247,8 +279,7 @@ Deferred until explicitly approved:
 - Evidence upload and file download.
 - Case evidence access and chain-of-custody.
 - Investigation attachments.
-- Recommendation-to-decision workflow.
-- Recovery services.
+- Recovery service workflow verification.
 - WhatsApp/Fonnte integration.
 - Notification delivery tracking.
 - Dashboard analytics.
@@ -264,12 +295,13 @@ Deferred until explicitly approved:
 
 | Risk | Current Mitigation |
 |---|---|
-| Sensitive data leakage through admin endpoints | Metadata-first resources and tests. |
+| Sensitive data leakage through admin endpoints | Metadata-first resources and tests, except decision records where full admin read is intentional. |
 | Workflow status drift | Centralized enums plus master data status transitions. |
 | Unauthorized Satgas access | Active assignment checks in policies/services. |
 | Anonymous reporter identity leakage | Anonymous reports do not store identity, phone, IP, or device data in business fields. |
 | Seeder side effects | Seeders are idempotent and tests assert no business rows. |
-| Future workflow coupling | Milestones keep recommendation, decision, evidence, notification, and analytics separate. |
+| Future workflow coupling | Milestones keep recovery, evidence, notification, and analytics separate. |
+| Decision accidentally mutating case status | Milestone 9 service keeps decision transitions isolated from case status and case closing. |
 
 ---
 
@@ -298,8 +330,15 @@ php artisan route:list --path=api/v1
 php artisan test
 ```
 
-Expected baseline after Milestone 8:
+Expected verified baseline after Milestone 8:
 
 ```text
 52 passed (395 assertions)
+```
+
+Milestone 9 implementation is prepared, but final verification is pending:
+
+```text
+29 API v1 routes prepared
+migration/seed/test not yet run
 ```
