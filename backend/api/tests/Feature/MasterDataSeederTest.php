@@ -45,7 +45,8 @@ class MasterDataSeederTest extends TestCase
     {
         $this->seed(MasterDataSeeder::class);
 
-        $this->assertFalse(Schema::hasTable('reports'));
+        $this->assertTrue(Schema::hasTable('reports'));
+        $this->assertDatabaseCount('reports', 0);
         $this->assertFalse(Schema::hasTable('cases'));
         $this->assertFalse(Schema::hasTable('evidences'));
     }

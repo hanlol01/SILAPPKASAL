@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\MasterDataController;
+use App\Http\Controllers\Api\V1\ReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -41,5 +42,18 @@ Route::prefix('v1')->group(function (): void {
                 'escalation-types',
                 'recovery-types',
             ]);
+    });
+
+    Route::prefix('reports')->group(function (): void {
+        Route::post('/', [ReportController::class, 'store'])
+            ->middleware('throttle:reports.submit');
+
+        Route::get('/track/{trackingCode}', [ReportController::class, 'track'])
+            ->middleware('throttle:10,1');
+
+        Route::middleware('auth:sanctum')->group(function (): void {
+            Route::get('/', [ReportController::class, 'index']);
+            Route::get('/{report}', [ReportController::class, 'show']);
+        });
     });
 });

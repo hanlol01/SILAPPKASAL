@@ -1,0 +1,84 @@
+<?php
+
+namespace App\Http\Controllers\Api\V1;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\ReportIndexRequest;
+use App\Http\Requests\ReportStoreRequest;
+use App\Http\Requests\ReportTrackingRequest;
+use App\Http\Resources\ReportMetadataResource;
+use App\Http\Resources\ReportSubmissionResource;
+use App\Http\Resources\ReportTrackingResource;
+use App\Models\Report;
+use App\Services\ReportService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+
+class ReportController extends Controller
+{
+    public function __construct(private readonly ReportService $reportService)
+    {
+    }
+
+    public function store(ReportStoreRequest $request): JsonResponse
+    {
+        $report = $this->reportService->submit(
+            $request->validated(),
+            $request->bearerToken()
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Report submitted successfully',
+            'data' => new ReportSubmissionResource($report),
+        ], 201);
+    }
+
+    public function index(ReportIndexRequest $request): JsonResponse
+    {
+        $reports = $this->reportService->listForUser($request->user(), $request->validated());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Reports retrieved successfully',
+            'data' => ReportMetadataResource::collection($reports->items()),
+            'meta' => [
+                'current_page' => $reports->currentPage(),
+                'per_page' => $reports->perPage(),
+                'total' => $reports->total(),
+                'last_page' => $reports->lastPage(),
+            ],
+        ]);
+    }
+
+    public function show(Request $request, Report $report): JsonResponse
+    {
+        Gate::authorize('view', $report);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Report retrieved successfully',
+            'data' => new ReportMetadataResource($report->load(['category', 'priorityLevel'])),
+        ]);
+    }
+
+    public function track(ReportTrackingRequest $request, string $trackingCode): JsonResponse
+    {
+        $report = $this->reportService->findByTrackingCode($trackingCode);
+
+        if (! $report) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Report tracking code not found',
+                'errors' => null,
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Report tracking retrieved successfully',
+            'data' => new ReportTrackingResource($report),
+        ]);
+    }
+}
