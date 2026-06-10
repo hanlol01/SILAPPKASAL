@@ -23,6 +23,7 @@ class MasterDataSeederTest extends TestCase
 
         $this->assertTrue(Schema::hasColumn('case_statuses', 'valid_transitions'));
         $this->assertTrue(Schema::hasColumn('investigation_statuses', 'valid_transitions'));
+        $this->assertTrue(Schema::hasColumn('recommendation_statuses', 'valid_transitions'));
     }
 
     public function test_master_data_seeder_is_idempotent_and_seeds_known_codes(): void
@@ -52,6 +53,8 @@ class MasterDataSeederTest extends TestCase
         $this->assertDatabaseCount('cases', 0);
         $this->assertTrue(Schema::hasTable('investigations'));
         $this->assertDatabaseCount('investigations', 0);
+        $this->assertTrue(Schema::hasTable('recommendations'));
+        $this->assertDatabaseCount('recommendations', 0);
         $this->assertFalse(Schema::hasTable('evidences'));
     }
 

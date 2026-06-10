@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\InvestigationStatus as InvestigationStatusEnum;
+use App\Enums\RecommendationStatus as RecommendationStatusEnum;
 use App\Models\CampusStatus;
 use App\Models\CaseStatus;
 use App\Models\EscalationType;
@@ -38,15 +39,7 @@ class MasterDataSeeder extends Seeder
         ]);
         $this->seedCaseStatuses();
         $this->seedInvestigationStatuses();
-        $this->seedSimple(RecommendationStatus::class, [
-            ['RECS-01', 'drafting', 'Satgas sedang menyusun rekomendasi.'],
-            ['RECS-02', 'internal_review', 'Rekomendasi direview oleh sesama Satgas.'],
-            ['RECS-03', 'submitted_to_leader', 'Rekomendasi diajukan ke pimpinan PT.'],
-            ['RECS-04', 'accepted', 'Rekomendasi diterima oleh pimpinan.'],
-            ['RECS-05', 'partially_accepted', 'Rekomendasi diterima dengan modifikasi.'],
-            ['RECS-06', 'rejected', 'Rekomendasi ditolak, perlu revisi.'],
-            ['RECS-07', 'revised', 'Rekomendasi direvisi setelah feedback.'],
-        ]);
+        $this->seedRecommendationStatuses();
         $this->seedNotificationTypes();
         $this->seedSimple(RiskLevel::class, [
             ['RISK-01', 'low', 'Tidak ada ancaman langsung terhadap keselamatan korban.'],
@@ -221,6 +214,41 @@ class MasterDataSeeder extends Seeder
 
         foreach ($rows as $index => [$code, $name, $description, $transitions]) {
             InvestigationStatus::query()->updateOrCreate(
+                ['code' => $code],
+                [
+                    'name' => $name,
+                    'description' => $description,
+                    'valid_transitions' => $transitions,
+                    'is_active' => true,
+                    'sort_order' => $index + 1,
+                ]
+            );
+        }
+    }
+
+    private function seedRecommendationStatuses(): void
+    {
+        $rows = [
+            ['RECS-01', RecommendationStatusEnum::Drafting->value, 'Satgas sedang menyusun rekomendasi.', [
+                RecommendationStatusEnum::InternalReview->value,
+                RecommendationStatusEnum::SubmittedToLeader->value,
+            ]],
+            ['RECS-02', RecommendationStatusEnum::InternalReview->value, 'Rekomendasi direview oleh sesama Satgas.', [
+                RecommendationStatusEnum::SubmittedToLeader->value,
+                RecommendationStatusEnum::Revised->value,
+            ]],
+            ['RECS-03', RecommendationStatusEnum::SubmittedToLeader->value, 'Rekomendasi diajukan ke pimpinan PT.', []],
+            ['RECS-04', RecommendationStatusEnum::Accepted->value, 'Rekomendasi diterima oleh pimpinan.', []],
+            ['RECS-05', RecommendationStatusEnum::PartiallyAccepted->value, 'Rekomendasi diterima dengan modifikasi.', []],
+            ['RECS-06', RecommendationStatusEnum::Rejected->value, 'Rekomendasi ditolak, perlu revisi.', []],
+            ['RECS-07', RecommendationStatusEnum::Revised->value, 'Rekomendasi direvisi setelah feedback.', [
+                RecommendationStatusEnum::InternalReview->value,
+                RecommendationStatusEnum::SubmittedToLeader->value,
+            ]],
+        ];
+
+        foreach ($rows as $index => [$code, $name, $description, $transitions]) {
+            RecommendationStatus::query()->updateOrCreate(
                 ['code' => $code],
                 [
                     'name' => $name,

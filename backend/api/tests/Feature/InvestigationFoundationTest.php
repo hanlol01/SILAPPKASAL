@@ -38,7 +38,8 @@ class InvestigationFoundationTest extends TestCase
         $this->assertTrue(Schema::hasTable('investigation_activities'));
         $this->assertTrue(Schema::hasColumn('investigation_statuses', 'valid_transitions'));
         $this->assertFalse(Schema::hasTable('evidences'));
-        $this->assertFalse(Schema::hasTable('recommendations'));
+        $this->assertTrue(Schema::hasTable('recommendations'));
+        $this->assertDatabaseCount('recommendations', 0);
         $this->assertFalse(Schema::hasTable('decisions'));
 
         $planning = InvestigationStatus::query()

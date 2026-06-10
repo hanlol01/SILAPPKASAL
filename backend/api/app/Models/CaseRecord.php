@@ -87,6 +87,11 @@ class CaseRecord extends Model
         return $this->hasOne(Investigation::class, 'case_id');
     }
 
+    public function recommendation(): HasOne
+    {
+        return $this->hasOne(Recommendation::class, 'case_id');
+    }
+
     public function isAssignedTo(User $user): bool
     {
         return $this->activeAssignments()

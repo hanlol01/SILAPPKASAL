@@ -88,6 +88,16 @@ class User extends Authenticatable
         return $this->hasMany(InvestigationActivity::class, 'investigator_id');
     }
 
+    public function recommendations(): HasMany
+    {
+        return $this->hasMany(Recommendation::class, 'author_id');
+    }
+
+    public function recommendationStatusChanges(): HasMany
+    {
+        return $this->hasMany(RecommendationStatusHistory::class, 'changed_by');
+    }
+
     public function hasRole(string $role): bool
     {
         return $this->role?->code === $role;
