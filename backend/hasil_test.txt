@@ -1,0 +1,372 @@
+FARHAN@DESKTOP-S18A1KJ MINGW64 /d/PROJECT CODING/SILAPPKASAL/backend/api (main)
+$ php artisan test
+
+   FAIL  Tests\Unit\AuthServiceTest
+  ⨯ identifier normalization trims and lowercases email only
+  ⨯ token expiry is configurable
+  ⨯ user role and permission helpers
+
+   FAIL  Tests\Feature\AuthEndpointsTest
+  ⨯ login succeeds with normalized email identifier
+  ⨯ login succeeds with nim identifier
+  ⨯ login succeeds with nip identifier
+  ⨯ login fails with invalid credentials
+  ⨯ inactive user login returns forbidden
+  ⨯ login validation errors return 422
+  ⨯ login rate limit returns 429
+  ⨯ me returns authenticated user
+  ⨯ me requires token
+  ⨯ logout deletes only current token
+
+   FAIL  Tests\Feature\RbacSeederTest
+  ⨯ rbac seeders create expected roles and permissions without anonymou… 0.03s
+  ⨯ database seeder does not create dummy users                          0.02s
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Unit\AuthServiceTest > identifier normaliza…  QueryException
+  SQLSTATE[HY000]: General error: 1 no such table: roles (Connection: sqlite, Da
+tabase: :memory:, SQL: select * from "roles" where ("code" = super_admin) limit
+1)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[HY000]: General
+error: 1 no such table: roles")
+
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Unit\AuthServiceTest > token expiry is conf…  QueryException
+  SQLSTATE[HY000]: General error: 1 no such table: roles (Connection: sqlite, Da
+tabase: :memory:, SQL: select * from "roles" where ("code" = super_admin) limit
+1)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[HY000]: General
+error: 1 no such table: roles")
+
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Unit\AuthServiceTest > user role and permis…  QueryException
+  SQLSTATE[HY000]: General error: 1 no such table: roles (Connection: sqlite, Da
+tabase: :memory:, SQL: select * from "roles" where ("code" = super_admin) limit
+1)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[HY000]: General
+error: 1 no such table: roles")
+
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\AuthEndpointsTest > login succeeds…   QueryException
+  SQLSTATE[HY000]: General error: 1 no such table: roles (Connection: sqlite, Da
+tabase: :memory:, SQL: select * from "roles" where ("code" = super_admin) limit
+1)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[HY000]: General
+error: 1 no such table: roles")
+
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\AuthEndpointsTest > login succeeds…   QueryException
+  SQLSTATE[HY000]: General error: 1 no such table: roles (Connection: sqlite, Da
+tabase: :memory:, SQL: select * from "roles" where ("code" = super_admin) limit
+1)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[HY000]: General
+error: 1 no such table: roles")
+
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\AuthEndpointsTest > login succeeds…   QueryException
+  SQLSTATE[HY000]: General error: 1 no such table: roles (Connection: sqlite, Da
+tabase: :memory:, SQL: select * from "roles" where ("code" = super_admin) limit
+1)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[HY000]: General
+error: 1 no such table: roles")
+
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\AuthEndpointsTest > login fails wit…  QueryException
+  SQLSTATE[HY000]: General error: 1 no such table: roles (Connection: sqlite, Da
+tabase: :memory:, SQL: select * from "roles" where ("code" = super_admin) limit
+1)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[HY000]: General
+error: 1 no such table: roles")
+
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\AuthEndpointsTest > inactive user l…  QueryException
+  SQLSTATE[HY000]: General error: 1 no such table: roles (Connection: sqlite, Da
+tabase: :memory:, SQL: select * from "roles" where ("code" = super_admin) limit
+1)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[HY000]: General
+error: 1 no such table: roles")
+
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\AuthEndpointsTest > login validatio…  QueryException
+  SQLSTATE[HY000]: General error: 1 no such table: roles (Connection: sqlite, Da
+tabase: :memory:, SQL: select * from "roles" where ("code" = super_admin) limit
+1)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[HY000]: General
+error: 1 no such table: roles")
+
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\AuthEndpointsTest > login rate limi…  QueryException
+  SQLSTATE[HY000]: General error: 1 no such table: roles (Connection: sqlite, Da
+tabase: :memory:, SQL: select * from "roles" where ("code" = super_admin) limit
+1)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[HY000]: General
+error: 1 no such table: roles")
+
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\AuthEndpointsTest > me returns auth…  QueryException
+  SQLSTATE[HY000]: General error: 1 no such table: roles (Connection: sqlite, Da
+tabase: :memory:, SQL: select * from "roles" where ("code" = super_admin) limit
+1)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[HY000]: General
+error: 1 no such table: roles")
+
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\AuthEndpointsTest > me requires tok…  QueryException
+  SQLSTATE[HY000]: General error: 1 no such table: roles (Connection: sqlite, Da
+tabase: :memory:, SQL: select * from "roles" where ("code" = super_admin) limit
+1)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[HY000]: General
+error: 1 no such table: roles")
+
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\AuthEndpointsTest > logout deletes…   QueryException
+  SQLSTATE[HY000]: General error: 1 no such table: roles (Connection: sqlite, Da
+tabase: :memory:, SQL: select * from "roles" where ("code" = super_admin) limit
+1)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[HY000]: General
+error: 1 no such table: roles")
+
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\RbacSeederTest > rbac seeders creat…  QueryException
+  SQLSTATE[HY000]: General error: 1 no such table: roles (Connection: sqlite, Da
+tabase: :memory:, SQL: select * from "roles" where ("code" = super_admin) limit
+1)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[HY000]: General
+error: 1 no such table: roles")
+
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\RbacSeederTest > database seeder do…  QueryException
+  SQLSTATE[HY000]: General error: 1 no such table: users (Connection: sqlite, Da
+tabase: :memory:, SQL: select count(*) as aggregate from "users" where "users"."
+deleted_at" is null)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[HY000]: General
+error: 1 no such table: users")
+
+
+  Tests:    15 failed (0 assertions)
+  Duration: 1.02s
+
