@@ -2,8 +2,8 @@
 
 > Status: Active  
 > Last Updated: 2026-06-11  
-> Current Position: Milestone 9 implementation prepared, pending verification  
-> Next: Milestone 10 - Recovery and Monitoring Foundation
+> Current Position: Milestone 10 implementation prepared, pending verification  
+> Next: Milestone 11 - Evidence Foundation
 
 ---
 
@@ -149,9 +149,9 @@ Verification:
 
 ### Milestone 9 - Decision Foundation
 
-Status: Implementation prepared, pending migration/seeder/test verification
+Status: PASS
 
-Prepared:
+Delivered:
 
 - Decision model and migration.
 - Relationship from decision to recommendation.
@@ -167,10 +167,31 @@ Prepared:
 - Encrypted decision narrative content at rest.
 - No case status mutation, case closing, recovery, evidence, notification, WhatsApp, analytics, or frontend work.
 
+### Milestone 10 - Recovery and Monitoring Foundation
+
+Status: Implementation prepared, pending migration/seeder/test verification
+
+Prepared:
+
+- Recovery model and migration.
+- Recovery belongs to decision with no direct `case_id`.
+- Recovery uses `recovery_types` master data.
+- Recovery status via `recovery_statuses`.
+- Status transitions from master data.
+- Recovery statuses: `planned`, `ongoing`, `completed`, `discontinued`.
+- `completed` and `discontinued` terminal behavior.
+- Recovery status history foundation.
+- Monitoring records belong to recovery and are append-only.
+- Monitoring creation only for `ongoing` recovery.
+- Admin/super_admin manage recovery lifecycle.
+- Assigned Satgas may read recovery detail and create/read monitoring for assigned cases.
+- Encrypted recovery and monitoring narrative content at rest.
+- No case status mutation, case closing, decision status mutation, evidence, notification, WhatsApp, analytics, or frontend work.
+
 Prepared route verification:
 
 ```text
-29 API v1 routes
+36 API v1 routes
 ```
 
 Pending verification:
@@ -195,10 +216,10 @@ Implemented or prepared API areas:
 - Investigations
 - Recommendations
 - Decisions
+- Recovery and monitoring
 
 Not implemented yet:
 
-- Recovery and monitoring
 - Evidence upload/download
 - Notifications
 - WhatsApp integration
@@ -212,40 +233,35 @@ Not implemented yet:
 
 ## 4. Next Milestone
 
-### Milestone 10 - Recovery and Monitoring Foundation
+### Milestone 11 - Evidence Foundation
 
 Goal:
 
-Create the first recovery and monitoring workflow foundation after finalized institutional decisions, without starting evidence, notification, WhatsApp, analytics, or frontend work.
+Create the first secure evidence workflow foundation using private storage and strict case/report access policies, without starting notifications, WhatsApp, analytics, or frontend work.
 
 Recommended scope:
 
-- Recovery and monitoring data model.
-- Relationship to case and finalized decision.
-- Recovery service/status foundation.
-- Monitoring follow-up foundation.
-- Privacy and RBAC rules for recovery-sensitive data.
-- Read/list/detail API foundation.
+- Evidence metadata model.
+- Private storage upload and download foundation.
+- Relationship to reports, cases, investigations, or recovery records as approved.
+- Evidence access and privacy policies.
+- File validation and storage path strategy.
 - Tests.
 
 Potential endpoints:
 
 ```text
-POST /api/v1/decisions/{decision}/recovery
-GET /api/v1/cases/{case}/recovery
-GET /api/v1/recovery/{recovery}
-PATCH /api/v1/recovery/{recovery}
-PATCH /api/v1/recovery/{recovery}/status
-POST /api/v1/recovery/{recovery}/monitoring
-GET /api/v1/recovery/{recovery}/monitoring
+POST /api/v1/cases/{case}/evidence
+GET /api/v1/cases/{case}/evidence
+GET /api/v1/evidence/{evidence}
+GET /api/v1/evidence/{evidence}/download
+PATCH /api/v1/evidence/{evidence}
 ```
 
 Planning constraints:
 
-- Recovery should not bypass case or decision rules.
-- Consider requiring decision status `finalized`.
-- Do not automatically close cases unless explicitly approved.
-- Do not implement evidence upload.
+- Evidence must use private storage.
+- Evidence access must not be granted automatically to super admin beyond explicit policy.
 - Do not implement notification/WhatsApp.
 - Do not implement analytics.
 - Do not modify frontend unless explicitly requested.
@@ -256,7 +272,6 @@ Planning constraints:
 
 | Milestone | Name | Purpose |
 |---|---|---|
-| 10 | Recovery and Monitoring Foundation | Recovery services and post-decision monitoring. |
 | 11 | Evidence Foundation | Secure upload/download, private storage, evidence policies. |
 | 12 | Audit Log Foundation | Persistent audit trail for critical actions. |
 | 13 | Notification Foundation | Internal notification persistence and queue jobs. |
@@ -279,7 +294,7 @@ Deferred until explicitly approved:
 - Evidence upload and file download.
 - Case evidence access and chain-of-custody.
 - Investigation attachments.
-- Recovery service workflow verification.
+- Evidence workflow verification.
 - WhatsApp/Fonnte integration.
 - Notification delivery tracking.
 - Dashboard analytics.
@@ -302,6 +317,7 @@ Deferred until explicitly approved:
 | Seeder side effects | Seeders are idempotent and tests assert no business rows. |
 | Future workflow coupling | Milestones keep recovery, evidence, notification, and analytics separate. |
 | Decision accidentally mutating case status | Milestone 9 service keeps decision transitions isolated from case status and case closing. |
+| Recovery accidentally closing cases | Milestone 10 service keeps recovery and monitoring isolated from case closure. |
 
 ---
 
@@ -330,15 +346,15 @@ php artisan route:list --path=api/v1
 php artisan test
 ```
 
-Expected verified baseline after Milestone 8:
+Expected verified baseline after Milestone 9:
 
 ```text
-52 passed (395 assertions)
+Milestone 9 completed and committed by user.
 ```
 
-Milestone 9 implementation is prepared, but final verification is pending:
+Milestone 10 implementation is prepared, but final verification is pending:
 
 ```text
-29 API v1 routes prepared
+36 API v1 routes prepared
 migration/seed/test not yet run
 ```

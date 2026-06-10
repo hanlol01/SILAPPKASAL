@@ -2,8 +2,8 @@
 
 > Status: Active Handoff  
 > Last Updated: 2026-06-11  
-> Current Backend Milestone: Milestone 9 Implementation Prepared - Decision Foundation  
-> Next Milestone: Milestone 10 - Recovery and Monitoring Foundation
+> Current Backend Milestone: Milestone 10 Implementation Prepared - Recovery and Monitoring Foundation  
+> Next Milestone: Milestone 11 - Evidence Foundation
 
 ---
 
@@ -27,7 +27,8 @@ The backend is the current source of implemented business behavior. Frontend int
 | 6 | Case Foundation | PASS | Forward report to case, case number, assignment history, status transition foundation, metadata-first case access, tests. |
 | 7 | Investigation Foundation | PASS | Investigation model, activity records, master-data-driven investigation status transitions, assigned Satgas detail access, admin metadata-only access, tests. |
 | 8 | Recommendation Foundation | PASS | Recommendation model, completed-investigation reference, master-data-driven recommendation status transitions, status history, assigned Satgas detail access, admin metadata-only access, tests. |
-| 9 | Decision Foundation | Pending Verification | Decision model, recommendation-owned decision records, decision status master data, outcome foundation, status history, admin/super admin decision authority, assigned Satgas read-only access. Migration, seeder, and full test verification are pending explicit approval. |
+| 9 | Decision Foundation | PASS | Decision model, recommendation-owned decision records, decision status master data, outcome foundation, status history, admin/super admin decision authority, assigned Satgas read-only access. |
+| 10 | Recovery and Monitoring Foundation | Pending Verification | Recovery model, monitoring records, recovery status master data, status history, admin/super admin recovery lifecycle authority, assigned Satgas recovery read and monitoring creation. Migration, seeder, and full test verification are pending explicit approval. |
 
 Latest verified baseline after Milestone 8:
 
@@ -41,13 +42,13 @@ Routes: 24 API v1 routes
 Tests: 52 passed (395 assertions)
 ```
 
-Milestone 9 prepared route count from `php artisan route:list --path=api/v1`:
+Milestone 10 prepared route count from `php artisan route:list --path=api/v1`:
 
 ```text
-Routes: 29 API v1 routes
+Routes: 36 API v1 routes
 ```
 
-Milestone 9 migration, seeder, and full test commands have not been run yet in this handoff state.
+Milestone 10 migration, seeder, and full test commands have not been run yet in this handoff state.
 
 ---
 
@@ -71,6 +72,7 @@ Implemented or prepared API groups:
 | Investigations | `POST /api/v1/cases/{case}/investigations`, `GET /api/v1/cases/{case}/investigations`, `GET /api/v1/investigations/{investigation}`, `PATCH /api/v1/investigations/{investigation}/status`, `POST /api/v1/investigations/{investigation}/activities` |
 | Recommendations | `POST /api/v1/cases/{case}/recommendations`, `GET /api/v1/cases/{case}/recommendations`, `GET /api/v1/recommendations/{recommendation}`, `PATCH /api/v1/recommendations/{recommendation}`, `PATCH /api/v1/recommendations/{recommendation}/status` |
 | Decisions | `POST /api/v1/recommendations/{recommendation}/decisions`, `GET /api/v1/recommendations/{recommendation}/decisions`, `GET /api/v1/decisions/{decision}`, `PATCH /api/v1/decisions/{decision}`, `PATCH /api/v1/decisions/{decision}/status` |
+| Recoveries | `POST /api/v1/decisions/{decision}/recoveries`, `GET /api/v1/decisions/{decision}/recoveries`, `GET /api/v1/recoveries/{recovery}`, `PATCH /api/v1/recoveries/{recovery}`, `PATCH /api/v1/recoveries/{recovery}/status`, `POST /api/v1/recoveries/{recovery}/monitoring`, `GET /api/v1/recoveries/{recovery}/monitoring` |
 
 ---
 
@@ -81,7 +83,7 @@ Implemented or prepared API groups:
 - Sensitive narrative fields are encrypted using Laravel encrypted casts.
 - Admin and Super Admin access remains metadata-first unless a milestone explicitly grants sensitive access.
 - Decision records are an explicit exception: Admin and Super Admin may read full decision content.
-- Assigned Satgas access is required for sensitive case, investigation, recommendation, and decision details.
+- Assigned Satgas access is required for sensitive case, investigation, recommendation, decision, recovery, and monitoring details.
 - Anonymous report identity is not stored.
 - Evidence upload, attachments, WhatsApp, notifications, analytics, and Flutter integration are not implemented yet.
 - Tests are expected for each milestone before completion.
@@ -100,8 +102,10 @@ Current security posture:
 - Anonymous reports do not store reporter identity, reporter phone, IP, or device data in report business fields.
 - Admin report/case/investigation/recommendation reads are metadata-first.
 - Admin and Super Admin decision reads include full decision content because Milestone 9 records institutional decision output.
-- Assigned Satgas can read sensitive case, investigation, recommendation, and decision detail only for active assignments.
+- Admin and Super Admin manage recovery lifecycle in Milestone 10.
+- Assigned Satgas can read sensitive case, investigation, recommendation, decision, recovery, and monitoring detail only for active assignments.
 - Assigned Satgas remains read-only for decision records.
+- Assigned Satgas may create monitoring entries for assigned cases, but cannot complete or discontinue recovery.
 - Private evidence storage disk exists as foundation, but evidence workflow is not implemented.
 
 Deferred security work:
@@ -132,14 +136,17 @@ Implemented or prepared domain tables include:
 - `investigation_activities`
 - `recommendations`
 - `recommendation_status_histories`
-- `decision_statuses` prepared by Milestone 9 migration
-- `decisions` prepared by Milestone 9 migration
-- `decision_status_histories` prepared by Milestone 9 migration
+- `decision_statuses`
+- `decisions`
+- `decision_status_histories`
+- `recovery_statuses` prepared by Milestone 10 migration
+- `recoveries` prepared by Milestone 10 migration
+- `recovery_status_histories` prepared by Milestone 10 migration
+- `recovery_monitorings` prepared by Milestone 10 migration
 
 Not yet implemented:
 
 - evidence records and file upload metadata
-- recovery workflow
 - notification delivery records
 - audit logs
 - analytics/dashboard aggregates
@@ -149,20 +156,19 @@ Not yet implemented:
 
 ## 7. Next Milestone
 
-After Milestone 9 migration, seeding, and tests are approved and pass, the next milestone should be planned as:
+After Milestone 10 migration, seeding, and tests are approved and pass, the next milestone should be planned as:
 
 ```text
-Milestone 10 - Recovery and Monitoring Foundation
+Milestone 11 - Evidence Foundation
 ```
 
 Expected focus:
 
-- Recovery and monitoring data model.
-- Relationship to finalized decisions and cases.
-- Recovery service/status foundation.
-- Monitoring notes or follow-up records if approved.
-- Privacy and RBAC rules for recovery-sensitive data.
-- No evidence upload, notifications, WhatsApp, analytics, or frontend integration unless explicitly approved.
+- Secure evidence metadata model.
+- Private storage upload/download flow.
+- Relationship to reports, cases, investigations, or recoveries as approved.
+- Evidence access policies and privacy controls.
+- No notifications, WhatsApp, analytics, or frontend integration unless explicitly approved.
 
 ---
 
@@ -184,7 +190,7 @@ Expected verified test baseline:
 52 passed
 ```
 
-Milestone 9 expected verification is still pending:
+Milestone 10 expected verification is still pending:
 
 ```bash
 php artisan migrate --force
