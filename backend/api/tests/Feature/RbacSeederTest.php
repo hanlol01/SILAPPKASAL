@@ -30,6 +30,14 @@ class RbacSeederTest extends TestCase
         $reporter = Role::query()->where('code', 'reporter')->with('permissions')->firstOrFail();
         $this->assertTrue($reporter->permissions->contains('code', 'reports.create'));
         $this->assertTrue($reporter->permissions->contains('code', 'evidence.upload'));
+
+        $admin = Role::query()->where('code', 'admin')->with('permissions')->firstOrFail();
+        $superAdmin = Role::query()->where('code', 'super_admin')->with('permissions')->firstOrFail();
+        $satgas = Role::query()->where('code', 'satgas_ppks')->with('permissions')->firstOrFail();
+
+        $this->assertTrue($admin->permissions->contains('code', 'cases.record_decision'));
+        $this->assertTrue($superAdmin->permissions->contains('code', 'cases.record_decision'));
+        $this->assertFalse($satgas->permissions->contains('code', 'cases.record_decision'));
     }
 
     public function test_database_seeder_does_not_create_dummy_users(): void

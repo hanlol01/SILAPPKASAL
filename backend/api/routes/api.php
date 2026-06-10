@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CaseController;
+use App\Http\Controllers\Api\V1\DecisionController;
 use App\Http\Controllers\Api\V1\InvestigationController;
 use App\Http\Controllers\Api\V1\MasterDataController;
 use App\Http\Controllers\Api\V1\RecommendationController;
@@ -79,8 +80,16 @@ Route::prefix('v1')->group(function (): void {
     });
 
     Route::middleware('auth:sanctum')->prefix('recommendations')->group(function (): void {
+        Route::post('/{recommendation}/decisions', [DecisionController::class, 'storeForRecommendation']);
+        Route::get('/{recommendation}/decisions', [DecisionController::class, 'indexForRecommendation']);
         Route::get('/{recommendation}', [RecommendationController::class, 'show']);
         Route::patch('/{recommendation}', [RecommendationController::class, 'update']);
         Route::patch('/{recommendation}/status', [RecommendationController::class, 'updateStatus']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('decisions')->group(function (): void {
+        Route::get('/{decision}', [DecisionController::class, 'show']);
+        Route::patch('/{decision}', [DecisionController::class, 'update']);
+        Route::patch('/{decision}/status', [DecisionController::class, 'updateStatus']);
     });
 });

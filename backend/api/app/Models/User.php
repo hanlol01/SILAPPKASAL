@@ -98,6 +98,16 @@ class User extends Authenticatable
         return $this->hasMany(RecommendationStatusHistory::class, 'changed_by');
     }
 
+    public function decisions(): HasMany
+    {
+        return $this->hasMany(Decision::class, 'recorder_id');
+    }
+
+    public function decisionStatusChanges(): HasMany
+    {
+        return $this->hasMany(DecisionStatusHistory::class, 'changed_by');
+    }
+
     public function hasRole(string $role): bool
     {
         return $this->role?->code === $role;

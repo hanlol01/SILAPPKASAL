@@ -3,9 +3,11 @@
 namespace Database\Seeders;
 
 use App\Enums\InvestigationStatus as InvestigationStatusEnum;
+use App\Enums\DecisionStatus as DecisionStatusEnum;
 use App\Enums\RecommendationStatus as RecommendationStatusEnum;
 use App\Models\CampusStatus;
 use App\Models\CaseStatus;
+use App\Models\DecisionStatus;
 use App\Models\EscalationType;
 use App\Models\EvidenceType;
 use App\Models\InvestigationStatus;
@@ -40,6 +42,7 @@ class MasterDataSeeder extends Seeder
         $this->seedCaseStatuses();
         $this->seedInvestigationStatuses();
         $this->seedRecommendationStatuses();
+        $this->seedDecisionStatuses();
         $this->seedNotificationTypes();
         $this->seedSimple(RiskLevel::class, [
             ['RISK-01', 'low', 'Tidak ada ancaman langsung terhadap keselamatan korban.'],
@@ -249,6 +252,32 @@ class MasterDataSeeder extends Seeder
 
         foreach ($rows as $index => [$code, $name, $description, $transitions]) {
             RecommendationStatus::query()->updateOrCreate(
+                ['code' => $code],
+                [
+                    'name' => $name,
+                    'description' => $description,
+                    'valid_transitions' => $transitions,
+                    'is_active' => true,
+                    'sort_order' => $index + 1,
+                ]
+            );
+        }
+    }
+
+    private function seedDecisionStatuses(): void
+    {
+        $rows = [
+            ['DECS-01', DecisionStatusEnum::Draft->value, 'Draft pencatatan keputusan institusi.', [
+                DecisionStatusEnum::Recorded->value,
+            ]],
+            ['DECS-02', DecisionStatusEnum::Recorded->value, 'Keputusan institusi telah dicatat.', [
+                DecisionStatusEnum::Finalized->value,
+            ]],
+            ['DECS-03', DecisionStatusEnum::Finalized->value, 'Catatan keputusan telah difinalisasi.', []],
+        ];
+
+        foreach ($rows as $index => [$code, $name, $description, $transitions]) {
+            DecisionStatus::query()->updateOrCreate(
                 ['code' => $code],
                 [
                     'name' => $name,

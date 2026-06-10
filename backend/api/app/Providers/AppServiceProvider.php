@@ -3,10 +3,12 @@
 namespace App\Providers;
 
 use App\Models\CaseRecord;
+use App\Models\Decision;
 use App\Models\Investigation;
 use App\Models\Recommendation;
 use App\Models\Report;
 use App\Policies\CasePolicy;
+use App\Policies\DecisionPolicy;
 use App\Policies\InvestigationPolicy;
 use App\Policies\RecommendationPolicy;
 use App\Policies\ReportPolicy;
@@ -33,6 +35,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(CaseRecord::class, CasePolicy::class);
+        Gate::policy(Decision::class, DecisionPolicy::class);
         Gate::policy(Investigation::class, InvestigationPolicy::class);
         Gate::policy(Recommendation::class, RecommendationPolicy::class);
         Gate::policy(Report::class, ReportPolicy::class);

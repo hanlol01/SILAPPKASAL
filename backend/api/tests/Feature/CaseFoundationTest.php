@@ -41,7 +41,8 @@ class CaseFoundationTest extends TestCase
         $this->assertDatabaseCount('investigations', 0);
         $this->assertTrue(Schema::hasTable('recommendations'));
         $this->assertDatabaseCount('recommendations', 0);
-        $this->assertFalse(Schema::hasTable('decisions'));
+        $this->assertTrue(Schema::hasTable('decisions'));
+        $this->assertDatabaseCount('decisions', 0);
     }
 
     public function test_admin_can_forward_report_to_case_transactionally(): void

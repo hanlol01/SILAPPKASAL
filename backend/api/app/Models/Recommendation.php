@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Recommendation extends Model
 {
@@ -59,5 +60,10 @@ class Recommendation extends Model
     public function statusHistories(): HasMany
     {
         return $this->hasMany(RecommendationStatusHistory::class);
+    }
+
+    public function decision(): HasOne
+    {
+        return $this->hasOne(Decision::class);
     }
 }
