@@ -1,9 +1,9 @@
 # ROADMAP.md — SILAPPKASAL Development Roadmap
 
 > Status: Active  
-> Last Updated: 2026-06-10  
-> Current Position: Milestone 7 complete  
-> Next: Milestone 8 — Recommendation Foundation
+> Last Updated: 2026-06-11  
+> Current Position: Milestone 8 complete  
+> Next: Milestone 9 — Decision Foundation
 
 ---
 
@@ -124,6 +124,29 @@ Verification:
 45 passed (348 assertions)
 ```
 
+### Milestone 8 — Recommendation Foundation
+
+Status: PASS
+
+Delivered:
+
+- Recommendation model and migration.
+- Relationship from recommendation to case.
+- Required completed-investigation reference.
+- Recommendation status via `recommendation_statuses`.
+- Status transitions from master data.
+- `submitted_to_leader` terminal behavior for M8.
+- Status history foundation.
+- Admin/super_admin metadata-only recommendation responses.
+- Assigned Satgas sensitive recommendation detail.
+- No decision, recovery, evidence, notification, WhatsApp, analytics, or frontend work.
+
+Verification:
+
+```text
+52 passed (395 assertions)
+```
+
 ---
 
 ## 3. Current API Surface
@@ -136,10 +159,10 @@ Implemented API areas:
 - Reports
 - Cases
 - Investigations
+- Recommendations
 
 Not implemented yet:
 
-- Recommendations
 - Decisions
 - Recovery and monitoring
 - Evidence upload/download
@@ -155,41 +178,39 @@ Not implemented yet:
 
 ## 4. Next Milestone
 
-### Milestone 8 — Recommendation Foundation
+### Milestone 9 — Decision Foundation
 
 Goal:
 
-Create the first recommendation workflow foundation after investigation work, without starting decision workflow.
+Create the first decision recording foundation after submitted recommendations, without starting recovery workflow.
 
 Recommended scope:
 
-- Recommendation data model.
-- Relationship to case and investigation.
-- Recommendation status lifecycle using `recommendation_statuses`.
-- Recommendation creation/update rules.
-- Recommendation activity or draft foundation if required.
+- Decision data model.
+- Relationship to case and recommendation.
+- Decision recording rules.
+- Sensitive decision content privacy.
 - RBAC and policies.
 - Metadata-first admin/super_admin reads.
-- Assigned Satgas detail access.
+- Assigned Satgas workflow boundaries.
 - Tests.
 
 Potential endpoints:
 
 ```text
-POST /api/v1/cases/{case}/recommendations
-GET /api/v1/cases/{case}/recommendations
-GET /api/v1/recommendations/{recommendation}
-PATCH /api/v1/recommendations/{recommendation}/status
-PATCH /api/v1/recommendations/{recommendation}
+POST /api/v1/cases/{case}/decisions
+GET /api/v1/cases/{case}/decisions
+GET /api/v1/decisions/{decision}
+PATCH /api/v1/decisions/{decision}
 ```
 
 Planning constraints:
 
-- Recommendation should not bypass case status rules.
-- Consider requiring case status `recommendation`.
-- Consider requiring investigation completion before recommendation creation.
-- Use `recommendation_statuses` master data where possible.
-- Do not implement decision workflow yet.
+- Decision should not bypass case status rules.
+- Consider requiring case status `decision`.
+- Consider requiring recommendation status `submitted_to_leader`.
+- Recommendation status updates should remain isolated unless explicitly approved.
+- Do not implement recovery workflow yet.
 - Do not implement notification/WhatsApp.
 - Do not implement evidence upload.
 - Do not implement analytics.
@@ -277,8 +298,8 @@ php artisan route:list --path=api/v1
 php artisan test
 ```
 
-Expected baseline after Milestone 7:
+Expected baseline after Milestone 8:
 
 ```text
-45 passed (348 assertions)
+52 passed (395 assertions)
 ```
