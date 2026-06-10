@@ -24,6 +24,12 @@ class ReportPolicy extends BasePolicy
             && $report->reporter_id === $user->id;
     }
 
+    public function forward(User $user, Report $report): bool
+    {
+        return $this->canReadAllReports($user)
+            && $this->allowPermission($user, 'reports.forward');
+    }
+
     private function canReadAllReports(User $user): bool
     {
         return $this->allowPermission($user, 'reports.read.all')

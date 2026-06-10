@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CaseController;
 use App\Http\Controllers\Api\V1\MasterDataController;
 use App\Http\Controllers\Api\V1\ReportController;
 use Illuminate\Support\Facades\Route;
@@ -53,7 +54,15 @@ Route::prefix('v1')->group(function (): void {
 
         Route::middleware('auth:sanctum')->group(function (): void {
             Route::get('/', [ReportController::class, 'index']);
+            Route::post('/{report}/forward-to-case', [ReportController::class, 'forwardToCase']);
             Route::get('/{report}', [ReportController::class, 'show']);
         });
+    });
+
+    Route::middleware('auth:sanctum')->prefix('cases')->group(function (): void {
+        Route::get('/', [CaseController::class, 'index']);
+        Route::get('/{case}', [CaseController::class, 'show']);
+        Route::patch('/{case}/status', [CaseController::class, 'updateStatus']);
+        Route::patch('/{case}/assign', [CaseController::class, 'assign']);
     });
 });

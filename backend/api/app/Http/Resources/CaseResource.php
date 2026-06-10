@@ -1,0 +1,53 @@
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class CaseResource extends JsonResource
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+        $data = [
+            'id' => $this->id,
+            'case_number' => $this->case_number,
+            'registration_number' => $this->registration_number,
+            'status' => $this->whenLoaded('status', fn () => $this->status?->name),
+            'status_code' => $this->status_code,
+            'status_label' => $this->whenLoaded('status', fn () => $this->status?->description),
+            'risk_level' => $this->whenLoaded('riskLevel', fn () => $this->riskLevel?->name),
+            'risk_level_code' => $this->risk_level_code,
+            'priority' => $this->priority_code,
+            'current_stage' => $this->current_stage,
+            'current_stage_label' => $this->whenLoaded('status', fn () => $this->status?->stage_name),
+            'forwarded_at' => $this->forwarded_at?->toJSON(),
+            'assessment_at' => $this->assessment_at?->toJSON(),
+            'investigation_started_at' => $this->investigation_started_at?->toJSON(),
+            'recommendation_at' => $this->recommendation_at?->toJSON(),
+            'decision_at' => $this->decision_at?->toJSON(),
+            'closed_at' => $this->closed_at?->toJSON(),
+            'escalated_at' => $this->escalated_at?->toJSON(),
+            'assignments' => CaseAssignmentResource::collection($this->whenLoaded('activeAssignments')),
+        ];
+
+        if ($this->resource->relationLoaded('reportSensitive')) {
+            $data['report'] = [
+                'chronology' => $this->reportSensitive?->chronology,
+                'incident_date' => $this->reportSensitive?->incident_date?->toDateString(),
+                'incident_time' => $this->reportSensitive?->incident_time,
+                'incident_location' => $this->reportSensitive?->incident_location,
+                'respondent' => [
+                    'name' => $this->reportSensitive?->respondent_name,
+                    'details' => $this->reportSensitive?->respondent_details,
+                ],
+                'witness_info' => $this->reportSensitive?->witness_info,
+            ];
+        }
+
+        return $data;
+    }
+}

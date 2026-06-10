@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\CaseRecord;
 use App\Models\Report;
+use App\Policies\CasePolicy;
 use App\Policies\ReportPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -26,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Gate::policy(CaseRecord::class, CasePolicy::class);
         Gate::policy(Report::class, ReportPolicy::class);
 
         RateLimiter::for('reports.submit', function (Request $request) {

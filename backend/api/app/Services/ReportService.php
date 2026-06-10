@@ -121,7 +121,7 @@ class ReportService
         }
 
         return Report::query()
-            ->with('category')
+            ->with(['category', 'case.status'])
             ->where('tracking_code', $normalized)
             ->whereNull('deleted_at')
             ->first();

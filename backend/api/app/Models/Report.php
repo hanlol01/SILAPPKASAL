@@ -6,6 +6,7 @@ use App\Enums\ReportStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Report extends Model
@@ -82,6 +83,11 @@ class Report extends Model
     public function priorityLevel(): BelongsTo
     {
         return $this->belongsTo(PriorityLevel::class, 'priority', 'code');
+    }
+
+    public function case(): HasOne
+    {
+        return $this->hasOne(CaseRecord::class);
     }
 
     public function isSubmitted(): bool

@@ -3,13 +3,16 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ForwardReportToCaseRequest;
 use App\Http\Requests\ReportIndexRequest;
 use App\Http\Requests\ReportStoreRequest;
 use App\Http\Requests\ReportTrackingRequest;
+use App\Http\Resources\ForwardReportToCaseResource;
 use App\Http\Resources\ReportMetadataResource;
 use App\Http\Resources\ReportSubmissionResource;
 use App\Http\Resources\ReportTrackingResource;
 use App\Models\Report;
+use App\Services\CaseService;
 use App\Services\ReportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,7 +20,10 @@ use Illuminate\Support\Facades\Gate;
 
 class ReportController extends Controller
 {
-    public function __construct(private readonly ReportService $reportService)
+    public function __construct(
+        private readonly ReportService $reportService,
+        private readonly CaseService $caseService,
+    )
     {
     }
 
@@ -79,6 +85,19 @@ class ReportController extends Controller
             'success' => true,
             'message' => 'Report tracking retrieved successfully',
             'data' => new ReportTrackingResource($report),
+        ]);
+    }
+
+    public function forwardToCase(ForwardReportToCaseRequest $request, Report $report): JsonResponse
+    {
+        Gate::authorize('forward', $report);
+
+        $case = $this->caseService->forwardReport($report, $request->user(), $request->validated());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Report forwarded to Satgas. Case created.',
+            'data' => new ForwardReportToCaseResource($case),
         ]);
     }
 }
