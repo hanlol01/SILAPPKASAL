@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Models\CampusStatus;
 use App\Models\CaseStatus;
 use App\Models\EscalationType;
@@ -36,16 +37,7 @@ class MasterDataSeeder extends Seeder
             ['EVID-04', 'Tangkapan Layar', 'Screenshot chat, email, media sosial.'],
         ]);
         $this->seedCaseStatuses();
-        $this->seedSimple(InvestigationStatus::class, [
-            ['INVS-01', 'planning', 'Satgas menyusun rencana investigasi.'],
-            ['INVS-02', 'evidence_collection', 'Mengumpulkan bukti fisik dan digital.'],
-            ['INVS-03', 'victim_interview', 'Wawancara korban oleh petugas terlatih.'],
-            ['INVS-04', 'witness_interview', 'Wawancara saksi langsung dan tidak langsung.'],
-            ['INVS-05', 'respondent_interview', 'Wawancara terlapor.'],
-            ['INVS-06', 'evidence_analysis', 'Analisis dokumen, rekaman, chat, email, media sosial.'],
-            ['INVS-07', 'report_drafting', 'Penyusunan BAP dan laporan investigasi.'],
-            ['INVS-08', 'completed', 'Investigasi selesai, siap untuk rekomendasi.'],
-        ]);
+        $this->seedInvestigationStatuses();
         $this->seedSimple(RecommendationStatus::class, [
             ['RECS-01', 'drafting', 'Satgas sedang menyusun rekomendasi.'],
             ['RECS-02', 'internal_review', 'Rekomendasi direview oleh sesama Satgas.'],
@@ -177,6 +169,62 @@ class MasterDataSeeder extends Seeder
                     'stage_name' => $stageName,
                     'is_terminal' => $terminal,
                     'responsible_role' => $role,
+                    'valid_transitions' => $transitions,
+                    'is_active' => true,
+                    'sort_order' => $index + 1,
+                ]
+            );
+        }
+    }
+
+    private function seedInvestigationStatuses(): void
+    {
+        $rows = [
+            ['INVS-01', InvestigationStatusEnum::Planning->value, 'Satgas menyusun rencana investigasi.', [
+                InvestigationStatusEnum::EvidenceCollection->value,
+                InvestigationStatusEnum::VictimInterview->value,
+                InvestigationStatusEnum::WitnessInterview->value,
+                InvestigationStatusEnum::RespondentInterview->value,
+                InvestigationStatusEnum::EvidenceAnalysis->value,
+                InvestigationStatusEnum::ReportDrafting->value,
+            ]],
+            ['INVS-02', InvestigationStatusEnum::EvidenceCollection->value, 'Meninjau dan mengumpulkan informasi atau dokumen yang sudah tersedia; tidak mencakup upload evidence.', [
+                InvestigationStatusEnum::VictimInterview->value,
+                InvestigationStatusEnum::WitnessInterview->value,
+                InvestigationStatusEnum::RespondentInterview->value,
+                InvestigationStatusEnum::EvidenceAnalysis->value,
+                InvestigationStatusEnum::ReportDrafting->value,
+            ]],
+            ['INVS-03', InvestigationStatusEnum::VictimInterview->value, 'Wawancara korban oleh petugas terlatih.', [
+                InvestigationStatusEnum::WitnessInterview->value,
+                InvestigationStatusEnum::RespondentInterview->value,
+                InvestigationStatusEnum::EvidenceAnalysis->value,
+                InvestigationStatusEnum::ReportDrafting->value,
+            ]],
+            ['INVS-04', InvestigationStatusEnum::WitnessInterview->value, 'Wawancara saksi langsung dan tidak langsung.', [
+                InvestigationStatusEnum::RespondentInterview->value,
+                InvestigationStatusEnum::EvidenceAnalysis->value,
+                InvestigationStatusEnum::ReportDrafting->value,
+            ]],
+            ['INVS-05', InvestigationStatusEnum::RespondentInterview->value, 'Wawancara terlapor.', [
+                InvestigationStatusEnum::EvidenceAnalysis->value,
+                InvestigationStatusEnum::ReportDrafting->value,
+            ]],
+            ['INVS-06', InvestigationStatusEnum::EvidenceAnalysis->value, 'Analisis informasi, dokumen, rekaman, chat, email, atau media sosial yang sudah tersedia.', [
+                InvestigationStatusEnum::ReportDrafting->value,
+            ]],
+            ['INVS-07', InvestigationStatusEnum::ReportDrafting->value, 'Penyusunan BAP dan laporan investigasi.', [
+                InvestigationStatusEnum::Completed->value,
+            ]],
+            ['INVS-08', InvestigationStatusEnum::Completed->value, 'Investigasi selesai, siap untuk rekomendasi.', []],
+        ];
+
+        foreach ($rows as $index => [$code, $name, $description, $transitions]) {
+            InvestigationStatus::query()->updateOrCreate(
+                ['code' => $code],
+                [
+                    'name' => $name,
+                    'description' => $description,
                     'valid_transitions' => $transitions,
                     'is_active' => true,
                     'sort_order' => $index + 1,

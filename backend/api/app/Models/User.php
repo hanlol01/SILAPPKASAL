@@ -78,6 +78,16 @@ class User extends Authenticatable
         return $this->hasMany(CaseAssignment::class, 'assigned_by');
     }
 
+    public function leadInvestigations(): HasMany
+    {
+        return $this->hasMany(Investigation::class, 'lead_investigator_id');
+    }
+
+    public function investigationActivities(): HasMany
+    {
+        return $this->hasMany(InvestigationActivity::class, 'investigator_id');
+    }
+
     public function hasRole(string $role): bool
     {
         return $this->role?->code === $role;

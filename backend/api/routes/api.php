@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CaseController;
+use App\Http\Controllers\Api\V1\InvestigationController;
 use App\Http\Controllers\Api\V1\MasterDataController;
 use App\Http\Controllers\Api\V1\ReportController;
 use Illuminate\Support\Facades\Route;
@@ -61,8 +62,16 @@ Route::prefix('v1')->group(function (): void {
 
     Route::middleware('auth:sanctum')->prefix('cases')->group(function (): void {
         Route::get('/', [CaseController::class, 'index']);
+        Route::post('/{case}/investigations', [InvestigationController::class, 'storeForCase']);
+        Route::get('/{case}/investigations', [InvestigationController::class, 'indexForCase']);
         Route::get('/{case}', [CaseController::class, 'show']);
         Route::patch('/{case}/status', [CaseController::class, 'updateStatus']);
         Route::patch('/{case}/assign', [CaseController::class, 'assign']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('investigations')->group(function (): void {
+        Route::get('/{investigation}', [InvestigationController::class, 'show']);
+        Route::patch('/{investigation}/status', [InvestigationController::class, 'updateStatus']);
+        Route::post('/{investigation}/activities', [InvestigationController::class, 'storeActivity']);
     });
 });

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CaseRecord extends Model
@@ -79,6 +80,11 @@ class CaseRecord extends Model
     public function activeAssignments(): HasMany
     {
         return $this->assignments()->where('is_active', true);
+    }
+
+    public function investigation(): HasOne
+    {
+        return $this->hasOne(Investigation::class, 'case_id');
     }
 
     public function isAssignedTo(User $user): bool
