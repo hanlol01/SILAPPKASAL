@@ -1,4 +1,4 @@
-# Logs
+﻿# Logs
 logs
 *.log
 npm-debug.log*
@@ -30,3 +30,19 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Laravel / PHP
+vendor/
+backend/api/vendor/
+backend/api/storage/
+backend/api/bootstrap/cache/
+storage/*.key
+storage/logs/
+
+# Temporary backup of previous project root
+equity-watch-app/
+

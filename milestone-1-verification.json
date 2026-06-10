@@ -1,0 +1,173 @@
+﻿{
+    "GitRoot":  "D:/PROJECT CODING/SILAPPKASAL",
+    "FrontendPackageJsonExists":  true,
+    "EquityWatchAppExists":  true,
+    "RootEntries":  [
+                        {
+                            "Name":  ".git"
+                        },
+                        {
+                            "Name":  "backend"
+                        },
+                        {
+                            "Name":  "docs"
+                        },
+                        {
+                            "Name":  "equity-watch-app"
+                        },
+                        {
+                            "Name":  "frontend"
+                        },
+                        {
+                            "Name":  "mobile"
+                        },
+                        {
+                            "Name":  ".gitignore"
+                        },
+                        {
+                            "Name":  "MASTER DATA SILAPPKASAL APPS.pdf"
+                        },
+                        {
+                            "Name":  "README.md"
+                        }
+                    ],
+    "FrontendEntries":  [
+                            {
+                                "Name":  ".lovable"
+                            },
+                            {
+                                "Name":  "src"
+                            },
+                            {
+                                "Name":  ".env.example"
+                            },
+                            {
+                                "Name":  ".prettierignore"
+                            },
+                            {
+                                "Name":  ".prettierrc"
+                            },
+                            {
+                                "Name":  "bun.lock"
+                            },
+                            {
+                                "Name":  "components.json"
+                            },
+                            {
+                                "Name":  "eslint.config.js"
+                            },
+                            {
+                                "Name":  "package-lock.json"
+                            },
+                            {
+                                "Name":  "package.json"
+                            },
+                            {
+                                "Name":  "tsconfig.json"
+                            },
+                            {
+                                "Name":  "vite.config.ts"
+                            },
+                            {
+                                "Name":  "wrangler.jsonc"
+                            }
+                        ],
+    "BackendEntries":  {
+                           "FullName":  "D:\\PROJECT CODING\\SILAPPKASAL\\backend\\api"
+                       },
+    "MobileEntries":  {
+                          "Name":  "README.md"
+                      },
+    "GitStatusShort":  [
+                           " M .gitignore",
+                           " D .lovable/project.json",
+                           " D .prettierignore",
+                           " D .prettierrc",
+                           " D bun.lock",
+                           " D components.json",
+                           " D eslint.config.js",
+                           " D package.json",
+                           " D src/components/status-badge.tsx",
+                           " D src/components/ui/accordion.tsx",
+                           " D src/components/ui/alert-dialog.tsx",
+                           " D src/components/ui/alert.tsx",
+                           " D src/components/ui/aspect-ratio.tsx",
+                           " D src/components/ui/avatar.tsx",
+                           " D src/components/ui/badge.tsx",
+                           " D src/components/ui/breadcrumb.tsx",
+                           " D src/components/ui/button.tsx",
+                           " D src/components/ui/calendar.tsx",
+                           " D src/components/ui/card.tsx",
+                           " D src/components/ui/carousel.tsx",
+                           " D src/components/ui/chart.tsx",
+                           " D src/components/ui/checkbox.tsx",
+                           " D src/components/ui/collapsible.tsx",
+                           " D src/components/ui/command.tsx",
+                           " D src/components/ui/context-menu.tsx",
+                           " D src/components/ui/dialog.tsx",
+                           " D src/components/ui/drawer.tsx",
+                           " D src/components/ui/dropdown-menu.tsx",
+                           " D src/components/ui/form.tsx",
+                           " D src/components/ui/hover-card.tsx",
+                           " D src/components/ui/input-otp.tsx",
+                           " D src/components/ui/input.tsx",
+                           " D src/components/ui/label.tsx",
+                           " D src/components/ui/menubar.tsx",
+                           " D src/components/ui/navigation-menu.tsx",
+                           " D src/components/ui/pagination.tsx",
+                           " D src/components/ui/popover.tsx",
+                           " D src/components/ui/progress.tsx",
+                           " D src/components/ui/radio-group.tsx",
+                           " D src/components/ui/resizable.tsx",
+                           " D src/components/ui/scroll-area.tsx",
+                           " D src/components/ui/select.tsx",
+                           " D src/components/ui/separator.tsx",
+                           " D src/components/ui/sheet.tsx",
+                           " D src/components/ui/sidebar.tsx",
+                           " D src/components/ui/skeleton.tsx",
+                           " D src/components/ui/slider.tsx",
+                           " D src/components/ui/sonner.tsx",
+                           " D src/components/ui/switch.tsx",
+                           " D src/components/ui/table.tsx",
+                           " D src/components/ui/tabs.tsx",
+                           " D src/components/ui/textarea.tsx",
+                           " D src/components/ui/toggle-group.tsx",
+                           " D src/components/ui/toggle.tsx",
+                           " D src/components/ui/tooltip.tsx",
+                           " D src/hooks/use-auth.tsx",
+                           " D src/hooks/use-mobile.tsx",
+                           " D src/hooks/use-theme.ts",
+                           " D src/layouts/dashboard-layout.tsx",
+                           " D src/lib/error-capture.ts",
+                           " D src/lib/error-page.ts",
+                           " D src/lib/utils.ts",
+                           " D src/mock-data/index.ts",
+                           " D src/routeTree.gen.ts",
+                           " D src/router.tsx",
+                           " D src/routes/__root.tsx",
+                           " D src/routes/dashboard.analytics.tsx",
+                           " D src/routes/dashboard.cases.$id.tsx",
+                           " D src/routes/dashboard.cases.index.tsx",
+                           " D src/routes/dashboard.content.tsx",
+                           " D src/routes/dashboard.index.tsx",
+                           " D src/routes/dashboard.notifications.tsx",
+                           " D src/routes/dashboard.settings.tsx",
+                           " D src/routes/dashboard.tsx",
+                           " D src/routes/dashboard.users.tsx",
+                           " D src/routes/dashboard.workflow.tsx",
+                           " D src/routes/index.tsx",
+                           " D src/routes/login.tsx",
+                           " D src/server.ts",
+                           " D src/start.ts",
+                           " D src/styles.css",
+                           " D src/types/index.ts",
+                           " D tsconfig.json",
+                           " D vite.config.ts",
+                           " D wrangler.jsonc",
+                           "?? \"MASTER DATA SILAPPKASAL APPS.pdf\"",
+                           "?? README.md",
+                           "?? docs/",
+                           "?? frontend/",
+                           "?? mobile/"
+                       ]
+}

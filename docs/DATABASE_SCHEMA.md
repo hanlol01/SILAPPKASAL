@@ -1,0 +1,961 @@
+# DATABASE_SCHEMA.md — Database Design & Schema
+
+> **Sistem Informasi Laporan Pencegahan dan Penanganan Kekerasan Seksual (SILAPPKASAL)**
+> Versi: 1.0.1-patch | Terakhir Diperbarui: 2026-06-10 | Status: BERLAKU — AUDIT PATCH | Tier: 2 (GOVERNED)
+
+---
+
+## Daftar Isi
+
+1. [Database Design Principles](#1-database-design-principles)
+2. [Entity Relationship Overview](#2-entity-relationship-overview)
+3. [Core Tables](#3-core-tables)
+4. [Master Data Tables](#4-master-data-tables)
+5. [Anonymous Report Handling](#5-anonymous-report-handling)
+6. [Sensitive Data Design](#6-sensitive-data-design)
+7. [File Storage Design](#7-file-storage-design)
+8. [Audit Log Schema](#8-audit-log-schema)
+9. [Indexing Strategy](#9-indexing-strategy)
+10. [Migration Order](#10-migration-order)
+11. [Seeding Strategy](#11-seeding-strategy)
+
+---
+
+## 1. Database Design Principles
+
+### 1.1 Prinsip Utama
+
+| # | Prinsip | Detail |
+|---|---------|--------|
+| 1 | **PostgreSQL sebagai database utama** | ACID compliance, JSON support, full-text search, enum types. Versi minimum: 16+. |
+| 2 | **Bigint Auto-increment untuk Primary Key** | Default PK menggunakan `bigint` auto-increment. UUID hanya digunakan untuk entitas yang memerlukan unpredictable identifier (audit_logs, tracking codes, evidence filenames). |
+| 3 | **Soft Delete selektif** | Hanya tabel yang memerlukan data retention: `users`, `reports`, `cases`. Tabel audit log **TIDAK** boleh soft delete. |
+| 4 | **Audit Log Immutable** | Tabel `audit_logs` tidak memiliki `updated_at` atau `deleted_at`. Entry tidak boleh dimodifikasi atau dihapus. |
+| 5 | **Field-level Encryption** | Kolom yang berisi data sensitif (kronologi, identitas korban, dll.) dienkripsi menggunakan Laravel `encrypted` cast (AES-256-GCM). |
+| 6 | **Anonymous Privacy Protection** | Laporan anonim tidak menyimpan `user_id`, `IP address`, atau `device fingerprint` pada tabel bisnis. |
+| 7 | **Konsistensi Penamaan** | Tabel: `snake_case`, plural. Kolom: `snake_case`. Foreign key: `{singular_table}_id`. |
+| 8 | **Timestamps** | Semua tabel memiliki `created_at` dan `updated_at` kecuali audit_logs (hanya `created_at`). |
+| 9 | **JSONB untuk Data Fleksibel** | Gunakan `jsonb` untuk metadata, konfigurasi, dan audit values. |
+| 10 | **Foreign Key Constraints** | Semua relasi menggunakan FK constraint dengan appropriate `ON DELETE` behavior. |
+
+### 1.2 Konvensi Tipe Data
+
+| Penggunaan | Tipe PostgreSQL | Laravel Migration |
+|------------|----------------|-------------------|
+| Primary Key | `bigint` | `$table->id()` |
+| UUID | `uuid` | `$table->uuid('column')` |
+| String pendek | `varchar(n)` | `$table->string('column', n)` |
+| Text panjang | `text` | `$table->text('column')` |
+| Encrypted text | `text` | `$table->text('column')` + `encrypted` cast |
+| Boolean | `boolean` | `$table->boolean('column')` |
+| Integer | `integer` | `$table->integer('column')` |
+| Timestamp | `timestamp` | `$table->timestamp('column')` |
+| JSON flexible | `jsonb` | `$table->jsonb('column')` |
+| IP Address | `inet` | `$table->ipAddress('column')` |
+| Enum | `varchar` + check | `$table->string('column')` + validation |
+
+> **Catatan**: Laravel enum migration (`$table->enum()`) tidak digunakan karena sulit di-alter di PostgreSQL. Gunakan `varchar` dengan validasi di aplikasi.
+
+---
+
+## 2. Entity Relationship Overview
+
+### 2.1 Diagram Relasi
+
+```mermaid
+erDiagram
+    users ||--o{ reports : "submits"
+    users ||--o{ case_assignments : "assigned to"
+    users }|--|| roles : "has"
+    roles ||--o{ role_permissions : "has"
+    permissions ||--o{ role_permissions : "granted via"
+    
+    reports ||--o| cases : "becomes"
+    reports ||--o{ evidences : "has"
+    
+    cases ||--o{ case_assignments : "assigned"
+    cases ||--o{ risk_assessments : "assessed"
+    cases ||--o{ investigations : "investigated"
+    cases ||--o{ recommendations : "recommended"
+    cases ||--o{ decisions : "decided"
+    cases ||--o{ recovery_monitorings : "monitored"
+    cases ||--o{ messages : "has messages"
+    cases ||--o{ evidences : "has evidence"
+    cases ||--o{ break_glass_sessions : "emergency access"
+    
+    investigations ||--o{ investigation_activities : "has activities"
+    
+    users ||--o{ notifications : "receives"
+    users ||--o{ audit_logs : "performs"
+    
+    report_categories ||--o{ reports : "categorized by"
+```
+
+### 2.2 Ringkasan Relasi
+
+| Tabel Induk | Tabel Anak | Relasi | FK |
+|-------------|-----------|--------|-----|
+| `roles` | `users` | 1:N | `users.role_id` |
+| `roles` | `role_permissions` | N:M (pivot) | `role_permissions.role_id` |
+| `permissions` | `role_permissions` | N:M (pivot) | `role_permissions.permission_id` |
+| `users` | `reports` | 1:N | `reports.reporter_id` (nullable untuk anonim) |
+| `users` | `personal_access_tokens` | 1:N (polymorphic) | `tokenable_id` |
+| `reports` | `cases` | 1:1 | `cases.report_id` |
+| `reports` | `evidences` | 1:N | `evidences.report_id` |
+| `cases` | `evidences` | 1:N | `evidences.case_id` |
+| `cases` | `case_assignments` | 1:N | `case_assignments.case_id` |
+| `users` | `case_assignments` | 1:N | `case_assignments.satgas_id` |
+| `cases` | `risk_assessments` | 1:1 | `risk_assessments.case_id` |
+| `cases` | `investigations` | 1:1 | `investigations.case_id` |
+| `investigations` | `investigation_activities` | 1:N | `investigation_activities.investigation_id` |
+| `cases` | `recommendations` | 1:1 | `recommendations.case_id` |
+| `cases` | `decisions` | 1:1 | `decisions.case_id` |
+| `cases` | `recovery_monitorings` | 1:N | `recovery_monitorings.case_id` |
+| `cases` | `messages` | 1:N | `messages.case_id` |
+| `users` | `notifications` | 1:N | `notifications.user_id` |
+| `cases` | `break_glass_sessions` | 1:N | `break_glass_sessions.case_id` |
+
+---
+
+## 3. Core Tables
+
+### 3.1 `users`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `role_id` | `bigint` | FK → `roles.id`, NOT NULL | Role pengguna |
+| `name` | `varchar(255)` | NOT NULL | Nama lengkap |
+| `email` | `varchar(255)` | UNIQUE, NOT NULL | Email (login identifier) |
+| `nim` | `varchar(20)` | UNIQUE, NULLABLE | Nomor Induk Mahasiswa |
+| `nip` | `varchar(20)` | UNIQUE, NULLABLE | Nomor Induk Pegawai |
+| `phone_number` | `varchar(15)` | NULLABLE | Nomor WhatsApp (format: 628xxx) |
+| `password` | `varchar(255)` | NOT NULL | Hashed (Argon2id) |
+| `is_active` | `boolean` | NOT NULL, DEFAULT `true` | Status aktif akun |
+| `email_verified_at` | `timestamp` | NULLABLE | Waktu verifikasi email |
+| `remember_token` | `varchar(100)` | NULLABLE | Laravel default field — **tidak digunakan pada MVP** (lihat catatan) |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+| `deleted_at` | `timestamp` | NULLABLE | Soft delete |
+
+> **Catatan**: `phone_number` tidak dienkripsi di tabel `users` karena diperlukan untuk notifikasi WhatsApp. Untuk pelapor confidential, `phone_number` pada konteks laporan dienkripsi di tabel `reports`.
+
+> **Catatan MVP (Audit Patch v1.0.1)**: `remember_token` adalah kolom bawaan Laravel. Karena SILAPPKASAL menggunakan stateless Laravel Sanctum token API, kolom ini **tidak digunakan pada MVP** untuk session/login. Kolom tetap ada sebagai default Laravel field, tetapi tidak boleh dipakai sebagai mekanisme autentikasi.
+
+### 3.2 `roles`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `code` | `varchar(20)` | UNIQUE, NOT NULL | Kode role (e.g., `super_admin`) |
+| `name` | `varchar(50)` | NOT NULL | Nama tampilan |
+| `description` | `text` | NULLABLE | Deskripsi role |
+| `is_active` | `boolean` | NOT NULL, DEFAULT `true` | — |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+
+### 3.3 `permissions`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `code` | `varchar(50)` | UNIQUE, NOT NULL | Kode permission (e.g., `cases.read.metadata`) |
+| `name` | `varchar(100)` | NOT NULL | Nama tampilan |
+| `description` | `text` | NULLABLE | Deskripsi |
+| `module` | `varchar(30)` | NOT NULL | Modul (Sistem, User, Laporan, Kasus, dll.) |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+
+### 3.4 `role_permissions` (Pivot)
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `role_id` | `bigint` | FK → `roles.id`, NOT NULL | — |
+| `permission_id` | `bigint` | FK → `permissions.id`, NOT NULL | — |
+| `created_at` | `timestamp` | — | — |
+
+> UNIQUE constraint pada `(role_id, permission_id)`.
+
+### 3.5 `personal_access_tokens`
+
+Tabel bawaan Laravel Sanctum. Tidak dimodifikasi.
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `tokenable_type` | `varchar(255)` | NOT NULL | Polymorphic type (`App\Models\User`) |
+| `tokenable_id` | `bigint` | NOT NULL | User ID |
+| `name` | `varchar(255)` | NOT NULL | Nama token (e.g., `web-login`) |
+| `token` | `varchar(64)` | UNIQUE, NOT NULL | SHA-256 hash |
+| `abilities` | `text` | NULLABLE | JSON abilities |
+| `last_used_at` | `timestamp` | NULLABLE | — |
+| `expires_at` | `timestamp` | NULLABLE | — |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+
+### 3.6 `reports`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `reporter_id` | `bigint` | FK → `users.id`, NULLABLE | NULL untuk anonim |
+| `registration_number` | `varchar(30)` | UNIQUE, NOT NULL | Format: `SLP-YYYY-MMDD-XXXX` |
+| `tracking_code` | `varchar(20)` | UNIQUE, NULLABLE | Untuk anonim: `A7X9-K2M4-P8Q3-R1W5` |
+| `report_type` | `varchar(20)` | NOT NULL | `open`, `confidential`, `anonymous` |
+| `category_code` | `varchar(10)` | NOT NULL | FK logis → `report_categories.code` |
+| `chronology` | `text` | NOT NULL | **ENCRYPTED** — Kronologi kejadian |
+| `incident_date` | `date` | NOT NULL | Tanggal kejadian |
+| `incident_time` | `varchar(5)` | NULLABLE | Waktu kejadian (HH:mm) |
+| `incident_location` | `text` | NOT NULL | **ENCRYPTED** — Lokasi kejadian |
+| `location_type` | `varchar(10)` | NULLABLE | Kode lokasi (LOC-01 s/d LOC-04) |
+| `respondent_name` | `text` | NULLABLE | **ENCRYPTED** — Nama terlapor |
+| `respondent_campus_status` | `varchar(20)` | NULLABLE | Status kampus terlapor |
+| `respondent_relation` | `varchar(20)` | NULLABLE | Kode relasi (REL-01 s/d REL-99) |
+| `respondent_details` | `text` | NULLABLE | **ENCRYPTED** — Detail terlapor lainnya |
+| `witness_info` | `text` | NULLABLE | **ENCRYPTED** — Informasi saksi |
+| `reporter_phone_encrypted` | `text` | NULLABLE | **ENCRYPTED** — Nomor pelapor (khusus confidential) |
+| `status` | `varchar(20)` | NOT NULL, DEFAULT `submitted` | Status laporan fase admin. Nilai valid: `submitted`, `under_review`, `need_info`, `rejected`, `forwarded`. |
+| `priority` | `varchar(10)` | NULLABLE | Kode prioritas (PRIO-01 s/d PRIO-04) |
+| `admin_notes` | `text` | NULLABLE | Catatan admin saat review |
+| `rejection_reason` | `text` | NULLABLE | Alasan penolakan |
+| `submitted_at` | `timestamp` | NOT NULL | Waktu submit |
+| `reviewed_at` | `timestamp` | NULLABLE | Waktu admin mulai review (status → `under_review`) |
+| `forwarded_at` | `timestamp` | NULLABLE | Waktu forward ke Satgas |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+| `deleted_at` | `timestamp` | NULLABLE | Soft delete |
+
+> **PENTING**: Kolom `reporter_id` bernilai NULL untuk laporan anonim. Lihat Section 5 untuk detail.
+
+### 3.6.1 Batas Status `reports.status` vs `cases.status` (Audit Patch v1.0.1)
+
+> **PENTING**: `reports.status` dan `cases.status` memiliki domain nilai yang BERBEDA dan tidak boleh dicampur.
+
+| Aspek | `reports.status` | `cases.status` |
+|-------|-------------------|----------------|
+| **Scope** | Fase awal/admin — sebelum kasus dibuat | Fase penanganan Satgas — setelah laporan diforward |
+| **Nilai valid** | `submitted`, `under_review`, `need_info`, `rejected`, `forwarded` | `forwarded`, `assessment`, `investigation`, `mediation`, `recommendation`, `decision`, `decided`, `recovery`, `monitoring`, `closed`, `escalated` |
+| **Siapa yang mengubah** | Admin / Super Admin | Satgas PPKS (assigned) |
+| **Source of truth setelah case** | ❌ Tidak. Setelah case dibuat, `reports.status` tetap `forwarded` dan tidak mengikuti perubahan case. | ✅ Ya. `cases.status` menjadi satu-satunya sumber status kasus. |
+
+```
+Alur status:
+
+1. Report dibuat → reports.status = "submitted"
+2. Admin review  → reports.status = "under_review"
+3. Admin minta info → reports.status = "need_info" → kembali ke "under_review"
+4. Admin reject  → reports.status = "rejected" (terminal)
+5. Admin forward  → reports.status = "forwarded" (FINAL, tidak berubah lagi)
+                  → cases dibuat → cases.status = "forwarded"
+6. Satgas proses  → cases.status berubah sesuai workflow (assessment → investigation → ...)
+                  → reports.status tetap "forwarded" (immutable setelah forward)
+```
+
+> **Catatan**: Status `verified` **TIDAK** digunakan. Admin cukup melakukan review (`under_review`) sebelum forward, request-info, atau reject. Tidak ada status antara review dan forward.
+
+### 3.7 `cases`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `report_id` | `bigint` | FK → `reports.id`, UNIQUE, NOT NULL | 1:1 dengan report |
+| `registration_number` | `varchar(30)` | NOT NULL | Disalin dari report |
+| `status` | `varchar(20)` | NOT NULL, DEFAULT `forwarded` | Status kasus terkini |
+| `risk_level` | `varchar(10)` | NULLABLE | `low`, `medium`, `high` |
+| `priority` | `varchar(10)` | NULLABLE | Disalin dari report |
+| `current_stage` | `integer` | NOT NULL, DEFAULT `2` | Tahap workflow (1-7) |
+| `forwarded_at` | `timestamp` | NOT NULL | Waktu kasus dibuat (forward) |
+| `assessment_at` | `timestamp` | NULLABLE | — |
+| `investigation_started_at` | `timestamp` | NULLABLE | — |
+| `recommendation_at` | `timestamp` | NULLABLE | — |
+| `decision_at` | `timestamp` | NULLABLE | — |
+| `closed_at` | `timestamp` | NULLABLE | — |
+| `escalated_at` | `timestamp` | NULLABLE | — |
+| `escalation_type` | `varchar(10)` | NULLABLE | Kode eskalasi (ESC-01 s/d ESC-06) |
+| `escalation_notes` | `text` | NULLABLE | Catatan eskalasi |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+| `deleted_at` | `timestamp` | NULLABLE | Soft delete |
+
+### 3.8 `case_assignments`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `case_id` | `bigint` | FK → `cases.id`, NOT NULL | — |
+| `satgas_id` | `bigint` | FK → `users.id`, NOT NULL | Satgas yang ditugaskan |
+| `assigned_by` | `bigint` | FK → `users.id`, NOT NULL | Admin/Super Admin yang menugaskan |
+| `is_lead` | `boolean` | NOT NULL, DEFAULT `false` | Satgas utama kasus |
+| `is_active` | `boolean` | NOT NULL, DEFAULT `true` | — |
+| `assigned_at` | `timestamp` | NOT NULL | — |
+| `unassigned_at` | `timestamp` | NULLABLE | — |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+
+### 3.9 `evidences`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `report_id` | `bigint` | FK → `reports.id`, NULLABLE | Jika diupload saat laporan |
+| `case_id` | `bigint` | FK → `cases.id`, NULLABLE | Jika diupload saat investigasi |
+| `uploader_id` | `bigint` | FK → `users.id`, NULLABLE | NULL untuk anonim |
+| `uuid_filename` | `uuid` | UNIQUE, NOT NULL | Nama file di storage |
+| `original_filename` | `varchar(255)` | NOT NULL | Nama asli file (disimpan, tidak dipakai sebagai path) |
+| `mime_type` | `varchar(100)` | NOT NULL | MIME type tervalidasi |
+| `file_extension` | `varchar(10)` | NOT NULL | Ekstensi file |
+| `file_size` | `bigint` | NOT NULL | Ukuran dalam bytes |
+| `checksum` | `varchar(64)` | NOT NULL | SHA-256 hash dari file asli |
+| `storage_disk` | `varchar(20)` | NOT NULL, DEFAULT `evidence` | Disk storage Laravel |
+| `storage_path` | `varchar(500)` | NOT NULL | Path relatif di storage |
+| `encryption_iv` | `varchar(32)` | NULLABLE | IV jika file dienkripsi |
+| `is_encrypted` | `boolean` | NOT NULL, DEFAULT `true` | — |
+| `evidence_type` | `varchar(10)` | NOT NULL | Kode tipe (EVID-01 s/d EVID-04) |
+| `description` | `text` | NULLABLE | Deskripsi opsional |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+
+> Minimal satu dari `report_id` atau `case_id` harus terisi. Ditegakkan via aplikasi.
+
+### 3.10 `risk_assessments`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `case_id` | `bigint` | FK → `cases.id`, UNIQUE, NOT NULL | 1:1 |
+| `assessor_id` | `bigint` | FK → `users.id`, NOT NULL | Satgas penilai |
+| `risk_level` | `varchar(10)` | NOT NULL | `low`, `medium`, `high` |
+| `justification` | `text` | NOT NULL | **ENCRYPTED** — Justifikasi level risiko |
+| `protection_steps` | `text` | NOT NULL | **ENCRYPTED** — Langkah perlindungan |
+| `emergency_protection_needed` | `boolean` | NOT NULL, DEFAULT `false` | — |
+| `emergency_notes` | `text` | NULLABLE | **ENCRYPTED** — Catatan darurat |
+| `assessed_at` | `timestamp` | NOT NULL | — |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+
+### 3.11 `investigations`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `case_id` | `bigint` | FK → `cases.id`, UNIQUE, NOT NULL | 1:1 |
+| `lead_investigator_id` | `bigint` | FK → `users.id`, NOT NULL | Satgas utama |
+| `status` | `varchar(20)` | NOT NULL, DEFAULT `planning` | Status investigasi (INVS-01 s/d INVS-08) |
+| `plan_summary` | `text` | NULLABLE | **ENCRYPTED** — Ringkasan rencana |
+| `findings` | `text` | NULLABLE | **ENCRYPTED** — Temuan investigasi |
+| `conclusion` | `text` | NULLABLE | **ENCRYPTED** — Kesimpulan |
+| `started_at` | `timestamp` | NOT NULL | — |
+| `completed_at` | `timestamp` | NULLABLE | — |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+
+### 3.12 `investigation_activities`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `investigation_id` | `bigint` | FK → `investigations.id`, NOT NULL | — |
+| `investigator_id` | `bigint` | FK → `users.id`, NOT NULL | Satgas pelaksana |
+| `activity_type` | `varchar(30)` | NOT NULL | Tipe: `victim_interview`, `witness_interview`, `respondent_interview`, `evidence_analysis`, `document_collection` |
+| `activity_date` | `date` | NOT NULL | Tanggal kegiatan |
+| `description` | `text` | NOT NULL | **ENCRYPTED** — Deskripsi kegiatan |
+| `findings` | `text` | NULLABLE | **ENCRYPTED** — Temuan |
+| `notes` | `text` | NULLABLE | **ENCRYPTED** — Catatan tambahan |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+
+### 3.13 `recommendations`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `case_id` | `bigint` | FK → `cases.id`, UNIQUE, NOT NULL | 1:1 |
+| `author_id` | `bigint` | FK → `users.id`, NOT NULL | Satgas penyusun |
+| `status` | `varchar(20)` | NOT NULL, DEFAULT `drafting` | Status rekomendasi (RECS-01 s/d RECS-07) |
+| `conclusion` | `text` | NOT NULL | **ENCRYPTED** — Kesimpulan investigasi |
+| `recommended_actions` | `text` | NOT NULL | **ENCRYPTED** — Rekomendasi tindakan |
+| `sanction_recommendation` | `text` | NULLABLE | **ENCRYPTED** — Rekomendasi sanksi |
+| `recovery_recommendation` | `text` | NULLABLE | **ENCRYPTED** — Rekomendasi pemulihan |
+| `prevention_recommendation` | `text` | NULLABLE | Rekomendasi pencegahan |
+| `submitted_at` | `timestamp` | NULLABLE | — |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+
+### 3.14 `decisions`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `case_id` | `bigint` | FK → `cases.id`, UNIQUE, NOT NULL | 1:1 |
+| `recorder_id` | `bigint` | FK → `users.id`, NOT NULL | Satgas pencatat |
+| `decision_number` | `varchar(100)` | NOT NULL | Nomor SK |
+| `decision_date` | `date` | NOT NULL | Tanggal keputusan |
+| `decision_content` | `text` | NOT NULL | **ENCRYPTED** — Isi keputusan |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+
+### 3.15 `recovery_monitorings`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `case_id` | `bigint` | FK → `cases.id`, NOT NULL | — |
+| `monitor_id` | `bigint` | FK → `users.id`, NOT NULL | Satgas pemantau |
+| `recovery_type` | `varchar(20)` | NOT NULL | `psychological`, `legal`, `academic`, `medical` |
+| `activity_date` | `date` | NOT NULL | Tanggal kegiatan |
+| `description` | `text` | NOT NULL | **ENCRYPTED** — Deskripsi |
+| `status` | `varchar(15)` | NOT NULL, DEFAULT `ongoing` | `ongoing`, `completed` |
+| `notes` | `text` | NULLABLE | **ENCRYPTED** — Catatan |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+
+### 3.16 `messages`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `case_id` | `bigint` | FK → `cases.id`, NOT NULL | Konteks kasus |
+| `sender_id` | `bigint` | FK → `users.id`, NULLABLE | NULL untuk pesan anonim |
+| `sender_role` | `varchar(20)` | NOT NULL | Role pengirim saat mengirim |
+| `is_anonymous` | `boolean` | NOT NULL, DEFAULT `false` | — |
+| `content` | `text` | NOT NULL | **ENCRYPTED** — Isi pesan |
+| `has_attachment` | `boolean` | NOT NULL, DEFAULT `false` | — |
+| `read_at` | `timestamp` | NULLABLE | Waktu dibaca penerima |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+
+### 3.17 `notifications`
+
+Tabel tunggal untuk notifikasi in-app DAN delivery tracking WhatsApp. Tidak ada tabel `notification_logs` terpisah — tracking delivery dilakukan langsung di tabel ini.
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `user_id` | `bigint` | FK → `users.id`, NULLABLE | NULL untuk in-app tanpa target spesifik |
+| `type` | `varchar(30)` | NOT NULL | Kode notifikasi (NOTIF-01 s/d NOTIF-11) |
+| `channel` | `varchar(15)` | NOT NULL | `whatsapp`, `in_app` |
+| `title` | `varchar(255)` | NOT NULL | Judul notifikasi |
+| `body` | `text` | NOT NULL | Isi notifikasi (tanpa data sensitif) |
+| `data` | `jsonb` | NULLABLE | Metadata: `{report_id, case_id, registration_number}` |
+| `delivery_status` | `varchar(15)` | NOT NULL, DEFAULT `pending` | Status delivery: `pending`, `queued`, `sent`, `delivered`, `failed` |
+| `sent_at` | `timestamp` | NULLABLE | Waktu berhasil dikirim oleh provider |
+| `failed_at` | `timestamp` | NULLABLE | Waktu kegagalan terakhir |
+| `retry_count` | `integer` | NOT NULL, DEFAULT `0` | Jumlah percobaan kirim (maks 3) |
+| `provider_response` | `text` | NULLABLE | Response dari provider (Fonnte) — tanpa data sensitif |
+| `last_error` | `text` | NULLABLE | Pesan error terakhir jika gagal |
+| `read_at` | `timestamp` | NULLABLE | Waktu dibaca oleh user (in-app) |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+
+> **Catatan (Audit Patch v1.0.1)**: Untuk MVP, hanya ada satu tabel `notifications` yang menangani notifikasi in-app dan tracking delivery WhatsApp. Tidak ada tabel `notification_logs` terpisah. Kolom `delivery_status`, `sent_at`, `failed_at`, `retry_count`, `provider_response`, dan `last_error` menggantikan konsep `notification_logs` yang disebutkan di dokumen Phase 2.
+
+### 3.18 `system_settings`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `key` | `varchar(100)` | UNIQUE, NOT NULL | Setting key (e.g., `sla.verification_days`) |
+| `value` | `text` | NOT NULL | Nilai setting |
+| `type` | `varchar(20)` | NOT NULL | `integer`, `boolean`, `string`, `json` |
+| `description` | `text` | NULLABLE | Deskripsi setting |
+| `is_public` | `boolean` | NOT NULL, DEFAULT `false` | Apakah bisa dibaca tanpa auth |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+
+### 3.19 `break_glass_sessions`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `uuid` | PK | UUID v4 |
+| `case_id` | `bigint` | FK → `cases.id`, NOT NULL | Kasus yang diakses |
+| `actor_id` | `bigint` | FK → `users.id`, NOT NULL | Super Admin yang mengaktifkan |
+| `justification` | `text` | NOT NULL | Alasan tertulis (min 50 karakter) |
+| `scope_requested` | `jsonb` | NOT NULL | `["investigation", "evidence", "identity"]` |
+| `resources_accessed` | `jsonb` | NULLABLE | Log resource yang diakses |
+| `is_active` | `boolean` | NOT NULL, DEFAULT `true` | — |
+| `expires_at` | `timestamp` | NOT NULL | Waktu kedaluwarsa sesi (maks 4 jam) |
+| `revoked_at` | `timestamp` | NULLABLE | Waktu dicabut manual |
+| `created_at` | `timestamp` | — | — |
+
+> Tabel ini **TIDAK** memiliki `updated_at` atau `deleted_at`. Immutable kecuali `is_active`, `resources_accessed`, dan `revoked_at`.
+
+---
+
+## 4. Master Data Tables
+
+Semua master data tables mengikuti pola yang sama. Data di-seed dan jarang berubah.
+
+### 4.1 `report_categories`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `code` | `varchar(10)` | UNIQUE, NOT NULL | `RCAT-01` s/d `RCAT-99` |
+| `name` | `varchar(100)` | NOT NULL | Nama kategori |
+| `description` | `text` | NULLABLE | Deskripsi |
+| `examples` | `text` | NULLABLE | Contoh kasus |
+| `legal_basis` | `varchar(255)` | NULLABLE | Dasar hukum |
+| `is_active` | `boolean` | NOT NULL, DEFAULT `true` | — |
+| `sort_order` | `integer` | NOT NULL | Urutan tampilan |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+
+> Seed data: 12 kategori sesuai MASTER_DATA.md Section 3 (RCAT-01 s/d RCAT-99).
+
+### 4.2 Master Data Tables Lainnya
+
+Tabel-tabel berikut menggunakan pola yang **identik**: `id`, `code` (UNIQUE), `name`, `description`, `is_active`, `sort_order`, `created_at`, `updated_at`.
+
+| Tabel | Kode Seed | Referensi MASTER_DATA.md |
+|-------|-----------|--------------------------|
+| `report_types` | `RTYP-01` s/d `RTYP-03` | Section 4 |
+| `evidence_types` | `EVID-01` s/d `EVID-04` | Section 5 |
+| `case_statuses` | `CSTS-01` s/d `CSTS-15` | Section 6 |
+| `investigation_statuses` | `INVS-01` s/d `INVS-08` | Section 7 |
+| `recommendation_statuses` | `RECS-01` s/d `RECS-07` | Section 8 |
+| `risk_levels` | `RISK-01` s/d `RISK-03` | Section 10 |
+| `priority_levels` | `PRIO-01` s/d `PRIO-04` | Section 11 |
+| `notification_types` | `NOTIF-01` s/d `NOTIF-11` | Section 9 |
+| `campus_statuses` | `CAMP-01` s/d `CAMP-05` | Section 14.1 |
+| `relations` | `REL-01` s/d `REL-99` | Section 14.2 |
+| `location_types` | `LOC-01` s/d `LOC-04` | Section 14.3 |
+| `escalation_types` | `ESC-01` s/d `ESC-06` | Section 14.4 |
+| `recovery_types` | `RCV-01` s/d `RCV-04` | Section 14.5 |
+| `sanction_types` | `SANC-01` s/d `SANC-07` | Section 14.6 |
+
+> Semua tabel master data di atas memiliki kolom tambahan sesuai kebutuhan masing-masing (misal: `case_statuses` memiliki `workflow_stage`, `is_terminal`; `notification_types` memiliki `channel`, `template_key`, `classification`).
+
+### 4.3 Kolom Tambahan Tabel Status
+
+#### `case_statuses` (kolom tambahan)
+
+| Kolom | Tipe | Deskripsi |
+|-------|------|-----------|
+| `workflow_stage` | `integer` | Tahap workflow (1-7) |
+| `stage_name` | `varchar(30)` | Nama tahap |
+| `is_terminal` | `boolean` | `true` untuk `rejected`, `closed` |
+| `responsible_role` | `varchar(20)` | Role penanggung jawab |
+| `valid_transitions` | `jsonb` | Array status tujuan yang valid |
+
+#### `notification_types` (kolom tambahan)
+
+| Kolom | Tipe | Deskripsi |
+|-------|------|-----------|
+| `channel` | `varchar(15)` | `whatsapp`, `in_app`, `both` |
+| `template_key` | `varchar(50)` | Key template pesan |
+| `recipient_role` | `varchar(20)` | Role penerima |
+| `classification` | `varchar(20)` | `mvp_extended`, `post_mvp` |
+
+---
+
+## 5. Anonymous Report Handling
+
+### 5.1 Prinsip
+
+```
+Laporan anonim HARUS menjaga anonimitas pelapor secara absolut.
+
+Aturan:
+├── reporter_id = NULL pada tabel reports
+├── tracking_code = generated 16-char alfanumerik (satu-satunya cara akses)
+├── IP address TIDAK disimpan pada reports, cases, atau audit log bisnis
+├── Device fingerprint TIDAK disimpan
+├── audit_logs.actor_id = NULL untuk aksi anonim
+├── audit_logs.actor_ip = NULL untuk aksi anonim
+├── Notifikasi WhatsApp TIDAK dikirim (tidak ada nomor)
+└── Jika tracking_code hilang, tidak bisa dipulihkan (by-design)
+```
+
+### 5.2 Skema Tracking Code
+
+```
+Format: XXXX-XXXX-XXXX-XXXX (16 karakter alfanumerik, grouped)
+Contoh: A7X9-K2M4-P8Q3-R1W5
+
+Penyimpanan: reports.tracking_code (plain text, case-insensitive lookup)
+Index: UNIQUE index pada tracking_code
+Pencarian: WHERE UPPER(tracking_code) = UPPER(:input)
+```
+
+### 5.3 Security Log untuk Anonymous
+
+```
+IP rate limiting → in-memory only (middleware level)
+Security log (jika needed) → hashed IP: SHA-256(IP + daily_salt)
+                           → atau masked: 192.168.xxx.xxx
+Retention security log anonim → auto-purge 7 hari
+Dilarang mengkorelasikan security log dengan laporan anonim tertentu
+```
+
+### 5.4 Tabel Opsional: `anonymous_security_logs`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `bigint` | PK, auto-increment | — |
+| `hashed_ip` | `varchar(64)` | NOT NULL | SHA-256(IP + daily_salt) |
+| `event_type` | `varchar(30)` | NOT NULL | `rate_limit_hit`, `suspicious_activity` |
+| `endpoint` | `varchar(100)` | NOT NULL | Endpoint yang diakses |
+| `metadata` | `jsonb` | NULLABLE | Data tambahan (tanpa PII) |
+| `created_at` | `timestamp` | NOT NULL | — |
+
+> **PENTING**: Tabel ini memiliki TTL job: entri lebih dari 7 hari WAJIB dihapus otomatis via scheduled task. Tidak ada `updated_at`, tidak ada `deleted_at`.
+
+---
+
+## 6. Sensitive Data Design
+
+### 6.1 Kolom yang WAJIB Dienkripsi
+
+Menggunakan Laravel `encrypted` cast (AES-256-GCM via APP_KEY).
+
+| Tabel | Kolom | Klasifikasi | Alasan |
+|-------|-------|-------------|--------|
+| `reports` | `chronology` | CRITICAL | Kronologi kekerasan |
+| `reports` | `incident_location` | CONFIDENTIAL | Lokasi kejadian |
+| `reports` | `respondent_name` | CRITICAL | Identitas terlapor |
+| `reports` | `respondent_details` | CRITICAL | Detail terlapor |
+| `reports` | `witness_info` | CONFIDENTIAL | Data saksi |
+| `reports` | `reporter_phone_encrypted` | CONFIDENTIAL | Nomor pelapor confidential |
+| `risk_assessments` | `justification` | CONFIDENTIAL | Justifikasi risiko |
+| `risk_assessments` | `protection_steps` | CONFIDENTIAL | Langkah perlindungan |
+| `risk_assessments` | `emergency_notes` | CONFIDENTIAL | Catatan darurat |
+| `investigations` | `plan_summary` | CONFIDENTIAL | Rencana investigasi |
+| `investigations` | `findings` | CRITICAL | Temuan investigasi |
+| `investigations` | `conclusion` | CRITICAL | Kesimpulan |
+| `investigation_activities` | `description` | CRITICAL | Deskripsi kegiatan |
+| `investigation_activities` | `findings` | CRITICAL | Temuan |
+| `investigation_activities` | `notes` | CONFIDENTIAL | Catatan |
+| `recommendations` | `conclusion` | CONFIDENTIAL | Kesimpulan |
+| `recommendations` | `recommended_actions` | CONFIDENTIAL | Rekomendasi tindakan |
+| `recommendations` | `sanction_recommendation` | CONFIDENTIAL | Rekomendasi sanksi |
+| `recommendations` | `recovery_recommendation` | CONFIDENTIAL | Rekomendasi pemulihan |
+| `decisions` | `decision_content` | CONFIDENTIAL | Isi keputusan |
+| `recovery_monitorings` | `description` | CONFIDENTIAL | Deskripsi pendampingan |
+| `recovery_monitorings` | `notes` | CONFIDENTIAL | Catatan |
+| `messages` | `content` | CONFIDENTIAL | Isi pesan |
+
+### 6.2 Implementasi Laravel
+
+```php
+// Model Report — encrypted casting
+class Report extends Model
+{
+    protected $casts = [
+        'chronology' => 'encrypted',
+        'incident_location' => 'encrypted',
+        'respondent_name' => 'encrypted',
+        'respondent_details' => 'encrypted',
+        'witness_info' => 'encrypted',
+        'reporter_phone_encrypted' => 'encrypted',
+    ];
+}
+```
+
+### 6.3 Implikasi
+
+- Kolom terenkripsi **tidak bisa di-query** langsung (WHERE, LIKE, ORDER BY).
+- Full-text search pada kolom terenkripsi **tidak dimungkinkan**.
+- Pencarian dilakukan pada kolom non-enkripsi (registration_number, status, tanggal).
+
+---
+
+## 7. File Storage Design
+
+### 7.1 Prinsip
+
+```
+PENTING: File bukti TIDAK BOLEH disimpan di folder public.
+
+├── File disimpan di: storage/app/private/evidence/{case_or_report_id}/
+├── Nama file: UUID v4 + .enc (jika terenkripsi)
+├── Original filename: disimpan di database (tabel evidences)
+├── Akses: hanya via controller terproteksi (auth + policy)
+├── Signed URL: opsional untuk streaming (expiry 15 menit)
+└── Public URL: TIDAK ADA — tidak pernah direct access
+```
+
+### 7.2 Storage Layout
+
+```
+storage/
+└── app/
+    └── private/
+        └── evidence/
+            ├── report-{id}/          ← Bukti dari pelapor
+            │   ├── {uuid1}.enc
+            │   ├── {uuid2}.enc
+            │   └── {uuid3}.enc
+            ├── case-{id}/            ← Bukti dari investigasi
+            │   ├── {uuid4}.enc
+            │   └── {uuid5}.enc
+            └── temp/                 ← Upload sementara
+                └── {upload_session}/
+```
+
+### 7.3 Laravel Disk Config
+
+```php
+// config/filesystems.php
+'disks' => [
+    'evidence' => [
+        'driver' => 'local',
+        'root' => storage_path('app/private/evidence'),
+        'visibility' => 'private',
+    ],
+    // Future: S3
+    // 'evidence' => [
+    //     'driver' => 's3',
+    //     'key' => env('AWS_ACCESS_KEY_ID'),
+    //     'secret' => env('AWS_SECRET_ACCESS_KEY'),
+    //     'region' => env('AWS_DEFAULT_REGION'),
+    //     'bucket' => env('AWS_BUCKET'),
+    //     'visibility' => 'private',
+    // ],
+],
+```
+
+### 7.4 Metadata di Database
+
+Semua metadata file disimpan di tabel `evidences` (lihat Section 3.9):
+- `uuid_filename` — nama file di storage
+- `original_filename` — nama asli file
+- `mime_type` — tipe MIME tervalidasi
+- `file_size` — ukuran bytes
+- `checksum` — SHA-256 hash file asli
+- `encryption_iv` — IV untuk dekripsi
+- `storage_path` — path relatif di disk
+
+---
+
+## 8. Audit Log Schema
+
+### 8.1 Tabel `audit_logs`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `id` | `uuid` | PK | UUID v4 — unpredictable identifier |
+| `event` | `varchar(100)` | NOT NULL | Event code (e.g., `case.status_changed`) |
+| `severity` | `varchar(10)` | NOT NULL | `INFO`, `WARNING`, `CRITICAL` |
+| `actor_id` | `bigint` | NULLABLE | User ID (NULL untuk aksi anonim) |
+| `actor_role` | `varchar(20)` | NULLABLE | Role saat aksi dilakukan |
+| `actor_ip` | `inet` | NULLABLE | IP address (**NULL untuk anonim**) |
+| `user_agent` | `text` | NULLABLE | Browser/client info |
+| `resource_type` | `varchar(50)` | NULLABLE | Model class name |
+| `resource_id` | `bigint` | NULLABLE | Resource primary key |
+| `old_values` | `jsonb` | NULLABLE | Nilai sebelum perubahan (**masked**) |
+| `new_values` | `jsonb` | NULLABLE | Nilai setelah perubahan (**masked**) |
+| `metadata` | `jsonb` | NULLABLE | Data tambahan |
+| `created_at` | `timestamp` | NOT NULL | Immutable timestamp |
+
+### 8.2 Aturan Penting
+
+```
+AUDIT LOG RULES:
+├── TIDAK ada updated_at → entry immutable
+├── TIDAK ada deleted_at → entry tidak boleh dihapus
+├── TIDAK ada soft delete → hard retention minimum 5 tahun
+├── Data sensitif WAJIB di-mask:
+│   ├── Nama korban → "K***n"
+│   ├── Nama terlapor → "T***r"
+│   ├── Nomor telepon → "6281****6789"
+│   ├── Email → "j***@university.ac.id"
+│   ├── Kronologi → TIDAK dicatat (hanya report_id)
+│   └── Bukti → hanya file_id dan mime_type
+├── actor_ip = NULL untuk aksi anonim
+└── Akses: hanya super_admin (via system.audit_log.view)
+```
+
+### 8.3 Event Codes
+
+Daftar lengkap event codes ada di `MASTER_DATA.md` Section 12 (`AUD-AUTH-*`, `AUD-USER-*`, `AUD-RPT-*`, `AUD-CASE-*`, `AUD-EVID-*`, `AUD-MSG-*`, `AUD-SYS-*`, `AUD-SEC-*`).
+
+---
+
+## 9. Indexing Strategy
+
+### 9.1 Core Indexes
+
+| Tabel | Kolom | Tipe Index | Alasan |
+|-------|-------|-----------|--------|
+| `users` | `email` | UNIQUE | Login lookup |
+| `users` | `nim` | UNIQUE (filtered: NOT NULL) | Login lookup |
+| `users` | `nip` | UNIQUE (filtered: NOT NULL) | Login lookup |
+| `users` | `role_id` | B-tree | Filter by role |
+| `users` | `is_active` | B-tree | Filter aktif |
+| `reports` | `registration_number` | UNIQUE | Lookup |
+| `reports` | `tracking_code` | UNIQUE (filtered: NOT NULL) | Anonim lookup |
+| `reports` | `reporter_id` | B-tree | "My reports" query |
+| `reports` | `status` | B-tree | Filter by status |
+| `reports` | `report_type` | B-tree | Filter by type |
+| `reports` | `submitted_at` | B-tree | Sort by date |
+| `reports` | `(status, submitted_at)` | Composite | Admin inbox query |
+| `cases` | `report_id` | UNIQUE | 1:1 lookup |
+| `cases` | `registration_number` | B-tree | Lookup |
+| `cases` | `status` | B-tree | Filter |
+| `cases` | `risk_level` | B-tree | Filter |
+| `cases` | `(status, forwarded_at)` | Composite | Satgas queue |
+| `case_assignments` | `(case_id, satgas_id)` | Composite UNIQUE | Prevent duplicates |
+| `case_assignments` | `satgas_id` | B-tree | "My cases" query |
+| `case_assignments` | `(satgas_id, is_active)` | Composite | Active assignments |
+| `evidences` | `report_id` | B-tree | Report evidence |
+| `evidences` | `case_id` | B-tree | Case evidence |
+| `evidences` | `uuid_filename` | UNIQUE | Storage lookup |
+| `messages` | `case_id` | B-tree | Case messages |
+| `messages` | `(case_id, created_at)` | Composite | Chronological |
+| `notifications` | `user_id` | B-tree | User notifications |
+| `notifications` | `(user_id, read_at)` | Composite (filtered) | Unread count |
+| `notifications` | `status` | B-tree | Queue processing |
+
+### 9.2 Audit Log Indexes
+
+| Kolom | Tipe Index | Alasan |
+|-------|-----------|--------|
+| `event` | B-tree | Filter by event type |
+| `actor_id` | B-tree | Filter by actor |
+| `severity` | B-tree | Filter critical events |
+| `resource_type, resource_id` | Composite | Resource history |
+| `created_at` | B-tree | Time-range queries |
+| `(event, created_at)` | Composite | Event timeline |
+
+### 9.3 Full-Text Search (Post-MVP)
+
+```sql
+-- Pada kolom yang TIDAK terenkripsi saja:
+CREATE INDEX idx_reports_registration_fts 
+  ON reports USING gin(to_tsvector('simple', registration_number));
+```
+
+> **Catatan**: Full-text search pada kolom terenkripsi tidak dimungkinkan. Pencarian hanya bisa dilakukan pada kolom non-enkripsi seperti `registration_number`, `status`, dan tanggal.
+
+---
+
+## 10. Migration Order
+
+Urutan migration Laravel yang menjaga integritas referential:
+
+```
+Phase 1 — Foundation (tidak ada FK antar tabel baru)
+  001_create_roles_table
+  002_create_permissions_table
+  003_create_role_permissions_table
+  004_create_users_table                      ← FK ke roles
+  005_create_personal_access_tokens_table     ← Sanctum default
+
+Phase 2 — Master Data (no FK dependencies, seed-ready)
+  006_create_report_categories_table
+  007_create_report_types_table
+  008_create_evidence_types_table
+  009_create_case_statuses_table
+  010_create_investigation_statuses_table
+  011_create_recommendation_statuses_table
+  012_create_risk_levels_table
+  013_create_priority_levels_table
+  014_create_notification_types_table
+  015_create_campus_statuses_table
+  016_create_relations_table
+  017_create_location_types_table
+  018_create_escalation_types_table
+  019_create_recovery_types_table
+  020_create_sanction_types_table
+
+Phase 3 — Core Business (FK dependencies resolved by order)
+  021_create_reports_table                    ← FK ke users (nullable)
+  022_create_cases_table                      ← FK ke reports
+  023_create_case_assignments_table           ← FK ke cases, users
+  024_create_evidences_table                  ← FK ke reports, cases, users
+  025_create_risk_assessments_table           ← FK ke cases, users
+  026_create_investigations_table             ← FK ke cases, users
+  027_create_investigation_activities_table   ← FK ke investigations, users
+  028_create_recommendations_table            ← FK ke cases, users
+  029_create_decisions_table                  ← FK ke cases, users
+  030_create_recovery_monitorings_table       ← FK ke cases, users
+  031_create_messages_table                   ← FK ke cases, users (nullable)
+  032_create_notifications_table              ← FK ke users
+  033_create_break_glass_sessions_table       ← FK ke cases, users
+
+Phase 4 — System & Audit
+  034_create_audit_logs_table                 ← No FK (denormalized for immutability)
+  035_create_system_settings_table
+  036_create_anonymous_security_logs_table    ← Opsional
+
+Phase 5 — Indexes (jika tidak inline di migration)
+  037_add_composite_indexes
+
+Phase 6 — Laravel Queue (built-in)
+  038_create_jobs_table                       ← php artisan queue:table
+  039_create_failed_jobs_table                ← php artisan queue:failed-table
+  040_create_job_batches_table                ← php artisan queue:batches-table
+
+Phase 7 — Laravel Cache (jika Redis tidak digunakan)
+  041_create_cache_table                      ← php artisan cache:table
+```
+
+---
+
+## 11. Seeding Strategy
+
+### 11.1 Urutan Seeding
+
+```
+1. RoleSeeder                → 5 roles (super_admin, admin, satgas_ppks, reporter, anonymous)
+2. PermissionSeeder          → 30+ permissions sesuai MASTER_DATA.md Section 2.1
+3. RolePermissionSeeder      → Mapping role × permission sesuai matriks Section 2.2
+4. MasterDataSeeder          → Semua tabel master data (categories, types, statuses, dll.)
+5. SystemSettingSeeder       → Default system settings sesuai MASTER_DATA.md Section 13
+6. SuperAdminSeeder          → 1 akun Super Admin default
+```
+
+### 11.2 Default Super Admin
+
+```php
+// SuperAdminSeeder
+User::create([
+    'role_id' => Role::where('code', 'super_admin')->first()->id,
+    'name' => 'Super Administrator',
+    'email' => env('SUPER_ADMIN_EMAIL', 'superadmin@silappkasal.ac.id'),
+    'password' => Hash::make(env('SUPER_ADMIN_PASSWORD', 'ChangeMe!2026')),
+    'is_active' => true,
+    'email_verified_at' => now(),
+]);
+```
+
+> **PENTING**: Password default HARUS diganti segera setelah deployment. Gunakan environment variables.
+
+### 11.3 Seeding Environment
+
+| Environment | Seed Data |
+|-------------|-----------|
+| `local` | Roles + Permissions + Master Data + System Settings + Super Admin + Test Users + Sample Reports |
+| `testing` | Roles + Permissions + Master Data + System Settings + Super Admin |
+| `production` | Roles + Permissions + Master Data + System Settings + Super Admin |
+
+### 11.4 DatabaseSeeder
+
+```php
+class DatabaseSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $this->call([
+            RoleSeeder::class,
+            PermissionSeeder::class,
+            RolePermissionSeeder::class,
+            MasterDataSeeder::class,
+            SystemSettingSeeder::class,
+            SuperAdminSeeder::class,
+        ]);
+
+        if (app()->environment('local')) {
+            $this->call([
+                TestUserSeeder::class,
+                SampleReportSeeder::class,
+            ]);
+        }
+    }
+}
+```
+
+---
+
+> **Catatan**: Dokumen ini adalah Tier 2 (GOVERNED). Perubahan memerlukan persetujuan Project Owner. Schema ini menjadi referensi wajib bagi Backend Agent untuk membuat migration Laravel.
