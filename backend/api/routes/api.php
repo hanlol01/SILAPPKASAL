@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\MasterDataController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -23,5 +24,22 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/logout', [AuthController::class, 'logout']);
             Route::get('/me', [AuthController::class, 'me']);
         });
+    });
+
+    Route::middleware('auth:sanctum')->prefix('master')->group(function (): void {
+        Route::get('/{type}', [MasterDataController::class, 'index'])
+            ->whereIn('type', [
+                'report-categories',
+                'report-types',
+                'evidence-types',
+                'case-statuses',
+                'risk-levels',
+                'priority-levels',
+                'campus-statuses',
+                'relations',
+                'location-types',
+                'escalation-types',
+                'recovery-types',
+            ]);
     });
 });
