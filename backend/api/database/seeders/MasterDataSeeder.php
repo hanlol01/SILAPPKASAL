@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Enums\DecisionStatus as DecisionStatusEnum;
 use App\Enums\RecommendationStatus as RecommendationStatusEnum;
+use App\Enums\RecoveryStatus as RecoveryStatusEnum;
 use App\Models\CampusStatus;
 use App\Models\CaseStatus;
 use App\Models\DecisionStatus;
@@ -16,6 +17,7 @@ use App\Models\NotificationType;
 use App\Models\PriorityLevel;
 use App\Models\RecommendationStatus;
 use App\Models\RecoveryType;
+use App\Models\RecoveryStatus;
 use App\Models\Relation;
 use App\Models\ReportCategory;
 use App\Models\ReportType;
@@ -43,6 +45,7 @@ class MasterDataSeeder extends Seeder
         $this->seedInvestigationStatuses();
         $this->seedRecommendationStatuses();
         $this->seedDecisionStatuses();
+        $this->seedRecoveryStatuses();
         $this->seedNotificationTypes();
         $this->seedSimple(RiskLevel::class, [
             ['RISK-01', 'low', 'Tidak ada ancaman langsung terhadap keselamatan korban.'],
@@ -278,6 +281,35 @@ class MasterDataSeeder extends Seeder
 
         foreach ($rows as $index => [$code, $name, $description, $transitions]) {
             DecisionStatus::query()->updateOrCreate(
+                ['code' => $code],
+                [
+                    'name' => $name,
+                    'description' => $description,
+                    'valid_transitions' => $transitions,
+                    'is_active' => true,
+                    'sort_order' => $index + 1,
+                ]
+            );
+        }
+    }
+
+    private function seedRecoveryStatuses(): void
+    {
+        $rows = [
+            ['RCVS-01', RecoveryStatusEnum::Planned->value, 'Rencana pemulihan telah dibuat.', [
+                RecoveryStatusEnum::Ongoing->value,
+                RecoveryStatusEnum::Discontinued->value,
+            ]],
+            ['RCVS-02', RecoveryStatusEnum::Ongoing->value, 'Pemulihan sedang berjalan.', [
+                RecoveryStatusEnum::Completed->value,
+                RecoveryStatusEnum::Discontinued->value,
+            ]],
+            ['RCVS-03', RecoveryStatusEnum::Completed->value, 'Pemulihan selesai.', []],
+            ['RCVS-04', RecoveryStatusEnum::Discontinued->value, 'Pemulihan dihentikan.', []],
+        ];
+
+        foreach ($rows as $index => [$code, $name, $description, $transitions]) {
+            RecoveryStatus::query()->updateOrCreate(
                 ['code' => $code],
                 [
                     'name' => $name,

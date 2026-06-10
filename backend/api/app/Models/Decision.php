@@ -54,4 +54,9 @@ class Decision extends Model
     {
         return $this->hasMany(DecisionStatusHistory::class);
     }
+
+    public function recoveries(): HasMany
+    {
+        return $this->hasMany(Recovery::class);
+    }
 }

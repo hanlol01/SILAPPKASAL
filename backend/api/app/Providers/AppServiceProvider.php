@@ -6,11 +6,13 @@ use App\Models\CaseRecord;
 use App\Models\Decision;
 use App\Models\Investigation;
 use App\Models\Recommendation;
+use App\Models\Recovery;
 use App\Models\Report;
 use App\Policies\CasePolicy;
 use App\Policies\DecisionPolicy;
 use App\Policies\InvestigationPolicy;
 use App\Policies\RecommendationPolicy;
+use App\Policies\RecoveryPolicy;
 use App\Policies\ReportPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -38,6 +40,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Decision::class, DecisionPolicy::class);
         Gate::policy(Investigation::class, InvestigationPolicy::class);
         Gate::policy(Recommendation::class, RecommendationPolicy::class);
+        Gate::policy(Recovery::class, RecoveryPolicy::class);
         Gate::policy(Report::class, ReportPolicy::class);
 
         RateLimiter::for('reports.submit', function (Request $request) {

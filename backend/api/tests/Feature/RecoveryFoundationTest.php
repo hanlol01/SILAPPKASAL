@@ -1,0 +1,372 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Enums\CaseStatus as CaseStatusEnum;
+use App\Enums\DecisionOutcome;
+use App\Enums\DecisionStatus as DecisionStatusEnum;
+use App\Enums\RecommendationStatus as RecommendationStatusEnum;
+use App\Enums\RecoveryStatus as RecoveryStatusEnum;
+use App\Enums\ReportStatus;
+use App\Models\CaseAssignment;
+use App\Models\CaseRecord;
+use App\Models\CaseStatus;
+use App\Models\Decision;
+use App\Models\DecisionStatus;
+use App\Models\Investigation;
+use App\Models\InvestigationStatus;
+use App\Models\Recommendation;
+use App\Models\RecommendationStatus;
+use App\Models\Recovery;
+use App\Models\RecoveryStatus;
+use App\Models\Report;
+use App\Models\Role;
+use App\Models\User;
+use Database\Seeders\MasterDataSeeder;
+use Database\Seeders\RbacSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
+use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
+
+class RecoveryFoundationTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed(RbacSeeder::class);
+        $this->seed(MasterDataSeeder::class);
+    }
+
+    public function test_recovery_foundation_tables_and_master_data_exist(): void
+    {
+        $this->assertTrue(Schema::hasTable('recovery_statuses'));
+        $this->assertTrue(Schema::hasTable('recoveries'));
+        $this->assertTrue(Schema::hasTable('recovery_status_histories'));
+        $this->assertTrue(Schema::hasTable('recovery_monitorings'));
+        $this->assertTrue(Schema::hasColumn('recoveries', 'decision_id'));
+        $this->assertFalse(Schema::hasColumn('recoveries', 'case_id'));
+        $this->assertFalse(Schema::hasColumn('recoveries', 'assigned_satgas_id'));
+        $this->assertFalse(Schema::hasColumn('recovery_monitorings', 'deleted_at'));
+
+        $planned = RecoveryStatus::query()->where('name', RecoveryStatusEnum::Planned->value)->firstOrFail();
+
+        $this->assertContains(RecoveryStatusEnum::Ongoing->value, $planned->valid_transitions);
+        $this->assertContains(RecoveryStatusEnum::Discontinued->value, $planned->valid_transitions);
+        $this->assertDatabaseHas('permissions', ['code' => 'cases.monitor']);
+    }
+
+    public function test_admin_can_create_multiple_recoveries_for_finalized_decision(): void
+    {
+        $admin = $this->makeUser('admin', 'admin@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
+        $case = $this->makeDecisionCase($admin, $satgas);
+        $decision = $this->makeFinalizedDecision($case, $admin, $satgas);
+
+        $this->actingAsApi($admin);
+        $this->postJson("/api/v1/decisions/{$decision->id}/recoveries", $this->recoveryPayload())
+            ->assertCreated()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', RecoveryStatusEnum::Planned->value)
+            ->assertJsonPath('data.recovery_plan', 'Rencana pendampingan korban secara berkala.')
+            ->assertJsonMissingPath('data.decision.decision_content')
+            ->assertJsonMissingPath('data.recommendation.conclusion');
+
+        $this->postJson("/api/v1/decisions/{$decision->id}/recoveries", $this->recoveryPayload())
+            ->assertCreated();
+
+        $this->assertDatabaseCount('recoveries', 2);
+        $this->assertDatabaseCount('recovery_status_histories', 2);
+        $this->assertSame(CaseStatusEnum::Decision->value, $case->refresh()->status->name);
+        $this->assertNull($case->closed_at);
+        $this->assertSame(DecisionStatusEnum::Finalized->value, $decision->refresh()->status->name);
+    }
+
+    public function test_recovery_creation_requires_finalized_decision(): void
+    {
+        $admin = $this->makeUser('admin', 'admin@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
+        $case = $this->makeDecisionCase($admin, $satgas);
+        $decision = $this->makeDecision($this->makeSubmittedRecommendation($case, $satgas), $admin, DecisionStatusEnum::Recorded);
+
+        $this->actingAsApi($admin);
+        $this->postJson("/api/v1/decisions/{$decision->id}/recoveries", $this->recoveryPayload())
+            ->assertUnprocessable();
+
+        $this->assertDatabaseCount('recoveries', 0);
+    }
+
+    public function test_assigned_satgas_can_read_recovery_and_create_monitoring_but_cannot_complete(): void
+    {
+        $admin = $this->makeUser('admin', 'admin@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
+        $otherSatgas = $this->makeUser('satgas_ppks', 'other@university.ac.id');
+        $case = $this->makeDecisionCase($admin, $satgas);
+        $decision = $this->makeFinalizedDecision($case, $admin, $satgas);
+        $recovery = $this->makeRecovery($decision, $admin);
+
+        $this->actingAsApi($admin);
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}/status", [
+            'status' => RecoveryStatusEnum::Ongoing->value,
+        ])->assertOk();
+
+        $this->actingAsApi($satgas);
+        $this->getJson("/api/v1/recoveries/{$recovery->id}")
+            ->assertOk()
+            ->assertJsonPath('data.recovery_plan', 'Rencana pendampingan korban secara berkala.');
+
+        $this->postJson("/api/v1/recoveries/{$recovery->id}/monitoring", $this->monitoringPayload())
+            ->assertCreated()
+            ->assertJsonPath('data.condition_summary', 'Kondisi korban stabil dan tetap membutuhkan pendampingan.');
+
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}/status", [
+            'status' => RecoveryStatusEnum::Completed->value,
+        ])->assertForbidden();
+
+        $this->actingAsApi($otherSatgas);
+        $this->getJson("/api/v1/recoveries/{$recovery->id}")
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('recovery_monitorings', 1);
+        $this->assertSame(RecoveryStatusEnum::Ongoing->value, $recovery->refresh()->status->name);
+    }
+
+    public function test_monitoring_requires_ongoing_recovery_and_never_completes_recovery(): void
+    {
+        $admin = $this->makeUser('admin', 'admin@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
+        $case = $this->makeDecisionCase($admin, $satgas);
+        $decision = $this->makeFinalizedDecision($case, $admin, $satgas);
+        $recovery = $this->makeRecovery($decision, $admin);
+
+        $this->actingAsApi($satgas);
+        $this->postJson("/api/v1/recoveries/{$recovery->id}/monitoring", $this->monitoringPayload())
+            ->assertUnprocessable();
+
+        $this->actingAsApi($admin);
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}/status", [
+            'status' => RecoveryStatusEnum::Ongoing->value,
+        ])->assertOk();
+
+        $this->actingAsApi($satgas);
+        $this->postJson("/api/v1/recoveries/{$recovery->id}/monitoring", $this->monitoringPayload())
+            ->assertCreated();
+
+        $this->assertSame(RecoveryStatusEnum::Ongoing->value, $recovery->refresh()->status->name);
+    }
+
+    public function test_admin_status_transitions_are_terminal_and_never_mutate_case_or_decision(): void
+    {
+        $admin = $this->makeUser('admin', 'admin@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
+        $case = $this->makeDecisionCase($admin, $satgas);
+        $decision = $this->makeFinalizedDecision($case, $admin, $satgas);
+        $recovery = $this->makeRecovery($decision, $admin);
+
+        $this->actingAsApi($admin);
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}/status", [
+            'status' => RecoveryStatusEnum::Ongoing->value,
+        ])->assertOk();
+
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}/status", [
+            'status' => RecoveryStatusEnum::Completed->value,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.status', RecoveryStatusEnum::Completed->value);
+
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}/status", [
+            'status' => RecoveryStatusEnum::Discontinued->value,
+        ])->assertUnprocessable();
+
+        $recovery->refresh();
+        $this->assertNotNull($recovery->completed_at);
+        $this->assertSame(CaseStatusEnum::Decision->value, $case->refresh()->status->name);
+        $this->assertNull($case->closed_at);
+        $this->assertSame(DecisionStatusEnum::Finalized->value, $decision->refresh()->status->name);
+        $this->assertDatabaseCount('recovery_status_histories', 3);
+    }
+
+    private function recoveryPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'recovery_type_code' => 'RCV-01',
+            'recovery_plan' => 'Rencana pendampingan korban secara berkala.',
+            'support_needs' => 'Kebutuhan dukungan psikologis.',
+            'notes' => 'Catatan pemulihan rahasia.',
+        ], $overrides);
+    }
+
+    private function monitoringPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'monitoring_date' => now()->toDateString(),
+            'condition_summary' => 'Kondisi korban stabil dan tetap membutuhkan pendampingan.',
+            'follow_up_plan' => 'Jadwalkan sesi lanjutan.',
+            'notes' => 'Catatan monitoring rahasia.',
+        ], $overrides);
+    }
+
+    private function makeRecovery(Decision $decision, User $admin): Recovery
+    {
+        $status = RecoveryStatus::query()->where('name', RecoveryStatusEnum::Planned->value)->firstOrFail();
+
+        $recovery = Recovery::query()->create([
+            'decision_id' => $decision->id,
+            'recovery_type_code' => 'RCV-01',
+            'status_code' => $status->code,
+            'created_by' => $admin->id,
+            'recovery_plan' => 'Rencana pendampingan korban secara berkala.',
+            'support_needs' => 'Kebutuhan dukungan psikologis.',
+            'notes' => 'Catatan pemulihan rahasia.',
+        ]);
+
+        $recovery->statusHistories()->create([
+            'from_status_code' => null,
+            'to_status_code' => $status->code,
+            'changed_by' => $admin->id,
+            'changed_at' => now(),
+        ]);
+
+        return $recovery;
+    }
+
+    private function makeFinalizedDecision(CaseRecord $case, User $admin, User $satgas): Decision
+    {
+        return $this->makeDecision($this->makeSubmittedRecommendation($case, $satgas), $admin, DecisionStatusEnum::Finalized);
+    }
+
+    private function makeDecision(Recommendation $recommendation, User $admin, DecisionStatusEnum $statusName): Decision
+    {
+        $status = DecisionStatus::query()->where('name', $statusName->value)->firstOrFail();
+
+        $decision = Decision::query()->create([
+            'recommendation_id' => $recommendation->id,
+            'recorder_id' => $admin->id,
+            'status_code' => $status->code,
+            'outcome_code' => DecisionOutcome::Accepted->value,
+            'decision_number' => 'SK-2026-001',
+            'decision_date' => now()->toDateString(),
+            'decision_summary' => 'Ringkasan keputusan institusi.',
+            'decision_content' => 'Isi keputusan lengkap yang terenkripsi saat tersimpan.',
+            'recorded_at' => now(),
+            'finalized_at' => $statusName === DecisionStatusEnum::Finalized ? now() : null,
+        ]);
+
+        $decision->statusHistories()->create([
+            'from_status_code' => null,
+            'to_status_code' => $status->code,
+            'changed_by' => $admin->id,
+            'changed_at' => now(),
+        ]);
+
+        return $decision;
+    }
+
+    private function makeSubmittedRecommendation(CaseRecord $case, User $satgas): Recommendation
+    {
+        $status = RecommendationStatus::query()->where('name', RecommendationStatusEnum::SubmittedToLeader->value)->firstOrFail();
+        $investigation = $this->makeCompletedInvestigation($case, $satgas);
+
+        return Recommendation::query()->create([
+            'case_id' => $case->id,
+            'investigation_id' => $investigation->id,
+            'author_id' => $satgas->id,
+            'status_code' => $status->code,
+            'conclusion' => 'Kesimpulan rekomendasi rahasia.',
+            'recommended_actions' => 'Tindakan rekomendasi untuk penanganan kasus.',
+            'sanction_recommendation' => 'Rekomendasi sanksi.',
+            'recovery_recommendation' => 'Rekomendasi pemulihan.',
+            'prevention_recommendation' => 'Rekomendasi pencegahan.',
+            'submitted_at' => now(),
+        ]);
+    }
+
+    private function makeCompletedInvestigation(CaseRecord $case, User $satgas): Investigation
+    {
+        $status = InvestigationStatus::query()->where('name', 'completed')->firstOrFail();
+
+        return Investigation::query()->create([
+            'case_id' => $case->id,
+            'lead_investigator_id' => $satgas->id,
+            'status_code' => $status->code,
+            'plan_summary' => 'Plan investigasi rahasia.',
+            'findings' => 'Temuan investigasi rahasia.',
+            'conclusion' => 'Kesimpulan investigasi rahasia.',
+            'started_at' => now(),
+            'completed_at' => now(),
+        ]);
+    }
+
+    private function makeDecisionCase(User $admin, User $satgas): CaseRecord
+    {
+        $report = $this->makeReport();
+        $status = CaseStatus::query()->where('name', CaseStatusEnum::Decision->value)->firstOrFail();
+
+        $case = CaseRecord::query()->create([
+            'report_id' => $report->id,
+            'registration_number' => $report->registration_number,
+            'case_number' => 'CASE-'.now()->format('Ymd').'-'.str_pad((string) (CaseRecord::query()->count() + 1), 4, '0', STR_PAD_LEFT),
+            'status_code' => $status->code,
+            'priority_code' => 'PRIO-03',
+            'current_stage' => $status->workflow_stage,
+            'forwarded_at' => now(),
+            'decision_at' => now(),
+        ]);
+
+        CaseAssignment::query()->create([
+            'case_id' => $case->id,
+            'satgas_id' => $satgas->id,
+            'assigned_by' => $admin->id,
+            'is_lead' => true,
+            'is_active' => true,
+            'assigned_at' => now(),
+        ]);
+
+        return $case->load('status');
+    }
+
+    private function makeReport(): Report
+    {
+        return Report::query()->create([
+            'registration_number' => 'SLP-'.now()->format('Ymd').'-'.str_pad((string) (Report::query()->count() + 1), 4, '0', STR_PAD_LEFT),
+            'tracking_code' => null,
+            'report_type' => 'confidential',
+            'category_code' => 'RCAT-01',
+            'chronology' => 'Kronologi laporan ini cukup panjang untuk dipakai sebagai data uji recovery foundation.',
+            'incident_date' => now()->toDateString(),
+            'incident_time' => '10:30',
+            'incident_location' => 'Gedung utama kampus lantai dua',
+            'location_type' => 'LOC-01',
+            'respondent_name' => 'Nama Terlapor',
+            'respondent_campus_status' => 'CAMP-01',
+            'respondent_relation' => 'REL-02',
+            'respondent_details' => 'Detail terlapor untuk pengujian recovery.',
+            'witness_info' => 'Informasi saksi untuk pengujian recovery.',
+            'status' => ReportStatus::Forwarded->value,
+            'priority' => 'PRIO-03',
+            'submitted_at' => now(),
+            'forwarded_at' => now(),
+        ]);
+    }
+
+    private function makeUser(string $roleCode, string $email): User
+    {
+        $role = Role::query()->where('code', $roleCode)->firstOrFail();
+
+        return User::query()->create([
+            'role_id' => $role->id,
+            'name' => "{$roleCode} User",
+            'email' => $email,
+            'password' => 'SecurePass123',
+            'is_active' => true,
+        ]);
+    }
+
+    private function actingAsApi(User $user): void
+    {
+        Sanctum::actingAs($user, ['*']);
+    }
+}

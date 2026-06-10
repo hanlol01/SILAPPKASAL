@@ -10,6 +10,7 @@ use App\Models\EscalationType;
 use App\Models\EvidenceType;
 use App\Models\LocationType;
 use App\Models\PriorityLevel;
+use App\Models\RecoveryStatus;
 use App\Models\RecoveryType;
 use App\Models\Relation;
 use App\Models\ReportCategory;
@@ -36,6 +37,7 @@ class MasterDataController extends Controller
         'location-types' => LocationType::class,
         'escalation-types' => EscalationType::class,
         'recovery-types' => RecoveryType::class,
+        'recovery-statuses' => RecoveryStatus::class,
     ];
 
     public function index(Request $request, string $type): JsonResponse

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\DecisionController;
 use App\Http\Controllers\Api\V1\InvestigationController;
 use App\Http\Controllers\Api\V1\MasterDataController;
 use App\Http\Controllers\Api\V1\RecommendationController;
+use App\Http\Controllers\Api\V1\RecoveryController;
 use App\Http\Controllers\Api\V1\ReportController;
 use Illuminate\Support\Facades\Route;
 
@@ -45,6 +46,7 @@ Route::prefix('v1')->group(function (): void {
                 'location-types',
                 'escalation-types',
                 'recovery-types',
+                'recovery-statuses',
             ]);
     });
 
@@ -88,8 +90,18 @@ Route::prefix('v1')->group(function (): void {
     });
 
     Route::middleware('auth:sanctum')->prefix('decisions')->group(function (): void {
+        Route::post('/{decision}/recoveries', [RecoveryController::class, 'storeForDecision']);
+        Route::get('/{decision}/recoveries', [RecoveryController::class, 'indexForDecision']);
         Route::get('/{decision}', [DecisionController::class, 'show']);
         Route::patch('/{decision}', [DecisionController::class, 'update']);
         Route::patch('/{decision}/status', [DecisionController::class, 'updateStatus']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('recoveries')->group(function (): void {
+        Route::get('/{recovery}', [RecoveryController::class, 'show']);
+        Route::patch('/{recovery}', [RecoveryController::class, 'update']);
+        Route::patch('/{recovery}/status', [RecoveryController::class, 'updateStatus']);
+        Route::post('/{recovery}/monitoring', [RecoveryController::class, 'storeMonitoring']);
+        Route::get('/{recovery}/monitoring', [RecoveryController::class, 'indexMonitoring']);
     });
 });

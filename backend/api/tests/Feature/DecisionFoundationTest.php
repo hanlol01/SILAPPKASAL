@@ -46,7 +46,8 @@ class DecisionFoundationTest extends TestCase
         $this->assertTrue(Schema::hasColumn('decision_statuses', 'valid_transitions'));
         $this->assertTrue(Schema::hasColumn('decisions', 'recommendation_id'));
         $this->assertFalse(Schema::hasColumn('decisions', 'case_id'));
-        $this->assertFalse(Schema::hasTable('recovery_monitorings'));
+        $this->assertTrue(Schema::hasTable('recovery_monitorings'));
+        $this->assertDatabaseCount('recovery_monitorings', 0);
         $this->assertFalse(Schema::hasTable('evidences'));
 
         $draft = DecisionStatus::query()->where('name', DecisionStatusEnum::Draft->value)->firstOrFail();

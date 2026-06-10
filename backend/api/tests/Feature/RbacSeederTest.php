@@ -38,6 +38,9 @@ class RbacSeederTest extends TestCase
         $this->assertTrue($admin->permissions->contains('code', 'cases.record_decision'));
         $this->assertTrue($superAdmin->permissions->contains('code', 'cases.record_decision'));
         $this->assertFalse($satgas->permissions->contains('code', 'cases.record_decision'));
+        $this->assertTrue($admin->permissions->contains('code', 'cases.monitor'));
+        $this->assertTrue($superAdmin->permissions->contains('code', 'cases.monitor'));
+        $this->assertTrue($satgas->permissions->contains('code', 'cases.monitor'));
     }
 
     public function test_database_seeder_does_not_create_dummy_users(): void
