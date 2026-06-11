@@ -8,6 +8,10 @@ enum AuditAction: string
     case AuthLoginFailed = 'auth.login_failed';
     case AuthLogout = 'auth.logout';
 
+    case ReporterRegistrationSubmitted = 'reporter_registration.submitted';
+    case ReporterRegistrationApproved = 'reporter_registration.approved';
+    case ReporterRegistrationRejected = 'reporter_registration.rejected';
+
     case ReportCreated = 'report.created';
     case ReportForwarded = 'report.forwarded';
 

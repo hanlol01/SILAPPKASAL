@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\MyWorkController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\RecommendationController;
 use App\Http\Controllers\Api\V1\RecoveryController;
+use App\Http\Controllers\Api\V1\ReporterRegistrationController;
 use App\Http\Controllers\Api\V1\ReportController;
 use Illuminate\Support\Facades\Route;
 
@@ -66,6 +67,18 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/', [ReportController::class, 'index']);
             Route::post('/{report}/forward-to-case', [ReportController::class, 'forwardToCase']);
             Route::get('/{report}', [ReportController::class, 'show']);
+        });
+    });
+
+    Route::prefix('reporter-registrations')->group(function (): void {
+        Route::post('/', [ReporterRegistrationController::class, 'store'])
+            ->middleware('throttle:5,1');
+
+        Route::middleware('auth:sanctum')->group(function (): void {
+            Route::get('/', [ReporterRegistrationController::class, 'index']);
+            Route::get('/{reporterRegistration}', [ReporterRegistrationController::class, 'show']);
+            Route::patch('/{reporterRegistration}/approve', [ReporterRegistrationController::class, 'approve']);
+            Route::patch('/{reporterRegistration}/reject', [ReporterRegistrationController::class, 'reject']);
         });
     });
 
