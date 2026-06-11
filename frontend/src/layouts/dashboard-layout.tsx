@@ -1,6 +1,8 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
+  FileText,
+  FolderKanban,
   GitBranch,
   BarChart3,
   Settings,
@@ -50,6 +52,18 @@ const nav: {
     title: "Overview",
     url: "/dashboard",
     icon: LayoutDashboard,
+    roles: ["super_admin", "admin", "satgas_ppks"],
+  },
+  {
+    title: "Reports",
+    url: "/dashboard/reports",
+    icon: FileText,
+    roles: ["super_admin", "admin"],
+  },
+  {
+    title: "Cases",
+    url: "/dashboard/cases",
+    icon: FolderKanban,
     roles: ["super_admin", "admin", "satgas_ppks"],
   },
   {

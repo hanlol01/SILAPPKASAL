@@ -5,6 +5,14 @@ export interface ApiEnvelope<T> {
   message: string;
   data: T;
   errors?: Record<string, string[]> | null;
+  meta?: PaginationMeta;
+}
+
+export interface PaginationMeta {
+  current_page: number;
+  per_page: number;
+  total: number;
+  last_page: number;
 }
 
 export interface ApiRole {

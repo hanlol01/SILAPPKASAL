@@ -31,7 +31,7 @@ function buildUrl(path: string, query?: Record<string, string | number | boolean
   return url.toString();
 }
 
-export async function apiRequest<T>(
+async function apiFetch<T>(
   path: string,
   init: RequestInit & { query?: Record<string, string | number | boolean | undefined> } = {},
 ) {
@@ -65,5 +65,21 @@ export async function apiRequest<T>(
     );
   }
 
+  return payload;
+}
+
+export async function apiRequest<T>(
+  path: string,
+  init: RequestInit & { query?: Record<string, string | number | boolean | undefined> } = {},
+) {
+  const payload = await apiFetch<T>(path, init);
+
   return payload.data;
+}
+
+export async function apiRequestEnvelope<T>(
+  path: string,
+  init: RequestInit & { query?: Record<string, string | number | boolean | undefined> } = {},
+) {
+  return apiFetch<T>(path, init);
 }
