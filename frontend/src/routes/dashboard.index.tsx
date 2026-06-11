@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import {
   AreaChart,
   Area,
@@ -12,23 +13,18 @@ import {
   Cell,
   Legend,
 } from "recharts";
-import {
-  FileWarning,
-  Inbox,
-  Loader2,
-  CheckCircle2,
-  Clock,
-  EyeOff,
-  ArrowRight,
-} from "lucide-react";
+import { FileWarning, Inbox, Loader2, CheckCircle2, Clock, FileArchive } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/status-badge";
-import { mockCases, monthlyTrend, categoryDistribution } from "@/mock-data";
+import { QueryErrorState, StatSkeletonGrid } from "@/components/query-state";
+import {
+  dashboardQueryKeys,
+  getDashboardReports,
+  getDashboardSummary,
+} from "@/lib/dashboard-api";
 
 export const Route = createFileRoute("/dashboard/")({
   component: Overview,
-  head: () => ({ meta: [{ title: "Overview — SafeCampus Admin" }] }),
+  head: () => ({ meta: [{ title: "Overview - SafeCampus Admin" }] }),
 });
 
 const PIE_COLORS = [
@@ -71,18 +67,68 @@ function StatCard({
   );
 }
 
+function labelFromKey(key: string | null) {
+  if (!key) return "Unspecified";
+  return key
+    .replace(/[-_]/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function Overview() {
-  const total = mockCases.length;
-  const newReports = mockCases.filter((c) => c.status === "received").length;
-  const inProgress = mockCases.filter((c) =>
-    ["verification", "investigation", "mediation"].includes(c.status),
-  ).length;
-  const resolved = mockCases.filter((c) => c.status === "resolved").length;
-  const pending = mockCases.filter((c) => c.status === "verification").length;
-  const anonymous = mockCases.filter((c) => c.anonymous).length;
-  const recent = [...mockCases]
-    .sort((a, b) => +new Date(b.date) - +new Date(a.date))
-    .slice(0, 5);
+  const summaryQuery = useQuery({
+    queryKey: dashboardQueryKeys.summary(),
+    queryFn: () => getDashboardSummary(),
+  });
+  const reportsQuery = useQuery({
+    queryKey: dashboardQueryKeys.reports(),
+    queryFn: () => getDashboardReports(),
+  });
+
+  if (summaryQuery.isLoading || reportsQuery.isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard overview</h1>
+          <p className="text-sm text-muted-foreground">
+            Real-time view of incoming reports, case progress, and team activity.
+          </p>
+        </div>
+        <StatSkeletonGrid />
+      </div>
+    );
+  }
+
+  if (summaryQuery.isError || reportsQuery.isError || !summaryQuery.data || !reportsQuery.data) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard overview</h1>
+          <p className="text-sm text-muted-foreground">
+            Real-time view of incoming reports, case progress, and team activity.
+          </p>
+        </div>
+        <QueryErrorState
+          message="Dashboard analytics are unavailable."
+          onRetry={() => {
+            summaryQuery.refetch();
+            reportsQuery.refetch();
+          }}
+        />
+      </div>
+    );
+  }
+
+  const summary = summaryQuery.data;
+  const reports = reportsQuery.data;
+  const trend = summary.time_series.reports.map((point) => ({
+    bucket: point.bucket,
+    reports: point.count,
+    cases: summary.time_series.cases.find((item) => item.bucket === point.bucket)?.count ?? 0,
+  }));
+  const categoryDistribution = reports.by_category_code.map((item) => ({
+    name: labelFromKey(item.key),
+    value: item.count,
+  }));
 
   return (
     <div className="space-y-6">
@@ -94,24 +140,24 @@ function Overview() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <StatCard label="Total reports" value={total} delta="+12% vs last month" icon={Inbox} tone="bg-primary/10 text-primary" />
-        <StatCard label="New reports" value={newReports} delta="Last 7 days" icon={FileWarning} tone="bg-info/10 text-info" />
-        <StatCard label="In progress" value={inProgress} delta="Across 3 stages" icon={Loader2} tone="bg-warning/10 text-warning" />
-        <StatCard label="Resolved" value={resolved} delta="This quarter" icon={CheckCircle2} tone="bg-success/10 text-success" />
-        <StatCard label="Pending review" value={pending} delta="Awaiting verification" icon={Clock} tone="bg-accent/40 text-accent-foreground" />
-        <StatCard label="Anonymous" value={anonymous} delta={`${Math.round((anonymous / total) * 100)}% of total`} icon={EyeOff} tone="bg-muted text-muted-foreground" />
+        <StatCard label="Total reports" value={summary.totals.reports} delta={summary.scope} icon={Inbox} tone="bg-primary/10 text-primary" />
+        <StatCard label="Cases" value={summary.totals.cases} delta="Forwarded reports" icon={FileWarning} tone="bg-info/10 text-info" />
+        <StatCard label="Open cases" value={summary.active_workflow.cases_open} delta="Currently active" icon={Loader2} tone="bg-warning/10 text-warning" />
+        <StatCard label="Investigations" value={summary.totals.investigations} delta={`${summary.active_workflow.investigations_open} open`} icon={CheckCircle2} tone="bg-success/10 text-success" />
+        <StatCard label="Pending decisions" value={summary.active_workflow.decisions_not_finalized} delta="Not finalized" icon={Clock} tone="bg-accent/40 text-accent-foreground" />
+        <StatCard label="Evidence records" value={summary.totals.evidences} delta="Metadata counts only" icon={FileArchive} tone="bg-muted text-muted-foreground" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Monthly reports</CardTitle>
-            <CardDescription>Reports received vs resolved per month</CardDescription>
+            <CardTitle>Reports and cases</CardTitle>
+            <CardDescription>Backend dashboard time series for the selected date range</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-72 w-full">
               <ResponsiveContainer>
-                <AreaChart data={monthlyTrend} margin={{ left: -10, right: 10, top: 10 }}>
+                <AreaChart data={trend} margin={{ left: -10, right: 10, top: 10 }}>
                   <defs>
                     <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.5} />
@@ -123,7 +169,7 @@ function Overview() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={12} />
+                  <XAxis dataKey="bucket" stroke="var(--muted-foreground)" fontSize={12} />
                   <YAxis stroke="var(--muted-foreground)" fontSize={12} />
                   <Tooltip
                     contentStyle={{
@@ -134,7 +180,7 @@ function Overview() {
                     }}
                   />
                   <Area type="monotone" dataKey="reports" stroke="var(--chart-1)" fill="url(#g1)" strokeWidth={2} />
-                  <Area type="monotone" dataKey="resolved" stroke="var(--chart-2)" fill="url(#g2)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="cases" stroke="var(--chart-2)" fill="url(#g2)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -144,116 +190,68 @@ function Overview() {
         <Card>
           <CardHeader>
             <CardTitle>Category distribution</CardTitle>
-            <CardDescription>Reports by incident type</CardDescription>
+            <CardDescription>Reports by backend category code</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-72 w-full">
-              <ResponsiveContainer>
-                <PieChart>
-                  <Pie
-                    data={categoryDistribution}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={2}
-                  >
-                    {categoryDistribution.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--popover)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
+              {categoryDistribution.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                  No category data available.
+                </div>
+              ) : (
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie
+                      data={categoryDistribution}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={2}
+                    >
+                      {categoryDistribution.map((_, i) => (
+                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        background: "var(--popover)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <div>
-              <CardTitle>Recent reports</CardTitle>
-              <CardDescription>Latest 5 submitted cases</CardDescription>
+      <Card>
+        <CardHeader>
+          <CardTitle>Current scope</CardTitle>
+          <CardDescription>Dashboard data returned by the backend authorization scope</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 text-sm sm:grid-cols-3">
+          <div className="rounded-lg border p-4">
+            <div className="text-muted-foreground">Scope</div>
+            <div className="mt-1 font-medium">{summary.scope}</div>
+          </div>
+          <div className="rounded-lg border p-4">
+            <div className="text-muted-foreground">Date range</div>
+            <div className="mt-1 font-medium">
+              {summary.filters.date_from} to {summary.filters.date_to}
             </div>
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/dashboard/cases">
-                View all <ArrowRight className="ml-1 h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-hidden rounded-lg border">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 text-left">ID</th>
-                    <th className="px-3 py-2 text-left">Faculty</th>
-                    <th className="px-3 py-2 text-left">Category</th>
-                    <th className="px-3 py-2 text-left">Status</th>
-                    <th className="px-3 py-2 text-left">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recent.map((c) => (
-                    <tr key={c.id} className="border-t hover:bg-muted/40">
-                      <td className="px-3 py-2 font-mono text-xs">
-                        <Link to="/dashboard/cases/$id" params={{ id: c.id }} className="hover:underline">
-                          {c.id}
-                        </Link>
-                      </td>
-                      <td className="px-3 py-2">{c.faculty}</td>
-                      <td className="px-3 py-2 capitalize">{c.category}</td>
-                      <td className="px-3 py-2">
-                        <StatusBadge status={c.status} />
-                      </td>
-                      <td className="px-3 py-2 text-muted-foreground">
-                        {new Date(c.date).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Activity feed</CardTitle>
-            <CardDescription>Latest team actions</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ol className="space-y-4">
-              {[
-                { who: "Maya Lestari", what: "verified RPT-2025-1024", when: "2h ago" },
-                { who: "Andi Wijaya", what: "moved RPT-2025-1019 to Investigation", when: "4h ago" },
-                { who: "Dewi Anggraini", what: "added internal note on RPT-2025-1011", when: "Yesterday" },
-                { who: "System", what: "received 3 new anonymous reports", when: "Yesterday" },
-                { who: "Dr. Sarah Putri", what: "published a prevention article", when: "2 days ago" },
-              ].map((e, i) => (
-                <li key={i} className="flex gap-3">
-                  <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />
-                  <div className="text-sm">
-                    <span className="font-medium">{e.who}</span>{" "}
-                    <span className="text-muted-foreground">{e.what}</span>
-                    <div className="text-xs text-muted-foreground">{e.when}</div>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+          <div className="rounded-lg border p-4">
+            <div className="text-muted-foreground">Granularity</div>
+            <div className="mt-1 font-medium">{summary.filters.granularity}</div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { ApiError } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +14,7 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
   head: () => ({
     meta: [
-      { title: "Sign in — SafeCampus Admin" },
+      { title: "Sign in - SafeCampus Admin" },
       { name: "description", content: "Sign in to the SafeCampus PPKS administrator console." },
     ],
   }),
@@ -22,8 +23,8 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const { login, user } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("admin@safecampus.id");
-  const [password, setPassword] = useState("admin123");
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
 
@@ -31,19 +32,20 @@ function LoginPage() {
     if (user) navigate({ to: "/dashboard" });
   }, [user, navigate]);
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      const res = login(email, password, remember);
-      setLoading(false);
-      if (!res.ok) {
-        toast.error(res.error ?? "Login failed");
-        return;
-      }
+
+    try {
+      await login(identifier, password, remember);
       toast.success("Welcome back");
       navigate({ to: "/dashboard" });
-    }, 400);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : "Login failed";
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -60,12 +62,12 @@ function LoginPage() {
             A safer campus starts with a trusted reporting system.
           </h1>
           <p className="text-sm text-sidebar-foreground/70">
-            Manage incoming reports, coordinate investigations, and publish prevention content — all
-            in one secure workspace built for Satgas PPKS teams.
+            Manage incoming reports, coordinate investigations, and publish prevention content in
+            one secure workspace built for Satgas PPKS teams.
           </p>
         </div>
         <div className="text-xs text-sidebar-foreground/60">
-          © 2025 SafeCampus · Confidential prototype
+          2026 SafeCampus - Confidential prototype
         </div>
       </div>
       <div className="flex items-center justify-center p-6">
@@ -85,12 +87,12 @@ function LoginPage() {
             </p>
             <form onSubmit={onSubmit} className="mt-6 space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="identifier">Email, NIM, or NIP</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="identifier"
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   required
                 />
               </div>
@@ -120,14 +122,6 @@ function LoginPage() {
                 {loading ? "Signing in..." : "Sign in"}
               </Button>
             </form>
-            <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-              <div className="font-medium text-foreground">Demo accounts</div>
-              <div className="mt-1 space-y-0.5">
-                <div>admin@safecampus.id · admin123 (Super Admin)</div>
-                <div>officer@safecampus.id · officer123 (Satgas Officer)</div>
-                <div>reviewer@safecampus.id · reviewer123 (Reviewer)</div>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>

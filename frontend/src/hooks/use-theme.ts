@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getLocalStorageItem, setLocalStorageItem } from "@/lib/auth-storage";
 
 const KEY = "safecampus_theme";
 
@@ -7,7 +8,7 @@ export function useTheme() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const stored = (localStorage.getItem(KEY) as "light" | "dark" | null) ?? "light";
+    const stored = (getLocalStorageItem(KEY) as "light" | "dark" | null) ?? "light";
     setTheme(stored);
     document.documentElement.classList.toggle("dark", stored === "dark");
   }, []);
@@ -16,7 +17,7 @@ export function useTheme() {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
     document.documentElement.classList.toggle("dark", next === "dark");
-    localStorage.setItem(KEY, next);
+    setLocalStorageItem(KEY, next);
   };
 
   return { theme, toggle };

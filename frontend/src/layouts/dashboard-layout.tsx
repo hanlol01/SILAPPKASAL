@@ -1,12 +1,8 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
-  FolderKanban,
   GitBranch,
-  FileText,
   BarChart3,
-  Bell,
-  Users,
   Settings,
   ShieldCheck,
   LogOut,
@@ -39,25 +35,48 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
-import { mockNotifications } from "@/mock-data";
 import type { ReactNode } from "react";
+import type { RoleCode } from "@/lib/api-types";
 
-const nav = [
-  { title: "Overview", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Cases", url: "/dashboard/cases", icon: FolderKanban },
-  { title: "Workflow", url: "/dashboard/workflow", icon: GitBranch },
-  { title: "Content", url: "/dashboard/content", icon: FileText },
-  { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3 },
-  { title: "Notifications", url: "/dashboard/notifications", icon: Bell },
-  { title: "Users", url: "/dashboard/users", icon: Users },
-  { title: "Settings", url: "/dashboard/settings", icon: Settings },
+const nav: {
+  title: string;
+  url: string;
+  icon: React.ComponentType<{ className?: string }>;
+  roles: RoleCode[];
+}[] = [
+  {
+    title: "Overview",
+    url: "/dashboard",
+    icon: LayoutDashboard,
+    roles: ["super_admin", "admin", "satgas_ppks"],
+  },
+  {
+    title: "Workflow",
+    url: "/dashboard/workflow",
+    icon: GitBranch,
+    roles: ["super_admin", "admin", "satgas_ppks"],
+  },
+  {
+    title: "Analytics",
+    url: "/dashboard/analytics",
+    icon: BarChart3,
+    roles: ["super_admin", "admin"],
+  },
+  {
+    title: "Settings",
+    url: "/dashboard/settings",
+    icon: Settings,
+    roles: ["super_admin", "admin", "satgas_ppks"],
+  },
 ];
 
 function AppSidebar() {
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const { roleCode } = useAuth();
+  const items = nav.filter((item) => roleCode && item.roles.includes(roleCode));
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
@@ -76,7 +95,7 @@ function AppSidebar() {
           <SidebarGroupLabel>Workspace</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {nav.map((item) => {
+              {items.map((item) => {
                 const active =
                   item.url === "/dashboard"
                     ? path === "/dashboard"
@@ -98,7 +117,7 @@ function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
         <div className="px-2 py-2 text-[11px] text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
-          v0.1 · Local prototype
+          v0.1 - Local prototype
         </div>
       </SidebarFooter>
     </Sidebar>
@@ -109,47 +128,35 @@ function Topbar() {
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
-  const unread = mockNotifications.filter((n) => !n.read).length;
+  const initials =
+    user?.name
+      .split(" ")
+      .map((part) => part[0])
+      .slice(0, 2)
+      .join("") || "AD";
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur">
       <SidebarTrigger />
       <div className="relative ml-2 hidden max-w-md flex-1 md:block">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Search cases, users, articles..." className="pl-9" />
+        <Input placeholder="Search dashboard..." className="pl-9" />
       </div>
       <div className="ml-auto flex items-center gap-2">
         <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
           {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative"
-          onClick={() => navigate({ to: "/dashboard/notifications" })}
-        >
-          <Bell className="h-4 w-4" />
-          {unread > 0 && (
-            <Badge className="absolute -right-1 -top-1 h-4 min-w-4 rounded-full p-0 px-1 text-[10px]">
-              {unread}
-            </Badge>
-          )}
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="gap-2 px-2">
               <Avatar className="h-7 w-7">
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                  {user?.name
-                    .split(" ")
-                    .map((p) => p[0])
-                    .slice(0, 2)
-                    .join("") ?? "AD"}
+                  {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden text-left leading-tight md:block">
                 <div className="text-sm font-medium">{user?.name}</div>
-                <div className="text-xs text-muted-foreground">{user?.role}</div>
+                <div className="text-xs text-muted-foreground">{user?.role?.name}</div>
               </div>
             </Button>
           </DropdownMenuTrigger>
@@ -160,8 +167,8 @@ function Topbar() {
               <Settings className="mr-2 h-4 w-4" /> Settings
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => {
-                logout();
+              onClick={async () => {
+                await logout();
                 navigate({ to: "/login" });
               }}
             >

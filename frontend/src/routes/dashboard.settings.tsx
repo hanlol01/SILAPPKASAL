@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/hooks/use-theme";
+import { getLocalStorageItem, setLocalStorageItem } from "@/lib/auth-storage";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/settings")({
@@ -37,12 +38,12 @@ function SettingsPage() {
   const [s, setS] = useState<Settings>(DEFAULTS);
 
   useEffect(() => {
-    const raw = typeof window !== "undefined" ? localStorage.getItem(KEY) : null;
+    const raw = getLocalStorageItem(KEY);
     if (raw) setS({ ...DEFAULTS, ...JSON.parse(raw) });
   }, []);
 
   const save = () => {
-    localStorage.setItem(KEY, JSON.stringify(s));
+    setLocalStorageItem(KEY, JSON.stringify(s));
     toast.success("Settings saved");
   };
 
