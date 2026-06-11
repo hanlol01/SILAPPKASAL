@@ -2,8 +2,8 @@
 
 > Status: Active Handoff  
 > Last Updated: 2026-06-11  
-> Current Backend Milestone: Milestone 10 Implementation Prepared - Recovery and Monitoring Foundation  
-> Next Milestone: Milestone 11 - Evidence Foundation
+> Current Backend Milestone: Milestone 11 Implementation Prepared - Evidence Foundation  
+> Next Milestone: Milestone 12 - Audit Log Foundation
 
 ---
 
@@ -28,27 +28,20 @@ The backend is the current source of implemented business behavior. Frontend int
 | 7 | Investigation Foundation | PASS | Investigation model, activity records, master-data-driven investigation status transitions, assigned Satgas detail access, admin metadata-only access, tests. |
 | 8 | Recommendation Foundation | PASS | Recommendation model, completed-investigation reference, master-data-driven recommendation status transitions, status history, assigned Satgas detail access, admin metadata-only access, tests. |
 | 9 | Decision Foundation | PASS | Decision model, recommendation-owned decision records, decision status master data, outcome foundation, status history, admin/super admin decision authority, assigned Satgas read-only access. |
-| 10 | Recovery and Monitoring Foundation | Pending Verification | Recovery model, monitoring records, recovery status master data, status history, admin/super admin recovery lifecycle authority, assigned Satgas recovery read and monitoring creation. Migration, seeder, and full test verification are pending explicit approval. |
+| 10 | Recovery and Monitoring Foundation | PASS | Recovery model, monitoring records, recovery status master data, status history, admin/super admin recovery lifecycle authority, assigned Satgas recovery read and monitoring creation. |
+| 11 | Evidence Foundation | Prepared and Tested | Investigation-owned evidence metadata, evidence lifecycle constants, metadata-only resources, chain-of-custody foundation, assigned Satgas access only, no file upload/download/storage implementation. |
 
-Latest verified baseline after Milestone 8:
+Latest verified checks after Milestone 11:
 
 ```text
-php artisan migrate --force
-php artisan db:seed --force
 php artisan route:list --path=api/v1
 php artisan test
 
-Routes: 24 API v1 routes
-Tests: 52 passed (395 assertions)
+Routes: 42 API v1 routes
+Tests: 71 passed (566 assertions)
 ```
 
-Milestone 10 prepared route count from `php artisan route:list --path=api/v1`:
-
-```text
-Routes: 36 API v1 routes
-```
-
-Milestone 10 migration, seeder, and full test commands have not been run yet in this handoff state.
+Milestone 11 implementation has been test-verified locally. Commit status should be checked by the next operator before starting a new milestone.
 
 ---
 
@@ -73,6 +66,7 @@ Implemented or prepared API groups:
 | Recommendations | `POST /api/v1/cases/{case}/recommendations`, `GET /api/v1/cases/{case}/recommendations`, `GET /api/v1/recommendations/{recommendation}`, `PATCH /api/v1/recommendations/{recommendation}`, `PATCH /api/v1/recommendations/{recommendation}/status` |
 | Decisions | `POST /api/v1/recommendations/{recommendation}/decisions`, `GET /api/v1/recommendations/{recommendation}/decisions`, `GET /api/v1/decisions/{decision}`, `PATCH /api/v1/decisions/{decision}`, `PATCH /api/v1/decisions/{decision}/status` |
 | Recoveries | `POST /api/v1/decisions/{decision}/recoveries`, `GET /api/v1/decisions/{decision}/recoveries`, `GET /api/v1/recoveries/{recovery}`, `PATCH /api/v1/recoveries/{recovery}`, `PATCH /api/v1/recoveries/{recovery}/status`, `POST /api/v1/recoveries/{recovery}/monitoring`, `GET /api/v1/recoveries/{recovery}/monitoring` |
+| Evidences | `POST /api/v1/investigations/{investigation}/evidences`, `GET /api/v1/investigations/{investigation}/evidences`, `GET /api/v1/evidences/{evidence}`, `PATCH /api/v1/evidences/{evidence}`, `PATCH /api/v1/evidences/{evidence}/status`, `GET /api/v1/evidences/{evidence}/custody` |
 
 ---
 
@@ -85,7 +79,7 @@ Implemented or prepared API groups:
 - Decision records are an explicit exception: Admin and Super Admin may read full decision content.
 - Assigned Satgas access is required for sensitive case, investigation, recommendation, decision, recovery, and monitoring details.
 - Anonymous report identity is not stored.
-- Evidence upload, attachments, WhatsApp, notifications, analytics, and Flutter integration are not implemented yet.
+- Evidence file upload, download, preview, storage implementation, attachments, WhatsApp, notifications, analytics, and Flutter integration are not implemented yet.
 - Tests are expected for each milestone before completion.
 
 ---
@@ -106,14 +100,16 @@ Current security posture:
 - Assigned Satgas can read sensitive case, investigation, recommendation, decision, recovery, and monitoring detail only for active assignments.
 - Assigned Satgas remains read-only for decision records.
 - Assigned Satgas may create monitoring entries for assigned cases, but cannot complete or discontinue recovery.
-- Private evidence storage disk exists as foundation, but evidence workflow is not implemented.
+- Evidence metadata and chain-of-custody foundation is implemented for assigned Satgas only.
+- Admin and Super Admin have no default evidence access in Milestone 11; future break-glass access remains possible but is not implemented.
+- Evidence file upload/download/storage is not implemented.
 
 Deferred security work:
 
 - Strict security headers middleware.
 - Persistent audit log implementation.
 - Break-glass access.
-- Evidence access policy and secure file streaming.
+- Break-glass evidence access and secure file streaming.
 - Notification privacy review.
 - Frontend token/session hardening.
 
@@ -139,14 +135,17 @@ Implemented or prepared domain tables include:
 - `decision_statuses`
 - `decisions`
 - `decision_status_histories`
-- `recovery_statuses` prepared by Milestone 10 migration
-- `recoveries` prepared by Milestone 10 migration
-- `recovery_status_histories` prepared by Milestone 10 migration
-- `recovery_monitorings` prepared by Milestone 10 migration
+- `recovery_statuses`
+- `recoveries`
+- `recovery_status_histories`
+- `recovery_monitorings`
+- `evidences` prepared by Milestone 11 migration
+- `evidence_status_histories` prepared by Milestone 11 migration
+- `evidence_custody_events` prepared by Milestone 11 migration
 
 Not yet implemented:
 
-- evidence records and file upload metadata
+- evidence file upload/download/preview/storage
 - notification delivery records
 - audit logs
 - analytics/dashboard aggregates
@@ -156,18 +155,18 @@ Not yet implemented:
 
 ## 7. Next Milestone
 
-After Milestone 10 migration, seeding, and tests are approved and pass, the next milestone should be planned as:
+After Milestone 11 is committed, the next milestone should be planned as:
 
 ```text
-Milestone 11 - Evidence Foundation
+Milestone 12 - Audit Log Foundation
 ```
 
 Expected focus:
 
-- Secure evidence metadata model.
-- Private storage upload/download flow.
-- Relationship to reports, cases, investigations, or recoveries as approved.
-- Evidence access policies and privacy controls.
+- Persistent audit log model.
+- Critical action event recording.
+- Relationship to auth, reports, cases, investigations, recommendations, decisions, recoveries, and evidence metadata actions.
+- Privacy-safe audit resources and RBAC controls.
 - No notifications, WhatsApp, analytics, or frontend integration unless explicitly approved.
 
 ---
@@ -187,10 +186,10 @@ php artisan test
 Expected verified test baseline:
 
 ```text
-52 passed
+71 passed
 ```
 
-Milestone 10 expected verification is still pending:
+Recommended verification commands:
 
 ```bash
 php artisan migrate --force

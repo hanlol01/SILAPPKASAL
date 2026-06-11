@@ -2,8 +2,8 @@
 
 > Status: Active  
 > Last Updated: 2026-06-11  
-> Current Position: Milestone 10 implementation prepared, pending verification  
-> Next: Milestone 11 - Evidence Foundation
+> Current Position: Milestone 11 implementation prepared and test-verified  
+> Next: Milestone 12 - Audit Log Foundation
 
 ---
 
@@ -169,9 +169,9 @@ Delivered:
 
 ### Milestone 10 - Recovery and Monitoring Foundation
 
-Status: Implementation prepared, pending migration/seeder/test verification
+Status: PASS
 
-Prepared:
+Delivered:
 
 - Recovery model and migration.
 - Recovery belongs to decision with no direct `case_id`.
@@ -188,18 +188,31 @@ Prepared:
 - Encrypted recovery and monitoring narrative content at rest.
 - No case status mutation, case closing, decision status mutation, evidence, notification, WhatsApp, analytics, or frontend work.
 
-Prepared route verification:
+### Milestone 11 - Evidence Foundation
+
+Status: Implementation prepared and test-verified
+
+Prepared:
+
+- Evidence metadata model and migration.
+- Evidence belongs to investigation with no direct `case_id`.
+- Evidence uses existing `evidence_types` master data.
+- Evidence classification centralized through enum/constants.
+- Evidence status lifecycle centralized through enum/constants.
+- Statuses: `registered`, `under_review`, `verified`, `rejected`, `archived`.
+- `archived` terminal behavior.
+- `verified` means metadata reviewed/admin complete only, not forensic authenticity.
+- Chain-of-custody foundation with `registered`, `metadata_updated`, `status_changed`, and `reviewed`.
+- Assigned Satgas can create/read/update evidence metadata for assigned investigation cases.
+- Admin and Super Admin have no default evidence access in M11.
+- Reporter has no investigation-owned evidence access.
+- No file upload, download, preview, storage implementation, MinIO, S3, OCR, AI, notifications, WhatsApp, analytics, or frontend work.
+
+Verification:
 
 ```text
-36 API v1 routes
-```
-
-Pending verification:
-
-```text
-php artisan migrate --force
-php artisan db:seed --force
-php artisan test
+42 API v1 routes
+71 passed (566 assertions)
 ```
 
 ---
@@ -217,6 +230,7 @@ Implemented or prepared API areas:
 - Recommendations
 - Decisions
 - Recovery and monitoring
+- Evidence metadata
 
 Not implemented yet:
 
@@ -233,35 +247,32 @@ Not implemented yet:
 
 ## 4. Next Milestone
 
-### Milestone 11 - Evidence Foundation
+### Milestone 12 - Audit Log Foundation
 
 Goal:
 
-Create the first secure evidence workflow foundation using private storage and strict case/report access policies, without starting notifications, WhatsApp, analytics, or frontend work.
+Create a persistent audit log foundation for critical backend actions, without starting notifications, WhatsApp, analytics, or frontend work.
 
 Recommended scope:
 
-- Evidence metadata model.
-- Private storage upload and download foundation.
-- Relationship to reports, cases, investigations, or recovery records as approved.
-- Evidence access and privacy policies.
-- File validation and storage path strategy.
+- Audit log data model.
+- Critical action capture from auth and workflow services.
+- Actor, action, entity, severity, and metadata structure.
+- Privacy-safe audit resources.
+- RBAC for audit log reads.
 - Tests.
 
 Potential endpoints:
 
 ```text
-POST /api/v1/cases/{case}/evidence
-GET /api/v1/cases/{case}/evidence
-GET /api/v1/evidence/{evidence}
-GET /api/v1/evidence/{evidence}/download
-PATCH /api/v1/evidence/{evidence}
+GET /api/v1/audit-logs
+GET /api/v1/audit-logs/{auditLog}
 ```
 
 Planning constraints:
 
-- Evidence must use private storage.
-- Evidence access must not be granted automatically to super admin beyond explicit policy.
+- Audit logs must not expose encrypted sensitive narrative content by default.
+- Audit implementation must not change endpoint response contracts.
 - Do not implement notification/WhatsApp.
 - Do not implement analytics.
 - Do not modify frontend unless explicitly requested.
@@ -272,7 +283,6 @@ Planning constraints:
 
 | Milestone | Name | Purpose |
 |---|---|---|
-| 11 | Evidence Foundation | Secure upload/download, private storage, evidence policies. |
 | 12 | Audit Log Foundation | Persistent audit trail for critical actions. |
 | 13 | Notification Foundation | Internal notification persistence and queue jobs. |
 | 14 | WhatsApp Integration | Fonnte integration with privacy-safe templates. |
@@ -292,9 +302,9 @@ Planning constraints:
 Deferred until explicitly approved:
 
 - Evidence upload and file download.
-- Case evidence access and chain-of-custody.
+- Evidence file access/download and full chain-of-custody audit expansion.
 - Investigation attachments.
-- Evidence workflow verification.
+- Evidence file upload/download verification.
 - WhatsApp/Fonnte integration.
 - Notification delivery tracking.
 - Dashboard analytics.
@@ -318,6 +328,7 @@ Deferred until explicitly approved:
 | Future workflow coupling | Milestones keep recovery, evidence, notification, and analytics separate. |
 | Decision accidentally mutating case status | Milestone 9 service keeps decision transitions isolated from case status and case closing. |
 | Recovery accidentally closing cases | Milestone 10 service keeps recovery and monitoring isolated from case closure. |
+| Evidence access leakage | Milestone 11 keeps evidence metadata assigned-Satgas only; Admin and Super Admin have no default evidence access. |
 
 ---
 
@@ -346,15 +357,14 @@ php artisan route:list --path=api/v1
 php artisan test
 ```
 
-Expected verified baseline after Milestone 9:
+Expected verified baseline after Milestone 11:
 
 ```text
-Milestone 9 completed and committed by user.
+71 passed (566 assertions)
 ```
 
-Milestone 10 implementation is prepared, but final verification is pending:
+Current route baseline after Milestone 11:
 
 ```text
-36 API v1 routes prepared
-migration/seed/test not yet run
+42 API v1 routes
 ```
