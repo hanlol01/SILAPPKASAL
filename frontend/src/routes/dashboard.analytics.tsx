@@ -41,11 +41,30 @@ const PIE = [
   "var(--muted-foreground)",
 ];
 
-function labelFromKey(key: string | null) {
-  if (!key) return "Unspecified";
-  return key
+function labelFromKey(key: unknown) {
+  if (key === null || key === undefined || key === "") return "Unknown";
+
+  const normalized =
+    typeof key === "object"
+      ? safeObjectLabel(key)
+      : String(key);
+
+  if (!normalized) return "Unknown";
+
+  return normalized
     .replace(/[-_]/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function safeObjectLabel(value: object) {
+  if ("name" in value && typeof value.name === "string") return value.name;
+  if ("code" in value && typeof value.code === "string") return value.code;
+
+  try {
+    return JSON.stringify(value) || "Unknown";
+  } catch {
+    return "Unknown";
+  }
 }
 
 function AnalyticsPage() {

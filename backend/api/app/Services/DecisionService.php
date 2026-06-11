@@ -17,6 +17,10 @@ use Illuminate\Support\Facades\DB;
 
 class DecisionService
 {
+    public function __construct(private readonly NotificationService $notificationService)
+    {
+    }
+
     /**
      * @param array<string, mixed> $data
      */
@@ -123,6 +127,10 @@ class DecisionService
             ])->save();
 
             $this->recordStatusHistory($decision, $fromStatusCode, $nextStatus->code, $actor);
+
+            if ($nextStatus->name === DecisionStatusEnum::Finalized->value) {
+                $this->notificationService->decisionFinalized($decision);
+            }
 
             return $decision->load($this->detailRelations());
         });

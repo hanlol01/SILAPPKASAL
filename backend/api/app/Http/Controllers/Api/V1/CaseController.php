@@ -64,7 +64,7 @@ class CaseController extends Controller
     {
         Gate::authorize('updateStatus', $case);
 
-        $case = $this->caseService->updateStatus($case, $request->validated('status'));
+        $case = $this->caseService->updateStatus($case, $request->user(), $request->validated('status'));
 
         return response()->json([
             'success' => true,

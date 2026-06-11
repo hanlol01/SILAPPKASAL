@@ -18,6 +18,10 @@ use Illuminate\Support\Facades\DB;
 
 class RecommendationService
 {
+    public function __construct(private readonly NotificationService $notificationService)
+    {
+    }
+
     /**
      * @param array<string, mixed> $data
      */
@@ -124,6 +128,10 @@ class RecommendationService
             ])->save();
 
             $this->recordStatusHistory($recommendation, $fromStatusCode, $nextStatus->code, $actor);
+
+            if ($nextStatus->name === RecommendationStatusEnum::SubmittedToLeader->value) {
+                $this->notificationService->recommendationSubmittedToLeader($recommendation);
+            }
 
             return $recommendation->load(['case', 'status', 'author', 'statusHistories.fromStatus', 'statusHistories.toStatus', 'statusHistories.changedBy']);
         });

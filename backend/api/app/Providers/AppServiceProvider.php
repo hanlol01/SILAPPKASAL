@@ -16,6 +16,7 @@ use App\Policies\DecisionPolicy;
 use App\Policies\DashboardPolicy;
 use App\Policies\EvidencePolicy;
 use App\Policies\InvestigationPolicy;
+use App\Policies\NotificationPolicy;
 use App\Policies\RecommendationPolicy;
 use App\Policies\RecoveryPolicy;
 use App\Policies\ReportPolicy;
@@ -23,6 +24,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Notifications\DatabaseNotification;
 use Laravel\Sanctum\PersonalAccessToken;
 use Illuminate\Support\ServiceProvider;
 
@@ -46,6 +48,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Decision::class, DecisionPolicy::class);
         Gate::policy(Evidence::class, EvidencePolicy::class);
         Gate::policy(Investigation::class, InvestigationPolicy::class);
+        Gate::policy(DatabaseNotification::class, NotificationPolicy::class);
         Gate::policy(Recommendation::class, RecommendationPolicy::class);
         Gate::policy(Recovery::class, RecoveryPolicy::class);
         Gate::policy(Report::class, ReportPolicy::class);

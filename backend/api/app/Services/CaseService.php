@@ -16,6 +16,10 @@ use Illuminate\Support\Facades\DB;
 
 class CaseService
 {
+    public function __construct(private readonly NotificationService $notificationService)
+    {
+    }
+
     /**
      * @param array<string, mixed> $data
      */
@@ -51,6 +55,8 @@ class CaseService
                 'status' => ReportStatus::Forwarded->value,
                 'forwarded_at' => $forwardedAt,
             ])->save();
+
+            $this->notificationService->caseAssigned($case, $satgasIds);
 
             return $this->loadForUser($case->load('report'), $actor);
         });
@@ -114,6 +120,10 @@ class CaseService
 
         return DB::transaction(function () use ($case, $actor, $satgasIds, $data): CaseRecord {
             $case = CaseRecord::query()->with('status')->whereKey($case->id)->lockForUpdate()->firstOrFail();
+            $previousActiveSatgasIds = $case->activeAssignments()
+                ->pluck('satgas_id')
+                ->map(fn ($id): int => (int) $id)
+                ->all();
 
             if ($case->status?->name === CaseStatusEnum::Closed->value) {
                 throw $this->unprocessable('Closed cases cannot be reassigned');
@@ -151,11 +161,17 @@ class CaseService
                 ->where('satgas_id', '!=', (int) $data['lead_satgas_id'])
                 ->update(['is_lead' => false]);
 
+            $newlyAssignedSatgasIds = array_values(array_diff($satgasIds, $previousActiveSatgasIds));
+
+            if ($newlyAssignedSatgasIds !== []) {
+                $this->notificationService->caseAssigned($case, $newlyAssignedSatgasIds);
+            }
+
             return $this->loadForUser($case, $actor);
         });
     }
 
-    public function updateStatus(CaseRecord $case, string $requestedStatus): CaseRecord
+    public function updateStatus(CaseRecord $case, User $actor, string $requestedStatus): CaseRecord
     {
         return DB::transaction(function () use ($case, $requestedStatus): CaseRecord {
             $case = CaseRecord::query()->with('status')->whereKey($case->id)->lockForUpdate()->firstOrFail();
@@ -176,6 +192,8 @@ class CaseService
                 'current_stage' => $nextStatus->workflow_stage,
                 ...$this->timestampForStatus($nextStatus->name),
             ])->save();
+
+            $this->notificationService->caseStatusChanged($case);
 
             return $case->load(['status', 'riskLevel', 'priorityLevel', 'activeAssignments.satgas']);
         });

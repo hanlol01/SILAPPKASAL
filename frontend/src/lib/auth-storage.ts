@@ -9,32 +9,58 @@ function canUseStorage() {
 
 export function getLocalStorageItem(key: string) {
   if (!canUseStorage()) return null;
-  return window.localStorage.getItem(key);
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
 }
 
 export function setLocalStorageItem(key: string, value: string) {
-  if (!canUseStorage()) return;
-  window.localStorage.setItem(key, value);
+  if (!canUseStorage()) return false;
+  try {
+    window.localStorage.setItem(key, value);
+    return window.localStorage.getItem(key) === value;
+  } catch {
+    return false;
+  }
 }
 
 export function removeLocalStorageItem(key: string) {
   if (!canUseStorage()) return;
-  window.localStorage.removeItem(key);
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore unavailable storage during SSR or restricted browser contexts.
+  }
 }
 
 export function getSessionStorageItem(key: string) {
   if (!canUseStorage()) return null;
-  return window.sessionStorage.getItem(key);
+  try {
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
 }
 
 export function setSessionStorageItem(key: string, value: string) {
-  if (!canUseStorage()) return;
-  window.sessionStorage.setItem(key, value);
+  if (!canUseStorage()) return false;
+  try {
+    window.sessionStorage.setItem(key, value);
+    return window.sessionStorage.getItem(key) === value;
+  } catch {
+    return false;
+  }
 }
 
 export function removeSessionStorageItem(key: string) {
   if (!canUseStorage()) return;
-  window.sessionStorage.removeItem(key);
+  try {
+    window.sessionStorage.removeItem(key);
+  } catch {
+    // Ignore unavailable storage during SSR or restricted browser contexts.
+  }
 }
 
 export function getAuthToken() {
@@ -42,16 +68,28 @@ export function getAuthToken() {
 }
 
 export function setAuthToken(token: string, persistence: TokenPersistence) {
+  if (!token || typeof token !== "string") {
+    throw new Error("Login response did not include an auth token");
+  }
+
   clearAuthToken();
 
   if (persistence === "local") {
-    setLocalStorageItem(TOKEN_KEY, token);
-    setLocalStorageItem(TOKEN_PERSISTENCE_KEY, persistence);
+    const tokenSaved = setLocalStorageItem(TOKEN_KEY, token);
+    const persistenceSaved = setLocalStorageItem(TOKEN_PERSISTENCE_KEY, persistence);
+    if (!tokenSaved || !persistenceSaved || getLocalStorageItem(TOKEN_KEY) !== token) {
+      clearAuthToken();
+      throw new Error("Auth token could not be saved to local storage");
+    }
     return;
   }
 
-  setSessionStorageItem(TOKEN_KEY, token);
-  setSessionStorageItem(TOKEN_PERSISTENCE_KEY, persistence);
+  const tokenSaved = setSessionStorageItem(TOKEN_KEY, token);
+  const persistenceSaved = setSessionStorageItem(TOKEN_PERSISTENCE_KEY, persistence);
+  if (!tokenSaved || !persistenceSaved || getSessionStorageItem(TOKEN_KEY) !== token) {
+    clearAuthToken();
+    throw new Error("Auth token could not be saved to session storage");
+  }
 }
 
 export function clearAuthToken() {

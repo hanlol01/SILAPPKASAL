@@ -110,7 +110,7 @@ function LoginPage() {
                 <label className="flex items-center gap-2 text-sm">
                   <Checkbox
                     checked={remember}
-                    onCheckedChange={(v) => setRemember(Boolean(v))}
+                    onCheckedChange={(v) => setRemember(v === true)}
                   />
                   Remember me
                 </label>

@@ -336,6 +336,10 @@ class MasterDataSeeder extends Seeder
             ['NOTIF-09', 'SLA breach', 'Admin + Super Admin', 'both', 'sla.breach', 'post_mvp'],
             ['NOTIF-10', 'Keputusan institusi dikeluarkan', 'Pelapor', 'whatsapp', 'case.decided', 'mvp_extended'],
             ['NOTIF-11', 'Kasus ditutup', 'Pelapor', 'whatsapp', 'case.closed', 'mvp_extended'],
+            ['NOTIF-12', 'Kasus ditugaskan ke Satgas', 'Satgas', 'in_app', 'case.assigned', 'mvp_extended'],
+            ['NOTIF-13', 'Status kasus berubah untuk Satgas', 'Satgas', 'in_app', 'case.status_changed.internal', 'mvp_extended'],
+            ['NOTIF-14', 'Rekomendasi dikirim ke pimpinan', 'Admin/Super Admin', 'in_app', 'recommendation.submitted_to_leader', 'mvp_extended'],
+            ['NOTIF-15', 'Keputusan final untuk kasus', 'Satgas', 'in_app', 'decision.finalized', 'mvp_extended'],
         ];
 
         foreach ($rows as $index => [$code, $name, $recipient, $channel, $template, $classification]) {
