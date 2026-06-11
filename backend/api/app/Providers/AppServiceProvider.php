@@ -13,6 +13,7 @@ use App\Models\Report;
 use App\Policies\AuditLogPolicy;
 use App\Policies\CasePolicy;
 use App\Policies\DecisionPolicy;
+use App\Policies\DashboardPolicy;
 use App\Policies\EvidencePolicy;
 use App\Policies\InvestigationPolicy;
 use App\Policies\RecommendationPolicy;
@@ -48,6 +49,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Recommendation::class, RecommendationPolicy::class);
         Gate::policy(Recovery::class, RecoveryPolicy::class);
         Gate::policy(Report::class, ReportPolicy::class);
+        Gate::define('viewDashboard', fn ($user): bool => app(DashboardPolicy::class)->view($user));
 
         RateLimiter::for('reports.submit', function (Request $request) {
             $accessToken = $request->bearerToken()

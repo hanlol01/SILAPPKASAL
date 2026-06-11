@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CaseController;
+use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DecisionController;
 use App\Http\Controllers\Api\V1\EvidenceController;
 use App\Http\Controllers\Api\V1\InvestigationController;
@@ -119,5 +120,13 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware('auth:sanctum')->prefix('audit-logs')->group(function (): void {
         Route::get('/', [AuditLogController::class, 'index']);
         Route::get('/{auditLog}', [AuditLogController::class, 'show']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('dashboard')->group(function (): void {
+        Route::get('/summary', [DashboardController::class, 'summary']);
+        Route::get('/reports', [DashboardController::class, 'reports']);
+        Route::get('/cases', [DashboardController::class, 'cases']);
+        Route::get('/workflow', [DashboardController::class, 'workflow']);
+        Route::get('/evidence', [DashboardController::class, 'evidence']);
     });
 });
