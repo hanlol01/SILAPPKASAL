@@ -2,8 +2,8 @@
 
 > Status: Active  
 > Last Updated: 2026-06-11  
-> Current Position: Milestone 20 Reporter Self-Service Foundation implementation prepared, pending verification  
-> Next: Milestone 21 - WhatsApp Integration
+> Current Position: Milestone 21 Public Reporter Portal Foundation complete  
+> Next: Milestone 22 - WhatsApp Integration
 
 ---
 
@@ -489,9 +489,9 @@ php artisan test: 102 passed (812 assertions)
 
 ### Milestone 20 - Reporter Self-Service Foundation
 
-Status: Implementation prepared, pending verification
+Status: PASS
 
-Prepared:
+Delivered:
 
 - Backend-only authenticated reporter self-service foundation.
 - No migrations and no frontend changes.
@@ -512,10 +512,49 @@ Prepared:
 - Reporter self-service audit actions are prepared for profile update and password change.
 - No email verification, password reset by email, WhatsApp/Fonnte, notifications UI, uploads, user search, public profile browsing, Flutter, or frontend work.
 
-Verification pending:
+Verification:
 
 ```text
-ReporterSelfServiceFoundationTest and full php artisan test have not been run after M20 changes.
+Included in latest backend full suite:
+116 passed (932 assertions)
+```
+
+### Milestone 21 - Public Reporter Portal Foundation
+
+Status: PASS
+
+Delivered:
+
+- Backend-only reporter-facing portal APIs.
+- No migrations and no frontend changes.
+- Reporter-only endpoints:
+  - `GET /api/v1/portal/summary`
+  - `GET /api/v1/portal/reports`
+  - `GET /api/v1/portal/reports/{registrationNumber}`
+  - `GET /api/v1/portal/notifications`
+- Authorization is intentionally narrow:
+  - `reporter`: allowed
+  - `admin`: forbidden
+  - `super_admin`: forbidden
+  - `satgas_ppks`: forbidden
+- Portal report responses use `registration_number` as reporter-facing identifier and do not expose internal report IDs.
+- Portal report responses exclude `reviewed_at`.
+- Reporter-facing status is abstracted to safe labels only:
+  - `Submitted`
+  - `Under Review`
+  - `In Process`
+  - `Completed`
+- Raw report status, case status, workflow status codes, tracking codes, narratives, respondent details, investigation findings, recommendation content, decision content, recovery notes, evidence details, audit data, assignments, staff identities, and admin notes are not exposed.
+- Portal summary includes total reports, active reports, completed reports, and unread notifications.
+- Completion is based on linked case status `closed`; `report.forwarded` is not treated as completed.
+- Portal notifications are read-only; mutation remains only through existing M17 notification endpoints.
+- No public case browsing, analytics, messaging/chat, uploads, email, WhatsApp/Fonnte, Flutter, or frontend work.
+
+Verification:
+
+```text
+ReporterPortalFoundationTest: 6 passed (54 assertions)
+php artisan test: 116 passed (932 assertions)
 ```
 
 ---
@@ -539,7 +578,8 @@ Implemented or prepared API areas:
 - Notifications
 - My Work / Work Queue
 - Reporter registrations
-- Reporter self-service prepared
+- Reporter self-service
+- Reporter portal
 - Frontend dashboard, operational screen, and workflow action foundations
 
 Not implemented yet:
@@ -556,7 +596,7 @@ Not implemented yet:
 
 ## 4. Next Milestone
 
-### Milestone 21 - WhatsApp Integration
+### Milestone 22 - WhatsApp Integration
 
 Goal:
 
@@ -590,12 +630,12 @@ Planning constraints:
 
 | Milestone | Name | Purpose |
 |---|---|---|
-| 21 | WhatsApp Integration | Fonnte integration with privacy-safe templates. |
-| 22 | User Management Foundation | Admin user CRUD, deactivate, role assignment, and lookup APIs. |
-| 23 | Frontend Workflow Completion | Assignment/forwarding pickers and deferred status actions after supporting APIs are available. |
-| 24 | Security Verification | Headers, CORS, rate limits, privacy review, penetration-style checklist. |
-| 25 | Production Readiness | Deployment, environment hardening, backup, observability. |
-| 26 | Flutter Planning | Mobile scope after stable backend and web integration. |
+| 22 | WhatsApp Integration | Fonnte integration with privacy-safe templates. |
+| 23 | User Management Foundation | Admin user CRUD, deactivate, role assignment, and lookup APIs. |
+| 24 | Frontend Workflow Completion | Assignment/forwarding pickers and deferred status actions after supporting APIs are available. |
+| 25 | Security Verification | Headers, CORS, rate limits, privacy review, penetration-style checklist. |
+| 26 | Production Readiness | Deployment, environment hardening, backup, observability. |
+| 27 | Flutter Planning | Mobile scope after stable backend and web integration. |
 
 ---
 
@@ -646,6 +686,7 @@ Deferred until explicitly approved:
 | Unapproved reporter account access | Milestone 19 keeps pending registrations outside `users`; login becomes possible only after admin/super_admin approval creates an active reporter account. |
 | Duplicate reporter accounts | Milestone 19 checks active user and pending registration email/NIM before submission and rechecks active users before approval. |
 | Reporter self-service privilege escalation | Milestone 20 only allows role `reporter`, blocks admin/super_admin/satgas, and prohibits email, NIM, NIP, role, permissions, active status, and approval metadata edits. |
+| Reporter portal sensitive data leakage | Milestone 21 uses portal-specific resources with `registration_number` identifiers, safe status labels, own-report scoping, read-only notifications, and no narratives, raw workflow codes, tracking codes, staff identities, assignments, evidence, audit data, or admin notes. |
 
 ---
 
@@ -708,11 +749,11 @@ npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnin
 npm run build: PASS
 ```
 
-Latest backend verification after Milestone 19:
+Latest backend verification after Milestone 21:
 
 ```text
 php artisan test: PASS
-102 passed (812 assertions)
+116 passed (932 assertions)
 ```
 
 Verified Milestone 18 route additions:
@@ -734,7 +775,7 @@ PATCH /api/v1/reporter-registrations/{reporterRegistration}/approve
 PATCH /api/v1/reporter-registrations/{reporterRegistration}/reject
 ```
 
-Prepared Milestone 20 route additions:
+Verified Milestone 20 route additions:
 
 ```text
 GET /api/v1/me/profile
@@ -743,4 +784,11 @@ PATCH /api/v1/me/change-password
 GET /api/v1/me/account-status
 ```
 
-Full Milestone 20 route verification and test run are pending.
+Verified Milestone 21 route additions:
+
+```text
+GET /api/v1/portal/summary
+GET /api/v1/portal/reports
+GET /api/v1/portal/reports/{registrationNumber}
+GET /api/v1/portal/notifications
+```
