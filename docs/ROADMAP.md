@@ -2,8 +2,8 @@
 
 > Status: Active  
 > Last Updated: 2026-06-11  
-> Current Position: Milestone 16 workflow actions foundation implemented and verified  
-> Next: Milestone 17 - Notification Foundation
+> Current Position: Milestone 17 Notification Foundation completed and verified  
+> Next: Milestone 18 - WhatsApp Integration
 
 ---
 
@@ -390,6 +390,40 @@ npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnin
 npm run build: PASS
 ```
 
+### Milestone 17 - Notification Foundation
+
+Status: PASS
+
+Delivered:
+
+- Laravel native database notifications.
+- `notifications` table migration using Laravel database notification shape.
+- `User` Notifiable behavior used for notification delivery.
+- Queued database notification class using database channel only.
+- Notification queue name set to `notifications`.
+- Privacy-safe notification payloads with mandatory `notification_type_code`.
+- Metadata-only notification payloads with no narratives, reporter/victim identity, anonymous hints, evidence details, recommendation content, decision content, recovery notes, tokens, or sensitive fields.
+- Internal notification type seed updates for M17 trigger events.
+- Trigger points:
+  - `case_assigned`
+  - `case_status_changed`
+  - `recommendation_submitted_to_leader`
+  - `decision_finalized`
+- Notification read/list APIs:
+  - `GET /api/v1/notifications`
+  - `PATCH /api/v1/notifications/{notification}/read`
+  - `PATCH /api/v1/notifications/read-all`
+- Authenticated users can only list/read their own notifications.
+- No role can browse another user’s notifications.
+- No WhatsApp, Fonnte, email, push notification, analytics, or frontend changes.
+
+Verification:
+
+```text
+php artisan test: PASS
+87 passed (707 assertions)
+```
+
 ---
 
 ## 3. Current API Surface
@@ -408,12 +442,12 @@ Implemented or prepared API areas:
 - Evidence metadata
 - Audit logs
 - Dashboard analytics prepared
+- Notifications
 - Frontend dashboard, operational screen, and workflow action foundations
 
 Not implemented yet:
 
 - Evidence upload/download
-- Notifications
 - WhatsApp integration
 - User CRUD/admin account management
 - Frontend user/Satgas lookup picker integration for assignment and forwarding
@@ -425,33 +459,31 @@ Not implemented yet:
 
 ## 4. Next Milestone
 
-### Milestone 17 - Notification Foundation
+### Milestone 18 - WhatsApp Integration
 
 Goal:
 
-Create internal notification persistence and queue foundation without WhatsApp, analytics, or frontend work.
+Integrate WhatsApp delivery on top of the completed notification foundation without weakening notification payload privacy.
 
 Recommended scope:
 
-- Notification data model.
-- Notification type usage.
-- Queue-backed delivery foundation.
-- Privacy-safe notification payload strategy.
-- Relationship to report/case/workflow events.
-- RBAC and read/unread rules.
+- Fonnte service integration.
+- WhatsApp queue job.
+- Privacy-safe WhatsApp templates.
+- Delivery tracking strategy.
+- Retry/failure handling.
 - Tests.
 
 Potential endpoints:
 
 ```text
-GET /api/v1/notifications
-PATCH /api/v1/notifications/{notification}/read
+No new public API required unless explicitly approved.
 ```
 
 Planning constraints:
 
-- Do not implement WhatsApp/Fonnte delivery yet.
-- Do not expose sensitive narrative content in notification payloads.
+- Do not expose sensitive narrative content in WhatsApp payloads.
+- Do not send WhatsApp for anonymous reporter identity.
 - Do not implement analytics.
 - Do not modify frontend unless explicitly requested.
 
@@ -461,7 +493,6 @@ Planning constraints:
 
 | Milestone | Name | Purpose |
 |---|---|---|
-| 17 | Notification Foundation | Internal notification persistence and queue jobs. |
 | 18 | WhatsApp Integration | Fonnte integration with privacy-safe templates. |
 | 19 | User Management Foundation | Admin user CRUD, deactivate, role assignment, and lookup APIs. |
 | 20 | Frontend Workflow Completion | Assignment/forwarding pickers and deferred status actions after supporting APIs are available. |
@@ -513,6 +544,7 @@ Deferred until explicitly approved:
 | Incomplete assignment/forwarding UI | Milestone 15 disables actions that require unavailable user/Satgas lookup APIs instead of introducing temporary numeric ID inputs. |
 | Frontend workflow mutation drift | Milestone 16 routes all mutations through the centralized operations API client, maps Laravel 422 errors, avoids optimistic updates, and refreshes from backend after success. |
 | Unsafe picker substitutes | Milestone 16 keeps forward-to-case, assignment, and investigation creation disabled until approved user/Satgas lookup APIs exist. |
+| Notification payload leakage | Milestone 17 uses metadata-only database notifications with mandatory `notification_type_code`, own-user access only, and no sensitive narrative or identity fields. |
 
 ---
 
@@ -573,4 +605,11 @@ Latest frontend verification after Milestone 16:
 ```text
 npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnings
 npm run build: PASS
+```
+
+Latest backend verification after Milestone 17:
+
+```text
+php artisan test: PASS
+87 passed (707 assertions)
 ```

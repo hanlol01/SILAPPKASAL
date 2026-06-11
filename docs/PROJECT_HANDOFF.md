@@ -2,8 +2,8 @@
 
 > Status: Active Handoff  
 > Last Updated: 2026-06-11  
-> Current Frontend Milestone: Milestone 16 PASS - Workflow Actions Foundation  
-> Next Milestone: Milestone 17 - Notification Foundation
+> Current Backend Milestone: Milestone 17 PASS - Notification Foundation  
+> Next Milestone: Milestone 18 - WhatsApp Integration
 
 ---
 
@@ -11,7 +11,7 @@
 
 SILAPPKASAL is a secure reporting and case-handling platform for prevention and response to sexual violence in a university environment. The repository is structured with a Laravel REST API backend in `backend/api` and a React frontend in `frontend/`.
 
-The backend is the source of implemented business behavior. The React frontend in `frontend/` now has authenticated dashboard integration, operational report/case screens, and safe workflow action forms for admin/Satgas roles. Evidence upload, notifications, WhatsApp integration, reporter public flows, user/Satgas lookup pickers, and Flutter work remain future work unless explicitly promoted.
+The backend is the source of implemented business behavior. The React frontend in `frontend/` now has authenticated dashboard integration, operational report/case screens, and safe workflow action forms for admin/Satgas roles. Evidence upload, WhatsApp integration, reporter public flows, user/Satgas lookup pickers, and Flutter work remain future work unless explicitly promoted.
 
 ---
 
@@ -35,6 +35,7 @@ The backend is the source of implemented business behavior. The React frontend i
 | 14 | Frontend Integration Foundation | PASS | React frontend API client, `VITE_API_BASE_URL`, centralized auth storage, backend login/me/logout integration, protected dashboard shell, AccessDenied, role-aware navigation, dashboard analytics integration, master data client foundation, lint/build verified. |
 | 15 | Operational Screen Foundation | PASS | React report list/detail and case list/detail integration, read-only case detail sections for investigations, recommendations, decisions, recoveries, and evidence metadata, metadata-only response handling, disabled unavailable assignment/forwarding actions, lint/build verified. |
 | 16 | Workflow Actions Foundation | PASS | Safe frontend workflow actions for case status, investigation activities, recommendation updates, decision updates, recovery monitoring, and evidence metadata/status; disabled blockers for lookup/status-option gaps; no backend changes; lint/build verified. |
+| 17 | Notification Foundation | PASS | Laravel native database notifications, queued database channel only, metadata-only payloads with mandatory notification_type_code, low-noise workflow triggers, own-user read/list APIs, no WhatsApp/Fonnte/email/push/frontend work. |
 
 Latest known fully verified baseline before Milestone 13 implementation:
 
@@ -64,6 +65,18 @@ Lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnings
 Build: PASS
 ```
 
+Milestone 17 notification foundation has been implemented and verified with:
+
+```text
+php artisan test
+```
+
+Result:
+
+```text
+87 passed (707 assertions)
+```
+
 ---
 
 ## 3. Current Backend State
@@ -90,6 +103,7 @@ Implemented or prepared API groups:
 | Evidences | `POST /api/v1/investigations/{investigation}/evidences`, `GET /api/v1/investigations/{investigation}/evidences`, `GET /api/v1/evidences/{evidence}`, `PATCH /api/v1/evidences/{evidence}`, `PATCH /api/v1/evidences/{evidence}/status`, `GET /api/v1/evidences/{evidence}/custody` |
 | Audit Logs | `GET /api/v1/audit-logs`, `GET /api/v1/audit-logs/{auditLog}` |
 | Dashboard | `GET /api/v1/dashboard/summary`, `GET /api/v1/dashboard/reports`, `GET /api/v1/dashboard/cases`, `GET /api/v1/dashboard/workflow`, `GET /api/v1/dashboard/evidence` prepared, pending verification |
+| Notifications | `GET /api/v1/notifications`, `PATCH /api/v1/notifications/{notification}/read`, `PATCH /api/v1/notifications/read-all` |
 
 ---
 
@@ -106,7 +120,8 @@ Implemented or prepared API groups:
 - Dashboard analytics are metadata-only and count-based; they must not expose narratives, anonymous identities, tracking codes, evidence details, filenames, checksums, custody events, audit log aggregates, SLA/KPI scoring, or predictive analytics.
 - Frontend operational screens must render only fields returned by the backend and preserve metadata-only response behavior.
 - Frontend workflow actions must use centralized operations API functions, React Query mutations, backend RBAC, and Laravel `422` field-error handling.
-- Evidence file upload, download, preview, storage implementation, attachments, WhatsApp, notifications, advanced analytics, and Flutter integration are not implemented yet.
+- Notifications are in-app Laravel database notifications only; WhatsApp, Fonnte, email, push, and frontend notification UI remain out of scope.
+- Evidence file upload, download, preview, storage implementation, attachments, WhatsApp, advanced analytics, and Flutter integration are not implemented yet.
 - Frontend workflow actions that require user/Satgas lookup APIs remain disabled until approved lookup endpoints exist.
 - Tests are expected for each milestone before completion.
 
@@ -136,6 +151,7 @@ Current security posture:
 - Frontend operational screens respect backend RBAC and must not assume hidden sensitive fields exist.
 - Frontend workflow mutations avoid optimistic updates and refresh from backend after success.
 - Evidence actions remain metadata/status only; upload, download, preview, and storage fields are still out of scope.
+- Notification payloads are metadata-only, include `notification_type_code`, and must not include narratives, reporter/victim identity, anonymous hints, evidence details, recommendation content, decision content, recovery notes, tokens, or sensitive fields.
 
 Deferred security work:
 
@@ -143,7 +159,7 @@ Deferred security work:
 - Audit trail foundation implemented.
 - Break-glass access.
 - Break-glass evidence access and secure file streaming.
-- Notification privacy review.
+- WhatsApp/Fonnte notification privacy review.
 - Frontend token/session hardening.
 
 ---
@@ -176,30 +192,32 @@ Implemented or prepared domain tables include:
 - `evidence_status_histories` prepared by Milestone 11 migration
 - `evidence_custody_events` prepared by Milestone 11 migration
 - `audit_logs`
+- `notifications`
 
 Not yet implemented:
 
 - evidence file upload/download/preview/storage
-- notification delivery records
+- WhatsApp/Fonnte notification delivery records
 - messaging
 
 ---
 
 ## 7. Next Milestone
 
-After Milestone 16 is reviewed/committed, the next backend milestone should be planned as:
+After Milestone 17 is reviewed/committed, the next backend milestone should be planned as:
 
 ```text
-Milestone 17 - Notification Foundation
+Milestone 18 - WhatsApp Integration
 ```
 
 Expected focus:
 
-- Internal notification persistence.
-- Queue-backed notification jobs.
-- Privacy-safe notification payloads.
-- Relationship to reports, cases, investigations, recommendations, decisions, recoveries, and evidence metadata actions.
-- No WhatsApp, analytics dashboard expansion, or frontend integration unless explicitly approved.
+- Fonnte service integration.
+- WhatsApp queue job.
+- Privacy-safe WhatsApp templates.
+- Delivery tracking strategy.
+- Retry/failure handling.
+- No analytics dashboard expansion or frontend integration unless explicitly approved.
 
 ---
 
@@ -218,7 +236,7 @@ php artisan test
 Expected verified test baseline:
 
 ```text
-71 passed
+87 passed
 ```
 
 Prepared Milestone 13 route additions:
@@ -252,6 +270,13 @@ Latest frontend verification:
 ```text
 npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnings
 npm run build: PASS
+```
+
+Latest backend verification:
+
+```text
+php artisan test: PASS
+87 passed (707 assertions)
 ```
 
 ---
