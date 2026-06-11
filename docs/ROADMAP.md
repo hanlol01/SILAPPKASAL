@@ -2,14 +2,14 @@
 
 > Status: Active  
 > Last Updated: 2026-06-11  
-> Current Position: Milestone 15 operational screen foundation implemented and verified  
-> Next: Milestone 16 - Notification Foundation
+> Current Position: Milestone 16 workflow actions foundation implemented and verified  
+> Next: Milestone 17 - Notification Foundation
 
 ---
 
 ## 1. Roadmap Overview
 
-SILAPPKASAL development started backend-first. The Laravel API remains the source of business behavior, and the React web dashboard now has authenticated admin/Satgas dashboard integration plus read-only operational report and case screens.
+SILAPPKASAL development started backend-first. The Laravel API remains the source of business behavior, and the React web dashboard now has authenticated admin/Satgas dashboard integration, operational report/case screens, and safe workflow action forms backed by approved endpoints.
 
 Current priorities:
 
@@ -351,6 +351,45 @@ npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnin
 npm run build: PASS
 ```
 
+### Milestone 16 - Workflow Actions Foundation
+
+Status: PASS
+
+Delivered:
+
+- React frontend workflow action foundation for `super_admin`, `admin`, and `satgas_ppks`.
+- Mutation API functions added through the existing M14/M15 operations API client.
+- Enabled safe backend-approved actions:
+  - Case status update via `PATCH /api/v1/cases/{case}/status`.
+  - Investigation activity creation via `POST /api/v1/investigations/{investigation}/activities`.
+  - Recommendation content update via `PATCH /api/v1/recommendations/{recommendation}`.
+  - Decision content/update via `PATCH /api/v1/decisions/{decision}`.
+  - Recovery monitoring creation via `POST /api/v1/recoveries/{recovery}/monitoring`.
+  - Evidence metadata and status updates via `PATCH /api/v1/evidences/{evidence}` and `PATCH /api/v1/evidences/{evidence}/status`.
+- React Query mutations with targeted query invalidation.
+- Toast/loading/error UX using existing frontend patterns.
+- Laravel `422` field error mapping into form state.
+- Role-aware action visibility using canonical `user.role.code`.
+- Assigned Satgas action gating uses returned assignment data as a UX hint; backend RBAC remains authoritative.
+- Disabled blocker UI for actions requiring unavailable lookup/status-option APIs:
+  - Report forward-to-case.
+  - Case assignment.
+  - Investigation creation.
+  - Investigation status update.
+  - Recommendation status update.
+  - Decision status update.
+  - Recovery update/status beyond monitoring.
+- No manual numeric user ID inputs.
+- No evidence upload/download/preview or storage field mutation.
+- No reporter public view, mobile user view, Flutter, student registration/account approval, notification UI, WhatsApp, or backend changes.
+
+Verification:
+
+```text
+npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnings
+npm run build: PASS
+```
+
 ---
 
 ## 3. Current API Surface
@@ -369,7 +408,7 @@ Implemented or prepared API areas:
 - Evidence metadata
 - Audit logs
 - Dashboard analytics prepared
-- Frontend dashboard and operational screen foundations
+- Frontend dashboard, operational screen, and workflow action foundations
 
 Not implemented yet:
 
@@ -377,8 +416,8 @@ Not implemented yet:
 - Notifications
 - WhatsApp integration
 - User CRUD/admin account management
-- Frontend workflow mutation UI
-- Frontend user/Satgas lookup picker integration
+- Frontend user/Satgas lookup picker integration for assignment and forwarding
+- Frontend workflow status actions that require unavailable status option APIs
 - Public/reporter frontend flows
 - Flutter mobile app
 
@@ -386,7 +425,7 @@ Not implemented yet:
 
 ## 4. Next Milestone
 
-### Milestone 16 - Notification Foundation
+### Milestone 17 - Notification Foundation
 
 Goal:
 
@@ -422,13 +461,13 @@ Planning constraints:
 
 | Milestone | Name | Purpose |
 |---|---|---|
-| 16 | Notification Foundation | Internal notification persistence and queue jobs. |
-| 17 | WhatsApp Integration | Fonnte integration with privacy-safe templates. |
-| 18 | User Management Foundation | Admin user CRUD, deactivate, role assignment. |
-| 19 | Frontend Workflow Mutation Integration | Approved workflow actions, forms, and pickers after supporting APIs are available. |
-| 20 | Security Verification | Headers, CORS, rate limits, privacy review, penetration-style checklist. |
-| 21 | Production Readiness | Deployment, environment hardening, backup, observability. |
-| 22 | Flutter Planning | Mobile scope after stable backend and web integration. |
+| 17 | Notification Foundation | Internal notification persistence and queue jobs. |
+| 18 | WhatsApp Integration | Fonnte integration with privacy-safe templates. |
+| 19 | User Management Foundation | Admin user CRUD, deactivate, role assignment, and lookup APIs. |
+| 20 | Frontend Workflow Completion | Assignment/forwarding pickers and deferred status actions after supporting APIs are available. |
+| 21 | Security Verification | Headers, CORS, rate limits, privacy review, penetration-style checklist. |
+| 22 | Production Readiness | Deployment, environment hardening, backup, observability. |
+| 23 | Flutter Planning | Mobile scope after stable backend and web integration. |
 
 ---
 
@@ -443,8 +482,8 @@ Deferred until explicitly approved:
 - WhatsApp/Fonnte integration.
 - Notification delivery tracking.
 - Advanced dashboard analytics beyond M13 metadata aggregates.
-- Frontend workflow mutation UI.
 - Frontend user/Satgas lookup picker integration.
+- Frontend workflow status actions that require unavailable status option APIs.
 - Public/reporter frontend flows.
 - Flutter mobile app.
 - Social login.
@@ -472,6 +511,8 @@ Deferred until explicitly approved:
 | Frontend token persistence sprawl | Milestone 14 centralizes browser storage access through `frontend/src/lib/auth-storage.ts`. |
 | Operational screen sensitive data leakage | Milestone 15 renders only backend-returned fields and preserves metadata-only responses. |
 | Incomplete assignment/forwarding UI | Milestone 15 disables actions that require unavailable user/Satgas lookup APIs instead of introducing temporary numeric ID inputs. |
+| Frontend workflow mutation drift | Milestone 16 routes all mutations through the centralized operations API client, maps Laravel 422 errors, avoids optimistic updates, and refreshes from backend after success. |
+| Unsafe picker substitutes | Milestone 16 keeps forward-to-case, assignment, and investigation creation disabled until approved user/Satgas lookup APIs exist. |
 
 ---
 
@@ -527,7 +568,7 @@ GET /api/v1/dashboard/evidence
 
 Full Milestone 13 route verification and test run are pending.
 
-Latest frontend verification after Milestone 15:
+Latest frontend verification after Milestone 16:
 
 ```text
 npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnings
