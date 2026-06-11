@@ -2,8 +2,8 @@
 
 > Status: Active Handoff  
 > Last Updated: 2026-06-11  
-> Current Backend Milestone: Milestone 12 Implementation Prepared - Audit Trail Foundation  
-> Next Milestone: Milestone 13 - Notification Foundation
+> Current Backend Milestone: Milestone 13 Implementation Prepared - Dashboard & Analytics Foundation  
+> Next Milestone: Milestone 14 - Notification Foundation
 
 ---
 
@@ -11,7 +11,7 @@
 
 SILAPPKASAL is a secure reporting and case-handling platform for prevention and response to sexual violence in a university environment. The repository is structured with a Laravel REST API backend in `backend/api` and a React frontend in `frontend/`.
 
-The backend is the current source of implemented business behavior. Frontend integration, evidence upload, notifications, analytics, WhatsApp integration, and Flutter work remain future work unless explicitly promoted.
+The backend is the current source of implemented business behavior. Frontend integration, evidence upload, notifications, WhatsApp integration, and Flutter work remain future work unless explicitly promoted.
 
 ---
 
@@ -30,9 +30,10 @@ The backend is the current source of implemented business behavior. Frontend int
 | 9 | Decision Foundation | PASS | Decision model, recommendation-owned decision records, decision status master data, outcome foundation, status history, admin/super admin decision authority, assigned Satgas read-only access. |
 | 10 | Recovery and Monitoring Foundation | PASS | Recovery model, monitoring records, recovery status master data, status history, admin/super admin recovery lifecycle authority, assigned Satgas recovery read and monitoring creation. |
 | 11 | Evidence Foundation | Prepared and Tested | Investigation-owned evidence metadata, evidence lifecycle constants, metadata-only resources, chain-of-custody foundation, assigned Satgas access only, no file upload/download/storage implementation. |
-| 12 | Audit Trail Foundation | Prepared, Pending Migration/Test Approval | Append-only audit log model, audit taxonomy constants, privacy-safe redaction service, audit log read API, admin/super_admin RBAC, no export/SIEM/notifications/frontend work. |
+| 12 | Audit Trail Foundation | PASS | Append-only audit log model, audit taxonomy constants, privacy-safe redaction service, audit log read API, admin/super_admin RBAC, no export/SIEM/notifications/frontend work. |
+| 13 | Dashboard & Analytics Foundation | Prepared, Pending Verification | Metadata-only dashboard analytics endpoints, live aggregate queries, statistics.view RBAC, global admin/super_admin scope, assigned-case Satgas scope, no migrations, no ETL, no exports, no frontend work. |
 
-Latest fully verified checks after Milestone 11:
+Latest known fully verified baseline before Milestone 13 implementation:
 
 ```text
 php artisan route:list --path=api/v1
@@ -42,9 +43,9 @@ Routes: 42 API v1 routes
 Tests: 71 passed (566 assertions)
 ```
 
-Milestone 11 implementation has been test-verified locally. Commit status should be checked by the next operator before starting a new milestone.
+Milestone 12 has been completed, committed, pushed, and documented per project handoff.
 
-Milestone 12 implementation is prepared in code and route discovery has been verified, but migrations and full tests have not been run pending explicit approval.
+Milestone 13 implementation is prepared in code, but tests and route verification have not been run yet after the Milestone 13 changes.
 
 ---
 
@@ -70,7 +71,8 @@ Implemented or prepared API groups:
 | Decisions | `POST /api/v1/recommendations/{recommendation}/decisions`, `GET /api/v1/recommendations/{recommendation}/decisions`, `GET /api/v1/decisions/{decision}`, `PATCH /api/v1/decisions/{decision}`, `PATCH /api/v1/decisions/{decision}/status` |
 | Recoveries | `POST /api/v1/decisions/{decision}/recoveries`, `GET /api/v1/decisions/{decision}/recoveries`, `GET /api/v1/recoveries/{recovery}`, `PATCH /api/v1/recoveries/{recovery}`, `PATCH /api/v1/recoveries/{recovery}/status`, `POST /api/v1/recoveries/{recovery}/monitoring`, `GET /api/v1/recoveries/{recovery}/monitoring` |
 | Evidences | `POST /api/v1/investigations/{investigation}/evidences`, `GET /api/v1/investigations/{investigation}/evidences`, `GET /api/v1/evidences/{evidence}`, `PATCH /api/v1/evidences/{evidence}`, `PATCH /api/v1/evidences/{evidence}/status`, `GET /api/v1/evidences/{evidence}/custody` |
-| Audit Logs | `GET /api/v1/audit-logs`, `GET /api/v1/audit-logs/{auditLog}` prepared, pending migration/test approval |
+| Audit Logs | `GET /api/v1/audit-logs`, `GET /api/v1/audit-logs/{auditLog}` |
+| Dashboard | `GET /api/v1/dashboard/summary`, `GET /api/v1/dashboard/reports`, `GET /api/v1/dashboard/cases`, `GET /api/v1/dashboard/workflow`, `GET /api/v1/dashboard/evidence` prepared, pending verification |
 
 ---
 
@@ -84,7 +86,8 @@ Implemented or prepared API groups:
 - Assigned Satgas access is required for sensitive case, investigation, recommendation, decision, recovery, and monitoring details.
 - Anonymous report identity is not stored.
 - Audit logs are append-only and must store safe metadata/deltas only, never raw sensitive content.
-- Evidence file upload, download, preview, storage implementation, attachments, WhatsApp, notifications, analytics, and Flutter integration are not implemented yet.
+- Dashboard analytics are metadata-only and count-based; they must not expose narratives, anonymous identities, tracking codes, evidence details, filenames, checksums, custody events, audit log aggregates, SLA/KPI scoring, or predictive analytics.
+- Evidence file upload, download, preview, storage implementation, attachments, WhatsApp, notifications, advanced analytics, and Flutter integration are not implemented yet.
 - Tests are expected for each milestone before completion.
 
 ---
@@ -112,7 +115,7 @@ Current security posture:
 Deferred security work:
 
 - Strict security headers middleware.
-- Audit trail foundation prepared, pending migration/test approval.
+- Audit trail foundation implemented.
 - Break-glass access.
 - Break-glass evidence access and secure file streaming.
 - Notification privacy review.
@@ -147,23 +150,22 @@ Implemented or prepared domain tables include:
 - `evidences` prepared by Milestone 11 migration
 - `evidence_status_histories` prepared by Milestone 11 migration
 - `evidence_custody_events` prepared by Milestone 11 migration
-- `audit_logs` prepared by Milestone 12 migration
+- `audit_logs`
 
 Not yet implemented:
 
 - evidence file upload/download/preview/storage
 - notification delivery records
-- analytics/dashboard aggregates
 - messaging
 
 ---
 
 ## 7. Next Milestone
 
-After Milestone 12 is migrated, tested, and committed, the next milestone should be planned as:
+After Milestone 13 is verified and committed, the next milestone should be planned as:
 
 ```text
-Milestone 13 - Notification Foundation
+Milestone 14 - Notification Foundation
 ```
 
 Expected focus:
@@ -172,7 +174,7 @@ Expected focus:
 - Queue-backed notification jobs.
 - Privacy-safe notification payloads.
 - Relationship to reports, cases, investigations, recommendations, decisions, recoveries, and evidence metadata actions.
-- No notifications, WhatsApp, analytics, or frontend integration unless explicitly approved.
+- No WhatsApp, analytics dashboard expansion, or frontend integration unless explicitly approved.
 
 ---
 
@@ -194,10 +196,14 @@ Expected verified test baseline:
 71 passed
 ```
 
-Prepared Milestone 12 route discovery:
+Prepared Milestone 13 route additions:
 
 ```text
-44 API v1 routes
+GET /api/v1/dashboard/summary
+GET /api/v1/dashboard/reports
+GET /api/v1/dashboard/cases
+GET /api/v1/dashboard/workflow
+GET /api/v1/dashboard/evidence
 ```
 
 Recommended verification commands:

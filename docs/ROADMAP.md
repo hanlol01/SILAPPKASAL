@@ -2,8 +2,8 @@
 
 > Status: Active  
 > Last Updated: 2026-06-11  
-> Current Position: Milestone 12 implementation prepared, pending migration/test approval  
-> Next: Milestone 13 - Notification Foundation
+> Current Position: Milestone 13 implementation prepared, pending verification  
+> Next: Milestone 14 - Notification Foundation
 
 ---
 
@@ -217,9 +217,9 @@ Verification:
 
 ### Milestone 12 - Audit Trail Foundation
 
-Status: Implementation prepared, pending migration/test approval
+Status: PASS
 
-Prepared:
+Delivered:
 
 - Append-only `audit_logs` migration.
 - `created_at` only; no `updated_at` or `deleted_at`.
@@ -235,12 +235,43 @@ Prepared:
 - Evidence custody remains separate and complementary.
 - No export, SIEM, retention policy, notification, WhatsApp, analytics dashboard, or frontend work.
 
-Verification so far:
+Verification:
 
 ```text
-44 API v1 routes discovered
-php -l passed for new/modified M12 PHP files
-Full migration/test run pending explicit approval
+Completed, committed, pushed, and documented.
+```
+
+### Milestone 13 - Dashboard & Analytics Foundation
+
+Status: Implementation prepared, pending verification
+
+Prepared:
+
+- Metadata-only dashboard analytics endpoints.
+- No migrations and no new business tables.
+- Live aggregate queries over existing workflow tables only.
+- `DashboardController`, `DashboardService`, `DashboardPolicy`, request validation, and dashboard resource.
+- Routes:
+  - `GET /api/v1/dashboard/summary`
+  - `GET /api/v1/dashboard/reports`
+  - `GET /api/v1/dashboard/cases`
+  - `GET /api/v1/dashboard/workflow`
+  - `GET /api/v1/dashboard/evidence`
+- Filters: `date_from`, `date_to`, and `granularity=day|week|month`.
+- Default 30-day range and maximum 366-day range.
+- RBAC uses `statistics.view` plus existing role scope.
+- Admin and Super Admin receive global metadata aggregates.
+- Satgas receives aggregates scoped to active assigned cases.
+- Reporter is forbidden.
+- Evidence analytics are count-based only.
+- Workflow conversion metrics are descriptive only, not SLA, KPI, success-rate, or performance scoring.
+- Audit logs are explicitly excluded from dashboard analytics.
+- No frontend, export, notification, WhatsApp, AI analytics, predictive scoring, ETL, or materialized view work.
+
+Verification pending:
+
+```text
+Route verification and php artisan test have not been run after M13 changes.
 ```
 
 ---
@@ -259,15 +290,14 @@ Implemented or prepared API areas:
 - Decisions
 - Recovery and monitoring
 - Evidence metadata
-- Audit logs prepared
+- Audit logs
+- Dashboard analytics prepared
 
 Not implemented yet:
 
 - Evidence upload/download
 - Notifications
 - WhatsApp integration
-- Audit logs
-- Dashboard analytics
 - User CRUD/admin account management
 - Frontend API integration
 - Flutter mobile app
@@ -276,7 +306,7 @@ Not implemented yet:
 
 ## 4. Next Milestone
 
-### Milestone 13 - Notification Foundation
+### Milestone 14 - Notification Foundation
 
 Goal:
 
@@ -312,9 +342,8 @@ Planning constraints:
 
 | Milestone | Name | Purpose |
 |---|---|---|
-| 13 | Notification Foundation | Internal notification persistence and queue jobs. |
-| 14 | WhatsApp Integration | Fonnte integration with privacy-safe templates. |
-| 15 | Dashboard Analytics Foundation | Metadata-safe dashboard aggregates. |
+| 14 | Notification Foundation | Internal notification persistence and queue jobs. |
+| 15 | WhatsApp Integration | Fonnte integration with privacy-safe templates. |
 | 16 | User Management Foundation | Admin user CRUD, deactivate, role assignment. |
 | 17 | Frontend Auth Integration | Connect React auth to backend Sanctum flow. |
 | 18 | Frontend Report/Case Integration | Replace mock report/case data with API. |
@@ -335,7 +364,7 @@ Deferred until explicitly approved:
 - Evidence file upload/download verification.
 - WhatsApp/Fonnte integration.
 - Notification delivery tracking.
-- Dashboard analytics.
+- Advanced dashboard analytics beyond M13 metadata aggregates.
 - Frontend integration.
 - Flutter mobile app.
 - Social login.
@@ -353,11 +382,12 @@ Deferred until explicitly approved:
 | Unauthorized Satgas access | Active assignment checks in policies/services. |
 | Anonymous reporter identity leakage | Anonymous reports do not store identity, phone, IP, or device data in business fields. |
 | Seeder side effects | Seeders are idempotent and tests assert no business rows. |
-| Future workflow coupling | Milestones keep recovery, evidence, notification, and analytics separate. |
+| Future workflow coupling | Milestones keep recovery, evidence, dashboard analytics, notification, and WhatsApp separate. |
 | Decision accidentally mutating case status | Milestone 9 service keeps decision transitions isolated from case status and case closing. |
 | Recovery accidentally closing cases | Milestone 10 service keeps recovery and monitoring isolated from case closure. |
 | Evidence access leakage | Milestone 11 keeps evidence metadata assigned-Satgas only; Admin and Super Admin have no default evidence access. |
 | Audit log sensitive data leakage | Milestone 12 redaction service stores safe metadata and field-level deltas only. |
+| Dashboard privacy leakage | Milestone 13 analytics are metadata-only, count-based, RBAC-scoped, and exclude narratives, anonymous identity, tracking codes, evidence details, and audit log aggregates. |
 
 ---
 
@@ -386,16 +416,20 @@ php artisan route:list --path=api/v1
 php artisan test
 ```
 
-Latest fully verified baseline after Milestone 11:
+Latest known fully verified baseline before Milestone 13 implementation:
 
 ```text
 71 passed (566 assertions)
 ```
 
-Current prepared route baseline after Milestone 12:
+Prepared Milestone 13 route additions:
 
 ```text
-44 API v1 routes
+GET /api/v1/dashboard/summary
+GET /api/v1/dashboard/reports
+GET /api/v1/dashboard/cases
+GET /api/v1/dashboard/workflow
+GET /api/v1/dashboard/evidence
 ```
 
-Full Milestone 12 migration and test verification is pending explicit approval.
+Full Milestone 13 route verification and test run are pending.
