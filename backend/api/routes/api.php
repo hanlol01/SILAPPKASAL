@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\MasterDataController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\MyWorkController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\PortalController;
 use App\Http\Controllers\Api\V1\RecommendationController;
 use App\Http\Controllers\Api\V1\RecoveryController;
 use App\Http\Controllers\Api\V1\ReporterRegistrationController;
@@ -157,6 +158,13 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/', [NotificationController::class, 'index']);
         Route::patch('/read-all', [NotificationController::class, 'readAll']);
         Route::patch('/{notification}/read', [NotificationController::class, 'markRead']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('portal')->group(function (): void {
+        Route::get('/summary', [PortalController::class, 'summary']);
+        Route::get('/reports', [PortalController::class, 'reports']);
+        Route::get('/reports/{registrationNumber}', [PortalController::class, 'report']);
+        Route::get('/notifications', [PortalController::class, 'notifications']);
     });
 
     Route::middleware('auth:sanctum')->prefix('my-work')->group(function (): void {
