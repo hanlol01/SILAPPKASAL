@@ -2,8 +2,8 @@
 
 > Status: Active  
 > Last Updated: 2026-06-11  
-> Current Position: Milestone 18 Work Queue Foundation implementation prepared, pending verification  
-> Next: Milestone 19 - WhatsApp Integration
+> Current Position: Milestone 19 Reporter Account Foundation complete  
+> Next: Milestone 20 - WhatsApp Integration
 
 ---
 
@@ -426,9 +426,9 @@ php artisan test: PASS
 
 ### Milestone 18 - Work Queue Foundation
 
-Status: Implementation prepared, pending verification
+Status: PASS
 
-Prepared:
+Delivered:
 
 - Backend-only My Work / Work Queue foundation.
 - No migrations and no new workflow states.
@@ -446,10 +446,45 @@ Prepared:
 - Responses exclude sensitive narratives, report chronology, victim/reporter identity, anonymous hints, tracking codes, investigation findings, recommendation narratives, decision content, evidence details, `risk_level_code`, and priority filters.
 - No frontend changes, WhatsApp/Fonnte, mobile/Flutter, notification UI, user-management expansion, dashboard analytics duplication, or new state machine work.
 
-Verification pending:
+Verification:
 
 ```text
-Route verification and php artisan test have not been run after M18 changes.
+Included in latest backend full suite:
+102 passed (812 assertions)
+```
+
+### Milestone 19 - Reporter Account Foundation
+
+Status: PASS
+
+Delivered:
+
+- Backend-only reporter/student registration request foundation.
+- Separate `reporter_registrations` table; pending registrations are not stored in `users`.
+- Public self-registration endpoint:
+  - `POST /api/v1/reporter-registrations`
+- Required public rate limiting with `throttle:5,1`.
+- Registration number foundation through `registration_number`.
+- Registration statuses: `pending`, `approved`, `rejected`.
+- Pending registration may temporarily store password hash.
+- Approval creates active `reporter` user and clears registration password hash.
+- Rejection clears registration password hash and creates no user.
+- Duplicate prevention for active user and pending registration email/NIM.
+- Admin/super_admin review APIs:
+  - `GET /api/v1/reporter-registrations`
+  - `GET /api/v1/reporter-registrations/{reporterRegistration}`
+  - `PATCH /api/v1/reporter-registrations/{reporterRegistration}/approve`
+  - `PATCH /api/v1/reporter-registrations/{reporterRegistration}/reject`
+- Satgas and reporter have no registration review access.
+- Audit events for submitted, approved, and rejected registration actions.
+- No auto-login after registration.
+- No email, WhatsApp/Fonnte, verification links, mobile UI, notification UI, frontend changes, or dummy reporter seeding.
+
+Verification:
+
+```text
+ReporterRegistrationFoundationTest: 9 passed (64 assertions)
+php artisan test: 102 passed (812 assertions)
 ```
 
 ---
@@ -471,7 +506,8 @@ Implemented or prepared API areas:
 - Audit logs
 - Dashboard analytics prepared
 - Notifications
-- My Work / Work Queue prepared
+- My Work / Work Queue
+- Reporter registrations
 - Frontend dashboard, operational screen, and workflow action foundations
 
 Not implemented yet:
@@ -488,7 +524,7 @@ Not implemented yet:
 
 ## 4. Next Milestone
 
-### Milestone 19 - WhatsApp Integration
+### Milestone 20 - WhatsApp Integration
 
 Goal:
 
@@ -522,12 +558,12 @@ Planning constraints:
 
 | Milestone | Name | Purpose |
 |---|---|---|
-| 19 | WhatsApp Integration | Fonnte integration with privacy-safe templates. |
-| 20 | User Management Foundation | Admin user CRUD, deactivate, role assignment, and lookup APIs. |
-| 21 | Frontend Workflow Completion | Assignment/forwarding pickers and deferred status actions after supporting APIs are available. |
-| 22 | Security Verification | Headers, CORS, rate limits, privacy review, penetration-style checklist. |
-| 23 | Production Readiness | Deployment, environment hardening, backup, observability. |
-| 24 | Flutter Planning | Mobile scope after stable backend and web integration. |
+| 20 | WhatsApp Integration | Fonnte integration with privacy-safe templates. |
+| 21 | User Management Foundation | Admin user CRUD, deactivate, role assignment, and lookup APIs. |
+| 22 | Frontend Workflow Completion | Assignment/forwarding pickers and deferred status actions after supporting APIs are available. |
+| 23 | Security Verification | Headers, CORS, rate limits, privacy review, penetration-style checklist. |
+| 24 | Production Readiness | Deployment, environment hardening, backup, observability. |
+| 25 | Flutter Planning | Mobile scope after stable backend and web integration. |
 
 ---
 
@@ -575,6 +611,8 @@ Deferred until explicitly approved:
 | Unsafe picker substitutes | Milestone 16 keeps forward-to-case, assignment, and investigation creation disabled until approved user/Satgas lookup APIs exist. |
 | Notification payload leakage | Milestone 17 uses metadata-only database notifications with mandatory `notification_type_code`, own-user access only, and no sensitive narrative or identity fields. |
 | Work queue privacy leakage | Milestone 18 queues are metadata-only, RBAC-scoped, assignment-scoped for Satgas, and exclude narratives, identities, tracking codes, evidence details, `risk_level_code`, and priority filters. |
+| Unapproved reporter account access | Milestone 19 keeps pending registrations outside `users`; login becomes possible only after admin/super_admin approval creates an active reporter account. |
+| Duplicate reporter accounts | Milestone 19 checks active user and pending registration email/NIM before submission and rechecks active users before approval. |
 
 ---
 
@@ -637,14 +675,14 @@ npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnin
 npm run build: PASS
 ```
 
-Latest backend verification after Milestone 17:
+Latest backend verification after Milestone 19:
 
 ```text
 php artisan test: PASS
-87 passed (707 assertions)
+102 passed (812 assertions)
 ```
 
-Prepared Milestone 18 route additions:
+Verified Milestone 18 route additions:
 
 ```text
 GET /api/v1/my-work/summary
@@ -653,4 +691,12 @@ GET /api/v1/my-work/investigations
 GET /api/v1/my-work/recommendations
 ```
 
-Full Milestone 18 route verification and test run are pending.
+Verified Milestone 19 route additions:
+
+```text
+POST /api/v1/reporter-registrations
+GET /api/v1/reporter-registrations
+GET /api/v1/reporter-registrations/{reporterRegistration}
+PATCH /api/v1/reporter-registrations/{reporterRegistration}/approve
+PATCH /api/v1/reporter-registrations/{reporterRegistration}/reject
+```

@@ -2,8 +2,8 @@
 
 > Status: Active Handoff  
 > Last Updated: 2026-06-11  
-> Current Backend Milestone: Milestone 18 Implementation Prepared - Work Queue Foundation  
-> Next Milestone: Milestone 19 - WhatsApp Integration
+> Current Backend Milestone: Milestone 19 Complete - Reporter Account Foundation  
+> Next Milestone: Milestone 20 - WhatsApp Integration
 
 ---
 
@@ -36,7 +36,8 @@ The backend is the source of implemented business behavior. The React frontend i
 | 15 | Operational Screen Foundation | PASS | React report list/detail and case list/detail integration, read-only case detail sections for investigations, recommendations, decisions, recoveries, and evidence metadata, metadata-only response handling, disabled unavailable assignment/forwarding actions, lint/build verified. |
 | 16 | Workflow Actions Foundation | PASS | Safe frontend workflow actions for case status, investigation activities, recommendation updates, decision updates, recovery monitoring, and evidence metadata/status; disabled blockers for lookup/status-option gaps; no backend changes; lint/build verified. |
 | 17 | Notification Foundation | PASS | Laravel native database notifications, queued database channel only, metadata-only payloads with mandatory notification_type_code, low-noise workflow triggers, own-user read/list APIs, no WhatsApp/Fonnte/email/push/frontend work. |
-| 18 | Work Queue Foundation | Prepared, Pending Verification | Backend-only My Work queues for summary, cases, investigations, and recommendations; Satgas active-assignment scope; admin/super_admin global metadata queues; notification count summary; no frontend, migrations, new states, priority filter, or notification browsing duplication. |
+| 18 | Work Queue Foundation | PASS | Backend-only My Work queues for summary, cases, investigations, and recommendations; Satgas active-assignment scope; admin/super_admin global metadata queues; notification count summary; no frontend, migrations, new states, priority filter, or notification browsing duplication. |
+| 19 | Reporter Account Foundation | PASS | Backend-only reporter/student registration requests, public throttled self-registration, admin/super_admin approval/rejection, separate pending registration table, registration numbers, duplicate prevention, password hash clearing after review, reporter user creation only after approval, and tests. |
 
 Latest known fully verified baseline before Milestone 13 implementation:
 
@@ -78,7 +79,14 @@ Result:
 87 passed (707 assertions)
 ```
 
-Milestone 18 work queue foundation is prepared in code, but backend tests and route verification have not been run yet after the Milestone 18 changes.
+Milestone 18 work queue foundation and Milestone 19 reporter account foundation have been verified in the latest backend test run.
+
+Latest backend verification:
+
+```text
+php artisan test: PASS
+102 passed (812 assertions)
+```
 
 ---
 
@@ -107,7 +115,8 @@ Implemented or prepared API groups:
 | Audit Logs | `GET /api/v1/audit-logs`, `GET /api/v1/audit-logs/{auditLog}` |
 | Dashboard | `GET /api/v1/dashboard/summary`, `GET /api/v1/dashboard/reports`, `GET /api/v1/dashboard/cases`, `GET /api/v1/dashboard/workflow`, `GET /api/v1/dashboard/evidence` prepared, pending verification |
 | Notifications | `GET /api/v1/notifications`, `PATCH /api/v1/notifications/{notification}/read`, `PATCH /api/v1/notifications/read-all` |
-| My Work | `GET /api/v1/my-work/summary`, `GET /api/v1/my-work/cases`, `GET /api/v1/my-work/investigations`, `GET /api/v1/my-work/recommendations` prepared, pending verification |
+| My Work | `GET /api/v1/my-work/summary`, `GET /api/v1/my-work/cases`, `GET /api/v1/my-work/investigations`, `GET /api/v1/my-work/recommendations` |
+| Reporter Registrations | `POST /api/v1/reporter-registrations`, `GET /api/v1/reporter-registrations`, `GET /api/v1/reporter-registrations/{reporterRegistration}`, `PATCH /api/v1/reporter-registrations/{reporterRegistration}/approve`, `PATCH /api/v1/reporter-registrations/{reporterRegistration}/reject` |
 
 ---
 
@@ -126,6 +135,9 @@ Implemented or prepared API groups:
 - Frontend workflow actions must use centralized operations API functions, React Query mutations, backend RBAC, and Laravel `422` field-error handling.
 - Notifications are in-app Laravel database notifications only; WhatsApp, Fonnte, email, push, and frontend notification UI remain out of scope.
 - My Work queues are metadata-only, role-aware, and assignment-scoped for Satgas; they must not expose narratives, report chronology, victim/reporter identity, anonymous hints, tracking codes, investigation findings, recommendation narratives, decision content, evidence details, `risk_level_code`, or priority filters.
+- Reporter registration requests are stored separately from `users`; a reporter user is created only after admin/super_admin approval.
+- Pending registration password hashes are temporary and are cleared after approval or rejection.
+- Public reporter registration is rate-limited and must not auto-login users.
 - Evidence file upload, download, preview, storage implementation, attachments, WhatsApp, advanced analytics, and Flutter integration are not implemented yet.
 - Frontend workflow actions that require user/Satgas lookup APIs remain disabled until approved lookup endpoints exist.
 - Tests are expected for each milestone before completion.
@@ -157,6 +169,8 @@ Current security posture:
 - Frontend workflow mutations avoid optimistic updates and refresh from backend after success.
 - Evidence actions remain metadata/status only; upload, download, preview, and storage fields are still out of scope.
 - Notification payloads are metadata-only, include `notification_type_code`, and must not include narratives, reporter/victim identity, anonymous hints, evidence details, recommendation content, decision content, recovery notes, tokens, or sensitive fields.
+- Reporter/student accounts cannot login until a registration is approved and an active reporter user is created.
+- Reporter registration review data is limited to admin/super_admin; Satgas and reporter roles have no review API access.
 
 Deferred security work:
 
@@ -198,6 +212,7 @@ Implemented or prepared domain tables include:
 - `evidence_custody_events` prepared by Milestone 11 migration
 - `audit_logs`
 - `notifications`
+- `reporter_registrations`
 
 Not yet implemented:
 
@@ -209,10 +224,10 @@ Not yet implemented:
 
 ## 7. Next Milestone
 
-After Milestone 18 is verified and committed, the next backend milestone should be planned as:
+After Milestone 19 is committed, the next backend milestone should be planned as:
 
 ```text
-Milestone 19 - WhatsApp Integration
+Milestone 20 - WhatsApp Integration
 ```
 
 Expected focus:
@@ -241,7 +256,7 @@ php artisan test
 Expected verified test baseline:
 
 ```text
-87 passed
+102 passed (812 assertions)
 ```
 
 Prepared Milestone 13 route additions:
@@ -281,10 +296,10 @@ Latest backend verification:
 
 ```text
 php artisan test: PASS
-87 passed (707 assertions)
+102 passed (812 assertions)
 ```
 
-Prepared Milestone 18 route additions:
+Verified Milestone 18 route additions:
 
 ```text
 GET /api/v1/my-work/summary
@@ -293,7 +308,15 @@ GET /api/v1/my-work/investigations
 GET /api/v1/my-work/recommendations
 ```
 
-Full Milestone 18 route verification and test run are pending.
+Verified Milestone 19 route additions:
+
+```text
+POST /api/v1/reporter-registrations
+GET /api/v1/reporter-registrations
+GET /api/v1/reporter-registrations/{reporterRegistration}
+PATCH /api/v1/reporter-registrations/{reporterRegistration}/approve
+PATCH /api/v1/reporter-registrations/{reporterRegistration}/reject
+```
 
 ---
 
@@ -312,3 +335,4 @@ Full Milestone 18 route verification and test run are pending.
 - Milestone 16 enabled selected workflow mutations only through approved backend endpoints and centralized operations API helpers.
 - Do not add temporary numeric ID inputs for assignment, forwarding, or investigator/Satgas selection; keep dependent actions disabled until lookup APIs exist.
 - Recommendation/decision/investigation status actions remain disabled until approved status option or transition sources are available.
+- Reporter Account Foundation is backend-only; public/reporter frontend flows are still not implemented.
