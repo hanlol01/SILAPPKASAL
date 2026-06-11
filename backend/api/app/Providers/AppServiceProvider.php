@@ -22,6 +22,7 @@ use App\Policies\NotificationPolicy;
 use App\Policies\RecommendationPolicy;
 use App\Policies\RecoveryPolicy;
 use App\Policies\ReporterRegistrationPolicy;
+use App\Policies\ReporterSelfServicePolicy;
 use App\Policies\ReportPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -58,6 +59,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Report::class, ReportPolicy::class);
         Gate::define('viewDashboard', fn ($user): bool => app(DashboardPolicy::class)->view($user));
         Gate::define('viewMyWork', fn ($user): bool => app(MyWorkPolicy::class)->view($user));
+        Gate::define('accessReporterSelfService', fn ($user): bool => app(ReporterSelfServicePolicy::class)->access($user));
 
         RateLimiter::for('reports.submit', function (Request $request) {
             $accessToken = $request->bearerToken()

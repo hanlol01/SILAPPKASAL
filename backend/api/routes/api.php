@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\DecisionController;
 use App\Http\Controllers\Api\V1\EvidenceController;
 use App\Http\Controllers\Api\V1\InvestigationController;
 use App\Http\Controllers\Api\V1\MasterDataController;
+use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\MyWorkController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\RecommendationController;
@@ -36,6 +37,13 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/logout', [AuthController::class, 'logout']);
             Route::get('/me', [AuthController::class, 'me']);
         });
+    });
+
+    Route::middleware('auth:sanctum')->prefix('me')->group(function (): void {
+        Route::get('/profile', [MeController::class, 'profile']);
+        Route::patch('/profile', [MeController::class, 'updateProfile']);
+        Route::patch('/change-password', [MeController::class, 'changePassword']);
+        Route::get('/account-status', [MeController::class, 'accountStatus']);
     });
 
     Route::middleware('auth:sanctum')->prefix('master')->group(function (): void {

@@ -1,0 +1,102 @@
+<?php
+
+namespace App\Services;
+
+use App\Enums\AuditAction;
+use App\Enums\AuditCategory;
+use App\Enums\AuditSeverity;
+use App\Enums\ReporterRegistrationStatus;
+use App\Models\ReporterRegistration;
+use App\Models\User;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\Hash;
+
+class ReporterSelfServiceService
+{
+    public function __construct(private readonly AuditLogService $auditLogService)
+    {
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public function updateProfile(User $user, array $data): User
+    {
+        $before = [
+            'name' => $user->name,
+            'phone_number' => $user->phone_number,
+        ];
+
+        $user->forceFill(collect($data)->only(['name', 'phone_number'])->all())->save();
+
+        $after = [
+            'name' => $user->name,
+            'phone_number' => $user->phone_number,
+        ];
+
+        $this->auditLogService->record(
+            action: AuditAction::ReporterSelfServiceProfileUpdated,
+            category: AuditCategory::System,
+            severity: AuditSeverity::Info,
+            actor: $user,
+            subject: $user,
+            beforeChanges: $before,
+            afterChanges: $after
+        );
+
+        return $user->refresh()->load('role');
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public function changePassword(User $user, array $data): void
+    {
+        if (! Hash::check((string) $data['current_password'], $user->password)) {
+            throw new HttpResponseException(response()->json([
+                'success' => false,
+                'message' => 'Current password is incorrect',
+                'errors' => [
+                    'current_password' => ['Current password is incorrect'],
+                ],
+            ], 422));
+        }
+
+        $user->forceFill([
+            'password' => $data['password'],
+        ])->save();
+
+        $currentTokenId = $user->currentAccessToken()?->id;
+        $revokedTokenCount = $currentTokenId
+            ? $user->tokens()->whereKeyNot($currentTokenId)->delete()
+            : $user->tokens()->delete();
+
+        $this->auditLogService->record(
+            action: AuditAction::ReporterSelfServicePasswordChanged,
+            category: AuditCategory::Auth,
+            severity: AuditSeverity::Info,
+            actor: $user,
+            subject: $user,
+            metadata: [
+                'revoked_other_tokens' => $revokedTokenCount,
+            ]
+        );
+    }
+
+    /**
+     * @return array{user: User, registration_number: ?string}
+     */
+    public function accountStatus(User $user): array
+    {
+        $registrationNumber = ReporterRegistration::query()
+            ->where('approved_user_id', $user->id)
+            ->where('status', ReporterRegistrationStatus::Approved->value)
+            ->latest()
+            ->value('registration_number');
+
+        return [
+            'user' => $user->load('role'),
+            'registration_number' => $registrationNumber,
+        ];
+    }
+}
