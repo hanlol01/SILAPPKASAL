@@ -87,7 +87,7 @@ function ReportDetailPage() {
             </Button>
             <p className="text-xs text-muted-foreground">
               Forwarding requires selecting Satgas users and a lead Satgas. No approved user lookup
-              API exists yet, so M15 keeps this action disabled instead of using temporary ID inputs.
+              API exists yet, so M16 keeps this action disabled instead of using temporary ID inputs.
             </p>
           </CardContent>
         </Card>

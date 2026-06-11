@@ -212,3 +212,55 @@ export interface EvidenceCustodyEvent {
   event_at: string | null;
   details?: string | null;
 }
+
+export interface CaseStatusPayload {
+  status: string;
+}
+
+export interface InvestigationActivityPayload {
+  activity_type: string;
+  activity_date: string;
+  description: string;
+  findings?: string | null;
+  notes?: string | null;
+}
+
+export interface RecommendationUpdatePayload {
+  conclusion?: string;
+  recommended_actions?: string;
+  sanction_recommendation?: string | null;
+  recovery_recommendation?: string | null;
+  prevention_recommendation?: string | null;
+}
+
+export interface DecisionUpdatePayload {
+  outcome_code?: string;
+  decision_number?: string | null;
+  decision_date?: string;
+  decision_summary?: string;
+  decision_content?: string;
+}
+
+export interface RecoveryMonitoringPayload {
+  monitoring_date: string;
+  condition_summary: string;
+  follow_up_plan?: string | null;
+  notes?: string | null;
+}
+
+export interface EvidenceUpdatePayload {
+  evidence_type_code?: string;
+  title?: string;
+  description?: string | null;
+  source?: string | null;
+  collected_at?: string | null;
+  classification?: string | null;
+  original_filename?: string | null;
+  mime_type?: string | null;
+  file_size?: number | null;
+  checksum_sha256?: string | null;
+}
+
+export interface EvidenceStatusPayload {
+  status: string;
+}

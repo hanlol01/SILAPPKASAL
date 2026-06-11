@@ -17,6 +17,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
+  CaseStatusAction,
+  DecisionUpdateAction,
+  DisabledWorkflowAction,
+  EvidenceMetadataAction,
+  EvidenceStatusAction,
+  InvestigationActivityAction,
+  RecommendationUpdateAction,
+  RecoveryMonitoringAction,
+} from "@/components/workflow-actions/workflow-action-dialogs";
+import { useAuth } from "@/hooks/use-auth";
+import {
   getCase,
   getCaseInvestigations,
   getCaseRecommendations,
@@ -40,6 +51,7 @@ export const Route = createFileRoute("/dashboard/cases/$id")({
 
 function CaseDetail() {
   const { id } = Route.useParams();
+  const { user, roleCode } = useAuth();
   const caseQuery = useQuery({
     queryKey: operationsQueryKeys.case(id),
     queryFn: () => getCase(id),
@@ -86,6 +98,13 @@ function CaseDetail() {
   }
 
   const c = caseQuery.data;
+  const isAdminRole = roleCode === "super_admin" || roleCode === "admin";
+  const isAssignedSatgas =
+    roleCode === "satgas_ppks" &&
+    (c.assignments ?? []).some((assignment) => assignment.is_active && assignment.satgas_id === user?.id);
+  const canUseSatgasActions = isAssignedSatgas && !c.closed_at;
+  const canManageInstitutionalActions = isAdminRole;
+  const canAddRecoveryMonitoring = canManageInstitutionalActions || canUseSatgasActions;
 
   return (
     <div className="space-y-6">
@@ -121,11 +140,33 @@ function CaseDetail() {
           </Card>
 
           <SensitiveReportSection report={c.report} />
-          <InvestigationsSection investigations={investigationsQuery.data ?? []} loading={investigationsQuery.isLoading} />
-          <RecommendationsSection recommendations={recommendationsQuery.data ?? []} loading={recommendationsQuery.isLoading} />
-          <DecisionsSection decisions={decisions} loading={decisionQueries.some((query) => query.isLoading)} />
-          <RecoveriesSection recoveries={recoveries} loading={recoveryQueries.some((query) => query.isLoading)} />
-          <EvidenceSection evidences={evidences} loading={evidenceQueries.some((query) => query.isLoading)} />
+          <InvestigationsSection
+            investigations={investigationsQuery.data ?? []}
+            loading={investigationsQuery.isLoading}
+            canAddActivity={canUseSatgasActions}
+            caseId={c.id}
+          />
+          <RecommendationsSection
+            recommendations={recommendationsQuery.data ?? []}
+            loading={recommendationsQuery.isLoading}
+            canUpdate={canUseSatgasActions}
+            caseId={c.id}
+          />
+          <DecisionsSection
+            decisions={decisions}
+            loading={decisionQueries.some((query) => query.isLoading)}
+            canUpdate={canManageInstitutionalActions}
+          />
+          <RecoveriesSection
+            recoveries={recoveries}
+            loading={recoveryQueries.some((query) => query.isLoading)}
+            canAddMonitoring={canAddRecoveryMonitoring}
+          />
+          <EvidenceSection
+            evidences={evidences}
+            loading={evidenceQueries.some((query) => query.isLoading)}
+            canUpdate={canUseSatgasActions}
+          />
         </div>
 
         <div className="space-y-4">
@@ -152,19 +193,28 @@ function CaseDetail() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Actions</CardTitle>
-              <CardDescription>Mutation UI is deferred for M15.</CardDescription>
+              <CardDescription>Safe workflow actions use approved backend endpoints.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <Button disabled className="w-full" variant="outline">
                 <UserRoundSearch className="mr-2 h-4 w-4" /> Assign Satgas
               </Button>
-              <Button disabled className="w-full" variant="outline">
-                Update status
-              </Button>
               <p className="text-xs text-muted-foreground">
-                Assignment requires an approved Satgas user lookup API. Status/workflow mutation
-                forms are intentionally deferred; this screen is read-only operational browsing.
+                Assignment requires an approved Satgas user lookup API. M16 keeps this disabled
+                instead of using temporary ID inputs.
               </p>
+              {canUseSatgasActions ? (
+                <CaseStatusAction caseId={c.id} currentStatus={c.status_code} />
+              ) : (
+                <DisabledWorkflowAction
+                  title="Case status update"
+                  description="Only actively assigned Satgas users can update case status. Backend RBAC remains authoritative."
+                />
+              )}
+              <DisabledWorkflowAction
+                title="Create investigation"
+                description="Investigation creation requires a lead investigator picker. No approved Satgas lookup API exists yet."
+              />
             </CardContent>
           </Card>
         </div>
@@ -216,14 +266,27 @@ function SensitiveReportSection({ report }: { report: unknown }) {
   );
 }
 
-function InvestigationsSection({ investigations, loading }: { investigations: Investigation[]; loading: boolean }) {
+function InvestigationsSection({
+  investigations,
+  loading,
+  canAddActivity,
+  caseId,
+}: {
+  investigations: Investigation[];
+  loading: boolean;
+  canAddActivity: boolean;
+  caseId: number | string;
+}) {
   return (
     <SectionCard icon={FileSearch} title="Investigations" loading={loading} empty={investigations.length === 0}>
       {investigations.map((item) => (
         <div key={item.id} className="rounded-lg border p-3 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="font-medium">Investigation #{item.id}</div>
-            <Badge variant="outline">{label(item.status_code)}</Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">{label(item.status_code)}</Badge>
+              {canAddActivity && <InvestigationActivityAction investigation={item} caseId={caseId} />}
+            </div>
           </div>
           <div className="mt-2 grid gap-2 text-muted-foreground sm:grid-cols-2">
             <div>Lead: {item.lead_investigator?.name ?? "Metadata unavailable"}</div>
@@ -238,20 +301,41 @@ function InvestigationsSection({ investigations, loading }: { investigations: In
           ) : (
             <MetadataOnlyText />
           )}
+          <div className="mt-3">
+            <DisabledWorkflowAction
+              title="Investigation status update"
+              description="Status action is not enabled until investigation status options or transition data are exposed by backend."
+            />
+          </div>
         </div>
       ))}
     </SectionCard>
   );
 }
 
-function RecommendationsSection({ recommendations, loading }: { recommendations: Recommendation[]; loading: boolean }) {
+function RecommendationsSection({
+  recommendations,
+  loading,
+  canUpdate,
+  caseId,
+}: {
+  recommendations: Recommendation[];
+  loading: boolean;
+  canUpdate: boolean;
+  caseId: number | string;
+}) {
   return (
     <SectionCard icon={ClipboardList} title="Recommendations" loading={loading} empty={recommendations.length === 0}>
       {recommendations.map((item) => (
         <div key={item.id} className="rounded-lg border p-3 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="font-medium">Recommendation #{item.id}</div>
-            <Badge variant="outline">{label(item.status_code)}</Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">{label(item.status_code)}</Badge>
+              {canUpdate && hasRecommendationDetail(item) && (
+                <RecommendationUpdateAction recommendation={item} caseId={caseId} />
+              )}
+            </div>
           </div>
           <div className="mt-2 text-muted-foreground">Author: {item.author?.name ?? "Metadata unavailable"}</div>
           {item.conclusion || item.recommended_actions ? (
@@ -265,20 +349,37 @@ function RecommendationsSection({ recommendations, loading }: { recommendations:
           ) : (
             <MetadataOnlyText />
           )}
+          <div className="mt-3">
+            <DisabledWorkflowAction
+              title="Recommendation status update"
+              description="Status action is disabled until recommendation status options or transition data are exposed by backend."
+            />
+          </div>
         </div>
       ))}
     </SectionCard>
   );
 }
 
-function DecisionsSection({ decisions, loading }: { decisions: Decision[]; loading: boolean }) {
+function DecisionsSection({
+  decisions,
+  loading,
+  canUpdate,
+}: {
+  decisions: Decision[];
+  loading: boolean;
+  canUpdate: boolean;
+}) {
   return (
     <SectionCard icon={Scale} title="Decisions" loading={loading} empty={decisions.length === 0}>
       {decisions.map((item) => (
         <div key={item.id} className="rounded-lg border p-3 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="font-medium">Decision #{item.id}</div>
-            <Badge variant="outline">{label(item.status_code)}</Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">{label(item.status_code)}</Badge>
+              {canUpdate && <DecisionUpdateAction decision={item} />}
+            </div>
           </div>
           <div className="mt-2 grid gap-2 text-muted-foreground sm:grid-cols-2">
             <div>Outcome: {label(item.outcome_code)}</div>
@@ -292,20 +393,37 @@ function DecisionsSection({ decisions, loading }: { decisions: Decision[]; loadi
           ) : (
             <MetadataOnlyText />
           )}
+          <div className="mt-3">
+            <DisabledWorkflowAction
+              title="Decision status update"
+              description="Status action is disabled until decision status options or transition data are exposed by backend."
+            />
+          </div>
         </div>
       ))}
     </SectionCard>
   );
 }
 
-function RecoveriesSection({ recoveries, loading }: { recoveries: Recovery[]; loading: boolean }) {
+function RecoveriesSection({
+  recoveries,
+  loading,
+  canAddMonitoring,
+}: {
+  recoveries: Recovery[];
+  loading: boolean;
+  canAddMonitoring: boolean;
+}) {
   return (
     <SectionCard icon={BriefcaseMedical} title="Recoveries" loading={loading} empty={recoveries.length === 0}>
       {recoveries.map((item) => (
         <div key={item.id} className="rounded-lg border p-3 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="font-medium">{item.recovery_type?.name ?? `Recovery #${item.id}`}</div>
-            <Badge variant="outline">{label(item.status_code)}</Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">{label(item.status_code)}</Badge>
+              {canAddMonitoring && <RecoveryMonitoringAction recovery={item} />}
+            </div>
           </div>
           {item.recovery_plan || item.support_needs || item.notes ? (
             <div className="mt-3 space-y-2">
@@ -316,20 +434,42 @@ function RecoveriesSection({ recoveries, loading }: { recoveries: Recovery[]; lo
           ) : (
             <MetadataOnlyText />
           )}
+          <div className="mt-3">
+            <DisabledWorkflowAction
+              title="Recovery update/status"
+              description="Recovery edit and status actions remain deferred in M16; monitoring creation is the enabled safe action."
+            />
+          </div>
         </div>
       ))}
     </SectionCard>
   );
 }
 
-function EvidenceSection({ evidences, loading }: { evidences: EvidenceMetadata[]; loading: boolean }) {
+function EvidenceSection({
+  evidences,
+  loading,
+  canUpdate,
+}: {
+  evidences: EvidenceMetadata[];
+  loading: boolean;
+  canUpdate: boolean;
+}) {
   return (
     <SectionCard icon={FileArchive} title="Evidence metadata" loading={loading} empty={evidences.length === 0}>
       {evidences.map((item) => (
         <div key={item.id} className="rounded-lg border p-3 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="font-medium">{item.title}</div>
-            <Badge variant="outline">{label(item.status)}</Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">{label(item.status)}</Badge>
+              {canUpdate && (
+                <>
+                  <EvidenceMetadataAction evidence={item} />
+                  <EvidenceStatusAction evidence={item} />
+                </>
+              )}
+            </div>
           </div>
           <div className="mt-2 grid gap-2 text-muted-foreground sm:grid-cols-2">
             <div>Type: {item.evidence_type?.name ?? "Metadata unavailable"}</div>
@@ -351,6 +491,12 @@ function EvidenceSection({ evidences, loading }: { evidences: EvidenceMetadata[]
               <div>Checksum: {item.file_metadata.checksum_sha256 ?? "-"}</div>
             </div>
           )}
+          <div className="mt-3">
+            <DisabledWorkflowAction
+              title="Evidence files"
+              description="Upload, download, preview, and storage fields are out of scope for M16."
+            />
+          </div>
         </div>
       ))}
     </SectionCard>
@@ -406,6 +552,10 @@ function EmptyText({ children }: { children: React.ReactNode }) {
 
 function asText(value: unknown) {
   return typeof value === "string" && value ? value : "-";
+}
+
+function hasRecommendationDetail(item: Recommendation) {
+  return item.conclusion !== undefined && item.recommended_actions !== undefined;
 }
 
 function label(value: string) {

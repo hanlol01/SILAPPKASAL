@@ -182,5 +182,5 @@ export interface MasterDataItem {
   stage_name?: string;
   is_terminal?: boolean;
   responsible_role?: string;
-  valid_transitions?: unknown;
+  valid_transitions?: string[] | null;
 }

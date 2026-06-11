@@ -1,14 +1,22 @@
 import { apiRequest, apiRequestEnvelope } from "@/lib/api-client";
 import type {
   CaseRecord,
+  CaseStatusPayload,
   Decision,
+  DecisionUpdatePayload,
   EvidenceCustodyEvent,
   EvidenceMetadata,
+  EvidenceStatusPayload,
+  EvidenceUpdatePayload,
   Investigation,
+  InvestigationActivity,
+  InvestigationActivityPayload,
   PaginatedData,
   Recommendation,
+  RecommendationUpdatePayload,
   Recovery,
   RecoveryMonitoring,
+  RecoveryMonitoringPayload,
   ReportSummary,
 } from "@/lib/operations-types";
 
@@ -99,6 +107,58 @@ export function getEvidence(id: string | number) {
 
 export function getEvidenceCustody(id: string | number) {
   return apiRequest<EvidenceCustodyEvent[]>(`/evidences/${id}/custody`);
+}
+
+export function updateCaseStatus(id: string | number, payload: CaseStatusPayload) {
+  return apiRequest<CaseRecord>(`/cases/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createInvestigationActivity(
+  id: string | number,
+  payload: InvestigationActivityPayload,
+) {
+  return apiRequest<InvestigationActivity>(`/investigations/${id}/activities`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateRecommendation(id: string | number, payload: RecommendationUpdatePayload) {
+  return apiRequest<Recommendation>(`/recommendations/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateDecision(id: string | number, payload: DecisionUpdatePayload) {
+  return apiRequest<Decision>(`/decisions/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createRecoveryMonitoring(id: string | number, payload: RecoveryMonitoringPayload) {
+  return apiRequest<RecoveryMonitoring>(`/recoveries/${id}/monitoring`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateEvidenceMetadata(id: string | number, payload: EvidenceUpdatePayload) {
+  return apiRequest<EvidenceMetadata>(`/evidences/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateEvidenceStatus(id: string | number, payload: EvidenceStatusPayload) {
+  return apiRequest<EvidenceMetadata>(`/evidences/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }
 
 function emptyMeta(total: number) {
