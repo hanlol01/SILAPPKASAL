@@ -2,14 +2,14 @@
 
 > Status: Active  
 > Last Updated: 2026-06-11  
-> Current Position: Milestone 14 frontend integration foundation implemented and verified  
-> Next: Milestone 15 - Notification Foundation
+> Current Position: Milestone 15 operational screen foundation implemented and verified  
+> Next: Milestone 16 - Notification Foundation
 
 ---
 
 ## 1. Roadmap Overview
 
-SILAPPKASAL development started backend-first. The Laravel API remains the source of business behavior, and the React web dashboard now has an initial integration foundation for authenticated admin/Satgas roles.
+SILAPPKASAL development started backend-first. The Laravel API remains the source of business behavior, and the React web dashboard now has authenticated admin/Satgas dashboard integration plus read-only operational report and case screens.
 
 Current priorities:
 
@@ -315,6 +315,42 @@ npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnin
 npm run build: PASS
 ```
 
+### Milestone 15 - Operational Screen Foundation
+
+Status: PASS
+
+Delivered:
+
+- React frontend operational read/browse screens for `super_admin`, `admin`, and `satgas_ppks`.
+- Report list and detail integration:
+  - `GET /api/v1/reports`
+  - `GET /api/v1/reports/{report}`
+- Case list and detail integration:
+  - `GET /api/v1/cases`
+  - `GET /api/v1/cases/{case}`
+- Case detail read-only sections:
+  - Investigations via `GET /api/v1/cases/{case}/investigations`
+  - Recommendations via `GET /api/v1/cases/{case}/recommendations`
+  - Decisions via `GET /api/v1/recommendations/{recommendation}/decisions`
+  - Recoveries via `GET /api/v1/decisions/{decision}/recoveries`
+  - Evidence metadata via `GET /api/v1/investigations/{investigation}/evidences`
+- Operational APIs consumed through the M14 API client and React Query patterns.
+- Existing dashboard shell/layout preserved.
+- Role-aware navigation remains based on canonical `user.role.code`.
+- Frontend renders only fields returned by the backend and respects metadata-only responses.
+- Report forward and case assignment actions are disabled with explanatory UI because user/Satgas lookup APIs are unavailable.
+- No temporary numeric ID inputs were introduced.
+- No investigation, recommendation, decision, recovery, or evidence mutation forms.
+- No evidence upload/download/preview.
+- No reporter public view, mobile user view, Flutter, student registration/account approval, notification UI, WhatsApp, or backend changes.
+
+Verification:
+
+```text
+npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnings
+npm run build: PASS
+```
+
 ---
 
 ## 3. Current API Surface
@@ -333,7 +369,7 @@ Implemented or prepared API areas:
 - Evidence metadata
 - Audit logs
 - Dashboard analytics prepared
-- Frontend dashboard integration foundation
+- Frontend dashboard and operational screen foundations
 
 Not implemented yet:
 
@@ -341,7 +377,8 @@ Not implemented yet:
 - Notifications
 - WhatsApp integration
 - User CRUD/admin account management
-- Frontend case-management API integration
+- Frontend workflow mutation UI
+- Frontend user/Satgas lookup picker integration
 - Public/reporter frontend flows
 - Flutter mobile app
 
@@ -349,7 +386,7 @@ Not implemented yet:
 
 ## 4. Next Milestone
 
-### Milestone 15 - Notification Foundation
+### Milestone 16 - Notification Foundation
 
 Goal:
 
@@ -385,11 +422,10 @@ Planning constraints:
 
 | Milestone | Name | Purpose |
 |---|---|---|
-| 15 | Notification Foundation | Internal notification persistence and queue jobs. |
-| 16 | WhatsApp Integration | Fonnte integration with privacy-safe templates. |
-| 17 | User Management Foundation | Admin user CRUD, deactivate, role assignment. |
-| 18 | Frontend Report/Case Integration | Replace mock report/case data with API. |
-| 19 | Frontend Investigation/Recommendation/Decision Integration | Connect Satgas and admin workflow APIs. |
+| 16 | Notification Foundation | Internal notification persistence and queue jobs. |
+| 17 | WhatsApp Integration | Fonnte integration with privacy-safe templates. |
+| 18 | User Management Foundation | Admin user CRUD, deactivate, role assignment. |
+| 19 | Frontend Workflow Mutation Integration | Approved workflow actions, forms, and pickers after supporting APIs are available. |
 | 20 | Security Verification | Headers, CORS, rate limits, privacy review, penetration-style checklist. |
 | 21 | Production Readiness | Deployment, environment hardening, backup, observability. |
 | 22 | Flutter Planning | Mobile scope after stable backend and web integration. |
@@ -407,7 +443,8 @@ Deferred until explicitly approved:
 - WhatsApp/Fonnte integration.
 - Notification delivery tracking.
 - Advanced dashboard analytics beyond M13 metadata aggregates.
-- Frontend case-management integration.
+- Frontend workflow mutation UI.
+- Frontend user/Satgas lookup picker integration.
 - Public/reporter frontend flows.
 - Flutter mobile app.
 - Social login.
@@ -433,6 +470,8 @@ Deferred until explicitly approved:
 | Dashboard privacy leakage | Milestone 13 analytics are metadata-only, count-based, RBAC-scoped, and exclude narratives, anonymous identity, tracking codes, evidence details, and audit log aggregates. |
 | Frontend authorization drift | Milestone 14 uses backend `user.role.code` as the canonical source for navigation and route access. |
 | Frontend token persistence sprawl | Milestone 14 centralizes browser storage access through `frontend/src/lib/auth-storage.ts`. |
+| Operational screen sensitive data leakage | Milestone 15 renders only backend-returned fields and preserves metadata-only responses. |
+| Incomplete assignment/forwarding UI | Milestone 15 disables actions that require unavailable user/Satgas lookup APIs instead of introducing temporary numeric ID inputs. |
 
 ---
 
@@ -488,7 +527,7 @@ GET /api/v1/dashboard/evidence
 
 Full Milestone 13 route verification and test run are pending.
 
-Latest frontend verification after Milestone 14:
+Latest frontend verification after Milestone 15:
 
 ```text
 npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnings

@@ -2,8 +2,8 @@
 
 > Status: Active Handoff  
 > Last Updated: 2026-06-11  
-> Current Frontend Milestone: Milestone 14 PASS - Frontend Integration Foundation  
-> Next Milestone: Milestone 15 - Notification Foundation
+> Current Frontend Milestone: Milestone 15 PASS - Operational Screen Foundation  
+> Next Milestone: Milestone 16 - Notification Foundation
 
 ---
 
@@ -11,7 +11,7 @@
 
 SILAPPKASAL is a secure reporting and case-handling platform for prevention and response to sexual violence in a university environment. The repository is structured with a Laravel REST API backend in `backend/api` and a React frontend in `frontend/`.
 
-The backend is the source of implemented business behavior. The React frontend in `frontend/` now has an integration foundation for authenticated dashboard roles, while case-management tables/details remain mock-backed until later milestones. Evidence upload, notifications, WhatsApp integration, and Flutter work remain future work unless explicitly promoted.
+The backend is the source of implemented business behavior. The React frontend in `frontend/` now has authenticated dashboard integration plus read-only operational report and case screens for admin/Satgas roles. Workflow mutation forms, evidence upload, notifications, WhatsApp integration, reporter public flows, and Flutter work remain future work unless explicitly promoted.
 
 ---
 
@@ -33,6 +33,7 @@ The backend is the source of implemented business behavior. The React frontend i
 | 12 | Audit Trail Foundation | PASS | Append-only audit log model, audit taxonomy constants, privacy-safe redaction service, audit log read API, admin/super_admin RBAC, no export/SIEM/notifications/frontend work. |
 | 13 | Dashboard & Analytics Foundation | Prepared, Pending Verification | Metadata-only dashboard analytics endpoints, live aggregate queries, statistics.view RBAC, global admin/super_admin scope, assigned-case Satgas scope, no migrations, no ETL, no exports, no frontend work. |
 | 14 | Frontend Integration Foundation | PASS | React frontend API client, `VITE_API_BASE_URL`, centralized auth storage, backend login/me/logout integration, protected dashboard shell, AccessDenied, role-aware navigation, dashboard analytics integration, master data client foundation, lint/build verified. |
+| 15 | Operational Screen Foundation | PASS | React report list/detail and case list/detail integration, read-only case detail sections for investigations, recommendations, decisions, recoveries, and evidence metadata, metadata-only response handling, disabled unavailable assignment/forwarding actions, lint/build verified. |
 
 Latest known fully verified baseline before Milestone 13 implementation:
 
@@ -48,7 +49,7 @@ Milestone 12 has been completed, committed, pushed, and documented per project h
 
 Milestone 13 backend implementation is prepared in code, but backend tests and route verification have not been run yet after the Milestone 13 changes.
 
-Milestone 14 frontend integration foundation has been implemented and verified with:
+Milestone 15 operational screen foundation has been implemented and verified with:
 
 ```text
 npm run lint
@@ -102,8 +103,10 @@ Implemented or prepared API groups:
 - Anonymous report identity is not stored.
 - Audit logs are append-only and must store safe metadata/deltas only, never raw sensitive content.
 - Dashboard analytics are metadata-only and count-based; they must not expose narratives, anonymous identities, tracking codes, evidence details, filenames, checksums, custody events, audit log aggregates, SLA/KPI scoring, or predictive analytics.
+- Frontend operational screens must render only fields returned by the backend and preserve metadata-only response behavior.
+- Frontend report/case screens are read/browse foundations; workflow mutation forms remain deferred.
 - Evidence file upload, download, preview, storage implementation, attachments, WhatsApp, notifications, advanced analytics, and Flutter integration are not implemented yet.
-- Frontend case-management tables/details are not integrated yet and remain mock-backed or hidden from navigation.
+- Frontend workflow actions that require user/Satgas lookup APIs remain disabled until approved lookup endpoints exist.
 - Tests are expected for each milestone before completion.
 
 ---
@@ -129,6 +132,7 @@ Current security posture:
 - Evidence file upload/download/storage is not implemented.
 - Frontend auth stores bearer tokens through the centralized `frontend/src/lib/auth-storage.ts` wrapper only.
 - Frontend authorization logic must use `user.role.code` as canonical; role display names are display-only.
+- Frontend operational screens respect backend RBAC and must not assume hidden sensitive fields exist.
 
 Deferred security work:
 
@@ -180,10 +184,10 @@ Not yet implemented:
 
 ## 7. Next Milestone
 
-After Milestone 14 is reviewed/committed, the next backend milestone should be planned as:
+After Milestone 15 is reviewed/committed, the next backend milestone should be planned as:
 
 ```text
-Milestone 15 - Notification Foundation
+Milestone 16 - Notification Foundation
 ```
 
 Expected focus:
@@ -261,3 +265,5 @@ npm run build: PASS
 - Keep business logic in services, access rules in policies, validation in form requests, and response shaping in resources.
 - Keep frontend token persistence centralized in `frontend/src/lib/auth-storage.ts`.
 - Use `user.role.code` for frontend authorization decisions; never use role display names for logic.
+- Treat Milestone 15 operational screens as read/browse foundations; do not add workflow mutation forms unless explicitly approved.
+- Do not add temporary numeric ID inputs for assignment or investigator/Satgas selection; keep dependent actions disabled until lookup APIs exist.
