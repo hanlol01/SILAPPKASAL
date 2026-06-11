@@ -2,8 +2,8 @@
 
 > Status: Active  
 > Last Updated: 2026-06-11  
-> Current Position: Milestone 11 implementation prepared and test-verified  
-> Next: Milestone 12 - Audit Log Foundation
+> Current Position: Milestone 12 implementation prepared, pending migration/test approval  
+> Next: Milestone 13 - Notification Foundation
 
 ---
 
@@ -215,6 +215,34 @@ Verification:
 71 passed (566 assertions)
 ```
 
+### Milestone 12 - Audit Trail Foundation
+
+Status: Implementation prepared, pending migration/test approval
+
+Prepared:
+
+- Append-only `audit_logs` migration.
+- `created_at` only; no `updated_at` or `deleted_at`.
+- Nullable `actor_id`, `request_id`, `subject_type`, and `subject_id`.
+- JSON `metadata`, `before_changes`, and `after_changes`.
+- Audit taxonomy constants for auth, report, case, investigation, recommendation, decision, recovery, evidence, security, and system.
+- Explicit `security.access_denied` event.
+- Privacy-safe `AuditLogService` redaction for passwords, tokens, token hashes, encrypted payloads, sensitive narratives, evidence content, and file contents.
+- Safe field-level delta strategy only; no full object or request payload snapshots.
+- `is_elevated_access` metadata placeholder with default false.
+- Admin and Super Admin audit API access through `system.audit_log.view`.
+- Satgas and reporter have no audit API access.
+- Evidence custody remains separate and complementary.
+- No export, SIEM, retention policy, notification, WhatsApp, analytics dashboard, or frontend work.
+
+Verification so far:
+
+```text
+44 API v1 routes discovered
+php -l passed for new/modified M12 PHP files
+Full migration/test run pending explicit approval
+```
+
 ---
 
 ## 3. Current API Surface
@@ -231,6 +259,7 @@ Implemented or prepared API areas:
 - Decisions
 - Recovery and monitoring
 - Evidence metadata
+- Audit logs prepared
 
 Not implemented yet:
 
@@ -247,33 +276,33 @@ Not implemented yet:
 
 ## 4. Next Milestone
 
-### Milestone 12 - Audit Log Foundation
+### Milestone 13 - Notification Foundation
 
 Goal:
 
-Create a persistent audit log foundation for critical backend actions, without starting notifications, WhatsApp, analytics, or frontend work.
+Create internal notification persistence and queue foundation without WhatsApp, analytics, or frontend work.
 
 Recommended scope:
 
-- Audit log data model.
-- Critical action capture from auth and workflow services.
-- Actor, action, entity, severity, and metadata structure.
-- Privacy-safe audit resources.
-- RBAC for audit log reads.
+- Notification data model.
+- Notification type usage.
+- Queue-backed delivery foundation.
+- Privacy-safe notification payload strategy.
+- Relationship to report/case/workflow events.
+- RBAC and read/unread rules.
 - Tests.
 
 Potential endpoints:
 
 ```text
-GET /api/v1/audit-logs
-GET /api/v1/audit-logs/{auditLog}
+GET /api/v1/notifications
+PATCH /api/v1/notifications/{notification}/read
 ```
 
 Planning constraints:
 
-- Audit logs must not expose encrypted sensitive narrative content by default.
-- Audit implementation must not change endpoint response contracts.
-- Do not implement notification/WhatsApp.
+- Do not implement WhatsApp/Fonnte delivery yet.
+- Do not expose sensitive narrative content in notification payloads.
 - Do not implement analytics.
 - Do not modify frontend unless explicitly requested.
 
@@ -283,7 +312,6 @@ Planning constraints:
 
 | Milestone | Name | Purpose |
 |---|---|---|
-| 12 | Audit Log Foundation | Persistent audit trail for critical actions. |
 | 13 | Notification Foundation | Internal notification persistence and queue jobs. |
 | 14 | WhatsApp Integration | Fonnte integration with privacy-safe templates. |
 | 15 | Dashboard Analytics Foundation | Metadata-safe dashboard aggregates. |
@@ -329,6 +357,7 @@ Deferred until explicitly approved:
 | Decision accidentally mutating case status | Milestone 9 service keeps decision transitions isolated from case status and case closing. |
 | Recovery accidentally closing cases | Milestone 10 service keeps recovery and monitoring isolated from case closure. |
 | Evidence access leakage | Milestone 11 keeps evidence metadata assigned-Satgas only; Admin and Super Admin have no default evidence access. |
+| Audit log sensitive data leakage | Milestone 12 redaction service stores safe metadata and field-level deltas only. |
 
 ---
 
@@ -357,14 +386,16 @@ php artisan route:list --path=api/v1
 php artisan test
 ```
 
-Expected verified baseline after Milestone 11:
+Latest fully verified baseline after Milestone 11:
 
 ```text
 71 passed (566 assertions)
 ```
 
-Current route baseline after Milestone 11:
+Current prepared route baseline after Milestone 12:
 
 ```text
-42 API v1 routes
+44 API v1 routes
 ```
+
+Full Milestone 12 migration and test verification is pending explicit approval.
