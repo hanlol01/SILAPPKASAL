@@ -2,8 +2,8 @@
 
 > Status: Active Handoff  
 > Last Updated: 2026-06-11  
-> Current Backend Milestone: Milestone 13 Implementation Prepared - Dashboard & Analytics Foundation  
-> Next Milestone: Milestone 14 - Notification Foundation
+> Current Frontend Milestone: Milestone 14 PASS - Frontend Integration Foundation  
+> Next Milestone: Milestone 15 - Notification Foundation
 
 ---
 
@@ -11,7 +11,7 @@
 
 SILAPPKASAL is a secure reporting and case-handling platform for prevention and response to sexual violence in a university environment. The repository is structured with a Laravel REST API backend in `backend/api` and a React frontend in `frontend/`.
 
-The backend is the current source of implemented business behavior. Frontend integration, evidence upload, notifications, WhatsApp integration, and Flutter work remain future work unless explicitly promoted.
+The backend is the source of implemented business behavior. The React frontend in `frontend/` now has an integration foundation for authenticated dashboard roles, while case-management tables/details remain mock-backed until later milestones. Evidence upload, notifications, WhatsApp integration, and Flutter work remain future work unless explicitly promoted.
 
 ---
 
@@ -32,6 +32,7 @@ The backend is the current source of implemented business behavior. Frontend int
 | 11 | Evidence Foundation | Prepared and Tested | Investigation-owned evidence metadata, evidence lifecycle constants, metadata-only resources, chain-of-custody foundation, assigned Satgas access only, no file upload/download/storage implementation. |
 | 12 | Audit Trail Foundation | PASS | Append-only audit log model, audit taxonomy constants, privacy-safe redaction service, audit log read API, admin/super_admin RBAC, no export/SIEM/notifications/frontend work. |
 | 13 | Dashboard & Analytics Foundation | Prepared, Pending Verification | Metadata-only dashboard analytics endpoints, live aggregate queries, statistics.view RBAC, global admin/super_admin scope, assigned-case Satgas scope, no migrations, no ETL, no exports, no frontend work. |
+| 14 | Frontend Integration Foundation | PASS | React frontend API client, `VITE_API_BASE_URL`, centralized auth storage, backend login/me/logout integration, protected dashboard shell, AccessDenied, role-aware navigation, dashboard analytics integration, master data client foundation, lint/build verified. |
 
 Latest known fully verified baseline before Milestone 13 implementation:
 
@@ -45,7 +46,21 @@ Tests: 71 passed (566 assertions)
 
 Milestone 12 has been completed, committed, pushed, and documented per project handoff.
 
-Milestone 13 implementation is prepared in code, but tests and route verification have not been run yet after the Milestone 13 changes.
+Milestone 13 backend implementation is prepared in code, but backend tests and route verification have not been run yet after the Milestone 13 changes.
+
+Milestone 14 frontend integration foundation has been implemented and verified with:
+
+```text
+npm run lint
+npm run build
+```
+
+Result:
+
+```text
+Lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnings
+Build: PASS
+```
 
 ---
 
@@ -88,6 +103,7 @@ Implemented or prepared API groups:
 - Audit logs are append-only and must store safe metadata/deltas only, never raw sensitive content.
 - Dashboard analytics are metadata-only and count-based; they must not expose narratives, anonymous identities, tracking codes, evidence details, filenames, checksums, custody events, audit log aggregates, SLA/KPI scoring, or predictive analytics.
 - Evidence file upload, download, preview, storage implementation, attachments, WhatsApp, notifications, advanced analytics, and Flutter integration are not implemented yet.
+- Frontend case-management tables/details are not integrated yet and remain mock-backed or hidden from navigation.
 - Tests are expected for each milestone before completion.
 
 ---
@@ -111,6 +127,8 @@ Current security posture:
 - Evidence metadata and chain-of-custody foundation is implemented for assigned Satgas only.
 - Admin and Super Admin have no default evidence access in Milestone 11; future break-glass access remains possible but is not implemented.
 - Evidence file upload/download/storage is not implemented.
+- Frontend auth stores bearer tokens through the centralized `frontend/src/lib/auth-storage.ts` wrapper only.
+- Frontend authorization logic must use `user.role.code` as canonical; role display names are display-only.
 
 Deferred security work:
 
@@ -162,10 +180,10 @@ Not yet implemented:
 
 ## 7. Next Milestone
 
-After Milestone 13 is verified and committed, the next milestone should be planned as:
+After Milestone 14 is reviewed/committed, the next backend milestone should be planned as:
 
 ```text
-Milestone 14 - Notification Foundation
+Milestone 15 - Notification Foundation
 ```
 
 Expected focus:
@@ -206,7 +224,7 @@ GET /api/v1/dashboard/workflow
 GET /api/v1/dashboard/evidence
 ```
 
-Recommended verification commands:
+Recommended backend verification commands:
 
 ```bash
 php artisan migrate --force
@@ -215,14 +233,31 @@ php artisan route:list --path=api/v1
 php artisan test
 ```
 
+Run from `frontend/`:
+
+```bash
+npm run lint
+npm run build
+```
+
+Latest frontend verification:
+
+```text
+npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnings
+npm run build: PASS
+```
+
 ---
 
 ## 9. Handoff Notes for Next Agent
 
 - Read all relevant docs before planning a new milestone.
 - Do not modify `frontend/` during backend milestones unless requested.
+- Do not modify `backend/api` during frontend milestones unless explicitly approved.
 - Do not change Phase 1-4 docs unless explicitly approved.
 - Before running migrations in a milestone implementation, show files created/modified, migration summary, route summary, and test summary when requested.
 - Keep privacy and RBAC behavior conservative.
 - Do not seed dummy users or business rows unless the milestone explicitly requires it.
 - Keep business logic in services, access rules in policies, validation in form requests, and response shaping in resources.
+- Keep frontend token persistence centralized in `frontend/src/lib/auth-storage.ts`.
+- Use `user.role.code` for frontend authorization decisions; never use role display names for logic.

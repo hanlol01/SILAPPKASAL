@@ -2,21 +2,21 @@
 
 > Status: Active  
 > Last Updated: 2026-06-11  
-> Current Position: Milestone 13 implementation prepared, pending verification  
-> Next: Milestone 14 - Notification Foundation
+> Current Position: Milestone 14 frontend integration foundation implemented and verified  
+> Next: Milestone 15 - Notification Foundation
 
 ---
 
 ## 1. Roadmap Overview
 
-SILAPPKASAL development is currently backend-first. The Laravel API is being built in small, test-backed milestones before frontend integration and mobile work.
+SILAPPKASAL development started backend-first. The Laravel API remains the source of business behavior, and the React web dashboard now has an initial integration foundation for authenticated admin/Satgas roles.
 
 Current priorities:
 
 1. Complete backend workflow foundations.
 2. Preserve privacy and RBAC boundaries.
 3. Add tests for each milestone.
-4. Integrate frontend only after API behavior is stable.
+4. Integrate frontend gradually after API behavior is stable.
 5. Defer mobile until post-MVP API stability.
 
 ---
@@ -274,6 +274,47 @@ Verification pending:
 Route verification and php artisan test have not been run after M13 changes.
 ```
 
+### Milestone 14 - Frontend Integration Foundation
+
+Status: PASS
+
+Delivered:
+
+- React frontend API client using `VITE_API_BASE_URL`.
+- Centralized token/storage wrapper in `frontend/src/lib/auth-storage.ts`.
+- Backend auth integration:
+  - `POST /api/v1/auth/login`
+  - `GET /api/v1/auth/me`
+  - `POST /api/v1/auth/logout`
+- Auth state management based on backend user data.
+- Protected dashboard shell and simple `AccessDenied` component.
+- Role-aware navigation using canonical `user.role.code`.
+- Visible M14 navigation:
+  - `super_admin`: Overview, Workflow, Analytics, Settings
+  - `admin`: Overview, Workflow, Analytics, Settings
+  - `satgas_ppks`: Overview, Workflow, Settings
+- Users, Content, and Notifications navigation hidden; direct routes show AccessDenied for now.
+- Dashboard analytics integration:
+  - `/api/v1/dashboard/summary`
+  - `/api/v1/dashboard/reports`
+  - `/api/v1/dashboard/cases`
+  - `/api/v1/dashboard/workflow`
+  - `/api/v1/dashboard/evidence`
+- Master data API client foundation for `/api/v1/master/{type}`.
+- Loading/error state components for dashboard query states.
+- ESLint config adjusted so formatting does not block M14 lint.
+- Explicit ESLint ignores for generated/output/lockfile paths.
+- No backend changes.
+- No case-management table/detail API integration.
+- No reporter public view, mobile user view, Flutter, student registration/account approval, public report submission UI, evidence upload/download, notification/WhatsApp, or user-management API work.
+
+Verification:
+
+```text
+npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnings
+npm run build: PASS
+```
+
 ---
 
 ## 3. Current API Surface
@@ -292,6 +333,7 @@ Implemented or prepared API areas:
 - Evidence metadata
 - Audit logs
 - Dashboard analytics prepared
+- Frontend dashboard integration foundation
 
 Not implemented yet:
 
@@ -299,14 +341,15 @@ Not implemented yet:
 - Notifications
 - WhatsApp integration
 - User CRUD/admin account management
-- Frontend API integration
+- Frontend case-management API integration
+- Public/reporter frontend flows
 - Flutter mobile app
 
 ---
 
 ## 4. Next Milestone
 
-### Milestone 14 - Notification Foundation
+### Milestone 15 - Notification Foundation
 
 Goal:
 
@@ -342,10 +385,9 @@ Planning constraints:
 
 | Milestone | Name | Purpose |
 |---|---|---|
-| 14 | Notification Foundation | Internal notification persistence and queue jobs. |
-| 15 | WhatsApp Integration | Fonnte integration with privacy-safe templates. |
-| 16 | User Management Foundation | Admin user CRUD, deactivate, role assignment. |
-| 17 | Frontend Auth Integration | Connect React auth to backend Sanctum flow. |
+| 15 | Notification Foundation | Internal notification persistence and queue jobs. |
+| 16 | WhatsApp Integration | Fonnte integration with privacy-safe templates. |
+| 17 | User Management Foundation | Admin user CRUD, deactivate, role assignment. |
 | 18 | Frontend Report/Case Integration | Replace mock report/case data with API. |
 | 19 | Frontend Investigation/Recommendation/Decision Integration | Connect Satgas and admin workflow APIs. |
 | 20 | Security Verification | Headers, CORS, rate limits, privacy review, penetration-style checklist. |
@@ -365,7 +407,8 @@ Deferred until explicitly approved:
 - WhatsApp/Fonnte integration.
 - Notification delivery tracking.
 - Advanced dashboard analytics beyond M13 metadata aggregates.
-- Frontend integration.
+- Frontend case-management integration.
+- Public/reporter frontend flows.
 - Flutter mobile app.
 - Social login.
 - Multi-tenant support.
@@ -388,6 +431,8 @@ Deferred until explicitly approved:
 | Evidence access leakage | Milestone 11 keeps evidence metadata assigned-Satgas only; Admin and Super Admin have no default evidence access. |
 | Audit log sensitive data leakage | Milestone 12 redaction service stores safe metadata and field-level deltas only. |
 | Dashboard privacy leakage | Milestone 13 analytics are metadata-only, count-based, RBAC-scoped, and exclude narratives, anonymous identity, tracking codes, evidence details, and audit log aggregates. |
+| Frontend authorization drift | Milestone 14 uses backend `user.role.code` as the canonical source for navigation and route access. |
+| Frontend token persistence sprawl | Milestone 14 centralizes browser storage access through `frontend/src/lib/auth-storage.ts`. |
 
 ---
 
@@ -402,6 +447,15 @@ A future backend milestone is done only when:
 - Tests cover success, failure, RBAC, privacy, and out-of-scope protections.
 - `php artisan test` passes.
 - Final summary includes changed files, commands, results, and warnings.
+
+A future frontend milestone is done only when:
+
+- Scope is implemented inside `frontend/`.
+- Backend API contracts are consumed through centralized API clients.
+- Auth/token persistence remains centralized.
+- Role authorization uses backend role codes, not display labels.
+- Mock data replacement is explicitly scoped and documented.
+- `npm run lint` and `npm run build` pass, with warnings documented.
 
 ---
 
@@ -433,3 +487,10 @@ GET /api/v1/dashboard/evidence
 ```
 
 Full Milestone 13 route verification and test run are pending.
+
+Latest frontend verification after Milestone 14:
+
+```text
+npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnings
+npm run build: PASS
+```
