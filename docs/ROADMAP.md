@@ -2,8 +2,8 @@
 
 > Status: Active  
 > Last Updated: 2026-06-11  
-> Current Position: Milestone 19 Reporter Account Foundation complete  
-> Next: Milestone 20 - WhatsApp Integration
+> Current Position: Milestone 20 Reporter Self-Service Foundation implementation prepared, pending verification  
+> Next: Milestone 21 - WhatsApp Integration
 
 ---
 
@@ -487,6 +487,37 @@ ReporterRegistrationFoundationTest: 9 passed (64 assertions)
 php artisan test: 102 passed (812 assertions)
 ```
 
+### Milestone 20 - Reporter Self-Service Foundation
+
+Status: Implementation prepared, pending verification
+
+Prepared:
+
+- Backend-only authenticated reporter self-service foundation.
+- No migrations and no frontend changes.
+- Reporter-only endpoints:
+  - `GET /api/v1/me/profile`
+  - `PATCH /api/v1/me/profile`
+  - `PATCH /api/v1/me/change-password`
+  - `GET /api/v1/me/account-status`
+- Authorization is intentionally narrow:
+  - `reporter`: allowed
+  - `admin`: forbidden
+  - `super_admin`: forbidden
+  - `satgas_ppks`: forbidden
+- Editable fields are limited to `name` and `phone_number`.
+- Non-editable fields include email, NIM, NIP, role, role ID, permissions, active status, and approval/reviewer metadata.
+- Password change requires current password and confirmation.
+- Password change revokes other Sanctum tokens while keeping the current token active.
+- Reporter self-service audit actions are prepared for profile update and password change.
+- No email verification, password reset by email, WhatsApp/Fonnte, notifications UI, uploads, user search, public profile browsing, Flutter, or frontend work.
+
+Verification pending:
+
+```text
+ReporterSelfServiceFoundationTest and full php artisan test have not been run after M20 changes.
+```
+
 ---
 
 ## 3. Current API Surface
@@ -508,6 +539,7 @@ Implemented or prepared API areas:
 - Notifications
 - My Work / Work Queue
 - Reporter registrations
+- Reporter self-service prepared
 - Frontend dashboard, operational screen, and workflow action foundations
 
 Not implemented yet:
@@ -524,7 +556,7 @@ Not implemented yet:
 
 ## 4. Next Milestone
 
-### Milestone 20 - WhatsApp Integration
+### Milestone 21 - WhatsApp Integration
 
 Goal:
 
@@ -558,12 +590,12 @@ Planning constraints:
 
 | Milestone | Name | Purpose |
 |---|---|---|
-| 20 | WhatsApp Integration | Fonnte integration with privacy-safe templates. |
-| 21 | User Management Foundation | Admin user CRUD, deactivate, role assignment, and lookup APIs. |
-| 22 | Frontend Workflow Completion | Assignment/forwarding pickers and deferred status actions after supporting APIs are available. |
-| 23 | Security Verification | Headers, CORS, rate limits, privacy review, penetration-style checklist. |
-| 24 | Production Readiness | Deployment, environment hardening, backup, observability. |
-| 25 | Flutter Planning | Mobile scope after stable backend and web integration. |
+| 21 | WhatsApp Integration | Fonnte integration with privacy-safe templates. |
+| 22 | User Management Foundation | Admin user CRUD, deactivate, role assignment, and lookup APIs. |
+| 23 | Frontend Workflow Completion | Assignment/forwarding pickers and deferred status actions after supporting APIs are available. |
+| 24 | Security Verification | Headers, CORS, rate limits, privacy review, penetration-style checklist. |
+| 25 | Production Readiness | Deployment, environment hardening, backup, observability. |
+| 26 | Flutter Planning | Mobile scope after stable backend and web integration. |
 
 ---
 
@@ -613,6 +645,7 @@ Deferred until explicitly approved:
 | Work queue privacy leakage | Milestone 18 queues are metadata-only, RBAC-scoped, assignment-scoped for Satgas, and exclude narratives, identities, tracking codes, evidence details, `risk_level_code`, and priority filters. |
 | Unapproved reporter account access | Milestone 19 keeps pending registrations outside `users`; login becomes possible only after admin/super_admin approval creates an active reporter account. |
 | Duplicate reporter accounts | Milestone 19 checks active user and pending registration email/NIM before submission and rechecks active users before approval. |
+| Reporter self-service privilege escalation | Milestone 20 only allows role `reporter`, blocks admin/super_admin/satgas, and prohibits email, NIM, NIP, role, permissions, active status, and approval metadata edits. |
 
 ---
 
@@ -700,3 +733,14 @@ GET /api/v1/reporter-registrations/{reporterRegistration}
 PATCH /api/v1/reporter-registrations/{reporterRegistration}/approve
 PATCH /api/v1/reporter-registrations/{reporterRegistration}/reject
 ```
+
+Prepared Milestone 20 route additions:
+
+```text
+GET /api/v1/me/profile
+PATCH /api/v1/me/profile
+PATCH /api/v1/me/change-password
+GET /api/v1/me/account-status
+```
+
+Full Milestone 20 route verification and test run are pending.

@@ -2,8 +2,8 @@
 
 > Status: Active Handoff  
 > Last Updated: 2026-06-11  
-> Current Backend Milestone: Milestone 19 Complete - Reporter Account Foundation  
-> Next Milestone: Milestone 20 - WhatsApp Integration
+> Current Backend Milestone: Milestone 20 Implementation Prepared - Reporter Self-Service Foundation  
+> Next Milestone: Milestone 21 - WhatsApp Integration
 
 ---
 
@@ -38,6 +38,7 @@ The backend is the source of implemented business behavior. The React frontend i
 | 17 | Notification Foundation | PASS | Laravel native database notifications, queued database channel only, metadata-only payloads with mandatory notification_type_code, low-noise workflow triggers, own-user read/list APIs, no WhatsApp/Fonnte/email/push/frontend work. |
 | 18 | Work Queue Foundation | PASS | Backend-only My Work queues for summary, cases, investigations, and recommendations; Satgas active-assignment scope; admin/super_admin global metadata queues; notification count summary; no frontend, migrations, new states, priority filter, or notification browsing duplication. |
 | 19 | Reporter Account Foundation | PASS | Backend-only reporter/student registration requests, public throttled self-registration, admin/super_admin approval/rejection, separate pending registration table, registration numbers, duplicate prevention, password hash clearing after review, reporter user creation only after approval, and tests. |
+| 20 | Reporter Self-Service Foundation | Prepared, Pending Verification | Backend-only reporter-only self-service APIs for own profile, profile update, password change, and account-status metadata; admin/super_admin/satgas forbidden; no migrations, frontend, email, WhatsApp, uploads, user search, or public profile browsing. |
 
 Latest known fully verified baseline before Milestone 13 implementation:
 
@@ -88,6 +89,8 @@ php artisan test: PASS
 102 passed (812 assertions)
 ```
 
+Milestone 20 reporter self-service foundation is prepared in code, but backend tests and route verification have not been run yet after the Milestone 20 changes.
+
 ---
 
 ## 3. Current Backend State
@@ -117,6 +120,7 @@ Implemented or prepared API groups:
 | Notifications | `GET /api/v1/notifications`, `PATCH /api/v1/notifications/{notification}/read`, `PATCH /api/v1/notifications/read-all` |
 | My Work | `GET /api/v1/my-work/summary`, `GET /api/v1/my-work/cases`, `GET /api/v1/my-work/investigations`, `GET /api/v1/my-work/recommendations` |
 | Reporter Registrations | `POST /api/v1/reporter-registrations`, `GET /api/v1/reporter-registrations`, `GET /api/v1/reporter-registrations/{reporterRegistration}`, `PATCH /api/v1/reporter-registrations/{reporterRegistration}/approve`, `PATCH /api/v1/reporter-registrations/{reporterRegistration}/reject` |
+| Reporter Self-Service | `GET /api/v1/me/profile`, `PATCH /api/v1/me/profile`, `PATCH /api/v1/me/change-password`, `GET /api/v1/me/account-status` prepared, pending verification |
 
 ---
 
@@ -138,6 +142,9 @@ Implemented or prepared API groups:
 - Reporter registration requests are stored separately from `users`; a reporter user is created only after admin/super_admin approval.
 - Pending registration password hashes are temporary and are cleared after approval or rejection.
 - Public reporter registration is rate-limited and must not auto-login users.
+- Reporter self-service endpoints are limited to role `reporter` only; admin, super_admin, and satgas_ppks are forbidden.
+- Reporter self-service may edit only `name` and `phone_number`; email, NIM, NIP, role, permissions, active status, and approval/reviewer metadata are not self-editable.
+- Reporter password change requires current password and confirmation, revokes other Sanctum tokens, and keeps the current token active.
 - Evidence file upload, download, preview, storage implementation, attachments, WhatsApp, advanced analytics, and Flutter integration are not implemented yet.
 - Frontend workflow actions that require user/Satgas lookup APIs remain disabled until approved lookup endpoints exist.
 - Tests are expected for each milestone before completion.
@@ -171,6 +178,7 @@ Current security posture:
 - Notification payloads are metadata-only, include `notification_type_code`, and must not include narratives, reporter/victim identity, anonymous hints, evidence details, recommendation content, decision content, recovery notes, tokens, or sensitive fields.
 - Reporter/student accounts cannot login until a registration is approved and an active reporter user is created.
 - Reporter registration review data is limited to admin/super_admin; Satgas and reporter roles have no review API access.
+- Reporter self-service is not a general profile API; admin, super_admin, and satgas_ppks profile APIs remain out of scope.
 
 Deferred security work:
 
@@ -224,10 +232,10 @@ Not yet implemented:
 
 ## 7. Next Milestone
 
-After Milestone 19 is committed, the next backend milestone should be planned as:
+After Milestone 20 is verified and committed, the next backend milestone should be planned as:
 
 ```text
-Milestone 20 - WhatsApp Integration
+Milestone 21 - WhatsApp Integration
 ```
 
 Expected focus:
@@ -318,6 +326,17 @@ PATCH /api/v1/reporter-registrations/{reporterRegistration}/approve
 PATCH /api/v1/reporter-registrations/{reporterRegistration}/reject
 ```
 
+Prepared Milestone 20 route additions:
+
+```text
+GET /api/v1/me/profile
+PATCH /api/v1/me/profile
+PATCH /api/v1/me/change-password
+GET /api/v1/me/account-status
+```
+
+Full Milestone 20 route verification and test run are pending.
+
 ---
 
 ## 9. Handoff Notes for Next Agent
@@ -336,3 +355,4 @@ PATCH /api/v1/reporter-registrations/{reporterRegistration}/reject
 - Do not add temporary numeric ID inputs for assignment, forwarding, or investigator/Satgas selection; keep dependent actions disabled until lookup APIs exist.
 - Recommendation/decision/investigation status actions remain disabled until approved status option or transition sources are available.
 - Reporter Account Foundation is backend-only; public/reporter frontend flows are still not implemented.
+- Reporter Self-Service Foundation is backend-only and reporter-only; frontend integration is still not implemented.
