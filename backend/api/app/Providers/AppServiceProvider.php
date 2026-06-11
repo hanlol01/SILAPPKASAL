@@ -16,6 +16,7 @@ use App\Policies\DecisionPolicy;
 use App\Policies\DashboardPolicy;
 use App\Policies\EvidencePolicy;
 use App\Policies\InvestigationPolicy;
+use App\Policies\MyWorkPolicy;
 use App\Policies\NotificationPolicy;
 use App\Policies\RecommendationPolicy;
 use App\Policies\RecoveryPolicy;
@@ -53,6 +54,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Recovery::class, RecoveryPolicy::class);
         Gate::policy(Report::class, ReportPolicy::class);
         Gate::define('viewDashboard', fn ($user): bool => app(DashboardPolicy::class)->view($user));
+        Gate::define('viewMyWork', fn ($user): bool => app(MyWorkPolicy::class)->view($user));
 
         RateLimiter::for('reports.submit', function (Request $request) {
             $accessToken = $request->bearerToken()

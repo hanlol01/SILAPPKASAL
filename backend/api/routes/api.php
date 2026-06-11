@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\DecisionController;
 use App\Http\Controllers\Api\V1\EvidenceController;
 use App\Http\Controllers\Api\V1\InvestigationController;
 use App\Http\Controllers\Api\V1\MasterDataController;
+use App\Http\Controllers\Api\V1\MyWorkController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\RecommendationController;
 use App\Http\Controllers\Api\V1\RecoveryController;
@@ -135,5 +136,12 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/', [NotificationController::class, 'index']);
         Route::patch('/read-all', [NotificationController::class, 'readAll']);
         Route::patch('/{notification}/read', [NotificationController::class, 'markRead']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('my-work')->group(function (): void {
+        Route::get('/summary', [MyWorkController::class, 'summary']);
+        Route::get('/cases', [MyWorkController::class, 'cases']);
+        Route::get('/investigations', [MyWorkController::class, 'investigations']);
+        Route::get('/recommendations', [MyWorkController::class, 'recommendations']);
     });
 });

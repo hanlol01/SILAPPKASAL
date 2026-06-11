@@ -2,8 +2,8 @@
 
 > Status: Active Handoff  
 > Last Updated: 2026-06-11  
-> Current Backend Milestone: Milestone 17 PASS - Notification Foundation  
-> Next Milestone: Milestone 18 - WhatsApp Integration
+> Current Backend Milestone: Milestone 18 Implementation Prepared - Work Queue Foundation  
+> Next Milestone: Milestone 19 - WhatsApp Integration
 
 ---
 
@@ -36,6 +36,7 @@ The backend is the source of implemented business behavior. The React frontend i
 | 15 | Operational Screen Foundation | PASS | React report list/detail and case list/detail integration, read-only case detail sections for investigations, recommendations, decisions, recoveries, and evidence metadata, metadata-only response handling, disabled unavailable assignment/forwarding actions, lint/build verified. |
 | 16 | Workflow Actions Foundation | PASS | Safe frontend workflow actions for case status, investigation activities, recommendation updates, decision updates, recovery monitoring, and evidence metadata/status; disabled blockers for lookup/status-option gaps; no backend changes; lint/build verified. |
 | 17 | Notification Foundation | PASS | Laravel native database notifications, queued database channel only, metadata-only payloads with mandatory notification_type_code, low-noise workflow triggers, own-user read/list APIs, no WhatsApp/Fonnte/email/push/frontend work. |
+| 18 | Work Queue Foundation | Prepared, Pending Verification | Backend-only My Work queues for summary, cases, investigations, and recommendations; Satgas active-assignment scope; admin/super_admin global metadata queues; notification count summary; no frontend, migrations, new states, priority filter, or notification browsing duplication. |
 
 Latest known fully verified baseline before Milestone 13 implementation:
 
@@ -77,6 +78,8 @@ Result:
 87 passed (707 assertions)
 ```
 
+Milestone 18 work queue foundation is prepared in code, but backend tests and route verification have not been run yet after the Milestone 18 changes.
+
 ---
 
 ## 3. Current Backend State
@@ -104,6 +107,7 @@ Implemented or prepared API groups:
 | Audit Logs | `GET /api/v1/audit-logs`, `GET /api/v1/audit-logs/{auditLog}` |
 | Dashboard | `GET /api/v1/dashboard/summary`, `GET /api/v1/dashboard/reports`, `GET /api/v1/dashboard/cases`, `GET /api/v1/dashboard/workflow`, `GET /api/v1/dashboard/evidence` prepared, pending verification |
 | Notifications | `GET /api/v1/notifications`, `PATCH /api/v1/notifications/{notification}/read`, `PATCH /api/v1/notifications/read-all` |
+| My Work | `GET /api/v1/my-work/summary`, `GET /api/v1/my-work/cases`, `GET /api/v1/my-work/investigations`, `GET /api/v1/my-work/recommendations` prepared, pending verification |
 
 ---
 
@@ -121,6 +125,7 @@ Implemented or prepared API groups:
 - Frontend operational screens must render only fields returned by the backend and preserve metadata-only response behavior.
 - Frontend workflow actions must use centralized operations API functions, React Query mutations, backend RBAC, and Laravel `422` field-error handling.
 - Notifications are in-app Laravel database notifications only; WhatsApp, Fonnte, email, push, and frontend notification UI remain out of scope.
+- My Work queues are metadata-only, role-aware, and assignment-scoped for Satgas; they must not expose narratives, report chronology, victim/reporter identity, anonymous hints, tracking codes, investigation findings, recommendation narratives, decision content, evidence details, `risk_level_code`, or priority filters.
 - Evidence file upload, download, preview, storage implementation, attachments, WhatsApp, advanced analytics, and Flutter integration are not implemented yet.
 - Frontend workflow actions that require user/Satgas lookup APIs remain disabled until approved lookup endpoints exist.
 - Tests are expected for each milestone before completion.
@@ -204,10 +209,10 @@ Not yet implemented:
 
 ## 7. Next Milestone
 
-After Milestone 17 is reviewed/committed, the next backend milestone should be planned as:
+After Milestone 18 is verified and committed, the next backend milestone should be planned as:
 
 ```text
-Milestone 18 - WhatsApp Integration
+Milestone 19 - WhatsApp Integration
 ```
 
 Expected focus:
@@ -278,6 +283,17 @@ Latest backend verification:
 php artisan test: PASS
 87 passed (707 assertions)
 ```
+
+Prepared Milestone 18 route additions:
+
+```text
+GET /api/v1/my-work/summary
+GET /api/v1/my-work/cases
+GET /api/v1/my-work/investigations
+GET /api/v1/my-work/recommendations
+```
+
+Full Milestone 18 route verification and test run are pending.
 
 ---
 
