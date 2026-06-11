@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CaseController;
 use App\Http\Controllers\Api\V1\DecisionController;
@@ -113,5 +114,10 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('/{recovery}/status', [RecoveryController::class, 'updateStatus']);
         Route::post('/{recovery}/monitoring', [RecoveryController::class, 'storeMonitoring']);
         Route::get('/{recovery}/monitoring', [RecoveryController::class, 'indexMonitoring']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('audit-logs')->group(function (): void {
+        Route::get('/', [AuditLogController::class, 'index']);
+        Route::get('/{auditLog}', [AuditLogController::class, 'show']);
     });
 });

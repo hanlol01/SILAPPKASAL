@@ -138,6 +138,11 @@ class User extends Authenticatable
         return $this->hasMany(EvidenceCustodyEvent::class, 'actor_id');
     }
 
+    public function auditLogs(): HasMany
+    {
+        return $this->hasMany(AuditLog::class, 'actor_id');
+    }
+
     public function hasRole(string $role): bool
     {
         return $this->role?->code === $role;
