@@ -44,7 +44,8 @@ class RecommendationFoundationTest extends TestCase
         $this->assertTrue(Schema::hasColumn('recommendation_statuses', 'valid_transitions'));
         $this->assertTrue(Schema::hasTable('decisions'));
         $this->assertDatabaseCount('decisions', 0);
-        $this->assertFalse(Schema::hasTable('evidences'));
+        $this->assertTrue(Schema::hasTable('evidences'));
+        $this->assertDatabaseCount('evidences', 0);
 
         $drafting = RecommendationStatusModel::query()
             ->where('name', RecommendationStatusEnum::Drafting->value)

@@ -123,6 +123,21 @@ class User extends Authenticatable
         return $this->hasMany(RecoveryMonitoring::class, 'monitor_id');
     }
 
+    public function evidences(): HasMany
+    {
+        return $this->hasMany(Evidence::class, 'submitted_by');
+    }
+
+    public function evidenceStatusChanges(): HasMany
+    {
+        return $this->hasMany(EvidenceStatusHistory::class, 'changed_by');
+    }
+
+    public function evidenceCustodyEvents(): HasMany
+    {
+        return $this->hasMany(EvidenceCustodyEvent::class, 'actor_id');
+    }
+
     public function hasRole(string $role): bool
     {
         return $this->role?->code === $role;

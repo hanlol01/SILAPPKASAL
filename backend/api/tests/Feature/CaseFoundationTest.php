@@ -35,7 +35,8 @@ class CaseFoundationTest extends TestCase
         $this->assertTrue(Schema::hasColumn('cases', 'case_number'));
         $this->assertTrue(Schema::hasColumn('cases', 'status_code'));
         $this->assertTrue(Schema::hasTable('case_assignments'));
-        $this->assertFalse(Schema::hasTable('evidences'));
+        $this->assertTrue(Schema::hasTable('evidences'));
+        $this->assertDatabaseCount('evidences', 0);
         $this->assertFalse(Schema::hasTable('risk_assessments'));
         $this->assertTrue(Schema::hasTable('investigations'));
         $this->assertDatabaseCount('investigations', 0);

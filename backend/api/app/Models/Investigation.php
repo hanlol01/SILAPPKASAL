@@ -58,4 +58,9 @@ class Investigation extends Model
     {
         return $this->hasOne(Recommendation::class);
     }
+
+    public function evidences(): HasMany
+    {
+        return $this->hasMany(Evidence::class);
+    }
 }

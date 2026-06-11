@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CaseController;
 use App\Http\Controllers\Api\V1\DecisionController;
+use App\Http\Controllers\Api\V1\EvidenceController;
 use App\Http\Controllers\Api\V1\InvestigationController;
 use App\Http\Controllers\Api\V1\MasterDataController;
 use App\Http\Controllers\Api\V1\RecommendationController;
@@ -76,9 +77,18 @@ Route::prefix('v1')->group(function (): void {
     });
 
     Route::middleware('auth:sanctum')->prefix('investigations')->group(function (): void {
+        Route::post('/{investigation}/evidences', [EvidenceController::class, 'storeForInvestigation']);
+        Route::get('/{investigation}/evidences', [EvidenceController::class, 'indexForInvestigation']);
         Route::get('/{investigation}', [InvestigationController::class, 'show']);
         Route::patch('/{investigation}/status', [InvestigationController::class, 'updateStatus']);
         Route::post('/{investigation}/activities', [InvestigationController::class, 'storeActivity']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('evidences')->group(function (): void {
+        Route::get('/{evidence}', [EvidenceController::class, 'show']);
+        Route::patch('/{evidence}', [EvidenceController::class, 'update']);
+        Route::patch('/{evidence}/status', [EvidenceController::class, 'updateStatus']);
+        Route::get('/{evidence}/custody', [EvidenceController::class, 'custody']);
     });
 
     Route::middleware('auth:sanctum')->prefix('recommendations')->group(function (): void {
