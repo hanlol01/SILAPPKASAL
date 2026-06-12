@@ -2,8 +2,8 @@
 
 > Status: Active Handoff  
 > Last Updated: 2026-06-12  
-> Current Milestone: Milestone 23 Complete - User Management Foundation  
-> Next Milestone: Milestone 24 - Security Verification
+> Current Milestone: Milestone 24 Complete - Workflow Activation Foundation  
+> Next Milestone: TBD
 
 ---
 
@@ -17,7 +17,7 @@ The backend serves as the source of implemented business behavior, exposing secu
 - Safe workflow action forms for status transitions, activity logging, recommendation editing, decision updates, recovery monitoring, and evidence metadata editing.
 - A fully integrated **Reporter Portal** enabling students and reporters to register, log in, view their submitted reports, check safe status updates, read notifications, and manage their profiles.
 
-Evidence upload, WhatsApp integration, frontend user/Satgas lookup picker integration, and Flutter mobile work remain future work.
+Evidence upload, WhatsApp integration, and Flutter mobile work remain future work.
 
 ### 1.1 Architecture Summary
 The system follows a decoupled client-server architecture:
@@ -70,6 +70,7 @@ The Reporter Portal provides a secure self-service area for reporter/student rol
 | 21 | Reporter Portal Foundation (Backend) | PASS | Backend-only reporter portal APIs for summary, own reports, safe own report detail, and read-only own notifications. |
 | 22 | Reporter Portal Frontend Integration | PASS | React frontend integration for the Reporter Portal (Overview, My Reports, Report Detail, read-only notifications, profile edits, and change password). |
 | 23 | User Management Foundation | PASS | Backend-only safe user directory, picker-safe lookup, activation/deactivation, role assignment, and audit logging. |
+| 24 | Workflow Activation Foundation | PASS | Frontend activation of report forwarding and case assignment using safe Satgas lookup, React Query invalidation, backend-authoritative validation, and QA verification. |
 
 Latest known fully verified baseline before Milestone 13 implementation:
 
@@ -155,6 +156,15 @@ php artisan test: PASS
 125 passed (1025 assertions)
 ```
 
+Milestone 24 Workflow Activation Foundation has been implemented and QA verified.
+
+Latest verification baseline:
+
+```text
+Backend: 125 tests, 1025 assertions
+Frontend QA: PASS
+```
+
 ---
 
 ## 3. Current Backend State
@@ -215,7 +225,6 @@ Implemented or prepared API groups:
 - Reporter portal report statuses are safe labels only: `Submitted`, `Under Review`, `In Process`, and `Completed`.
 - Reporter portal notifications are read-only; notification mutation remains only through M17 notification endpoints.
 - Evidence file upload, download, preview, storage implementation, attachments, WhatsApp, advanced analytics, and Flutter integration are not implemented yet.
-- Frontend workflow actions that require user/Satgas lookup APIs remain disabled until approved lookup endpoints exist.
 - Tests are expected for each milestone before completion.
 
 ---
@@ -304,13 +313,9 @@ Not yet implemented:
 
 The remaining planned milestones for the project are:
 
-### Milestone 24 - Security Verification
-
-Goal:
-Finalize security hardening, privacy verification, and operational readiness checks for the backend and integrated frontend.
-
 ### Future Candidate Areas
 
+- Security Verification
 - Frontend Workflow Completion
 - Production Readiness
 - Flutter Mobile Foundation
@@ -332,7 +337,8 @@ php artisan test
 Expected verified test baseline:
 
 ```text
-125 passed (1025 assertions)
+Backend: 125 tests, 1025 assertions
+Frontend QA: PASS
 ```
 
 Prepared Milestone 13 route additions:
@@ -373,6 +379,12 @@ Latest backend verification:
 ```text
 php artisan test: PASS
 125 passed (1025 assertions)
+```
+
+Latest QA verification:
+
+```text
+Frontend QA: PASS
 ```
 
 Verified Milestone 23 route additions:
@@ -438,11 +450,12 @@ GET /api/v1/portal/notifications
 - Keep frontend token persistence centralized in `frontend/src/lib/auth-storage.ts`.
 - Use `user.role.code` for frontend authorization decisions; never use role display names for logic.
 - Milestone 16 enabled selected workflow mutations only through approved backend endpoints and centralized operations API helpers.
-- Do not add temporary numeric ID inputs for assignment, forwarding, or investigator/Satgas selection; keep dependent actions disabled until lookup APIs exist.
+- Do not add temporary numeric ID inputs for assignment, forwarding, or investigator/Satgas selection.
 - Recommendation/decision/investigation status actions remain disabled until approved status option or transition sources are available.
 - Reporter Portal and Self-Service are fully integrated in the React frontend (Milestone 22).
 - Milestone 22 additional QA verified a non-empty reporter demo, frontend/backend contract alignment, and account metadata contract alignment.
-- Milestone 23 added backend-only user management and lookup APIs for future assignment pickers and admin operations.
+- Milestone 23 added backend-only user management and lookup APIs that now support assignment pickers and admin operations.
+- Milestone 24 activated report forwarding and case assignment in the frontend using the approved Satgas lookup endpoint and backend-authoritative validation.
 - Public reporter registration remains backend-only for approval workflows; public self-registration/request submission UI has not been integrated into the frontend.
 
 ## Verification Baseline
@@ -453,6 +466,8 @@ Backend:
 - 1025 assertions
 
 Frontend:
+- QA
+- PASS
 - npm run lint
 - PASS
 - 0 errors

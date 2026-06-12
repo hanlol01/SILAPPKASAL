@@ -2,8 +2,8 @@
 
 > Status: Active  
 > Last Updated: 2026-06-12  
-> Current Position: Milestone 23 User Management Foundation complete  
-> Next: Milestone 24 - Security Verification
+> Current Position: Milestone 24 Workflow Activation Foundation complete  
+> Next: TBD
 
 ---
 
@@ -612,6 +612,29 @@ Verification:
 125 passed (1025 assertions)
 ```
 
+### Milestone 24 - Workflow Activation Foundation
+
+Status: PASS
+
+Delivered:
+
+- Frontend activation of report forwarding via `POST /api/v1/reports/{report}/forward-to-case`.
+- Frontend activation of case assignment via `PATCH /api/v1/cases/{case}/assign`.
+- Satgas picker integration via `GET /api/v1/users/lookup?role=satgas_ppks`.
+- Lead Satgas selection constrained to selected Satgas users.
+- React Query invalidation for report/case refresh after successful mutation.
+- Role-aware frontend action visibility for `admin` and `super_admin`, with backend RBAC remaining authoritative.
+- Frontend handling for lookup loading, empty, and error states.
+- Frontend handling for backend `422` validation responses and mutation failure toasts.
+- No backend contract changes required beyond the approved M23/M24 endpoints.
+
+Verification:
+
+```text
+Backend baseline: 125 tests, 1025 assertions
+Frontend QA: PASS
+```
+
 ---
 
 ## 3. Current API Surface
@@ -642,7 +665,6 @@ Not implemented yet:
 
 - Evidence upload/download
 - WhatsApp integration
-- Frontend user/Satgas lookup picker integration for assignment and forwarding
 - Frontend workflow status actions that require unavailable status option APIs
 - Public/reporter frontend flows
 - Flutter mobile app
@@ -651,11 +673,7 @@ Not implemented yet:
 
 ## 4. Next Milestone
 
-### Milestone 24 - Security Verification
-
-Goal:
-
-Finalize security hardening, privacy verification, and operational readiness checks for the backend and integrated frontend.
+No numbered milestone is locked yet.
 
 ---
 
@@ -679,7 +697,6 @@ Deferred until explicitly approved:
 - WhatsApp/Fonnte integration.
 - Notification delivery tracking.
 - Advanced dashboard analytics beyond M13 metadata aggregates.
-- Frontend user/Satgas lookup picker integration.
 - Frontend workflow status actions that require unavailable status option APIs.
 - Public/reporter frontend flows.
 - Flutter mobile app.
@@ -707,9 +724,9 @@ Deferred until explicitly approved:
 | Frontend authorization drift | Milestone 14 uses backend `user.role.code` as the canonical source for navigation and route access. |
 | Frontend token persistence sprawl | Milestone 14 centralizes browser storage access through `frontend/src/lib/auth-storage.ts`. |
 | Operational screen sensitive data leakage | Milestone 15 renders only backend-returned fields and preserves metadata-only responses. |
-| Incomplete assignment/forwarding UI | Milestone 15 disables actions that require unavailable user/Satgas lookup APIs instead of introducing temporary numeric ID inputs. |
+| Incomplete assignment/forwarding UI | Milestone 24 activates approved forwarding and assignment flows through safe Satgas lookup and backend-authoritative validation. |
 | Frontend workflow mutation drift | Milestone 16 routes all mutations through the centralized operations API client, maps Laravel 422 errors, avoids optimistic updates, and refreshes from backend after success. |
-| Unsafe picker substitutes | Milestone 16 keeps forward-to-case, assignment, and investigation creation disabled until approved user/Satgas lookup APIs exist. |
+| Unsafe picker substitutes | Milestone 24 uses the approved Satgas lookup endpoint for forwarding and assignment, avoiding temporary numeric ID inputs while keeping backend validation authoritative. |
 | Notification payload leakage | Milestone 17 uses metadata-only database notifications with mandatory `notification_type_code`, own-user access only, and no sensitive narrative or identity fields. |
 | Work queue privacy leakage | Milestone 18 queues are metadata-only, RBAC-scoped, assignment-scoped for Satgas, and exclude narratives, identities, tracking codes, evidence details, `risk_level_code`, and priority filters. |
 | Unapproved reporter account access | Milestone 19 keeps pending registrations outside `users`; login becomes possible only after admin/super_admin approval creates an active reporter account. |
@@ -801,6 +818,13 @@ Latest backend verification after Milestone 23:
 ```text
 php artisan test: PASS
 125 passed (1025 assertions)
+```
+
+Latest Milestone 24 verification baseline:
+
+```text
+Backend: 125 tests, 1025 assertions
+Frontend QA: PASS
 ```
 
 Verified Milestone 23 route additions:
