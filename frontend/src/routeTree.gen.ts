@@ -24,6 +24,7 @@ import { Route as DashboardAnalyticsRouteImport } from './routes/dashboard.analy
 import { Route as PortalReportsIndexRouteImport } from './routes/portal.reports.index'
 import { Route as DashboardReportsIndexRouteImport } from './routes/dashboard.reports.index'
 import { Route as DashboardCasesIndexRouteImport } from './routes/dashboard.cases.index'
+import { Route as PortalReportsRegistrationNumberRouteImport } from './routes/portal.reports.$registrationNumber'
 import { Route as DashboardReportsIdRouteImport } from './routes/dashboard.reports.$id'
 import { Route as DashboardCasesIdRouteImport } from './routes/dashboard.cases.$id'
 
@@ -102,6 +103,12 @@ const DashboardCasesIndexRoute = DashboardCasesIndexRouteImport.update({
   path: '/cases/',
   getParentRoute: () => DashboardRoute,
 } as any)
+const PortalReportsRegistrationNumberRoute =
+  PortalReportsRegistrationNumberRouteImport.update({
+    id: '/reports/$registrationNumber',
+    path: '/reports/$registrationNumber',
+    getParentRoute: () => PortalRoute,
+  } as any)
 const DashboardReportsIdRoute = DashboardReportsIdRouteImport.update({
   id: '/reports/$id',
   path: '/reports/$id',
@@ -128,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/portal/': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
+  '/portal/reports/$registrationNumber': typeof PortalReportsRegistrationNumberRoute
   '/dashboard/cases/': typeof DashboardCasesIndexRoute
   '/dashboard/reports/': typeof DashboardReportsIndexRoute
   '/portal/reports/': typeof PortalReportsIndexRoute
@@ -145,6 +153,7 @@ export interface FileRoutesByTo {
   '/portal': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
+  '/portal/reports/$registrationNumber': typeof PortalReportsRegistrationNumberRoute
   '/dashboard/cases': typeof DashboardCasesIndexRoute
   '/dashboard/reports': typeof DashboardReportsIndexRoute
   '/portal/reports': typeof PortalReportsIndexRoute
@@ -165,6 +174,7 @@ export interface FileRoutesById {
   '/portal/': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
+  '/portal/reports/$registrationNumber': typeof PortalReportsRegistrationNumberRoute
   '/dashboard/cases/': typeof DashboardCasesIndexRoute
   '/dashboard/reports/': typeof DashboardReportsIndexRoute
   '/portal/reports/': typeof PortalReportsIndexRoute
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/portal/'
     | '/dashboard/cases/$id'
     | '/dashboard/reports/$id'
+    | '/portal/reports/$registrationNumber'
     | '/dashboard/cases/'
     | '/dashboard/reports/'
     | '/portal/reports/'
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/portal'
     | '/dashboard/cases/$id'
     | '/dashboard/reports/$id'
+    | '/portal/reports/$registrationNumber'
     | '/dashboard/cases'
     | '/dashboard/reports'
     | '/portal/reports'
@@ -222,6 +234,7 @@ export interface FileRouteTypes {
     | '/portal/'
     | '/dashboard/cases/$id'
     | '/dashboard/reports/$id'
+    | '/portal/reports/$registrationNumber'
     | '/dashboard/cases/'
     | '/dashboard/reports/'
     | '/portal/reports/'
@@ -341,6 +354,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardCasesIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/portal/reports/$registrationNumber': {
+      id: '/portal/reports/$registrationNumber'
+      path: '/reports/$registrationNumber'
+      fullPath: '/portal/reports/$registrationNumber'
+      preLoaderRoute: typeof PortalReportsRegistrationNumberRouteImport
+      parentRoute: typeof PortalRoute
+    }
     '/dashboard/reports/$id': {
       id: '/dashboard/reports/$id'
       path: '/reports/$id'
@@ -392,11 +412,13 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 
 interface PortalRouteChildren {
   PortalIndexRoute: typeof PortalIndexRoute
+  PortalReportsRegistrationNumberRoute: typeof PortalReportsRegistrationNumberRoute
   PortalReportsIndexRoute: typeof PortalReportsIndexRoute
 }
 
 const PortalRouteChildren: PortalRouteChildren = {
   PortalIndexRoute: PortalIndexRoute,
+  PortalReportsRegistrationNumberRoute: PortalReportsRegistrationNumberRoute,
   PortalReportsIndexRoute: PortalReportsIndexRoute,
 }
 
