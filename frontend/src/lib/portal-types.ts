@@ -27,11 +27,10 @@ export interface PortalReport {
   /** Primary key for routing — internal numeric ID is never exposed. */
   registration_number: string;
   report_type: string;
-  category_name: string | null;
-  status: string;
-  status_label: string | null;
+  category: string | null;
+  /** Backend-curated reporter-safe status label, e.g. "Under Review". */
+  portal_status: string;
   submitted_at: string | null;
-  last_updated_at: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -41,13 +40,10 @@ export interface PortalReport {
 export interface PortalReportDetail {
   registration_number: string;
   report_type: string;
-  category_name: string | null;
-  status: string;
-  status_label: string | null;
-  /** Backend-curated stage label, e.g. "Under Review" — not a raw code. */
-  current_stage_label: string | null;
+  category: string | null;
+  /** Backend-curated reporter-safe status label, e.g. "Under Review". */
+  portal_status: string;
   submitted_at: string | null;
-  last_updated_at: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -57,7 +53,7 @@ export interface PortalReportDetail {
 export interface PortalNotification {
   id: string;
   title: string;
-  message: string;
+  body: string;
   type: string;
   read_at: string | null;
   created_at: string;

@@ -32,13 +32,12 @@ export function PortalReportCard({ report }: PortalReportCardProps) {
               {report.registration_number}
             </span>
             <PortalStatusBadge
-              status={report.status}
-              statusLabel={report.status_label}
+              portalStatus={report.portal_status}
             />
           </div>
           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
             <span>{humanize(report.report_type)}</span>
-            {report.category_name && <span>{report.category_name}</span>}
+            {report.category && <span>{report.category}</span>}
             <span>Submitted {formatDate(report.submitted_at)}</span>
           </div>
         </div>

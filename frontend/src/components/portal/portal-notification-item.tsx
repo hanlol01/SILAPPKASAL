@@ -79,7 +79,7 @@ export function PortalNotificationItem({
             )}
           </div>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {notification.message}
+            {notification.body}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
             <span>{humanize(notification.type)}</span>

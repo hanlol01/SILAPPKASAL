@@ -86,8 +86,7 @@ function ReportDetail({ report }: ReportDetailProps) {
           {report.registration_number}
         </h1>
         <PortalStatusBadge
-          status={report.status}
-          statusLabel={report.status_label}
+          portalStatus={report.portal_status}
         />
       </div>
 
@@ -105,21 +104,14 @@ function ReportDetail({ report }: ReportDetailProps) {
           </Field>
           <Field label="Report Type">{humanize(report.report_type)}</Field>
           <Field label="Category">
-            {report.category_name ?? "—"}
+            {report.category ?? "—"}
           </Field>
           <Field label="Status">
             <PortalStatusBadge
-              status={report.status}
-              statusLabel={report.status_label}
+              portalStatus={report.portal_status}
             />
           </Field>
-          <Field label="Current Stage">
-            {report.current_stage_label ?? "—"}
-          </Field>
           <Field label="Submitted">{formatDate(report.submitted_at)}</Field>
-          <Field label="Last Updated">
-            {formatDate(report.last_updated_at)}
-          </Field>
         </CardContent>
       </Card>
     </>
@@ -164,7 +156,7 @@ function DetailSkeleton() {
           <Skeleton className="mt-1 h-4 w-52" />
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          {Array.from({ length: 7 }).map((_, i) => (
+          {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="space-y-1.5">
               <Skeleton className="h-3 w-24" />
               <Skeleton className="h-4 w-36" />
