@@ -137,6 +137,14 @@ npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnin
 npm run build: PASS
 ```
 
+Additional Milestone 22 QA:
+
+```text
+Non-empty reporter demo verified
+Frontend/backend contract aligned
+Account metadata contract aligned
+```
+
 ---
 
 ## 3. Current Backend State
@@ -413,6 +421,7 @@ GET /api/v1/portal/notifications
 - Do not add temporary numeric ID inputs for assignment, forwarding, or investigator/Satgas selection; keep dependent actions disabled until lookup APIs exist.
 - Recommendation/decision/investigation status actions remain disabled until approved status option or transition sources are available.
 - Reporter Portal and Self-Service are fully integrated in the React frontend (Milestone 22).
+- Milestone 22 additional QA verified a non-empty reporter demo, frontend/backend contract alignment, and account metadata contract alignment.
 - Public reporter registration remains backend-only for approval workflows; public self-registration/request submission UI has not been integrated into the frontend.
 
 ## Verification Baseline
@@ -430,3 +439,8 @@ Frontend:
 
 - npm run build
 - PASS
+
+Milestone 22 Additional QA:
+- Non-empty reporter demo verified
+- Frontend/backend contract aligned
+- Account metadata contract aligned

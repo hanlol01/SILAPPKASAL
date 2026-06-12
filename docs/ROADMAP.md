@@ -572,12 +572,22 @@ Delivered:
 - Self-service Profile page for editing name and phone number.
 - Change Password form verifying current password and revoking other active Sanctum tokens.
 - Bug fixes: Role-aware login redirect, root `/` route mapping, contextual 404 access-denied links, and cache clearing on logout.
+- Frontend/backend contract aligned for reporter portal payloads.
+- Account metadata contract aligned for `GET /api/v1/me/account-status`.
 
 Verification:
 
 ```text
 npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnings
 npm run build: PASS
+```
+
+Additional QA:
+
+```text
+Non-empty reporter demo verified
+Frontend/backend contract aligned
+Account metadata contract aligned
 ```
 
 ---
@@ -745,6 +755,14 @@ Latest frontend verification after Milestone 22:
 ```text
 npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnings
 npm run build: PASS
+```
+
+Latest Milestone 22 QA:
+
+```text
+Non-empty reporter demo verified
+Frontend/backend contract aligned
+Account metadata contract aligned
 ```
 
 Latest backend verification after Milestone 22:
