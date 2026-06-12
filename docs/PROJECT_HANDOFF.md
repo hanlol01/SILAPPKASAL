@@ -1,9 +1,9 @@
 # PROJECT_HANDOFF.md - SILAPPKASAL Project Handoff
 
 > Status: Active Handoff  
-> Last Updated: 2026-06-11  
-> Current Backend Milestone: Milestone 21 Complete - Public Reporter Portal Foundation  
-> Next Milestone: Milestone 22 - WhatsApp Integration
+> Last Updated: 2026-06-12  
+> Current Milestone: Milestone 22 Complete - Reporter Portal Frontend Integration  
+> Next Milestone: Milestone 23 - Planning Pending
 
 ---
 
@@ -11,7 +11,35 @@
 
 SILAPPKASAL is a secure reporting and case-handling platform for prevention and response to sexual violence in a university environment. The repository is structured with a Laravel REST API backend in `backend/api` and a React frontend in `frontend/`.
 
-The backend is the source of implemented business behavior. The React frontend in `frontend/` now has authenticated dashboard integration, operational report/case screens, and safe workflow action forms for admin/Satgas roles. Evidence upload, WhatsApp integration, reporter public flows, user/Satgas lookup pickers, and Flutter work remain future work unless explicitly promoted.
+The backend serves as the source of implemented business behavior, exposing secure REST APIs. The React frontend in `frontend/` includes:
+- Authenticated dashboard integration for administrators and Satgas PPKS.
+- Operational report/case screens with real-time detail tabs.
+- Safe workflow action forms for status transitions, activity logging, recommendation editing, decision updates, recovery monitoring, and evidence metadata editing.
+- A fully integrated **Reporter Portal** enabling students and reporters to register, log in, view their submitted reports, check safe status updates, read notifications, and manage their profiles.
+
+Evidence upload, WhatsApp integration, user/Satgas lookup pickers, and Flutter mobile work remain future work.
+
+### 1.1 Architecture Summary
+The system follows a decoupled client-server architecture:
+* **Backend:**
+  * **Framework:** Laravel REST API (v12.x) with Sanctum token-based authentication.
+  * **Database:** PostgreSQL for data persistence.
+  * **Security:** Role-Based Access Control (RBAC) enforced via Laravel Policies and Middleware. Encrypted casts for sensitive data narrative fields at rest. Append-only Audit Trail logging for administrative actions.
+  * **Queue/Workflow:** Database queue driver managing asynchronous tasks. Notifications system built using Laravel database channel. Role-aware My Work queues for Satgas PPKS (scoped to assignments) and Admin/Super Admin (global scopes).
+* **Frontend:**
+  * **Framework:** React with Vite.
+  * **Routing:** TanStack Router for type-safe routing, role-based route guards, and contextual login redirects.
+  * **Data Fetching:** TanStack Query (React Query) for caching, automatic invalidation, and state sync.
+  * **UI Components:** Tailwind CSS, Radix UI, and shadcn/ui.
+
+### 1.2 Reporter Portal Summary
+The Reporter Portal provides a secure self-service area for reporter/student roles:
+* **Overview/Dashboard:** Displays key metrics (total reports, active reports, completed reports) and unread notification counts.
+* **My Reports:** List of reports submitted by the reporter with filter/search options, using public-facing registration numbers.
+* **Report Detail:** Privacy-safe read-only detail view of a report. Statuses are abstracted to safe display labels (`Submitted`, `Under Review`, `In Process`, `Completed`) to prevent leaking internal workflow codes.
+* **Notifications (read-only):** View list of notifications relevant to the reporter.
+* **Account/Profile:** Self-service profile editing for the reporter's `name` and `phone_number` only.
+* **Change Password:** Secure password update requiring validation of the current password, which invalidates other active tokens while preserving the current session.
 
 ---
 
@@ -35,11 +63,12 @@ The backend is the source of implemented business behavior. The React frontend i
 | 14 | Frontend Integration Foundation | PASS | React frontend API client, `VITE_API_BASE_URL`, centralized auth storage, backend login/me/logout integration, protected dashboard shell, AccessDenied, role-aware navigation, dashboard analytics integration, master data client foundation, lint/build verified. |
 | 15 | Operational Screen Foundation | PASS | React report list/detail and case list/detail integration, read-only case detail sections for investigations, recommendations, decisions, recoveries, and evidence metadata, metadata-only response handling, disabled unavailable assignment/forwarding actions, lint/build verified. |
 | 16 | Workflow Actions Foundation | PASS | Safe frontend workflow actions for case status, investigation activities, recommendation updates, decision updates, recovery monitoring, and evidence metadata/status; disabled blockers for lookup/status-option gaps; no backend changes; lint/build verified. |
-| 17 | Notification Foundation | PASS | Laravel native database notifications, queued database channel only, metadata-only payloads with mandatory notification_type_code, low-noise workflow triggers, own-user read/list APIs, no WhatsApp/Fonnte/email/push/frontend work. |
-| 18 | Work Queue Foundation | PASS | Backend-only My Work queues for summary, cases, investigations, and recommendations; Satgas active-assignment scope; admin/super_admin global metadata queues; notification count summary; no frontend, migrations, new states, priority filter, or notification browsing duplication. |
-| 19 | Reporter Account Foundation | PASS | Backend-only reporter/student registration requests, public throttled self-registration, admin/super_admin approval/rejection, separate pending registration table, registration numbers, duplicate prevention, password hash clearing after review, reporter user creation only after approval, and tests. |
-| 20 | Reporter Self-Service Foundation | PASS | Backend-only reporter-only self-service APIs for own profile, profile update, password change, and account-status metadata; admin/super_admin/satgas forbidden; no migrations, frontend, email, WhatsApp, uploads, user search, or public profile browsing. |
-| 21 | Public Reporter Portal Foundation | PASS | Backend-only reporter portal APIs for summary, own reports, safe own report detail, and read-only own notifications; uses registration_number identifiers, safe status labels, own-report scoping, and strict privacy exclusions. |
+| 17 | Notification Foundation | PASS | Laravel native database notifications, queued database channel only, metadata-only payloads, low-noise workflow triggers, own-user read/list APIs. |
+| 18 | Work Queue Foundation | PASS | Backend-only My Work queues for summary, cases, investigations, and recommendations; Satgas active-assignment scope. |
+| 19 | Reporter Registration Foundation | PASS | Backend-only reporter/student registration requests, public throttled self-registration, admin/super_admin approval/rejection. |
+| 20 | Reporter Self-Service Foundation | PASS | Backend-only reporter-only self-service APIs for own profile, profile update, password change, and account-status metadata. |
+| 21 | Reporter Portal Foundation (Backend) | PASS | Backend-only reporter portal APIs for summary, own reports, safe own report detail, and read-only own notifications. |
+| 22 | Reporter Portal Frontend Integration | PASS | React frontend integration for the Reporter Portal (Overview, My Reports, Report Detail, read-only notifications, profile edits, and change password). |
 
 Latest known fully verified baseline before Milestone 13 implementation:
 
@@ -90,13 +119,22 @@ php artisan test: PASS
 102 passed (812 assertions)
 ```
 
-Milestone 20 reporter self-service foundation and Milestone 21 public reporter portal foundation have been verified in the latest backend test run.
+Milestone 20 reporter self-service foundation and Milestone 21 reporter portal foundation (backend) have been verified in the latest backend test run.
 
 Latest backend verification:
 
 ```text
 php artisan test: PASS
 116 passed (932 assertions)
+```
+
+Milestone 22 Reporter Portal Frontend Integration has been implemented and verified with frontend checks.
+
+Latest frontend verification:
+
+```text
+npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnings
+npm run build: PASS
 ```
 
 ---
@@ -243,22 +281,22 @@ Not yet implemented:
 
 ---
 
-## 7. Next Milestone
+## 7. Remaining Planned Milestones
 
-After Milestone 21 is committed, the next backend milestone should be planned as:
+The remaining planned milestones for the project are:
 
-```text
-Milestone 22 - WhatsApp Integration
-```
+### Milestone 23 - To Be Planned
 
-Expected focus:
+Goal:
+To be determined.
 
-- Fonnte service integration.
-- WhatsApp queue job.
-- Privacy-safe WhatsApp templates.
-- Delivery tracking strategy.
-- Retry/failure handling.
-- No analytics dashboard expansion or frontend integration unless explicitly approved.
+### Future Candidate Areas
+
+- User Management
+- Frontend Workflow Completion
+- Security Verification
+- Production Readiness
+- Flutter Mobile Foundation
 
 ---
 
@@ -374,6 +412,21 @@ GET /api/v1/portal/notifications
 - Milestone 16 enabled selected workflow mutations only through approved backend endpoints and centralized operations API helpers.
 - Do not add temporary numeric ID inputs for assignment, forwarding, or investigator/Satgas selection; keep dependent actions disabled until lookup APIs exist.
 - Recommendation/decision/investigation status actions remain disabled until approved status option or transition sources are available.
-- Reporter Account Foundation is backend-only; public/reporter frontend flows are still not implemented.
-- Reporter Self-Service Foundation is backend-only and reporter-only; frontend integration is still not implemented.
-- Public Reporter Portal Foundation is backend-only and reporter-only; frontend portal integration is still not implemented.
+- Reporter Portal and Self-Service are fully integrated in the React frontend (Milestone 22).
+- Public reporter registration remains backend-only for approval workflows; public self-registration/request submission UI has not been integrated into the frontend.
+
+## Verification Baseline
+
+Backend:
+- php artisan test
+- 116 passed
+- 932 assertions
+
+Frontend:
+- npm run lint
+- PASS
+- 0 errors
+- 6 pre-existing warnings
+
+- npm run build
+- PASS

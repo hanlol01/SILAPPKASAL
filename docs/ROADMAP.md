@@ -1,9 +1,9 @@
 # ROADMAP.md - SILAPPKASAL Development Roadmap
 
 > Status: Active  
-> Last Updated: 2026-06-11  
-> Current Position: Milestone 21 Public Reporter Portal Foundation complete  
-> Next: Milestone 22 - WhatsApp Integration
+> Last Updated: 2026-06-12  
+> Current Position: Milestone 22 Reporter Portal Frontend Integration complete  
+> Next: Milestone 23 - Planning Pending
 
 ---
 
@@ -453,7 +453,7 @@ Included in latest backend full suite:
 102 passed (812 assertions)
 ```
 
-### Milestone 19 - Reporter Account Foundation
+### Milestone 19 - Reporter Registration Foundation
 
 Status: PASS
 
@@ -519,7 +519,7 @@ Included in latest backend full suite:
 116 passed (932 assertions)
 ```
 
-### Milestone 21 - Public Reporter Portal Foundation
+### Milestone 21 - Reporter Portal Foundation (Backend)
 
 Status: PASS
 
@@ -555,6 +555,29 @@ Verification:
 ```text
 ReporterPortalFoundationTest: 6 passed (54 assertions)
 php artisan test: 116 passed (932 assertions)
+```
+
+### Milestone 22 - Reporter Portal Frontend Integration
+
+Status: PASS
+
+Delivered:
+
+- React frontend integration for the Reporter Portal.
+- Navigation/routes structured under `/portal` with appropriate layout.
+- Portal Overview dashboard displaying total/active/completed reports and unread notifications.
+- My Reports browse view with registration number search and filter capabilities.
+- Report Detail view displaying safe status labels and metadata details.
+- Read-only Portal Notifications list view.
+- Self-service Profile page for editing name and phone number.
+- Change Password form verifying current password and revoking other active Sanctum tokens.
+- Bug fixes: Role-aware login redirect, root `/` route mapping, contextual 404 access-denied links, and cache clearing on logout.
+
+Verification:
+
+```text
+npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnings
+npm run build: PASS
 ```
 
 ---
@@ -596,46 +619,21 @@ Not implemented yet:
 
 ## 4. Next Milestone
 
-### Milestone 22 - WhatsApp Integration
+### Milestone 23 - To Be Planned
 
 Goal:
 
-Integrate WhatsApp delivery on top of the completed notification foundation without weakening notification payload privacy.
-
-Recommended scope:
-
-- Fonnte service integration.
-- WhatsApp queue job.
-- Privacy-safe WhatsApp templates.
-- Delivery tracking strategy.
-- Retry/failure handling.
-- Tests.
-
-Potential endpoints:
-
-```text
-No new public API required unless explicitly approved.
-```
-
-Planning constraints:
-
-- Do not expose sensitive narrative content in WhatsApp payloads.
-- Do not send WhatsApp for anonymous reporter identity.
-- Do not implement analytics.
-- Do not modify frontend unless explicitly requested.
+To be determined.
 
 ---
 
-## 5. Proposed Future Milestones
+## 5. Future Candidate Areas
 
-| Milestone | Name | Purpose |
-|---|---|---|
-| 22 | WhatsApp Integration | Fonnte integration with privacy-safe templates. |
-| 23 | User Management Foundation | Admin user CRUD, deactivate, role assignment, and lookup APIs. |
-| 24 | Frontend Workflow Completion | Assignment/forwarding pickers and deferred status actions after supporting APIs are available. |
-| 25 | Security Verification | Headers, CORS, rate limits, privacy review, penetration-style checklist. |
-| 26 | Production Readiness | Deployment, environment hardening, backup, observability. |
-| 27 | Flutter Planning | Mobile scope after stable backend and web integration. |
+- User Management
+- Frontend Workflow Completion
+- Security Verification
+- Production Readiness
+- Flutter Mobile Foundation
 
 ---
 
@@ -742,14 +740,14 @@ GET /api/v1/dashboard/evidence
 
 Full Milestone 13 route verification and test run are pending.
 
-Latest frontend verification after Milestone 16:
+Latest frontend verification after Milestone 22:
 
 ```text
 npm run lint: PASS, 0 errors, 6 pre-existing shadcn/Lovable react-refresh warnings
 npm run build: PASS
 ```
 
-Latest backend verification after Milestone 21:
+Latest backend verification after Milestone 22:
 
 ```text
 php artisan test: PASS
