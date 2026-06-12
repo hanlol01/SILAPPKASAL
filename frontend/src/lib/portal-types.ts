@@ -82,9 +82,15 @@ export interface PortalProfileUpdatePayload {
 // ---------------------------------------------------------------------------
 
 export interface PortalAccountStatus {
+  id: number;
+  role: {
+    code: string;
+    name: string;
+  } | null;
   is_active: boolean;
   email_verified_at: string | null;
-  last_login_at: string | null;
+  created_at: string | null;
+  registration_number?: string | null;
 }
 
 // ---------------------------------------------------------------------------
