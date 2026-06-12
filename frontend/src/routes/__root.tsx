@@ -10,6 +10,8 @@ import {
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/components/auth-provider";
 
+import "@/i18n";
+
 import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
