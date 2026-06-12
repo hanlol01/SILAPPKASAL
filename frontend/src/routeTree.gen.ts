@@ -9,9 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PortalRouteImport } from './routes/portal'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PortalIndexRouteImport } from './routes/portal.index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as DashboardWorkflowRouteImport } from './routes/dashboard.workflow'
 import { Route as DashboardUsersRouteImport } from './routes/dashboard.users'
@@ -19,11 +21,17 @@ import { Route as DashboardSettingsRouteImport } from './routes/dashboard.settin
 import { Route as DashboardNotificationsRouteImport } from './routes/dashboard.notifications'
 import { Route as DashboardContentRouteImport } from './routes/dashboard.content'
 import { Route as DashboardAnalyticsRouteImport } from './routes/dashboard.analytics'
+import { Route as PortalReportsIndexRouteImport } from './routes/portal.reports.index'
 import { Route as DashboardReportsIndexRouteImport } from './routes/dashboard.reports.index'
 import { Route as DashboardCasesIndexRouteImport } from './routes/dashboard.cases.index'
 import { Route as DashboardReportsIdRouteImport } from './routes/dashboard.reports.$id'
 import { Route as DashboardCasesIdRouteImport } from './routes/dashboard.cases.$id'
 
+const PortalRoute = PortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -38,6 +46,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const PortalIndexRoute = PortalIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PortalRoute,
 } as any)
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
   id: '/',
@@ -74,6 +87,11 @@ const DashboardAnalyticsRoute = DashboardAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => DashboardRoute,
 } as any)
+const PortalReportsIndexRoute = PortalReportsIndexRouteImport.update({
+  id: '/reports/',
+  path: '/reports/',
+  getParentRoute: () => PortalRoute,
+} as any)
 const DashboardReportsIndexRoute = DashboardReportsIndexRouteImport.update({
   id: '/reports/',
   path: '/reports/',
@@ -99,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
+  '/portal': typeof PortalRouteWithChildren
   '/dashboard/analytics': typeof DashboardAnalyticsRoute
   '/dashboard/content': typeof DashboardContentRoute
   '/dashboard/notifications': typeof DashboardNotificationsRoute
@@ -106,10 +125,12 @@ export interface FileRoutesByFullPath {
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/workflow': typeof DashboardWorkflowRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/portal/': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
   '/dashboard/cases/': typeof DashboardCasesIndexRoute
   '/dashboard/reports/': typeof DashboardReportsIndexRoute
+  '/portal/reports/': typeof PortalReportsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -121,16 +142,19 @@ export interface FileRoutesByTo {
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/workflow': typeof DashboardWorkflowRoute
   '/dashboard': typeof DashboardIndexRoute
+  '/portal': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
   '/dashboard/cases': typeof DashboardCasesIndexRoute
   '/dashboard/reports': typeof DashboardReportsIndexRoute
+  '/portal/reports': typeof PortalReportsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
+  '/portal': typeof PortalRouteWithChildren
   '/dashboard/analytics': typeof DashboardAnalyticsRoute
   '/dashboard/content': typeof DashboardContentRoute
   '/dashboard/notifications': typeof DashboardNotificationsRoute
@@ -138,10 +162,12 @@ export interface FileRoutesById {
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/workflow': typeof DashboardWorkflowRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/portal/': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
   '/dashboard/cases/': typeof DashboardCasesIndexRoute
   '/dashboard/reports/': typeof DashboardReportsIndexRoute
+  '/portal/reports/': typeof PortalReportsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -149,6 +175,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/login'
+    | '/portal'
     | '/dashboard/analytics'
     | '/dashboard/content'
     | '/dashboard/notifications'
@@ -156,10 +183,12 @@ export interface FileRouteTypes {
     | '/dashboard/users'
     | '/dashboard/workflow'
     | '/dashboard/'
+    | '/portal/'
     | '/dashboard/cases/$id'
     | '/dashboard/reports/$id'
     | '/dashboard/cases/'
     | '/dashboard/reports/'
+    | '/portal/reports/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -171,15 +200,18 @@ export interface FileRouteTypes {
     | '/dashboard/users'
     | '/dashboard/workflow'
     | '/dashboard'
+    | '/portal'
     | '/dashboard/cases/$id'
     | '/dashboard/reports/$id'
     | '/dashboard/cases'
     | '/dashboard/reports'
+    | '/portal/reports'
   id:
     | '__root__'
     | '/'
     | '/dashboard'
     | '/login'
+    | '/portal'
     | '/dashboard/analytics'
     | '/dashboard/content'
     | '/dashboard/notifications'
@@ -187,20 +219,30 @@ export interface FileRouteTypes {
     | '/dashboard/users'
     | '/dashboard/workflow'
     | '/dashboard/'
+    | '/portal/'
     | '/dashboard/cases/$id'
     | '/dashboard/reports/$id'
     | '/dashboard/cases/'
     | '/dashboard/reports/'
+    | '/portal/reports/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRouteWithChildren
   LoginRoute: typeof LoginRoute
+  PortalRoute: typeof PortalRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/portal': {
+      id: '/portal'
+      path: '/portal'
+      fullPath: '/portal'
+      preLoaderRoute: typeof PortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -221,6 +263,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/portal/': {
+      id: '/portal/'
+      path: '/'
+      fullPath: '/portal/'
+      preLoaderRoute: typeof PortalIndexRouteImport
+      parentRoute: typeof PortalRoute
     }
     '/dashboard/': {
       id: '/dashboard/'
@@ -270,6 +319,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard/analytics'
       preLoaderRoute: typeof DashboardAnalyticsRouteImport
       parentRoute: typeof DashboardRoute
+    }
+    '/portal/reports/': {
+      id: '/portal/reports/'
+      path: '/reports'
+      fullPath: '/portal/reports/'
+      preLoaderRoute: typeof PortalReportsIndexRouteImport
+      parentRoute: typeof PortalRoute
     }
     '/dashboard/reports/': {
       id: '/dashboard/reports/'
@@ -334,21 +390,25 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
   DashboardRouteChildren,
 )
 
+interface PortalRouteChildren {
+  PortalIndexRoute: typeof PortalIndexRoute
+  PortalReportsIndexRoute: typeof PortalReportsIndexRoute
+}
+
+const PortalRouteChildren: PortalRouteChildren = {
+  PortalIndexRoute: PortalIndexRoute,
+  PortalReportsIndexRoute: PortalReportsIndexRoute,
+}
+
+const PortalRouteWithChildren =
+  PortalRoute._addFileChildren(PortalRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRouteWithChildren,
   LoginRoute: LoginRoute,
+  PortalRoute: PortalRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
