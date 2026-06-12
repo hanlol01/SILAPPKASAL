@@ -15,6 +15,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PortalIndexRouteImport } from './routes/portal.index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as PortalNotificationsRouteImport } from './routes/portal.notifications'
 import { Route as DashboardWorkflowRouteImport } from './routes/dashboard.workflow'
 import { Route as DashboardUsersRouteImport } from './routes/dashboard.users'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard.settings'
@@ -57,6 +58,11 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => DashboardRoute,
+} as any)
+const PortalNotificationsRoute = PortalNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => PortalRoute,
 } as any)
 const DashboardWorkflowRoute = DashboardWorkflowRouteImport.update({
   id: '/workflow',
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/workflow': typeof DashboardWorkflowRoute
+  '/portal/notifications': typeof PortalNotificationsRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/portal/': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
@@ -149,6 +156,7 @@ export interface FileRoutesByTo {
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/workflow': typeof DashboardWorkflowRoute
+  '/portal/notifications': typeof PortalNotificationsRoute
   '/dashboard': typeof DashboardIndexRoute
   '/portal': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
@@ -170,6 +178,7 @@ export interface FileRoutesById {
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/workflow': typeof DashboardWorkflowRoute
+  '/portal/notifications': typeof PortalNotificationsRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/portal/': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
@@ -192,6 +201,7 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/dashboard/users'
     | '/dashboard/workflow'
+    | '/portal/notifications'
     | '/dashboard/'
     | '/portal/'
     | '/dashboard/cases/$id'
@@ -210,6 +220,7 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/dashboard/users'
     | '/dashboard/workflow'
+    | '/portal/notifications'
     | '/dashboard'
     | '/portal'
     | '/dashboard/cases/$id'
@@ -230,6 +241,7 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/dashboard/users'
     | '/dashboard/workflow'
+    | '/portal/notifications'
     | '/dashboard/'
     | '/portal/'
     | '/dashboard/cases/$id'
@@ -290,6 +302,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard/'
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof DashboardRoute
+    }
+    '/portal/notifications': {
+      id: '/portal/notifications'
+      path: '/notifications'
+      fullPath: '/portal/notifications'
+      preLoaderRoute: typeof PortalNotificationsRouteImport
+      parentRoute: typeof PortalRoute
     }
     '/dashboard/workflow': {
       id: '/dashboard/workflow'
@@ -411,12 +430,14 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 )
 
 interface PortalRouteChildren {
+  PortalNotificationsRoute: typeof PortalNotificationsRoute
   PortalIndexRoute: typeof PortalIndexRoute
   PortalReportsRegistrationNumberRoute: typeof PortalReportsRegistrationNumberRoute
   PortalReportsIndexRoute: typeof PortalReportsIndexRoute
 }
 
 const PortalRouteChildren: PortalRouteChildren = {
+  PortalNotificationsRoute: PortalNotificationsRoute,
   PortalIndexRoute: PortalIndexRoute,
   PortalReportsRegistrationNumberRoute: PortalReportsRegistrationNumberRoute,
   PortalReportsIndexRoute: PortalReportsIndexRoute,
