@@ -4,5 +4,6 @@
   "loading": "Loading",
   "retry": "Retry",
   "signOut": "Sign Out",
-  "language": "Language"
+  "language": "Language",
+  "toggleTheme": "Toggle theme"
 }

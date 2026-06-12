@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api-client";
@@ -28,6 +29,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
+  const { t } = useTranslation(["auth"]);
   const { login, user } = useAuth();
   const navigate = useNavigate();
   const [identifier, setIdentifier] = useState("");
@@ -45,9 +47,9 @@ function LoginPage() {
 
     try {
       await login(identifier, password, remember);
-      toast.success("Welcome back");
+      toast.success(t("welcomeBack"));
     } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Login failed";
+      const message = error instanceof ApiError ? error.message : t("loginFailed");
       toast.error(message);
     } finally {
       setLoading(false);
@@ -65,11 +67,10 @@ function LoginPage() {
         </div>
         <div className="space-y-4">
           <h1 className="text-3xl font-semibold leading-tight">
-            A safer campus starts with a trusted reporting system.
+            {t("heroTitle")}
           </h1>
           <p className="text-sm text-sidebar-foreground/70">
-            Manage incoming reports, coordinate investigations, and publish prevention content in
-            one secure workspace built for Satgas PPKS teams.
+            {t("heroSubtitle")}
           </p>
         </div>
         <div className="text-xs text-sidebar-foreground/60">
@@ -87,13 +88,13 @@ function LoginPage() {
                 <span className="font-semibold">SafeCampus Admin</span>
               </div>
             </div>
-            <h2 className="text-2xl font-semibold tracking-tight">Sign in</h2>
+            <h2 className="text-2xl font-semibold tracking-tight">{t("signIn")}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Use your administrator credentials to continue.
+              {t("signInDescription")}
             </p>
             <form onSubmit={onSubmit} className="mt-6 space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="identifier">Email, NIM, or NIP</Label>
+                <Label htmlFor="identifier">{t("email")}</Label>
                 <Input
                   id="identifier"
                   type="text"
@@ -103,7 +104,7 @@ function LoginPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t("password")}</Label>
                 <Input
                   id="password"
                   type="password"
@@ -118,14 +119,14 @@ function LoginPage() {
                     checked={remember}
                     onCheckedChange={(v) => setRemember(v === true)}
                   />
-                  Remember me
+                  {t("rememberMe")}
                 </label>
                 <Link to="/login" className="text-sm text-primary hover:underline">
-                  Forgot password?
+                  {t("forgotPassword")}
                 </Link>
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Signing in..." : "Sign in"}
+                {loading ? t("signingIn") : t("signIn")}
               </Button>
             </form>
           </CardContent>

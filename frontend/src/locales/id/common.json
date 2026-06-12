@@ -4,5 +4,6 @@
   "loading": "Memuat",
   "retry": "Coba Lagi",
   "signOut": "Keluar",
-  "language": "Bahasa"
+  "language": "Bahasa",
+  "toggleTheme": "Ubah Tema"
 }

@@ -21,19 +21,22 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
+import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import type { ReactNode } from "react";
 
 /**
  * Portal navigation items — all child routes are now registered.
  */
 const nav = [
-  { title: "Overview", url: "/portal" as const, icon: LayoutDashboard },
-  { title: "My Reports", url: "/portal/reports" as const, icon: FileText },
-  { title: "Notifications", url: "/portal/notifications" as const, icon: Bell },
-  { title: "Account", url: "/portal/account" as const, icon: UserCog },
+  { titleKey: "overview", url: "/portal" as const, icon: LayoutDashboard },
+  { titleKey: "myReports", url: "/portal/reports" as const, icon: FileText },
+  { titleKey: "notifications", url: "/portal/notifications" as const, icon: Bell },
+  { titleKey: "account", url: "/portal/account" as const, icon: UserCog },
 ];
 
 function PortalNav() {
+  const { t } = useTranslation(["portal"]);
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   return (
@@ -53,7 +56,7 @@ function PortalNav() {
           >
             <Link to={item.url}>
               <item.icon className="h-4 w-4" />
-              <span className="hidden sm:inline">{item.title}</span>
+              <span className="hidden sm:inline">{t(item.titleKey)}</span>
             </Link>
           </Button>
         );
@@ -63,6 +66,7 @@ function PortalNav() {
 }
 
 function PortalTopbar() {
+  const { t } = useTranslation(["common", "portal"]);
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
@@ -91,11 +95,12 @@ function PortalTopbar() {
 
         {/* Right side */}
         <div className="ml-auto flex items-center gap-2">
+          <LanguageSwitcher />
           <Button
             variant="ghost"
             size="icon"
             onClick={toggle}
-            aria-label="Toggle theme"
+            aria-label={t("toggleTheme")}
           >
             {theme === "dark" ? (
               <Sun className="h-4 w-4" />
@@ -121,7 +126,7 @@ function PortalTopbar() {
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link to="/portal/account">
-                  <UserCog className="mr-2 h-4 w-4" /> Account
+                  <UserCog className="mr-2 h-4 w-4" /> {t("portal:account")}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -130,7 +135,7 @@ function PortalTopbar() {
                   navigate({ to: "/login" });
                 }}
               >
-                <LogOut className="mr-2 h-4 w-4" /> Sign out
+                <LogOut className="mr-2 h-4 w-4" /> {t("signOut")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
