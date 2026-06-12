@@ -9,6 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
+import { hasPortalAccess } from "@/lib/auth-roles";
+
+function homeForRole(roleCode: string | null): string {
+  return hasPortalAccess(roleCode as import("@/lib/api-types").RoleCode | null)
+    ? "/portal"
+    : "/dashboard";
+}
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -29,7 +36,7 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (user) navigate({ to: "/dashboard" });
+    if (user) navigate({ to: homeForRole(user.role?.code ?? null) as "/" });
   }, [user, navigate]);
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -39,7 +46,6 @@ function LoginPage() {
     try {
       await login(identifier, password, remember);
       toast.success("Welcome back");
-      navigate({ to: "/dashboard" });
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "Login failed";
       toast.error(message);

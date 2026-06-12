@@ -22,10 +22,10 @@ function NotFoundComponent() {
           The page you're looking for doesn't exist.
         </p>
         <Link
-          to="/dashboard"
+          to="/login"
           className="mt-6 inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
-          Go to dashboard
+          Go to home
         </Link>
       </div>
     </div>
@@ -54,34 +54,64 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "SafeCampus Admin — Sexual Harassment Case Management" },
-      {
-        name: "description",
-        content:
-          "SafeCampus Admin: a secure dashboard for university Satgas PPKS teams to manage reports, investigations, and prevention content.",
-      },
-      { property: "og:title", content: "SafeCampus Admin — Sexual Harassment Case Management" },
-      { name: "twitter:title", content: "SafeCampus Admin — Sexual Harassment Case Management" },
-      { name: "description", content: "SafeCampus Admin is a web dashboard for managing university sexual harassment cases locally." },
-      { property: "og:description", content: "SafeCampus Admin is a web dashboard for managing university sexual harassment cases locally." },
-      { name: "twitter:description", content: "SafeCampus Admin is a web dashboard for managing university sexual harassment cases locally." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/817eb12d-d24c-4806-b44d-65a0a58f0225/id-preview-a5a04a59--81461496-814e-4262-ad32-485cfefeaffe.lovable.app-1778635596881.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/817eb12d-d24c-4806-b44d-65a0a58f0225/id-preview-a5a04a59--81461496-814e-4262-ad32-485cfefeaffe.lovable.app-1778635596881.png" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { property: "og:type", content: "website" },
-    ],
-    links: [{ rel: "stylesheet", href: appCss }],
-  }),
-  shellComponent: RootShell,
-  component: RootComponent,
-  notFoundComponent: NotFoundComponent,
-  errorComponent: ErrorComponent,
-});
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
+  {
+    head: () => ({
+      meta: [
+        { charSet: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        {
+          title: "SafeCampus Admin — Sexual Harassment Case Management",
+        },
+        {
+          name: "description",
+          content:
+            "SafeCampus Admin: a secure dashboard for university Satgas PPKS teams to manage reports, investigations, and prevention content.",
+        },
+        {
+          property: "og:title",
+          content: "SafeCampus Admin — Sexual Harassment Case Management",
+        },
+        {
+          name: "twitter:title",
+          content: "SafeCampus Admin — Sexual Harassment Case Management",
+        },
+        {
+          name: "description",
+          content:
+            "SafeCampus Admin is a web dashboard for managing university sexual harassment cases locally.",
+        },
+        {
+          property: "og:description",
+          content:
+            "SafeCampus Admin is a web dashboard for managing university sexual harassment cases locally.",
+        },
+        {
+          name: "twitter:description",
+          content:
+            "SafeCampus Admin is a web dashboard for managing university sexual harassment cases locally.",
+        },
+        {
+          property: "og:image",
+          content:
+            "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/817eb12d-d24c-4806-b44d-65a0a58f0225/id-preview-a5a04a59--81461496-814e-4262-ad32-485cfefeaffe.lovable.app-1778635596881.png",
+        },
+        {
+          name: "twitter:image",
+          content:
+            "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/817eb12d-d24c-4806-b44d-65a0a58f0225/id-preview-a5a04a59--81461496-814e-4262-ad32-485cfefeaffe.lovable.app-1778635596881.png",
+        },
+        { name: "twitter:card", content: "summary_large_image" },
+        { property: "og:type", content: "website" },
+      ],
+      links: [{ rel: "stylesheet", href: appCss }],
+    }),
+    shellComponent: RootShell,
+    component: RootComponent,
+    notFoundComponent: NotFoundComponent,
+    errorComponent: ErrorComponent,
+  },
+);
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (

@@ -41,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.removeQueries({ queryKey: ["auth"] });
       queryClient.removeQueries({ queryKey: ["dashboard"] });
       queryClient.removeQueries({ queryKey: ["master-data"] });
+      queryClient.removeQueries({ queryKey: ["portal"] });
     }
   };
 
