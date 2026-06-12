@@ -2,8 +2,8 @@
 
 > Status: Active Handoff  
 > Last Updated: 2026-06-12  
-> Current Milestone: Milestone 22 Complete - Reporter Portal Frontend Integration  
-> Next Milestone: Milestone 23 - Planning Pending
+> Current Milestone: Milestone 23 Complete - User Management Foundation  
+> Next Milestone: Milestone 24 - Security Verification
 
 ---
 
@@ -17,7 +17,7 @@ The backend serves as the source of implemented business behavior, exposing secu
 - Safe workflow action forms for status transitions, activity logging, recommendation editing, decision updates, recovery monitoring, and evidence metadata editing.
 - A fully integrated **Reporter Portal** enabling students and reporters to register, log in, view their submitted reports, check safe status updates, read notifications, and manage their profiles.
 
-Evidence upload, WhatsApp integration, user/Satgas lookup pickers, and Flutter mobile work remain future work.
+Evidence upload, WhatsApp integration, frontend user/Satgas lookup picker integration, and Flutter mobile work remain future work.
 
 ### 1.1 Architecture Summary
 The system follows a decoupled client-server architecture:
@@ -69,6 +69,7 @@ The Reporter Portal provides a secure self-service area for reporter/student rol
 | 20 | Reporter Self-Service Foundation | PASS | Backend-only reporter-only self-service APIs for own profile, profile update, password change, and account-status metadata. |
 | 21 | Reporter Portal Foundation (Backend) | PASS | Backend-only reporter portal APIs for summary, own reports, safe own report detail, and read-only own notifications. |
 | 22 | Reporter Portal Frontend Integration | PASS | React frontend integration for the Reporter Portal (Overview, My Reports, Report Detail, read-only notifications, profile edits, and change password). |
+| 23 | User Management Foundation | PASS | Backend-only safe user directory, picker-safe lookup, activation/deactivation, role assignment, and audit logging. |
 
 Latest known fully verified baseline before Milestone 13 implementation:
 
@@ -145,6 +146,15 @@ Frontend/backend contract aligned
 Account metadata contract aligned
 ```
 
+Milestone 23 User Management Foundation has been implemented and verified in the latest backend test run.
+
+Latest backend verification:
+
+```text
+php artisan test: PASS
+125 passed (1025 assertions)
+```
+
 ---
 
 ## 3. Current Backend State
@@ -174,6 +184,7 @@ Implemented or prepared API groups:
 | Notifications | `GET /api/v1/notifications`, `PATCH /api/v1/notifications/{notification}/read`, `PATCH /api/v1/notifications/read-all` |
 | My Work | `GET /api/v1/my-work/summary`, `GET /api/v1/my-work/cases`, `GET /api/v1/my-work/investigations`, `GET /api/v1/my-work/recommendations` |
 | Reporter Registrations | `POST /api/v1/reporter-registrations`, `GET /api/v1/reporter-registrations`, `GET /api/v1/reporter-registrations/{reporterRegistration}`, `PATCH /api/v1/reporter-registrations/{reporterRegistration}/approve`, `PATCH /api/v1/reporter-registrations/{reporterRegistration}/reject` |
+| User Management | `GET /api/v1/users`, `GET /api/v1/users/lookup`, `GET /api/v1/users/{user}`, `PATCH /api/v1/users/{user}/activate`, `PATCH /api/v1/users/{user}/deactivate`, `PATCH /api/v1/users/{user}/role` |
 | Reporter Self-Service | `GET /api/v1/me/profile`, `PATCH /api/v1/me/profile`, `PATCH /api/v1/me/change-password`, `GET /api/v1/me/account-status` |
 | Reporter Portal | `GET /api/v1/portal/summary`, `GET /api/v1/portal/reports`, `GET /api/v1/portal/reports/{registrationNumber}`, `GET /api/v1/portal/notifications` |
 
@@ -293,16 +304,14 @@ Not yet implemented:
 
 The remaining planned milestones for the project are:
 
-### Milestone 23 - To Be Planned
+### Milestone 24 - Security Verification
 
 Goal:
-To be determined.
+Finalize security hardening, privacy verification, and operational readiness checks for the backend and integrated frontend.
 
 ### Future Candidate Areas
 
-- User Management
 - Frontend Workflow Completion
-- Security Verification
 - Production Readiness
 - Flutter Mobile Foundation
 
@@ -323,7 +332,7 @@ php artisan test
 Expected verified test baseline:
 
 ```text
-116 passed (932 assertions)
+125 passed (1025 assertions)
 ```
 
 Prepared Milestone 13 route additions:
@@ -363,7 +372,18 @@ Latest backend verification:
 
 ```text
 php artisan test: PASS
-116 passed (932 assertions)
+125 passed (1025 assertions)
+```
+
+Verified Milestone 23 route additions:
+
+```text
+GET /api/v1/users
+GET /api/v1/users/lookup
+GET /api/v1/users/{user}
+PATCH /api/v1/users/{user}/activate
+PATCH /api/v1/users/{user}/deactivate
+PATCH /api/v1/users/{user}/role
 ```
 
 Verified Milestone 18 route additions:
@@ -422,14 +442,15 @@ GET /api/v1/portal/notifications
 - Recommendation/decision/investigation status actions remain disabled until approved status option or transition sources are available.
 - Reporter Portal and Self-Service are fully integrated in the React frontend (Milestone 22).
 - Milestone 22 additional QA verified a non-empty reporter demo, frontend/backend contract alignment, and account metadata contract alignment.
+- Milestone 23 added backend-only user management and lookup APIs for future assignment pickers and admin operations.
 - Public reporter registration remains backend-only for approval workflows; public self-registration/request submission UI has not been integrated into the frontend.
 
 ## Verification Baseline
 
 Backend:
 - php artisan test
-- 116 passed
-- 932 assertions
+- 125 passed
+- 1025 assertions
 
 Frontend:
 - npm run lint

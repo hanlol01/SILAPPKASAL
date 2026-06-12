@@ -2,8 +2,8 @@
 
 > Status: Active  
 > Last Updated: 2026-06-12  
-> Current Position: Milestone 22 Reporter Portal Frontend Integration complete  
-> Next: Milestone 23 - Planning Pending
+> Current Position: Milestone 23 User Management Foundation complete  
+> Next: Milestone 24 - Security Verification
 
 ---
 
@@ -590,6 +590,28 @@ Frontend/backend contract aligned
 Account metadata contract aligned
 ```
 
+### Milestone 23 - User Management Foundation
+
+Status: PASS
+
+Delivered:
+
+- Backend-only safe user management and lookup APIs.
+- User directory and safe user detail for admin and super_admin.
+- Role-filtered picker-safe lookup returning only `id`, `name`, `role.code`, and `role.name`.
+- Activation and deactivation flows with Sanctum token revocation.
+- Role assignment for `admin`, `satgas_ppks`, and `reporter` only.
+- Super Admin promotion remains out of scope.
+- Last active Super Admin protection.
+- Audit logging for activation, deactivation, and role changes.
+- No migrations, no frontend changes, and no user creation or invitation system.
+
+Verification:
+
+```text
+125 passed (1025 assertions)
+```
+
 ---
 
 ## 3. Current API Surface
@@ -613,13 +635,13 @@ Implemented or prepared API areas:
 - Reporter registrations
 - Reporter self-service
 - Reporter portal
+- User management
 - Frontend dashboard, operational screen, and workflow action foundations
 
 Not implemented yet:
 
 - Evidence upload/download
 - WhatsApp integration
-- User CRUD/admin account management
 - Frontend user/Satgas lookup picker integration for assignment and forwarding
 - Frontend workflow status actions that require unavailable status option APIs
 - Public/reporter frontend flows
@@ -629,17 +651,16 @@ Not implemented yet:
 
 ## 4. Next Milestone
 
-### Milestone 23 - To Be Planned
+### Milestone 24 - Security Verification
 
 Goal:
 
-To be determined.
+Finalize security hardening, privacy verification, and operational readiness checks for the backend and integrated frontend.
 
 ---
 
 ## 5. Future Candidate Areas
 
-- User Management
 - Frontend Workflow Completion
 - Security Verification
 - Production Readiness
@@ -695,6 +716,7 @@ Deferred until explicitly approved:
 | Duplicate reporter accounts | Milestone 19 checks active user and pending registration email/NIM before submission and rechecks active users before approval. |
 | Reporter self-service privilege escalation | Milestone 20 only allows role `reporter`, blocks admin/super_admin/satgas, and prohibits email, NIM, NIP, role, permissions, active status, and approval metadata edits. |
 | Reporter portal sensitive data leakage | Milestone 21 uses portal-specific resources with `registration_number` identifiers, safe status labels, own-report scoping, read-only notifications, and no narratives, raw workflow codes, tracking codes, staff identities, assignments, evidence, audit data, or admin notes. |
+| User management lookup exposure | Milestone 23 uses picker-safe lookup fields only, blocks `super_admin` lookup and promotion, and preserves last active Super Admin protection. |
 
 ---
 
@@ -770,6 +792,26 @@ Latest backend verification after Milestone 22:
 ```text
 php artisan test: PASS
 116 passed (932 assertions)
+```
+
+Milestone 23 User Management Foundation has been implemented and verified in the latest backend test run.
+
+Latest backend verification after Milestone 23:
+
+```text
+php artisan test: PASS
+125 passed (1025 assertions)
+```
+
+Verified Milestone 23 route additions:
+
+```text
+GET /api/v1/users
+GET /api/v1/users/lookup
+GET /api/v1/users/{user}
+PATCH /api/v1/users/{user}/activate
+PATCH /api/v1/users/{user}/deactivate
+PATCH /api/v1/users/{user}/role
 ```
 
 Verified Milestone 18 route additions:
