@@ -15,6 +15,10 @@ enum AuditAction: string
     case ReporterSelfServiceProfileUpdated = 'reporter_self_service.profile_updated';
     case ReporterSelfServicePasswordChanged = 'reporter_self_service.password_changed';
 
+    case UserActivated = 'user.activated';
+    case UserDeactivated = 'user.deactivated';
+    case UserRoleChanged = 'user.role_changed';
+
     case ReportCreated = 'report.created';
     case ReportForwarded = 'report.forwarded';
 

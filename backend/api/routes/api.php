@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\V1\RecommendationController;
 use App\Http\Controllers\Api\V1\RecoveryController;
 use App\Http\Controllers\Api\V1\ReporterRegistrationController;
 use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -165,6 +166,15 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/reports', [PortalController::class, 'reports']);
         Route::get('/reports/{registrationNumber}', [PortalController::class, 'report']);
         Route::get('/notifications', [PortalController::class, 'notifications']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('users')->group(function (): void {
+        Route::get('/', [UserController::class, 'index']);
+        Route::get('/lookup', [UserController::class, 'lookup']);
+        Route::get('/{user}', [UserController::class, 'show']);
+        Route::patch('/{user}/activate', [UserController::class, 'activate']);
+        Route::patch('/{user}/deactivate', [UserController::class, 'deactivate']);
+        Route::patch('/{user}/role', [UserController::class, 'role']);
     });
 
     Route::middleware('auth:sanctum')->prefix('my-work')->group(function (): void {
