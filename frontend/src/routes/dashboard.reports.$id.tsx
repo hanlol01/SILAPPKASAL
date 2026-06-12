@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Lock, UserRoundSearch } from "lucide-react";
+import { ArrowLeft, Lock } from "lucide-react";
 import { AccessDenied } from "@/components/access-denied";
 import { QueryErrorState } from "@/components/query-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { SatgasAssignmentAction } from "@/components/workflow-actions/satgas-assignment-action";
 import { useAuth } from "@/hooks/use-auth";
 import { getReport, operationsQueryKeys } from "@/lib/operations-api";
 
@@ -79,15 +80,13 @@ function ReportDetailPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Actions</CardTitle>
-            <CardDescription>Unavailable until user lookup APIs are approved.</CardDescription>
+            <CardDescription>Forwarding uses the approved Satgas lookup API.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button disabled className="w-full" variant="outline">
-              <UserRoundSearch className="mr-2 h-4 w-4" /> Forward to case
-            </Button>
+            <SatgasAssignmentAction mode="forward-report" targetId={report.id} />
             <p className="text-xs text-muted-foreground">
-              Forwarding requires selecting Satgas users and a lead Satgas. No approved user lookup
-              API exists yet, so M16 keeps this action disabled instead of using temporary ID inputs.
+              Select one or more Satgas users and choose a lead from the selected users.
+              Backend RBAC remains authoritative.
             </p>
           </CardContent>
         </Card>

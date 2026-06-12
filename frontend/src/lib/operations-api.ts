@@ -8,6 +8,7 @@ import type {
   EvidenceMetadata,
   EvidenceStatusPayload,
   EvidenceUpdatePayload,
+  ForwardReportToCaseResult,
   Investigation,
   InvestigationActivity,
   InvestigationActivityPayload,
@@ -18,6 +19,8 @@ import type {
   RecoveryMonitoring,
   RecoveryMonitoringPayload,
   ReportSummary,
+  SatgasAssignmentPayload,
+  UserLookupItem,
 } from "@/lib/operations-types";
 
 type QueryValue = string | number | boolean | undefined;
@@ -41,6 +44,7 @@ export const operationsQueryKeys = {
     ["operations", "investigation", investigationId, "evidences"] as const,
   evidence: (id: string | number) => ["operations", "evidence", id] as const,
   evidenceCustody: (id: string | number) => ["operations", "evidence", id, "custody"] as const,
+  userLookup: (role: string, search?: string) => ["operations", "users", "lookup", role, search ?? ""] as const,
 };
 
 export async function getReports(query?: Record<string, QueryValue>): Promise<PaginatedData<ReportSummary>> {
@@ -107,6 +111,26 @@ export function getEvidence(id: string | number) {
 
 export function getEvidenceCustody(id: string | number) {
   return apiRequest<EvidenceCustodyEvent[]>(`/evidences/${id}/custody`);
+}
+
+export function lookupUsers(role: string, search?: string) {
+  return apiRequest<UserLookupItem[]>("/users/lookup", {
+    query: { role, search: search || undefined, limit: 50 },
+  });
+}
+
+export function forwardReportToCase(id: string | number, payload: SatgasAssignmentPayload) {
+  return apiRequest<ForwardReportToCaseResult>(`/reports/${id}/forward-to-case`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function assignCaseSatgas(id: string | number, payload: SatgasAssignmentPayload) {
+  return apiRequest<CaseRecord>(`/cases/${id}/assign`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }
 
 export function updateCaseStatus(id: string | number, payload: CaseStatusPayload) {

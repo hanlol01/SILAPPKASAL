@@ -264,3 +264,28 @@ export interface EvidenceUpdatePayload {
 export interface EvidenceStatusPayload {
   status: string;
 }
+
+export interface UserLookupRole {
+  code: string | null;
+  name: string | null;
+}
+
+export interface UserLookupItem {
+  id: number;
+  name: string;
+  role: UserLookupRole | null;
+}
+
+export interface SatgasAssignmentPayload {
+  satgas_ids: number[];
+  lead_satgas_id: number;
+}
+
+export interface ForwardReportToCaseResult {
+  report: {
+    id: number | null;
+    status: string | null;
+    forwarded_at: string | null;
+  };
+  case: CaseRecord;
+}

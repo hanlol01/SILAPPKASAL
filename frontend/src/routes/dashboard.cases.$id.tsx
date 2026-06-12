@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { SatgasAssignmentAction } from "@/components/workflow-actions/satgas-assignment-action";
 import {
   CaseStatusAction,
   DecisionUpdateAction,
@@ -196,13 +197,29 @@ function CaseDetail() {
               <CardDescription>Safe workflow actions use approved backend endpoints.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button disabled className="w-full" variant="outline">
-                <UserRoundSearch className="mr-2 h-4 w-4" /> Assign Satgas
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Assignment requires an approved Satgas user lookup API. M16 keeps this disabled
-                instead of using temporary ID inputs.
-              </p>
+              {isAdminRole ? (
+                <>
+                  <SatgasAssignmentAction
+                    mode="assign-case"
+                    targetId={c.id}
+                    currentSatgasIds={(c.assignments ?? [])
+                      .filter((assignment) => assignment.is_active)
+                      .map((assignment) => assignment.satgas_id)}
+                    currentLeadSatgasId={
+                      (c.assignments ?? []).find((assignment) => assignment.is_active && assignment.is_lead)
+                        ?.satgas_id ?? null
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Select one or more Satgas users and choose a lead from the selected users.
+                    Backend RBAC remains authoritative.
+                  </p>
+                </>
+              ) : (
+                <Button disabled className="w-full" variant="outline">
+                  <UserRoundSearch className="mr-2 h-4 w-4" /> Assign Satgas
+                </Button>
+              )}
               {canUseSatgasActions ? (
                 <CaseStatusAction caseId={c.id} currentStatus={c.status_code} />
               ) : (
