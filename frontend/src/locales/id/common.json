@@ -5,5 +5,10 @@
   "retry": "Coba Lagi",
   "signOut": "Keluar",
   "language": "Bahasa",
-  "toggleTheme": "Ubah Tema"
+  "toggleTheme": "Ubah Tema",
+  "unexpectedError": "Terjadi kesalahan yang tidak terduga.",
+  "edit": "Ubah",
+  "view": "Lihat",
+  "yes": "Ya",
+  "no": "Tidak"
 }

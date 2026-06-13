@@ -10,7 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
-import { hasPortalAccess } from "@/lib/auth-roles";
+import { hasDashboardAccess, hasPortalAccess } from "@/lib/auth-roles";
+import type { RoleCode } from "@/lib/api-types";
+
+type LoginSearch = {
+  redirect?: string;
+};
 
 function homeForRole(roleCode: string | null): string {
   return hasPortalAccess(roleCode as import("@/lib/api-types").RoleCode | null)
@@ -18,7 +23,41 @@ function homeForRole(roleCode: string | null): string {
     : "/dashboard";
 }
 
+function isInternalRedirect(value: string) {
+  return (
+    value.startsWith("/") &&
+    !value.startsWith("//") &&
+    !value.includes("\\") &&
+    !value.includes("\n") &&
+    !value.includes("\r")
+  );
+}
+
+function isWithinPath(path: string, base: string) {
+  return path === base || path.startsWith(`${base}/`);
+}
+
+function safeRedirectForRole(roleCode: RoleCode | null, redirect: string | undefined) {
+  if (!redirect || !isInternalRedirect(redirect)) {
+    return homeForRole(roleCode);
+  }
+
+  const pathOnly = redirect.split(/[?#]/, 1)[0];
+  if (hasPortalAccess(roleCode) && isWithinPath(pathOnly, "/portal")) {
+    return redirect;
+  }
+
+  if (hasDashboardAccess(roleCode) && isWithinPath(pathOnly, "/dashboard")) {
+    return redirect;
+  }
+
+  return homeForRole(roleCode);
+}
+
 export const Route = createFileRoute("/login")({
+  validateSearch: (search: Record<string, unknown>): LoginSearch => ({
+    redirect: typeof search.redirect === "string" ? search.redirect : undefined,
+  }),
   component: LoginPage,
   head: () => ({
     meta: [
@@ -32,14 +71,20 @@ function LoginPage() {
   const { t } = useTranslation(["auth"]);
   const { login, user } = useAuth();
   const navigate = useNavigate();
+  const { redirect } = Route.useSearch();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (user) navigate({ to: homeForRole(user.role?.code ?? null) as "/" });
-  }, [user, navigate]);
+    if (user) {
+      navigate({
+        href: safeRedirectForRole(user.role?.code ?? null, redirect),
+        replace: true,
+      });
+    }
+  }, [redirect, user, navigate]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

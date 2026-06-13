@@ -27,6 +27,7 @@ import { formatDate } from "@/lib/format";
 import { useAuth } from "@/hooks/use-auth";
 import { hasPortalAccess } from "@/lib/auth-roles";
 import { ApiError } from "@/lib/api-client";
+import { useTranslation } from "react-i18next";
 import type {
   PortalProfileUpdatePayload,
   PortalChangePasswordPayload,
@@ -72,6 +73,7 @@ function errorMessage(err: unknown): string {
 // ---------------------------------------------------------------------------
 
 function PortalAccountPage() {
+  const { t } = useTranslation(["portal"]);
   const { roleCode } = useAuth();
   const enabled = hasPortalAccess(roleCode);
 
@@ -90,9 +92,9 @@ function PortalAccountPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Account</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("account")}</h1>
         <p className="text-sm text-muted-foreground">
-          Manage your profile and security settings.
+          {t("accountSubtitle")}
         </p>
       </div>
 
@@ -100,7 +102,7 @@ function PortalAccountPage() {
       {profileQuery.isLoading && <ProfileSkeleton />}
       {profileQuery.isError && (
         <QueryErrorState
-          message="Profile could not be loaded."
+          message={t("profileLoadError")}
           onRetry={() => profileQuery.refetch()}
         />
       )}
@@ -110,7 +112,7 @@ function PortalAccountPage() {
       {accountStatusQuery.isLoading && <StatusSkeleton />}
       {accountStatusQuery.isError && (
         <QueryErrorState
-          message="Account status could not be loaded."
+          message={t("accountStatusLoadError")}
           onRetry={() => accountStatusQuery.refetch()}
         />
       )}
@@ -133,6 +135,7 @@ function ProfileSection({
 }: {
   data: import("@/lib/portal-types").PortalProfile;
 }) {
+  const { t } = useTranslation(["portal", "common"]);
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(data.name);
@@ -143,7 +146,7 @@ function ProfileSection({
     mutationFn: (payload: PortalProfileUpdatePayload) =>
       updateMyProfile(payload),
     onSuccess: () => {
-      toast.success("Profile updated successfully.");
+      toast.success(t("profileUpdated"));
       queryClient.invalidateQueries({ queryKey: portalQueryKeys.profile() });
       setEditing(false);
       setFieldErrors({});
@@ -153,7 +156,7 @@ function ProfileSection({
       if (Object.keys(fe).length > 0) {
         setFieldErrors(fe);
       } else {
-        toast.error(errorMessage(err));
+        toast.error(err instanceof ApiError ? err.message : t("common:unexpectedError"));
       }
     },
   });
@@ -185,13 +188,13 @@ function ProfileSection({
             <User className="h-4 w-4" />
           </div>
           <div>
-            <CardTitle className="text-base">Profile</CardTitle>
-            <CardDescription>Your personal information.</CardDescription>
+            <CardTitle className="text-base">{t("profile")}</CardTitle>
+            <CardDescription>{t("profileDesc")}</CardDescription>
           </div>
         </div>
         {!editing && (
           <Button variant="outline" size="sm" onClick={handleEdit}>
-            <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
+            <Pencil className="mr-2 h-3.5 w-3.5" /> {t("common:edit")}
           </Button>
         )}
       </CardHeader>
@@ -201,7 +204,7 @@ function ProfileSection({
             <div className="grid gap-4 sm:grid-cols-2">
               {/* Name — editable */}
               <div className="space-y-1.5">
-                <Label htmlFor="profile-name">Name</Label>
+                <Label htmlFor="profile-name">{t("name")}</Label>
                 <Input
                   id="profile-name"
                   value={name}
@@ -216,13 +219,13 @@ function ProfileSection({
               </div>
               {/* Phone — editable */}
               <div className="space-y-1.5">
-                <Label htmlFor="profile-phone">Phone Number</Label>
+                <Label htmlFor="profile-phone">{t("phoneNumber")}</Label>
                 <Input
                   id="profile-phone"
                   type="tel"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="Optional"
+                  placeholder={t("optional")}
                   disabled={mutation.isPending}
                 />
                 {fieldErrors.phone_number && (
@@ -234,7 +237,7 @@ function ProfileSection({
             </div>
             {/* Read-only fields shown for context */}
             <div className="grid gap-4 text-sm sm:grid-cols-2">
-              <ReadOnlyField label="Email" value={data.email} />
+              <ReadOnlyField label={t("email")} value={data.email} />
               {data.nim && <ReadOnlyField label="NIM" value={data.nim} />}
               {data.nip && <ReadOnlyField label="NIP" value={data.nip} />}
             </div>
@@ -250,7 +253,7 @@ function ProfileSection({
                 ) : (
                   <Save className="mr-2 h-3.5 w-3.5" />
                 )}
-                Save
+                {t("common:save")}
               </Button>
               <Button
                 variant="ghost"
@@ -258,15 +261,15 @@ function ProfileSection({
                 onClick={handleCancel}
                 disabled={mutation.isPending}
               >
-                <X className="mr-2 h-3.5 w-3.5" /> Cancel
+                <X className="mr-2 h-3.5 w-3.5" /> {t("common:cancel")}
               </Button>
             </div>
           </div>
         ) : (
           <div className="grid gap-4 text-sm sm:grid-cols-2">
-            <ReadOnlyField label="Name" value={data.name} />
-            <ReadOnlyField label="Phone Number" value={data.phone_number} />
-            <ReadOnlyField label="Email" value={data.email} />
+            <ReadOnlyField label={t("name")} value={data.name} />
+            <ReadOnlyField label={t("phoneNumber")} value={data.phone_number} />
+            <ReadOnlyField label={t("email")} value={data.email} />
             {data.nim && <ReadOnlyField label="NIM" value={data.nim} />}
             {data.nip && <ReadOnlyField label="NIP" value={data.nip} />}
           </div>
@@ -285,6 +288,7 @@ function AccountStatusSection({
 }: {
   data: import("@/lib/portal-types").PortalAccountStatus;
 }) {
+  const { t } = useTranslation(["portal", "common"]);
   return (
     <Card>
       <CardHeader>
@@ -293,27 +297,27 @@ function AccountStatusSection({
             <ShieldCheck className="h-4 w-4" />
           </div>
           <div>
-            <CardTitle className="text-base">Account Status</CardTitle>
-            <CardDescription>Your account security details.</CardDescription>
+            <CardTitle className="text-base">{t("accountStatus")}</CardTitle>
+            <CardDescription>{t("accountStatusDesc")}</CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent className="grid gap-4 text-sm sm:grid-cols-3">
         <ReadOnlyField
-          label="Account Active"
-          value={data.is_active ? "Yes" : "No"}
+          label={t("accountActive")}
+          value={data.is_active ? t("common:yes") : t("common:no")}
         />
         <ReadOnlyField
-          label="Email Verified"
+          label={t("emailVerified")}
           value={formatDate(data.email_verified_at)}
         />
         <ReadOnlyField
-          label="Account Created"
+          label={t("accountCreated")}
           value={formatDate(data.created_at)}
         />
         {data.registration_number && (
           <ReadOnlyField
-            label="Registration Number"
+            label={t("registrationNumber")}
             value={data.registration_number}
           />
         )}
@@ -327,6 +331,7 @@ function AccountStatusSection({
 // ---------------------------------------------------------------------------
 
 function ChangePasswordSection() {
+  const { t } = useTranslation(["portal", "common"]);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -336,7 +341,7 @@ function ChangePasswordSection() {
     mutationFn: (payload: PortalChangePasswordPayload) =>
       changeMyPassword(payload),
     onSuccess: () => {
-      toast.success("Password changed successfully.");
+      toast.success(t("passwordChanged"));
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -347,7 +352,7 @@ function ChangePasswordSection() {
       if (Object.keys(fe).length > 0) {
         setFieldErrors(fe);
       } else {
-        toast.error(errorMessage(err));
+        toast.error(err instanceof ApiError ? err.message : t("common:unexpectedError"));
       }
     },
   });
@@ -370,9 +375,9 @@ function ChangePasswordSection() {
             <KeyRound className="h-4 w-4" />
           </div>
           <div>
-            <CardTitle className="text-base">Change Password</CardTitle>
+            <CardTitle className="text-base">{t("changePassword")}</CardTitle>
             <CardDescription>
-              Update your account password.
+              {t("changePasswordDesc")}
             </CardDescription>
           </div>
         </div>
@@ -380,7 +385,7 @@ function ChangePasswordSection() {
       <CardContent>
         <form onSubmit={handleSubmit} className="max-w-md space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="pw-current">Current Password</Label>
+            <Label htmlFor="pw-current">{t("currentPassword")}</Label>
             <Input
               id="pw-current"
               type="password"
@@ -397,7 +402,7 @@ function ChangePasswordSection() {
           </div>
           <Separator />
           <div className="space-y-1.5">
-            <Label htmlFor="pw-new">New Password</Label>
+            <Label htmlFor="pw-new">{t("newPassword")}</Label>
             <Input
               id="pw-new"
               type="password"
@@ -413,7 +418,7 @@ function ChangePasswordSection() {
             )}
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="pw-confirm">Confirm New Password</Label>
+            <Label htmlFor="pw-confirm">{t("confirmNewPassword")}</Label>
             <Input
               id="pw-confirm"
               type="password"
@@ -434,7 +439,7 @@ function ChangePasswordSection() {
             ) : (
               <KeyRound className="mr-2 h-3.5 w-3.5" />
             )}
-            Change Password
+            {t("changePassword")}
           </Button>
         </form>
       </CardContent>

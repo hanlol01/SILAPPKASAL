@@ -1,8 +1,13 @@
 import { Bell, BellDot, Info, FileText, AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { label as humanize, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
+import {
+  portalNotificationBody,
+  portalNotificationTypeLabel,
+} from "@/lib/portal-labels";
 import type { PortalNotification } from "@/lib/portal-types";
+import { useTranslation } from "react-i18next";
 
 /**
  * Picks an icon based on the notification type code.
@@ -40,6 +45,7 @@ interface PortalNotificationItemProps {
 export function PortalNotificationItem({
   notification,
 }: PortalNotificationItemProps) {
+  const { i18n } = useTranslation(["portal"]);
   const isUnread = notification.read_at === null;
   const Icon = typeIcon(notification.type);
 
@@ -78,11 +84,13 @@ export function PortalNotificationItem({
               <BellDot className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
             )}
           </div>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {notification.body}
-          </p>
+          {notification.body ? (
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {portalNotificationBody(notification.body, i18n.language)}
+            </p>
+          ) : null}
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-            <span>{humanize(notification.type)}</span>
+            <span>{portalNotificationTypeLabel(notification.type, i18n.language)}</span>
             <span>{formatDate(notification.created_at)}</span>
           </div>
         </div>

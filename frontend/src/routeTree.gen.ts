@@ -27,6 +27,7 @@ import { Route as PortalReportsIndexRouteImport } from './routes/portal.reports.
 import { Route as DashboardReportsIndexRouteImport } from './routes/dashboard.reports.index'
 import { Route as DashboardCasesIndexRouteImport } from './routes/dashboard.cases.index'
 import { Route as PortalReportsRegistrationNumberRouteImport } from './routes/portal.reports.$registrationNumber'
+import { Route as PortalReportsSplatRouteImport } from './routes/portal.reports.$'
 import { Route as DashboardReportsIdRouteImport } from './routes/dashboard.reports.$id'
 import { Route as DashboardCasesIdRouteImport } from './routes/dashboard.cases.$id'
 
@@ -121,6 +122,11 @@ const PortalReportsRegistrationNumberRoute =
     path: '/reports/$registrationNumber',
     getParentRoute: () => PortalRoute,
   } as any)
+const PortalReportsSplatRoute = PortalReportsSplatRouteImport.update({
+  id: '/reports/$',
+  path: '/reports/$',
+  getParentRoute: () => PortalRoute,
+} as any)
 const DashboardReportsIdRoute = DashboardReportsIdRouteImport.update({
   id: '/reports/$id',
   path: '/reports/$id',
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/portal/': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
+  '/portal/reports/$': typeof PortalReportsSplatRoute
   '/portal/reports/$registrationNumber': typeof PortalReportsRegistrationNumberRoute
   '/dashboard/cases/': typeof DashboardCasesIndexRoute
   '/dashboard/reports/': typeof DashboardReportsIndexRoute
@@ -169,6 +176,7 @@ export interface FileRoutesByTo {
   '/portal': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
+  '/portal/reports/$': typeof PortalReportsSplatRoute
   '/portal/reports/$registrationNumber': typeof PortalReportsRegistrationNumberRoute
   '/dashboard/cases': typeof DashboardCasesIndexRoute
   '/dashboard/reports': typeof DashboardReportsIndexRoute
@@ -192,6 +200,7 @@ export interface FileRoutesById {
   '/portal/': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
+  '/portal/reports/$': typeof PortalReportsSplatRoute
   '/portal/reports/$registrationNumber': typeof PortalReportsRegistrationNumberRoute
   '/dashboard/cases/': typeof DashboardCasesIndexRoute
   '/dashboard/reports/': typeof DashboardReportsIndexRoute
@@ -216,6 +225,7 @@ export interface FileRouteTypes {
     | '/portal/'
     | '/dashboard/cases/$id'
     | '/dashboard/reports/$id'
+    | '/portal/reports/$'
     | '/portal/reports/$registrationNumber'
     | '/dashboard/cases/'
     | '/dashboard/reports/'
@@ -236,6 +246,7 @@ export interface FileRouteTypes {
     | '/portal'
     | '/dashboard/cases/$id'
     | '/dashboard/reports/$id'
+    | '/portal/reports/$'
     | '/portal/reports/$registrationNumber'
     | '/dashboard/cases'
     | '/dashboard/reports'
@@ -258,6 +269,7 @@ export interface FileRouteTypes {
     | '/portal/'
     | '/dashboard/cases/$id'
     | '/dashboard/reports/$id'
+    | '/portal/reports/$'
     | '/portal/reports/$registrationNumber'
     | '/dashboard/cases/'
     | '/dashboard/reports/'
@@ -399,6 +411,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalReportsRegistrationNumberRouteImport
       parentRoute: typeof PortalRoute
     }
+    '/portal/reports/$': {
+      id: '/portal/reports/$'
+      path: '/reports/$'
+      fullPath: '/portal/reports/$'
+      preLoaderRoute: typeof PortalReportsSplatRouteImport
+      parentRoute: typeof PortalRoute
+    }
     '/dashboard/reports/$id': {
       id: '/dashboard/reports/$id'
       path: '/reports/$id'
@@ -452,6 +471,7 @@ interface PortalRouteChildren {
   PortalAccountRoute: typeof PortalAccountRoute
   PortalNotificationsRoute: typeof PortalNotificationsRoute
   PortalIndexRoute: typeof PortalIndexRoute
+  PortalReportsSplatRoute: typeof PortalReportsSplatRoute
   PortalReportsRegistrationNumberRoute: typeof PortalReportsRegistrationNumberRoute
   PortalReportsIndexRoute: typeof PortalReportsIndexRoute
 }
@@ -460,6 +480,7 @@ const PortalRouteChildren: PortalRouteChildren = {
   PortalAccountRoute: PortalAccountRoute,
   PortalNotificationsRoute: PortalNotificationsRoute,
   PortalIndexRoute: PortalIndexRoute,
+  PortalReportsSplatRoute: PortalReportsSplatRoute,
   PortalReportsRegistrationNumberRoute: PortalReportsRegistrationNumberRoute,
   PortalReportsIndexRoute: PortalReportsIndexRoute,
 }

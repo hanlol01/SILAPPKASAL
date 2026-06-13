@@ -8,6 +8,7 @@ import { PortalNotificationItem } from "@/components/portal/portal-notification-
 import { portalQueryKeys, getPortalNotifications } from "@/lib/portal-api";
 import { useAuth } from "@/hooks/use-auth";
 import { hasPortalAccess } from "@/lib/auth-roles";
+import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/portal/notifications")({
   component: PortalNotificationsPage,
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/portal/notifications")({
 });
 
 function PortalNotificationsPage() {
+  const { t } = useTranslation(["portal"]);
   const { roleCode } = useAuth();
 
   const notificationsQuery = useQuery({
@@ -39,14 +41,14 @@ function PortalNotificationsPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Notifications
+          {t("notifications")}
         </h1>
         <p className="text-sm text-muted-foreground">
           {notificationsQuery.isSuccess
             ? unreadCount > 0
-              ? `${unreadCount} unread notification${unreadCount !== 1 ? "s" : ""}`
-              : "You're all caught up."
-            : "Updates about your reports."}
+              ? t("unreadNotifications", { count: unreadCount })
+              : t("allCaughtUp")
+            : t("notificationsSubtitle")}
         </p>
       </div>
 
@@ -71,7 +73,7 @@ function PortalNotificationsPage() {
       {/* Error */}
       {notificationsQuery.isError && (
         <QueryErrorState
-          message="Notifications could not be loaded."
+          message={t("notificationsLoadError")}
           onRetry={() => notificationsQuery.refetch()}
         />
       )}
@@ -84,9 +86,9 @@ function PortalNotificationsPage() {
               <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
                 <Inbox className="h-8 w-8 text-muted-foreground/50" />
                 <div>
-                  <p className="text-sm font-medium">No notifications</p>
+                  <p className="text-sm font-medium">{t("noNotifications")}</p>
                   <p className="text-sm text-muted-foreground">
-                    You'll be notified when there are updates to your reports.
+                    {t("noNotificationsDesc")}
                   </p>
                 </div>
               </CardContent>

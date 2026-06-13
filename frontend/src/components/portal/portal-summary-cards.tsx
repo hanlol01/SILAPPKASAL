@@ -2,43 +2,47 @@ import { FileText, Clock, CheckCircle2, Bell } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { PortalSummary } from "@/lib/portal-types";
+import { useTranslation } from "react-i18next";
 
 interface PortalSummaryCardsProps {
   data: PortalSummary;
 }
 
-const cards = [
+const getCards = (t: import("i18next").TFunction) => [
   {
     key: "total_reports" as const,
-    label: "Total Reports",
+    label: t("totalReports"),
     icon: FileText,
     tone: "bg-primary/10 text-primary",
-    description: "All reports you've submitted",
+    description: t("totalReportsDesc"),
   },
   {
     key: "active_reports" as const,
-    label: "Active",
+    label: t("activeReports"),
     icon: Clock,
     tone: "bg-warning/10 text-warning",
-    description: "Currently being processed",
+    description: t("activeDesc"),
   },
   {
     key: "completed_reports" as const,
-    label: "Completed",
+    label: t("completedReports"),
     icon: CheckCircle2,
     tone: "bg-success/10 text-success",
-    description: "Finished processing",
+    description: t("completedDesc"),
   },
   {
     key: "unread_notifications" as const,
-    label: "Notifications",
+    label: t("notifications"),
     icon: Bell,
     tone: "bg-info/10 text-info",
-    description: "Unread updates",
+    description: t("unreadUpdates"),
   },
 ];
 
 export function PortalSummaryCards({ data }: PortalSummaryCardsProps) {
+  const { t } = useTranslation(["portal"]);
+  const cards = getCards(t);
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {cards.map((card) => (

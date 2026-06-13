@@ -5,5 +5,10 @@
   "retry": "Retry",
   "signOut": "Sign Out",
   "language": "Language",
-  "toggleTheme": "Toggle theme"
+  "toggleTheme": "Toggle theme",
+  "unexpectedError": "An unexpected error occurred.",
+  "edit": "Edit",
+  "view": "View",
+  "yes": "Yes",
+  "no": "No"
 }

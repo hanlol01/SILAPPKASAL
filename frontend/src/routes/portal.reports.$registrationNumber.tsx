@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,9 +13,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { QueryErrorState } from "@/components/query-state";
 import { PortalStatusBadge } from "@/components/portal/portal-status-badge";
 import { portalQueryKeys, getPortalReport } from "@/lib/portal-api";
-import { label as humanize, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
+import { portalReportTypeLabel } from "@/lib/portal-labels";
 import { useAuth } from "@/hooks/use-auth";
 import { hasPortalAccess } from "@/lib/auth-roles";
+import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/portal/reports/$registrationNumber")({
   component: PortalReportDetailPage,
@@ -32,14 +34,25 @@ export const Route = createFileRoute("/portal/reports/$registrationNumber")({
 
 function PortalReportDetailPage() {
   const { registrationNumber } = Route.useParams();
+
+  return <PortalReportDetailContent registrationNumber={registrationNumber} />;
+}
+
+export function PortalReportDetailContent({
+  registrationNumber,
+}: {
+  registrationNumber: string;
+}) {
+  const { t } = useTranslation(["portal"]);
   const { roleCode } = useAuth();
-  const navigate = useNavigate();
 
   const reportQuery = useQuery({
     queryKey: portalQueryKeys.report(registrationNumber),
     queryFn: () => getPortalReport(registrationNumber),
     enabled: hasPortalAccess(roleCode),
+    retry: false,
   });
+  const reportMissing = reportQuery.isSuccess && !reportQuery.data;
 
   return (
     <div className="space-y-6">
@@ -47,24 +60,26 @@ function PortalReportDetailPage() {
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => navigate({ to: "/portal/reports" as "/" })}
+        asChild
       >
-        <ArrowLeft className="mr-2 h-4 w-4" /> My Reports
+        <Link to="/portal/reports">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Kembali
+        </Link>
       </Button>
 
       {/* Loading */}
-      {reportQuery.isLoading && <DetailSkeleton />}
+      {reportQuery.isPending && <DetailSkeleton />}
 
       {/* Error */}
-      {reportQuery.isError && (
+      {(reportQuery.isError || reportMissing) && (
         <QueryErrorState
-          message="This report could not be loaded."
+          message={t("reportNotFoundOrNoAccess")}
           onRetry={() => reportQuery.refetch()}
         />
       )}
 
       {/* Success */}
-      {reportQuery.isSuccess && <ReportDetail report={reportQuery.data} />}
+      {reportQuery.isSuccess && reportQuery.data && <ReportDetail report={reportQuery.data} />}
     </div>
   );
 }
@@ -78,6 +93,13 @@ interface ReportDetailProps {
 }
 
 function ReportDetail({ report }: ReportDetailProps) {
+  const { t, i18n } = useTranslation(["portal"]);
+  // safely extract string category if backend accidentally returns an object
+  const categoryLabel =
+    typeof report.category === "object" && report.category !== null
+      ? (report.category as { name?: string }).name
+      : report.category;
+
   return (
     <>
       {/* Header */}
@@ -93,25 +115,27 @@ function ReportDetail({ report }: ReportDetailProps) {
       {/* Detail card */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Report Information</CardTitle>
+          <CardTitle className="text-base">{t("reportInformation")}</CardTitle>
           <CardDescription>
-            Details for your submitted report.
+            {t("reportDetailSubtitle")}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
-          <Field label="Registration Number">
+          <Field label={t("registrationNumber")}>
             {report.registration_number}
           </Field>
-          <Field label="Report Type">{humanize(report.report_type)}</Field>
-          <Field label="Category">
-            {report.category ?? "—"}
+          <Field label={t("reportType")}>
+            {portalReportTypeLabel(report.report_type, i18n.language)}
           </Field>
-          <Field label="Status">
+          <Field label={t("category")}>
+            {categoryLabel ? categoryLabel : "—"}
+          </Field>
+          <Field label={t("status")}>
             <PortalStatusBadge
               portalStatus={report.portal_status}
             />
           </Field>
-          <Field label="Submitted">{formatDate(report.submitted_at)}</Field>
+          <Field label={t("submitted")}>{formatDate(report.submitted_at)}</Field>
         </CardContent>
       </Card>
     </>

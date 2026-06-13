@@ -8,6 +8,7 @@ import { QueryErrorState } from "@/components/query-state";
 import { portalQueryKeys, getPortalSummary } from "@/lib/portal-api";
 import { useAuth } from "@/hooks/use-auth";
 import { hasPortalAccess } from "@/lib/auth-roles";
+import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/portal/")({
   component: PortalOverview,
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/portal/")({
 });
 
 function PortalOverview() {
+  const { t } = useTranslation(["portal"]);
   const { roleCode } = useAuth();
 
   const summaryQuery = useQuery({
@@ -34,9 +36,9 @@ function PortalOverview() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("overview")}</h1>
         <p className="text-sm text-muted-foreground">
-          Your reports at a glance.
+          {t("overviewSubtitle")}
         </p>
       </div>
 
@@ -44,7 +46,7 @@ function PortalOverview() {
 
       {summaryQuery.isError && (
         <QueryErrorState
-          message="Summary data could not be loaded."
+          message={t("summaryLoadError")}
           onRetry={() => summaryQuery.refetch()}
         />
       )}

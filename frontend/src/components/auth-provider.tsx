@@ -46,13 +46,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const roleCode = user?.role?.code ?? null;
+  const isHydrating = hasToken && !user && (meQuery.isPending || meQuery.isFetching);
 
   return (
     <AuthContext.Provider
       value={{
         user,
         isAuthenticated: Boolean(user),
-        isHydrating: hasToken && !user && meQuery.isLoading,
+        isHydrating,
         roleCode,
         login,
         logout,

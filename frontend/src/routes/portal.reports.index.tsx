@@ -10,6 +10,7 @@ import { PortalReportCard } from "@/components/portal/portal-report-card";
 import { portalQueryKeys, getPortalReports } from "@/lib/portal-api";
 import { useAuth } from "@/hooks/use-auth";
 import { hasPortalAccess } from "@/lib/auth-roles";
+import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/portal/reports/")({
   component: MyReportsPage,
@@ -25,6 +26,7 @@ export const Route = createFileRoute("/portal/reports/")({
 });
 
 function MyReportsPage() {
+  const { t } = useTranslation(["portal"]);
   const { roleCode } = useAuth();
   const [q, setQ] = useState("");
 
@@ -48,9 +50,9 @@ function MyReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">My Reports</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("myReports")}</h1>
         <p className="text-sm text-muted-foreground">
-          All reports you have submitted.
+          {t("myReportsSubtitle")}
         </p>
       </div>
 
@@ -58,7 +60,7 @@ function MyReportsPage() {
       <div className="relative max-w-md">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Search by registration number, status, category..."
+          placeholder={t("searchPlaceholder")}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           className="pl-9"
@@ -86,7 +88,7 @@ function MyReportsPage() {
       {/* Error */}
       {reportsQuery.isError && (
         <QueryErrorState
-          message="Your reports could not be loaded."
+          message={t("reportsLoadError")}
           onRetry={() => reportsQuery.refetch()}
         />
       )}
@@ -101,9 +103,9 @@ function MyReportsPage() {
                   <>
                     <Search className="h-8 w-8 text-muted-foreground/50" />
                     <div>
-                      <p className="text-sm font-medium">No matching reports</p>
+                      <p className="text-sm font-medium">{t("noMatchingReports")}</p>
                       <p className="text-sm text-muted-foreground">
-                        Try a different search term.
+                        {t("tryDifferentSearch")}
                       </p>
                     </div>
                   </>
@@ -111,9 +113,9 @@ function MyReportsPage() {
                   <>
                     <Inbox className="h-8 w-8 text-muted-foreground/50" />
                     <div>
-                      <p className="text-sm font-medium">No reports yet</p>
+                      <p className="text-sm font-medium">{t("noReportsYet")}</p>
                       <p className="text-sm text-muted-foreground">
-                        You haven't submitted any reports.
+                        {t("noReportsSubmitted")}
                       </p>
                     </div>
                   </>
@@ -134,8 +136,10 @@ function MyReportsPage() {
           {/* Count */}
           {reportsQuery.data.meta && (
             <p className="text-sm text-muted-foreground">
-              Showing {filtered.length} of {reportsQuery.data.meta.total}{" "}
-              {reportsQuery.data.meta.total === 1 ? "report" : "reports"}.
+              {t("showingReports", {
+                count: filtered.length,
+                total: reportsQuery.data.meta.total,
+              })}
             </p>
           )}
         </>

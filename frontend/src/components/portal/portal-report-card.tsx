@@ -1,10 +1,12 @@
-import { useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PortalStatusBadge } from "@/components/portal/portal-status-badge";
-import { label as humanize, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
+import { portalReportTypeLabel } from "@/lib/portal-labels";
 import type { PortalReport } from "@/lib/portal-types";
+import { useTranslation } from "react-i18next";
 
 interface PortalReportCardProps {
   report: PortalReport;
@@ -17,7 +19,12 @@ interface PortalReportCardProps {
  * Uses registration_number as the visible identifier and navigation key.
  */
 export function PortalReportCard({ report }: PortalReportCardProps) {
-  const navigate = useNavigate();
+  const { t, i18n } = useTranslation(["portal", "common"]);
+  // safely extract string category if backend accidentally returns an object
+  const categoryLabel =
+    typeof report.category === "object" && report.category !== null
+      ? (report.category as { name?: string }).name
+      : report.category;
 
   return (
     <Card className="transition-colors hover:bg-muted/40">
@@ -36,9 +43,9 @@ export function PortalReportCard({ report }: PortalReportCardProps) {
             />
           </div>
           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-            <span>{humanize(report.report_type)}</span>
-            {report.category && <span>{report.category}</span>}
-            <span>Submitted {formatDate(report.submitted_at)}</span>
+            <span>{portalReportTypeLabel(report.report_type, i18n.language)}</span>
+            {categoryLabel && <span>{categoryLabel}</span>}
+            <span>{t("portal:submittedDate", { date: formatDate(report.submitted_at) })}</span>
           </div>
         </div>
 
@@ -46,14 +53,14 @@ export function PortalReportCard({ report }: PortalReportCardProps) {
           variant="ghost"
           size="sm"
           className="shrink-0"
-          onClick={() =>
-            navigate({
-              to: "/portal/reports/$registrationNumber" as "/",
-              params: { registrationNumber: report.registration_number },
-            })
-          }
+          asChild
         >
-          View
+          <Link
+            to="/portal/reports/$registrationNumber"
+            params={{ registrationNumber: report.registration_number }}
+          >
+            {t("common:view")}
+          </Link>
         </Button>
       </CardContent>
     </Card>

@@ -1,5 +1,4 @@
-import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, Navigate, Outlet, useRouterState } from "@tanstack/react-router";
 import { AccessDenied } from "@/components/access-denied";
 import { PortalLayout } from "@/layouts/portal-layout";
 import { useAuth } from "@/hooks/use-auth";
@@ -11,13 +10,9 @@ export const Route = createFileRoute("/portal")({
 
 function PortalShell() {
   const { isAuthenticated, isHydrating, roleCode } = useAuth();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!isHydrating && !isAuthenticated) {
-      navigate({ to: "/login" });
-    }
-  }, [isAuthenticated, isHydrating, navigate]);
+  const redirectTo = useRouterState({
+    select: (state) => `${state.location.pathname}${state.location.searchStr}`,
+  });
 
   if (isHydrating) {
     return (
@@ -25,6 +20,10 @@ function PortalShell() {
         Loading portal...
       </div>
     );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" search={{ redirect: redirectTo }} replace />;
   }
 
   if (isAuthenticated && !hasPortalAccess(roleCode)) {
