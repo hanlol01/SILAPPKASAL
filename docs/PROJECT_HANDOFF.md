@@ -1,8 +1,8 @@
 # PROJECT_HANDOFF.md - SILAPPKASAL Project Handoff
 
 > Status: Active Handoff  
-> Last Updated: 2026-06-12  
-> Current Milestone: Milestone 24 Complete - Workflow Activation Foundation  
+> Last Updated: 2026-06-13  
+> Current Milestone: Milestone 25 Complete - Localization Foundation  
 > Next Milestone: TBD
 
 ---
@@ -71,6 +71,7 @@ The Reporter Portal provides a secure self-service area for reporter/student rol
 | 22 | Reporter Portal Frontend Integration | PASS | React frontend integration for the Reporter Portal (Overview, My Reports, Report Detail, read-only notifications, profile edits, and change password). |
 | 23 | User Management Foundation | PASS | Backend-only safe user directory, picker-safe lookup, activation/deactivation, role assignment, and audit logging. |
 | 24 | Workflow Activation Foundation | PASS | Frontend activation of report forwarding and case assignment using safe Satgas lookup, React Query invalidation, backend-authoritative validation, and QA verification. |
+| 25 | Localization Foundation | PASS | Frontend localization foundation implemented with Reporter Portal bilingual support, Bahasa Indonesia default, and English optional. |
 
 Latest known fully verified baseline before Milestone 13 implementation:
 
@@ -163,6 +164,17 @@ Latest verification baseline:
 ```text
 Backend: 125 tests, 1025 assertions
 Frontend QA: PASS
+```
+
+Milestone 25 Localization Foundation has been implemented and verified.
+
+Latest frontend baseline:
+
+```text
+Localization foundation implemented
+Reporter Portal bilingual (ID default, EN optional)
+npm run lint: PASS
+npm run build: PASS
 ```
 
 ---
@@ -387,6 +399,16 @@ Latest QA verification:
 Frontend QA: PASS
 ```
 
+Latest localization verification:
+
+```text
+Milestone 25 Localization Foundation: PASS
+Localization foundation implemented
+Reporter Portal bilingual (ID default, EN optional)
+npm run lint: PASS
+npm run build: PASS
+```
+
 Verified Milestone 23 route additions:
 
 ```text
@@ -456,6 +478,7 @@ GET /api/v1/portal/notifications
 - Milestone 22 additional QA verified a non-empty reporter demo, frontend/backend contract alignment, and account metadata contract alignment.
 - Milestone 23 added backend-only user management and lookup APIs that now support assignment pickers and admin operations.
 - Milestone 24 activated report forwarding and case assignment in the frontend using the approved Satgas lookup endpoint and backend-authoritative validation.
+- Milestone 25 implemented the frontend localization foundation and Reporter Portal bilingual behavior with Bahasa Indonesia as the default and English optional.
 - Public reporter registration remains backend-only for approval workflows; public self-registration/request submission UI has not been integrated into the frontend.
 
 ## Verification Baseline
@@ -466,6 +489,8 @@ Backend:
 - 1025 assertions
 
 Frontend:
+- Localization foundation implemented
+- Reporter Portal bilingual (ID default, EN optional)
 - QA
 - PASS
 - npm run lint

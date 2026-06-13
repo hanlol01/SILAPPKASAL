@@ -1,8 +1,8 @@
 # ROADMAP.md - SILAPPKASAL Development Roadmap
 
 > Status: Active  
-> Last Updated: 2026-06-12  
-> Current Position: Milestone 24 Workflow Activation Foundation complete  
+> Last Updated: 2026-06-13  
+> Current Position: Milestone 25 Localization Foundation complete  
 > Next: TBD
 
 ---
@@ -635,6 +635,27 @@ Backend baseline: 125 tests, 1025 assertions
 Frontend QA: PASS
 ```
 
+### Milestone 25 - Localization Foundation
+
+Status: PASS
+
+Delivered:
+
+- Frontend localization foundation implemented.
+- Reporter Portal bilingual behavior implemented.
+- Bahasa Indonesia is the default language.
+- English is optional through the language switch.
+- Language preference persists through browser storage.
+- Reporter Portal localization covers overview, reports, detail, notifications, account, empty states, and error states.
+- Institutional terms remain unchanged where required, including `Satgas PPKS` and `NIM`.
+
+Verification:
+
+```text
+npm run lint: PASS
+npm run build: PASS
+```
+
 ---
 
 ## 3. Current API Surface
@@ -825,6 +846,15 @@ Latest Milestone 24 verification baseline:
 ```text
 Backend: 125 tests, 1025 assertions
 Frontend QA: PASS
+```
+
+Latest Milestone 25 frontend baseline:
+
+```text
+Localization foundation implemented
+Reporter Portal bilingual (ID default, EN optional)
+npm run lint: PASS
+npm run build: PASS
 ```
 
 Verified Milestone 23 route additions:
