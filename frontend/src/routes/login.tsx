@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { ShieldCheck } from "lucide-react";
+
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
@@ -61,8 +61,8 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
   head: () => ({
     meta: [
-      { title: "Sign in - SafeCampus Admin" },
-      { name: "description", content: "Sign in to the SafeCampus PPKS administrator console." },
+      { title: "Masuk - SILAPPKASAL Admin" },
+      { name: "description", content: "Masuk ke dashboard admin/satgas SILAPPKASAL." },
     ],
   }),
 });
@@ -105,10 +105,8 @@ function LoginPage() {
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="relative hidden flex-col justify-between bg-sidebar p-10 text-sidebar-foreground lg:flex">
         <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
-          <span className="font-semibold">SafeCampus Admin</span>
+          <img src="/Logo.ico" alt="Logo" className="h-10 w-10 object-contain" />
+          <span className="font-semibold">SILAPPKASAL Admin</span>
         </div>
         <div className="space-y-4">
           <h1 className="text-3xl font-semibold leading-tight">
@@ -127,9 +125,7 @@ function LoginPage() {
           <CardContent className="p-8">
             <div className="mb-6 lg:hidden">
               <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <ShieldCheck className="h-5 w-5" />
-                </div>
+                <img src="/Logo.ico" alt="Logo" className="h-10 w-10 object-contain" />
                 <span className="font-semibold">SafeCampus Admin</span>
               </div>
             </div>
