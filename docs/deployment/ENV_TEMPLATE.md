@@ -1,0 +1,45 @@
+# ENV_TEMPLATE.md
+
+> Template konfigurasi environment SILAPPKASAL
+
+## Backend
+
+APP_NAME=SILAPPKASAL
+
+APP_ENV=production
+
+APP_DEBUG=false
+
+APP_URL=https://<API_DOMAIN>
+
+FRONTEND_URL=https://<APP_DOMAIN>
+
+SANCTUM_STATEFUL_DOMAINS=<APP_DOMAIN>
+
+DB_CONNECTION=pgsql
+
+DB_HOST=127.0.0.1
+
+DB_PORT=5432
+
+DB_DATABASE=silappkasal
+
+DB_USERNAME=silappkasal_user
+
+DB_PASSWORD=<DB_PASSWORD>
+
+QUEUE_CONNECTION=database
+
+CACHE_STORE=database
+
+SESSION_DRIVER=database
+
+LOG_CHANNEL=stack
+
+LOG_LEVEL=info
+
+---
+
+## Frontend
+
+VITE_API_BASE_URL=https://<API_DOMAIN>/api/v1

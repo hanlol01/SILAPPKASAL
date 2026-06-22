@@ -1,8 +1,8 @@
 # ROADMAP.md - SILAPPKASAL Development Roadmap
 
 > Status: Active  
-> Last Updated: 2026-06-13  
-> Current Position: Milestone 25 Localization Foundation complete  
+> Last Updated: 2026-06-22  
+> Current Position: Milestone 26 Complete  
 > Next: TBD
 
 ---
@@ -655,6 +655,24 @@ Verification:
 npm run lint: PASS
 npm run build: PASS
 ```
+
+### Milestone 26 - Security & Privacy Enhancement
+
+Status: PASS
+
+Delivered:
+- All 6 policy documents finalized and frozen in `docs/security/`:
+  - `SECURITY_REVIEW.md`
+  - `PRIVACY_REVIEW.md`
+  - `PERMISSION_MATRIX.md`
+  - `DATA_CLASSIFICATION.md`
+  - `ANONYMOUS_REPORT_POLICY.md`
+  - `BREAK_GLASS_POLICY.md`
+- Anonymous Reporting implementation with UI indicators and masked identities.
+- Break Glass request, pending list, approval/denial, and reveal workflows.
+- Privacy Enforcement logic via `BreakGlassService` and backend policies.
+- Audit Filtering excluding `privacy` category from Admin views.
+- Frontend integration with bilingual (ID/EN) labels for break-glass and anonymous features.
 
 ---
 
