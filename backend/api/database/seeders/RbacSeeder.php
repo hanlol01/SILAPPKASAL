@@ -37,6 +37,9 @@ class RbacSeeder extends Seeder
         'system.configure' => ['name' => 'Configure System', 'description' => 'Mengubah konfigurasi sistem', 'module' => 'Sistem'],
         'system.audit_log.view' => ['name' => 'View Audit Log', 'description' => 'Melihat audit log', 'module' => 'Sistem'],
         'system.break_glass_access' => ['name' => 'Break Glass Access', 'description' => 'Akses darurat ke data sensitif kasus', 'module' => 'Sistem'],
+        'privacy.request_break_glass' => ['name' => 'Request Break-Glass', 'description' => 'Mengajukan permintaan akses break-glass', 'module' => 'Privasi'],
+        'privacy.approve_break_glass' => ['name' => 'Approve Break-Glass', 'description' => 'Menyetujui atau menolak permintaan break-glass', 'module' => 'Privasi'],
+        'privacy.reveal_anonymous_identity' => ['name' => 'Reveal Anonymous Identity', 'description' => 'Membuka identitas pelapor anonim melalui break-glass', 'module' => 'Privasi'],
         'users.create' => ['name' => 'Create Users', 'description' => 'Membuat akun pengguna', 'module' => 'User'],
         'users.read' => ['name' => 'Read Users', 'description' => 'Melihat daftar pengguna', 'module' => 'User'],
         'users.update' => ['name' => 'Update Users', 'description' => 'Mengedit akun pengguna', 'module' => 'User'],
@@ -97,6 +100,9 @@ class RbacSeeder extends Seeder
             'dashboard.admin',
             'statistics.view',
             'statistics.export',
+            'privacy.request_break_glass',
+            'privacy.approve_break_glass',
+            'privacy.reveal_anonymous_identity',
         ],
         'admin' => [
             'system.audit_log.view',
@@ -116,6 +122,7 @@ class RbacSeeder extends Seeder
             'dashboard.admin',
             'statistics.view',
             'statistics.export',
+            'privacy.request_break_glass',
         ],
         'satgas_ppks' => [
             'cases.read.assigned',

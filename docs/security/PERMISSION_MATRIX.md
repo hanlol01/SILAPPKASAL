@@ -105,7 +105,7 @@ privacy.approve_break_glass,             ← M26 NEW
 privacy.request_break_glass              ← M26 NEW
 ```
 
-### Admin (19 permissions)
+### Admin (18 permissions)
 
 ```
 system.audit_log.view,
