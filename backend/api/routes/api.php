@@ -68,7 +68,7 @@ Route::prefix('v1')->group(function (): void {
 
     Route::prefix('reports')->group(function (): void {
         Route::post('/', [ReportController::class, 'store'])
-            ->middleware('throttle:reports.submit');
+            ->middleware(['auth:sanctum', 'throttle:reports.submit']);
 
         Route::get('/track/{trackingCode}', [ReportController::class, 'track'])
             ->middleware('throttle:10,1');

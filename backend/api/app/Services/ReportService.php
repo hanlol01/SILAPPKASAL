@@ -10,19 +10,17 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Laravel\Sanctum\PersonalAccessToken;
 
 class ReportService
 {
     /**
      * @param array<string, mixed> $data
      */
-    public function submit(array $data, ?string $bearerToken = null): Report
+    public function submit(array $data): Report
     {
-        $reportType = (string) $data['report_type'];
-        $user = $reportType === 'anonymous' ? null : $this->resolveUserFromBearerToken($bearerToken);
+        $user = auth()->user();
 
-        if ($reportType !== 'anonymous' && ! $user) {
+        if (! $user instanceof User) {
             throw new HttpResponseException(response()->json([
                 'success' => false,
                 'message' => 'Unauthenticated',
@@ -30,7 +28,9 @@ class ReportService
             ], 401));
         }
 
-        if ($user && ! $user->is_active) {
+        $user->loadMissing('role.permissions');
+
+        if (! $user->is_active) {
             throw new HttpResponseException(response()->json([
                 'success' => false,
                 'message' => 'Akun Anda telah dinonaktifkan. Hubungi admin.',
@@ -38,7 +38,7 @@ class ReportService
             ], 403));
         }
 
-        if ($user && ! $user->hasPermission('reports.create')) {
+        if (! $user->hasPermission('reports.create')) {
             throw new HttpResponseException(response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to perform this action',
@@ -83,33 +83,19 @@ class ReportService
             }
         }
 
-        return $query->paginate((int) ($filters['per_page'] ?? 15));
+        $reports = $query->paginate((int) ($filters['per_page'] ?? 15));
+
+        $reports->getCollection()
+            ->filter(fn (Report $report): bool => $report->report_type !== 'anonymous')
+            ->load('reporter');
+
+        return $reports;
     }
 
     private function canReadAllReports(User $user): bool
     {
         return $user->hasPermission('reports.read.all')
             && ($user->hasRole('admin') || $user->hasRole('super_admin'));
-    }
-
-    private function resolveUserFromBearerToken(?string $bearerToken): ?User
-    {
-        if (! $bearerToken) {
-            return null;
-        }
-
-        $accessToken = PersonalAccessToken::findToken($bearerToken);
-        $tokenable = $accessToken?->tokenable;
-
-        if (! $tokenable instanceof User) {
-            return null;
-        }
-
-        if ($accessToken->expires_at && $accessToken->expires_at->isPast()) {
-            return null;
-        }
-
-        return $tokenable->load('role.permissions');
     }
 
     public function findByTrackingCode(string $trackingCode): ?Report
@@ -130,7 +116,7 @@ class ReportService
     /**
      * @param array<string, mixed> $data
      */
-    private function createReportWithUniqueIdentifiers(array $data, ?User $user): Report
+    private function createReportWithUniqueIdentifiers(array $data, User $user): Report
     {
         $attempts = 0;
 
@@ -143,7 +129,7 @@ class ReportService
                 $reportType = (string) $data['report_type'];
 
                 $report = Report::query()->create([
-                    'reporter_id' => $reportType === 'anonymous' ? null : $user?->id,
+                    'reporter_id' => $user->id,
                     'registration_number' => $this->generateRegistrationNumber($submittedAt),
                     'tracking_code' => $reportType === 'anonymous' ? $this->generateTrackingCode() : null,
                     'report_type' => $reportType,

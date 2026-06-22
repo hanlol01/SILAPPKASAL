@@ -86,6 +86,38 @@ class ReporterPortalFoundationTest extends TestCase
             ->assertJsonMissingPath('data.0.case.assignments');
     }
 
+    public function test_reporter_portal_includes_own_anonymous_reports_but_not_legacy_null_identity_reports(): void
+    {
+        $reporter = $this->makeUser('reporter', 'reporter@example.test');
+        $anonymous = $this->makeReport($reporter, 'SLP-20260611-0101', ReportStatus::Submitted, 'anonymous');
+        $legacyAnonymous = $this->makeReport(null, 'SLP-20260611-0102', ReportStatus::Submitted, 'anonymous');
+
+        Sanctum::actingAs($reporter, ['*']);
+
+        $this->getJson('/api/v1/portal/reports')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonFragment([
+                'registration_number' => $anonymous->registration_number,
+                'report_type' => 'anonymous',
+            ])
+            ->assertJsonMissing([
+                'registration_number' => $legacyAnonymous->registration_number,
+            ])
+            ->assertJsonMissingPath('data.0.id')
+            ->assertJsonMissingPath('data.0.tracking_code');
+
+        $this->getJson("/api/v1/portal/reports/{$anonymous->registration_number}")
+            ->assertOk()
+            ->assertJsonPath('data.registration_number', $anonymous->registration_number)
+            ->assertJsonPath('data.report_type', 'anonymous')
+            ->assertJsonMissingPath('data.id')
+            ->assertJsonMissingPath('data.tracking_code');
+
+        $this->getJson("/api/v1/portal/reports/{$legacyAnonymous->registration_number}")
+            ->assertNotFound();
+    }
+
     public function test_reporter_can_view_safe_detail_only_by_own_registration_number(): void
     {
         $reporter = $this->makeUser('reporter', 'reporter@example.test');
@@ -185,7 +217,7 @@ class ReporterPortalFoundationTest extends TestCase
         return Report::query()->create([
             'reporter_id' => $reporter?->id,
             'registration_number' => $registrationNumber,
-            'tracking_code' => $reportType === 'anonymous' ? 'ABCD-EFGH-IJKL-MNOP' : null,
+            'tracking_code' => $reportType === 'anonymous' ? $this->trackingCode($registrationNumber) : null,
             'report_type' => $reportType,
             'category_code' => 'RCAT-01',
             'chronology' => 'Sensitive chronology must never be exposed in portal responses.',
@@ -223,5 +255,10 @@ class ReporterPortalFoundationTest extends TestCase
             'forwarded_at' => now(),
             'closed_at' => $statusName === CaseStatusEnum::Closed ? now() : null,
         ]);
+    }
+
+    private function trackingCode(string $registrationNumber): string
+    {
+        return implode('-', str_split(strtoupper(substr(md5($registrationNumber), 0, 16)), 4));
     }
 }

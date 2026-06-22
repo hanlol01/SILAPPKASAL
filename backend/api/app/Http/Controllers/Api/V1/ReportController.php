@@ -30,8 +30,7 @@ class ReportController extends Controller
     public function store(ReportStoreRequest $request): JsonResponse
     {
         $report = $this->reportService->submit(
-            $request->validated(),
-            $request->bearerToken()
+            $request->validated()
         );
 
         return response()->json([
@@ -62,10 +61,16 @@ class ReportController extends Controller
     {
         Gate::authorize('view', $report);
 
+        $report->load(['category', 'priorityLevel']);
+
+        if ($report->report_type !== 'anonymous') {
+            $report->load('reporter');
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Report retrieved successfully',
-            'data' => new ReportMetadataResource($report->load(['category', 'priorityLevel'])),
+            'data' => new ReportMetadataResource($report),
         ]);
     }
 

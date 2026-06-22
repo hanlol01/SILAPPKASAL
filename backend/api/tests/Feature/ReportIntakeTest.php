@@ -10,6 +10,7 @@ use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class ReportIntakeTest extends TestCase
@@ -25,8 +26,18 @@ class ReportIntakeTest extends TestCase
         Cache::clear();
     }
 
-    public function test_anonymous_report_submission_does_not_store_identity_or_phone(): void
+    public function test_unauthenticated_report_submission_is_rejected(): void
     {
+        $this->postJson('/api/v1/reports', $this->payload([
+            'report_type' => 'anonymous',
+        ]))->assertUnauthorized();
+    }
+
+    public function test_authenticated_anonymous_report_submission_stores_reporter_and_no_phone(): void
+    {
+        $reporter = $this->makeUser('reporter');
+        Sanctum::actingAs($reporter, ['*']);
+
         $response = $this->postJson('/api/v1/reports', $this->payload([
             'report_type' => 'anonymous',
             'reporter_phone' => '6281234567890',
@@ -36,7 +47,7 @@ class ReportIntakeTest extends TestCase
             ->assertJsonPath('success', false);
 
         $response = $this->postJson('/api/v1/reports', $this->payload([
-            'report_type' => 'anonymous',
+                'report_type' => 'anonymous',
         ]));
 
         $response->assertCreated()
@@ -50,7 +61,7 @@ class ReportIntakeTest extends TestCase
 
         $report = Report::query()->firstOrFail();
 
-        $this->assertNull($report->reporter_id);
+        $this->assertSame($reporter->id, $report->reporter_id);
         $this->assertNull($report->reporter_phone_encrypted);
         $this->assertArrayNotHasKey('ip_address', $report->getAttributes());
         $this->assertArrayNotHasKey('device_data', $report->getAttributes());
@@ -67,12 +78,11 @@ class ReportIntakeTest extends TestCase
     public function test_identified_report_submission_with_token_stores_reporter(): void
     {
         $user = $this->makeUser('reporter');
-        $token = $user->createToken('web-login', ['*'], now()->addDay())->plainTextToken;
+        Sanctum::actingAs($user, ['*']);
 
-        $response = $this->withToken($token)
-            ->postJson('/api/v1/reports', $this->payload([
+        $response = $this->postJson('/api/v1/reports', $this->payload([
                 'report_type' => 'open',
-            ]));
+        ]));
 
         $response->assertCreated()
             ->assertJsonPath('data.tracking_code', null)
@@ -88,13 +98,12 @@ class ReportIntakeTest extends TestCase
     public function test_confidential_report_may_store_encrypted_phone(): void
     {
         $user = $this->makeUser('reporter');
-        $token = $user->createToken('web-login', ['*'], now()->addDay())->plainTextToken;
+        Sanctum::actingAs($user, ['*']);
 
-        $response = $this->withToken($token)
-            ->postJson('/api/v1/reports', $this->payload([
+        $response = $this->postJson('/api/v1/reports', $this->payload([
                 'report_type' => 'confidential',
                 'reporter_phone' => '6281234567890',
-            ]));
+        ]));
 
         $response->assertCreated();
 
@@ -128,52 +137,84 @@ class ReportIntakeTest extends TestCase
         $otherReporter = $this->makeUser('reporter', 'reporter-b@university.ac.id');
         $ownReport = $this->createIdentifiedReport($reporter);
         $otherReport = $this->createIdentifiedReport($otherReporter);
-        $anonymousReport = $this->createAnonymousReport();
-        $token = $reporter->createToken('web-login', ['*'], now()->addDay())->plainTextToken;
+        $anonymousReport = $this->createAnonymousReport($reporter);
+        Sanctum::actingAs($reporter, ['*']);
 
-        $this->withToken($token)
-            ->getJson('/api/v1/reports')
+        $this->getJson('/api/v1/reports')
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.id', $ownReport->id);
 
-        $this->withToken($token)
-            ->getJson("/api/v1/reports/{$ownReport->id}")
+        $this->getJson("/api/v1/reports/{$ownReport->id}")
             ->assertOk()
             ->assertJsonPath('data.id', $ownReport->id);
 
-        $this->withToken($token)
-            ->getJson("/api/v1/reports/{$otherReport->id}")
+        $this->getJson("/api/v1/reports/{$otherReport->id}")
             ->assertForbidden();
 
-        $this->withToken($token)
-            ->getJson("/api/v1/reports/{$anonymousReport->id}")
+        $this->getJson("/api/v1/reports/{$anonymousReport->id}")
             ->assertForbidden();
     }
 
-    public function test_admin_reads_metadata_without_sensitive_fields(): void
+    public function test_admin_reads_metadata_with_masked_identity_for_anonymous_reports(): void
     {
         $admin = $this->makeUser('admin', 'admin@university.ac.id');
-        $report = $this->createAnonymousReport();
-        $token = $admin->createToken('web-login', ['*'], now()->addDay())->plainTextToken;
+        $reporter = $this->makeUser('reporter', 'anonymous-owner@university.ac.id');
+        $report = $this->createAnonymousReport($reporter);
+        Sanctum::actingAs($admin, ['*']);
 
-        $this->withToken($token)
-            ->getJson('/api/v1/reports')
+        $this->getJson('/api/v1/reports')
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.is_anonymous', true)
+            ->assertJsonPath('data.0.reporter.masked', true)
+            ->assertJsonMissingPath('data.0.reporter.id')
+            ->assertJsonMissingPath('data.0.reporter.name')
             ->assertJsonMissingPath('data.0.chronology')
             ->assertJsonMissingPath('data.0.incident_location');
 
-        $this->withToken($token)
-            ->getJson("/api/v1/reports/{$report->id}")
+        $this->getJson("/api/v1/reports/{$report->id}")
             ->assertOk()
+            ->assertJsonPath('data.is_anonymous', true)
+            ->assertJsonPath('data.reporter.masked', true)
+            ->assertJsonMissingPath('data.reporter.id')
+            ->assertJsonMissingPath('data.reporter.name')
             ->assertJsonMissingPath('data.chronology')
             ->assertJsonMissingPath('data.incident_location')
             ->assertJsonMissingPath('data.respondent_name');
     }
 
+    public function test_admin_reads_non_anonymous_reporter_minimal_identity(): void
+    {
+        $admin = $this->makeUser('admin', 'admin@university.ac.id');
+        $reporter = $this->makeUser('reporter', 'identified-owner@university.ac.id');
+        $report = $this->createIdentifiedReport($reporter);
+        Sanctum::actingAs($admin, ['*']);
+
+        $this->getJson("/api/v1/reports/{$report->id}")
+            ->assertOk()
+            ->assertJsonPath('data.is_anonymous', false)
+            ->assertJsonPath('data.reporter.id', $reporter->id)
+            ->assertJsonPath('data.reporter.name', 'reporter User')
+            ->assertJsonMissingPath('data.reporter.email');
+    }
+
+    public function test_satgas_cannot_access_anonymous_report_identity_through_report_api(): void
+    {
+        $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
+        $reporter = $this->makeUser('reporter', 'anonymous-owner@university.ac.id');
+        $report = $this->createAnonymousReport($reporter);
+        Sanctum::actingAs($satgas, ['*']);
+
+        $this->getJson('/api/v1/reports')->assertForbidden();
+        $this->getJson("/api/v1/reports/{$report->id}")->assertForbidden();
+    }
+
     public function test_invalid_master_data_returns_validation_error(): void
     {
+        $reporter = $this->makeUser('reporter');
+        Sanctum::actingAs($reporter, ['*']);
+
         $this->postJson('/api/v1/reports', $this->payload([
             'report_type' => 'anonymous',
             'category_code' => 'UNKNOWN',
@@ -216,8 +257,11 @@ class ReportIntakeTest extends TestCase
         ]);
     }
 
-    private function createAnonymousReport(): Report
+    private function createAnonymousReport(?User $reporter = null): Report
     {
+        $reporter ??= $this->makeUser('reporter', 'anonymous-reporter@university.ac.id');
+        Sanctum::actingAs($reporter, ['*']);
+
         $response = $this->postJson('/api/v1/reports', $this->payload([
             'report_type' => 'anonymous',
         ]));
@@ -229,12 +273,11 @@ class ReportIntakeTest extends TestCase
 
     private function createIdentifiedReport(User $user): Report
     {
-        $token = $user->createToken('web-login', ['*'], now()->addDay())->plainTextToken;
+        Sanctum::actingAs($user, ['*']);
 
-        $response = $this->withToken($token)
-            ->postJson('/api/v1/reports', $this->payload([
-                'report_type' => 'open',
-            ]));
+        $response = $this->postJson('/api/v1/reports', $this->payload([
+            'report_type' => 'open',
+        ]));
 
         $response->assertCreated();
 

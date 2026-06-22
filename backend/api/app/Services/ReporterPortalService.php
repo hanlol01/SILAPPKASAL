@@ -58,8 +58,7 @@ class ReporterPortalService
     {
         return Report::query()
             ->where('reporter_id', $user->id)
-            ->whereNotNull('reporter_id')
-            ->where('report_type', '!=', 'anonymous');
+            ->whereNotNull('reporter_id');
     }
 
     private function withPortalStatus(Report $report): Report
