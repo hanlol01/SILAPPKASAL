@@ -20,6 +20,11 @@ class AuditLogController extends Controller
             ->latest('created_at')
             ->latest('id');
 
+        $user = $request->user();
+        if ($user?->hasRole('admin') && ! $user->hasRole('super_admin')) {
+            $query->where('category', '!=', 'privacy');
+        }
+
         foreach (['category', 'severity', 'action', 'actor_id', 'subject_type', 'subject_id', 'request_id'] as $filter) {
             $query->when($request->filled($filter), fn ($query) => $query->where($filter, $request->validated($filter)));
         }

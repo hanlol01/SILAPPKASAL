@@ -179,6 +179,92 @@ class AuditLogFoundationTest extends TestCase
             ->assertJsonPath('data.data.0.action', AuditAction::SecurityAccessDenied->value);
     }
 
+    public function test_admin_audit_log_api_excludes_privacy_entries(): void
+    {
+        $admin = $this->makeUser('admin', 'admin@university.ac.id');
+
+        AuditLog::query()->create([
+            'actor_id' => $admin->id,
+            'request_id' => 'req-privacy',
+            'action' => AuditAction::BreakGlassRequested->value,
+            'category' => AuditCategory::Privacy->value,
+            'severity' => AuditSeverity::Critical->value,
+            'metadata' => ['is_elevated_access' => false],
+            'before_changes' => [],
+            'after_changes' => [],
+        ]);
+
+        AuditLog::query()->create([
+            'actor_id' => $admin->id,
+            'request_id' => 'req-security',
+            'action' => AuditAction::SecurityAccessDenied->value,
+            'category' => AuditCategory::Security->value,
+            'severity' => AuditSeverity::Warning->value,
+            'metadata' => ['is_elevated_access' => false],
+            'before_changes' => [],
+            'after_changes' => [],
+        ]);
+
+        $this->actingAsApi($admin);
+
+        $response = $this->getJson('/api/v1/audit-logs')
+            ->assertOk()
+            ->assertJsonCount(1, 'data.data');
+
+        $this->assertSame(
+            [AuditCategory::Security->value],
+            collect($response->json('data.data'))->pluck('category')->all()
+        );
+
+        $this->getJson('/api/v1/audit-logs?category=privacy')
+            ->assertOk()
+            ->assertJsonCount(0, 'data.data');
+    }
+
+    public function test_super_admin_audit_log_api_includes_privacy_entries(): void
+    {
+        $superAdmin = $this->makeUser('super_admin', 'super@university.ac.id');
+
+        $privacyLog = AuditLog::query()->create([
+            'actor_id' => $superAdmin->id,
+            'request_id' => 'req-privacy',
+            'action' => AuditAction::BreakGlassApproved->value,
+            'category' => AuditCategory::Privacy->value,
+            'severity' => AuditSeverity::Critical->value,
+            'metadata' => ['is_elevated_access' => false],
+            'before_changes' => [],
+            'after_changes' => [],
+        ]);
+
+        AuditLog::query()->create([
+            'actor_id' => $superAdmin->id,
+            'request_id' => 'req-system',
+            'action' => AuditAction::SecurityAccessDenied->value,
+            'category' => AuditCategory::System->value,
+            'severity' => AuditSeverity::Info->value,
+            'metadata' => ['is_elevated_access' => false],
+            'before_changes' => [],
+            'after_changes' => [],
+        ]);
+
+        $this->actingAsApi($superAdmin);
+
+        $response = $this->getJson('/api/v1/audit-logs')
+            ->assertOk()
+            ->assertJsonCount(2, 'data.data');
+
+        $this->assertContains(
+            AuditCategory::Privacy->value,
+            collect($response->json('data.data'))->pluck('category')->all()
+        );
+
+        $this->getJson('/api/v1/audit-logs?category=privacy')
+            ->assertOk()
+            ->assertJsonCount(1, 'data.data')
+            ->assertJsonPath('data.data.0.id', $privacyLog->id)
+            ->assertJsonPath('data.data.0.category', AuditCategory::Privacy->value);
+    }
+
     private function makeUser(string $roleCode, string $email): User
     {
         $role = Role::query()->where('code', $roleCode)->firstOrFail();
