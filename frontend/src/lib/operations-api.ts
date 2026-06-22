@@ -12,6 +12,9 @@ import type {
   Investigation,
   InvestigationActivity,
   InvestigationActivityPayload,
+  InvestigationCreatePayload,
+  InvestigationStatusOptions,
+  InvestigationStatusPayload,
   PaginatedData,
   Recommendation,
   RecommendationUpdatePayload,
@@ -32,6 +35,8 @@ export const operationsQueryKeys = {
   case: (id: string | number) => ["operations", "case", id] as const,
   investigations: (caseId: string | number) => ["operations", "case", caseId, "investigations"] as const,
   investigation: (id: string | number) => ["operations", "investigation", id] as const,
+  investigationStatusOptions: (id: string | number) =>
+    ["operations", "investigation", id, "status-options"] as const,
   recommendations: (caseId: string | number) => ["operations", "case", caseId, "recommendations"] as const,
   recommendation: (id: string | number) => ["operations", "recommendation", id] as const,
   decisions: (recommendationId: string | number) =>
@@ -71,6 +76,10 @@ export function getCaseInvestigations(caseId: string | number) {
 
 export function getInvestigation(id: string | number) {
   return apiRequest<Investigation>(`/investigations/${id}`);
+}
+
+export function getInvestigationStatusOptions(id: string | number) {
+  return apiRequest<InvestigationStatusOptions>(`/investigations/${id}/status-options`);
 }
 
 export function getCaseRecommendations(caseId: string | number) {
@@ -135,6 +144,20 @@ export function assignCaseSatgas(id: string | number, payload: SatgasAssignmentP
 
 export function updateCaseStatus(id: string | number, payload: CaseStatusPayload) {
   return apiRequest<CaseRecord>(`/cases/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createInvestigation(caseId: string | number, payload: InvestigationCreatePayload) {
+  return apiRequest<Investigation>(`/cases/${caseId}/investigations`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateInvestigationStatus(id: string | number, payload: InvestigationStatusPayload) {
+  return apiRequest<Investigation>(`/investigations/${id}/status`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });

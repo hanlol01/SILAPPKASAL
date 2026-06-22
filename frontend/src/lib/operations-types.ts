@@ -116,6 +116,26 @@ export interface InvestigationActivity {
   created_at: string | null;
 }
 
+export interface InvestigationCreatePayload {
+  lead_investigator_id: number;
+  plan_summary: string;
+}
+
+export interface InvestigationStatusPayload {
+  status: string;
+}
+
+export interface InvestigationStatusOption {
+  code: string;
+  name: string;
+  description?: string | null;
+}
+
+export interface InvestigationStatusOptions {
+  current_status: InvestigationStatusOption;
+  valid_transitions: InvestigationStatusOption[];
+}
+
 export interface Recommendation {
   id: number;
   case_id: number;

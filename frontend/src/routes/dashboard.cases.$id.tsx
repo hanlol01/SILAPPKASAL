@@ -16,6 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { InvestigationCreateAction } from "@/components/workflow-actions/investigation-create-action";
+import { InvestigationStatusAction } from "@/components/workflow-actions/investigation-status-action";
 import { SatgasAssignmentAction } from "@/components/workflow-actions/satgas-assignment-action";
 import {
   CaseStatusAction,
@@ -104,8 +106,15 @@ function CaseDetail() {
     roleCode === "satgas_ppks" &&
     (c.assignments ?? []).some((assignment) => assignment.is_active && assignment.satgas_id === user?.id);
   const canUseSatgasActions = isAssignedSatgas && !c.closed_at;
+  const canInvestigate = canUseSatgasActions && Boolean(user?.permissions?.includes("cases.investigate"));
   const canManageInstitutionalActions = isAdminRole;
   const canAddRecoveryMonitoring = canManageInstitutionalActions || canUseSatgasActions;
+  const activeAssignments = (c.assignments ?? []).filter((assignment) => assignment.is_active);
+  const canCreateInvestigation =
+    canInvestigate &&
+    investigationsQuery.isSuccess &&
+    c.status === "investigation" &&
+    (investigationsQuery.data ?? []).length === 0;
 
   return (
     <div className="space-y-6">
@@ -145,6 +154,7 @@ function CaseDetail() {
             investigations={investigationsQuery.data ?? []}
             loading={investigationsQuery.isLoading}
             canAddActivity={canUseSatgasActions}
+            canTransitionStatus={canInvestigate}
             caseId={c.id}
           />
           <RecommendationsSection
@@ -228,10 +238,19 @@ function CaseDetail() {
                   description="Only actively assigned Satgas users can update case status. Backend RBAC remains authoritative."
                 />
               )}
-              <DisabledWorkflowAction
-                title="Create investigation"
-                description="Investigation creation requires a lead investigator picker. No approved Satgas lookup API exists yet."
-              />
+              {canCreateInvestigation && (
+                <InvestigationCreateAction caseId={c.id} assignments={activeAssignments} />
+              )}
+              {canInvestigate && !canCreateInvestigation && (
+                <DisabledWorkflowAction
+                  title="Create investigation"
+                  description={
+                    c.status !== "investigation"
+                      ? "Case must be in investigation status before creating an investigation."
+                      : "This case already has an investigation or investigation data is still loading."
+                  }
+                />
+              )}
             </CardContent>
           </Card>
         </div>
@@ -287,11 +306,13 @@ function InvestigationsSection({
   investigations,
   loading,
   canAddActivity,
+  canTransitionStatus,
   caseId,
 }: {
   investigations: Investigation[];
   loading: boolean;
   canAddActivity: boolean;
+  canTransitionStatus: boolean;
   caseId: number | string;
 }) {
   return (
@@ -303,6 +324,9 @@ function InvestigationsSection({
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline">{label(item.status_code)}</Badge>
               {canAddActivity && <InvestigationActivityAction investigation={item} caseId={caseId} />}
+              {canTransitionStatus && item.status !== "completed" && (
+                <InvestigationStatusAction investigation={item} caseId={caseId} />
+              )}
             </div>
           </div>
           <div className="mt-2 grid gap-2 text-muted-foreground sm:grid-cols-2">
@@ -318,12 +342,6 @@ function InvestigationsSection({
           ) : (
             <MetadataOnlyText />
           )}
-          <div className="mt-3">
-            <DisabledWorkflowAction
-              title="Investigation status update"
-              description="Status action is not enabled until investigation status options or transition data are exposed by backend."
-            />
-          </div>
         </div>
       ))}
     </SectionCard>
