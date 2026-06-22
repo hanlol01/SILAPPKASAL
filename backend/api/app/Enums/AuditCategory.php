@@ -12,6 +12,7 @@ enum AuditCategory: string
     case Decision = 'decision';
     case Recovery = 'recovery';
     case Evidence = 'evidence';
+    case Privacy = 'privacy';
     case Security = 'security';
     case System = 'system';
 

@@ -47,6 +47,11 @@ enum AuditAction: string
     case EvidenceMetadataUpdated = 'evidence.metadata_updated';
     case EvidenceStatusChanged = 'evidence.status_changed';
 
+    case BreakGlassRequested = 'break_glass.request';
+    case BreakGlassApproved = 'break_glass.approve';
+    case BreakGlassDenied = 'break_glass.deny';
+    case BreakGlassIdentityViewed = 'break_glass.view_identity';
+
     case SecurityAccessDenied = 'security.access_denied';
 
     /**

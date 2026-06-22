@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\AuditLog;
+use App\Models\BreakGlassRequest;
 use App\Models\CaseRecord;
 use App\Models\Decision;
 use App\Models\Evidence;
@@ -13,6 +14,7 @@ use App\Models\ReporterRegistration;
 use App\Models\Report;
 use App\Models\User;
 use App\Policies\AuditLogPolicy;
+use App\Policies\BreakGlassPolicy;
 use App\Policies\CasePolicy;
 use App\Policies\DecisionPolicy;
 use App\Policies\DashboardPolicy;
@@ -51,6 +53,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(AuditLog::class, AuditLogPolicy::class);
+        Gate::policy(BreakGlassRequest::class, BreakGlassPolicy::class);
         Gate::policy(CaseRecord::class, CasePolicy::class);
         Gate::policy(Decision::class, DecisionPolicy::class);
         Gate::policy(Evidence::class, EvidencePolicy::class);

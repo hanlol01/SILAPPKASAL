@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\BreakGlassController;
 use App\Http\Controllers\Api\V1\CaseController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DecisionController;
@@ -145,6 +146,16 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware('auth:sanctum')->prefix('audit-logs')->group(function (): void {
         Route::get('/', [AuditLogController::class, 'index']);
         Route::get('/{auditLog}', [AuditLogController::class, 'show']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('break-glass')->group(function (): void {
+        Route::post('/request', [BreakGlassController::class, 'request']);
+        Route::get('/pending', [BreakGlassController::class, 'pending']);
+        Route::get('/history', [BreakGlassController::class, 'history']);
+        Route::get('/{breakGlassRequest}', [BreakGlassController::class, 'show']);
+        Route::patch('/{breakGlassRequest}/approve', [BreakGlassController::class, 'approve']);
+        Route::patch('/{breakGlassRequest}/deny', [BreakGlassController::class, 'deny']);
+        Route::get('/{breakGlassRequest}/reveal', [BreakGlassController::class, 'reveal']);
     });
 
     Route::middleware('auth:sanctum')->prefix('dashboard')->group(function (): void {
