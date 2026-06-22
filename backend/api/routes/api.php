@@ -107,6 +107,7 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware('auth:sanctum')->prefix('investigations')->group(function (): void {
         Route::post('/{investigation}/evidences', [EvidenceController::class, 'storeForInvestigation']);
         Route::get('/{investigation}/evidences', [EvidenceController::class, 'indexForInvestigation']);
+        Route::get('/{investigation}/status-options', [InvestigationController::class, 'statusOptions']);
         Route::get('/{investigation}', [InvestigationController::class, 'show']);
         Route::patch('/{investigation}/status', [InvestigationController::class, 'updateStatus']);
         Route::post('/{investigation}/activities', [InvestigationController::class, 'storeActivity']);

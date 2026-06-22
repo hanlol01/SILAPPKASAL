@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Enums\AuditAction;
+use App\Enums\AuditCategory;
+use App\Enums\AuditSeverity;
 use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Models\CaseAssignment;
@@ -10,13 +13,19 @@ use App\Models\Investigation;
 use App\Models\InvestigationActivity;
 use App\Models\InvestigationStatus;
 use App\Models\User;
+use App\Notifications\WorkflowDatabaseNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 
 class InvestigationService
 {
+    public function __construct(private readonly AuditLogService $auditLogService)
+    {
+    }
+
     /**
      * @param array<string, mixed> $data
      */
@@ -26,22 +35,40 @@ class InvestigationService
         $this->ensureCaseCanStartInvestigation($case);
         $this->ensureAssignedSatgas($case, (int) $data['lead_investigator_id']);
 
-        return DB::transaction(function () use ($case, $data): Investigation {
-            $case = CaseRecord::query()->with(['status', 'investigation'])->whereKey($case->id)->lockForUpdate()->firstOrFail();
+        return DB::transaction(function () use ($case, $actor, $data): Investigation {
+            $case = CaseRecord::query()->with(['status', 'investigation', 'activeAssignments.satgas'])->whereKey($case->id)->lockForUpdate()->firstOrFail();
 
             $this->ensureCaseCanStartInvestigation($case);
 
             $status = $this->statusByName(InvestigationStatusEnum::Planning);
 
-            return Investigation::query()
+            $investigation = Investigation::query()
                 ->create([
                     'case_id' => $case->id,
                     'lead_investigator_id' => (int) $data['lead_investigator_id'],
                     'status_code' => $status->code,
-                    'plan_summary' => $data['plan_summary'] ?? null,
+                    'plan_summary' => $data['plan_summary'],
                     'started_at' => now(),
                 ])
                 ->load(['case', 'status', 'leadInvestigator', 'activities.investigator']);
+
+            $this->recordAudit(
+                AuditAction::InvestigationCreated,
+                $actor,
+                $investigation,
+                [
+                    'case_id' => $case->id,
+                    'case_number' => $case->case_number,
+                    'investigation_id' => $investigation->id,
+                    'lead_investigator_id' => $investigation->lead_investigator_id,
+                    'status_code' => $investigation->status_code,
+                ],
+                afterChanges: ['status_code' => $investigation->status_code],
+            );
+
+            $this->notifyInvestigationCreated($investigation);
+
+            return $investigation;
         });
     }
 
@@ -87,7 +114,7 @@ class InvestigationService
             $this->ensureCaseStillInInvestigation($investigation->case);
             $this->ensureInvestigationOpen($investigation);
 
-            return $investigation->activities()
+            $activity = $investigation->activities()
                 ->create([
                     'investigator_id' => $actor->id,
                     'activity_type' => $data['activity_type'],
@@ -97,13 +124,29 @@ class InvestigationService
                     'notes' => $data['notes'] ?? null,
                 ])
                 ->load('investigator');
+
+            $this->recordAudit(
+                AuditAction::InvestigationActivityCreated,
+                $actor,
+                $activity,
+                [
+                    'case_id' => $investigation->case_id,
+                    'case_number' => $investigation->case?->case_number,
+                    'investigation_id' => $investigation->id,
+                    'activity_id' => $activity->id,
+                    'activity_type' => $activity->activity_type,
+                ],
+                afterChanges: ['activity_type' => $activity->activity_type],
+            );
+
+            return $activity;
         });
     }
 
     public function updateStatus(Investigation $investigation, User $actor, string $requestedStatus): Investigation
     {
         return DB::transaction(function () use ($investigation, $actor, $requestedStatus): Investigation {
-            $investigation = Investigation::query()->with(['case.status', 'status'])->whereKey($investigation->id)->lockForUpdate()->firstOrFail();
+            $investigation = Investigation::query()->with(['case.status', 'case.activeAssignments.satgas', 'status'])->whereKey($investigation->id)->lockForUpdate()->firstOrFail();
 
             $this->authorizeAssignedInvestigator($investigation->case, $actor);
             $this->ensureCaseStillInInvestigation($investigation->case);
@@ -116,13 +159,70 @@ class InvestigationService
                 throw $this->unprocessable('Invalid investigation status transition');
             }
 
+            $beforeStatusCode = $investigation->status_code;
+            $beforeStatusName = $investigation->status?->name;
+
             $investigation->forceFill([
                 'status_code' => $nextStatus->code,
                 'completed_at' => $nextStatus->name === InvestigationStatusEnum::Completed->value ? now() : $investigation->completed_at,
             ])->save();
 
-            return $investigation->load(['case', 'status', 'leadInvestigator', 'activities.investigator']);
+            $investigation = $investigation->load(['case.activeAssignments.satgas', 'status', 'leadInvestigator', 'activities.investigator']);
+
+            $this->recordAudit(
+                AuditAction::InvestigationStatusChanged,
+                $actor,
+                $investigation,
+                [
+                    'case_id' => $investigation->case_id,
+                    'case_number' => $investigation->case?->case_number,
+                    'investigation_id' => $investigation->id,
+                    'from_status' => $beforeStatusName,
+                    'to_status' => $nextStatus->name,
+                ],
+                beforeChanges: ['status_code' => $beforeStatusCode],
+                afterChanges: ['status_code' => $investigation->status_code],
+            );
+
+            $this->notifyInvestigationStatusChanged($investigation, $beforeStatusName, $nextStatus->name);
+
+            if ($nextStatus->name === InvestigationStatusEnum::Completed->value) {
+                $this->notifyInvestigationCompleted($investigation);
+            }
+
+            return $investigation;
         });
+    }
+
+    /**
+     * @return array{current_status: array{code: string|null, name: string|null, description: string|null}, valid_transitions: list<array{code: string, name: string, description: string|null}>}
+     */
+    public function statusOptions(Investigation $investigation): array
+    {
+        $investigation->loadMissing('status');
+
+        $transitionNames = $investigation->status?->valid_transitions ?? [];
+        $statuses = InvestigationStatus::query()
+            ->where('is_active', true)
+            ->whereIn('name', $transitionNames)
+            ->orderBy('sort_order')
+            ->get()
+            ->map(fn (InvestigationStatus $status): array => [
+                'code' => $status->code,
+                'name' => $status->name,
+                'description' => $status->description,
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'current_status' => [
+                'code' => $investigation->status?->code,
+                'name' => $investigation->status?->name,
+                'description' => $investigation->status?->description,
+            ],
+            'valid_transitions' => $statuses,
+        ];
     }
 
     public function canReadSensitive(Investigation $investigation, User $user): bool
@@ -210,6 +310,103 @@ class InvestigationService
     {
         return ($user->hasPermission('cases.read.metadata') && ($user->hasRole('admin') || $user->hasRole('super_admin')))
             || ($user->hasPermission('cases.read.all') && $user->hasRole('super_admin'));
+    }
+
+    /**
+     * @param array<string, mixed> $metadata
+     * @param array<string, mixed> $beforeChanges
+     * @param array<string, mixed> $afterChanges
+     */
+    private function recordAudit(
+        AuditAction $action,
+        User $actor,
+        Investigation|InvestigationActivity $subject,
+        array $metadata = [],
+        array $beforeChanges = [],
+        array $afterChanges = [],
+    ): void {
+        $this->auditLogService->record(
+            action: $action,
+            category: AuditCategory::Investigation,
+            severity: AuditSeverity::Info,
+            actor: $actor,
+            subject: $subject,
+            metadata: $metadata,
+            beforeChanges: $beforeChanges,
+            afterChanges: $afterChanges,
+        );
+    }
+
+    private function notifyInvestigationCreated(Investigation $investigation): void
+    {
+        $investigation->loadMissing(['case', 'leadInvestigator']);
+
+        $this->notifyAdmins([
+            'notification_type_code' => 'investigation_created',
+            'event' => 'investigation_created',
+            'title' => 'Investigation created',
+            'body' => 'A new investigation has been created.',
+            'subject_type' => 'investigation',
+            'subject_id' => $investigation->id,
+            'case_id' => $investigation->case_id,
+            'case_number' => $investigation->case?->case_number,
+            'investigation_id' => $investigation->id,
+            'lead_investigator_name' => $investigation->leadInvestigator?->name,
+        ]);
+    }
+
+    private function notifyInvestigationCompleted(Investigation $investigation): void
+    {
+        $investigation->loadMissing('case');
+
+        $this->notifyAdmins([
+            'notification_type_code' => 'investigation_completed',
+            'event' => 'investigation_completed',
+            'title' => 'Investigation completed',
+            'body' => 'An investigation has been completed.',
+            'subject_type' => 'investigation',
+            'subject_id' => $investigation->id,
+            'case_id' => $investigation->case_id,
+            'case_number' => $investigation->case?->case_number,
+            'investigation_id' => $investigation->id,
+        ]);
+    }
+
+    private function notifyInvestigationStatusChanged(Investigation $investigation, ?string $fromStatus, string $toStatus): void
+    {
+        $investigation->loadMissing('case.activeAssignments.satgas');
+
+        $recipients = $investigation->case?->activeAssignments
+            ->pluck('satgas')
+            ->filter(fn (?User $user): bool => $user?->is_active === true && $user->hasRole('satgas_ppks'))
+            ->values() ?? collect();
+
+        Notification::send($recipients, new WorkflowDatabaseNotification([
+            'notification_type_code' => 'investigation_status_changed',
+            'event' => 'investigation_status_changed',
+            'title' => 'Investigation status updated',
+            'body' => 'An investigation assigned to your case has a status update.',
+            'subject_type' => 'investigation',
+            'subject_id' => $investigation->id,
+            'case_id' => $investigation->case_id,
+            'case_number' => $investigation->case?->case_number,
+            'investigation_id' => $investigation->id,
+            'from_status' => $fromStatus,
+            'to_status' => $toStatus,
+        ]));
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function notifyAdmins(array $payload): void
+    {
+        $recipients = User::query()
+            ->where('is_active', true)
+            ->whereHas('role', fn (Builder $query): Builder => $query->whereIn('code', ['admin', 'super_admin']))
+            ->get();
+
+        Notification::send($recipients, new WorkflowDatabaseNotification($payload));
     }
 
     private function statusByName(InvestigationStatusEnum $status): InvestigationStatus

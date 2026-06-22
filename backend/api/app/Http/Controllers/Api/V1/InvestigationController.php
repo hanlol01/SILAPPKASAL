@@ -67,6 +67,17 @@ class InvestigationController extends Controller
         ]);
     }
 
+    public function statusOptions(Investigation $investigation): JsonResponse
+    {
+        Gate::authorize('view', $investigation);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Investigation status options retrieved successfully',
+            'data' => $this->investigationService->statusOptions($investigation),
+        ]);
+    }
+
     public function updateStatus(UpdateInvestigationStatusRequest $request, Investigation $investigation): JsonResponse
     {
         Gate::authorize('updateStatus', $investigation);

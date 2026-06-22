@@ -18,7 +18,7 @@ class StoreInvestigationRequest extends FormRequest
     {
         return [
             'lead_investigator_id' => ['required', 'integer', 'exists:users,id'],
-            'plan_summary' => ['nullable', 'string', 'max:10000'],
+            'plan_summary' => ['required', 'string', 'min:50', 'max:5000'],
         ];
     }
 }

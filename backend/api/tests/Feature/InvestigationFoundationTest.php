@@ -5,6 +5,9 @@ namespace Tests\Feature;
 use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Enums\ReportStatus;
+use App\Enums\AuditAction;
+use App\Enums\AuditCategory;
+use App\Models\AuditLog;
 use App\Models\CaseAssignment;
 use App\Models\CaseRecord;
 use App\Models\CaseStatus;
@@ -79,6 +82,7 @@ class InvestigationFoundationTest extends TestCase
         $this->actingAsApi($satgas);
         $this->postJson("/api/v1/cases/{$otherCase->id}/investigations", [
             'lead_investigator_id' => $satgas->id,
+            'plan_summary' => 'Rencana investigasi awal yang valid tetapi kasus belum berada pada status investigation.',
         ])
             ->assertUnprocessable();
     }
@@ -93,12 +97,14 @@ class InvestigationFoundationTest extends TestCase
         $this->actingAsApi($admin);
         $this->postJson("/api/v1/cases/{$case->id}/investigations", [
             'lead_investigator_id' => $satgas->id,
+            'plan_summary' => 'Rencana investigasi awal yang valid untuk memastikan admin tetap ditolak.',
         ])
             ->assertForbidden();
 
         $this->actingAsApi($otherSatgas);
         $this->postJson("/api/v1/cases/{$case->id}/investigations", [
             'lead_investigator_id' => $otherSatgas->id,
+            'plan_summary' => 'Rencana investigasi awal yang valid untuk memastikan Satgas tidak assigned tetap ditolak.',
         ])
             ->assertForbidden();
 
@@ -203,6 +209,158 @@ class InvestigationFoundationTest extends TestCase
             'description' => 'Tidak boleh masuk setelah completed.',
         ])
             ->assertUnprocessable();
+    }
+
+    public function test_investigation_status_options_follow_view_policy_and_master_data_transitions(): void
+    {
+        $admin = $this->makeUser('admin', 'admin@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
+        $reporter = $this->makeUser('reporter', 'reporter@university.ac.id');
+        $case = $this->makeInvestigationCase($admin, $satgas);
+        $investigation = $this->makeInvestigation($case, $satgas);
+
+        $this->actingAsApi($satgas);
+        $this->getJson("/api/v1/investigations/{$investigation->id}/status-options")
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.current_status.code', 'INVS-01')
+            ->assertJsonPath('data.current_status.name', InvestigationStatusEnum::Planning->value)
+            ->assertJsonFragment([
+                'code' => 'INVS-02',
+                'name' => InvestigationStatusEnum::EvidenceCollection->value,
+            ])
+            ->assertJsonMissing([
+                'name' => InvestigationStatusEnum::Completed->value,
+            ]);
+
+        $this->actingAsApi($admin);
+        $this->getJson("/api/v1/investigations/{$investigation->id}/status-options")
+            ->assertOk()
+            ->assertJsonPath('data.current_status.name', InvestigationStatusEnum::Planning->value);
+
+        $this->actingAsApi($reporter);
+        $this->getJson("/api/v1/investigations/{$investigation->id}/status-options")
+            ->assertForbidden();
+    }
+
+    public function test_investigation_creation_requires_plan_summary_minimum_length(): void
+    {
+        $admin = $this->makeUser('admin', 'admin@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
+        $case = $this->makeInvestigationCase($admin, $satgas);
+
+        $this->actingAsApi($satgas);
+        $this->postJson("/api/v1/cases/{$case->id}/investigations", [
+            'lead_investigator_id' => $satgas->id,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('plan_summary');
+
+        $this->postJson("/api/v1/cases/{$case->id}/investigations", [
+            'lead_investigator_id' => $satgas->id,
+            'plan_summary' => 'Terlalu pendek.',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('plan_summary');
+    }
+
+    public function test_investigation_actions_dispatch_audit_logs_and_notifications(): void
+    {
+        $admin = $this->makeUser('admin', 'admin@university.ac.id');
+        $superAdmin = $this->makeUser('super_admin', 'super@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
+        $otherSatgas = $this->makeUser('satgas_ppks', 'other-satgas@university.ac.id');
+        $case = $this->makeInvestigationCase($admin, $satgas);
+
+        CaseAssignment::query()->create([
+            'case_id' => $case->id,
+            'satgas_id' => $otherSatgas->id,
+            'assigned_by' => $admin->id,
+            'is_lead' => false,
+            'is_active' => true,
+            'assigned_at' => now(),
+        ]);
+
+        $this->actingAsApi($satgas);
+        $investigationId = $this->postJson("/api/v1/cases/{$case->id}/investigations", [
+            'lead_investigator_id' => $satgas->id,
+            'plan_summary' => 'Rencana investigasi awal yang cukup panjang untuk memenuhi validasi minimum M27.',
+        ])
+            ->assertCreated()
+            ->json('data.id');
+
+        $investigation = Investigation::query()->findOrFail($investigationId);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::InvestigationCreated->value,
+            'category' => AuditCategory::Investigation->value,
+            'subject_type' => $investigation->getMorphClass(),
+            'subject_id' => $investigation->id,
+        ]);
+
+        $this->assertSame(1, $admin->notifications()->where('data->notification_type_code', 'investigation_created')->count());
+        $this->assertSame(1, $superAdmin->notifications()->where('data->notification_type_code', 'investigation_created')->count());
+        $this->assertSame(0, $satgas->notifications()->where('data->notification_type_code', 'investigation_created')->count());
+
+        $activityId = $this->postJson("/api/v1/investigations/{$investigation->id}/activities", [
+            'activity_type' => 'document_review',
+            'activity_date' => now()->toDateString(),
+            'description' => 'Satgas melakukan review dokumen tanpa upload file.',
+        ])
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::InvestigationActivityCreated->value,
+            'category' => AuditCategory::Investigation->value,
+            'subject_id' => $activityId,
+        ]);
+
+        InvestigationStatus::query()
+            ->where('name', InvestigationStatusEnum::Planning->value)
+            ->firstOrFail()
+            ->forceFill(['valid_transitions' => [InvestigationStatusEnum::Completed->value]])
+            ->save();
+
+        $this->patchJson("/api/v1/investigations/{$investigation->id}/status", [
+            'status' => InvestigationStatusEnum::Completed->value,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.status', InvestigationStatusEnum::Completed->value);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::InvestigationStatusChanged->value,
+            'category' => AuditCategory::Investigation->value,
+            'subject_type' => $investigation->getMorphClass(),
+            'subject_id' => $investigation->id,
+        ]);
+
+        $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'investigation_status_changed')->count());
+        $this->assertSame(1, $otherSatgas->notifications()->where('data->notification_type_code', 'investigation_status_changed')->count());
+        $this->assertSame(0, $admin->notifications()->where('data->notification_type_code', 'investigation_status_changed')->count());
+        $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'investigation_status_changed')->count());
+        $this->assertSame(1, $admin->notifications()->where('data->notification_type_code', 'investigation_completed')->count());
+        $this->assertSame(1, $superAdmin->notifications()->where('data->notification_type_code', 'investigation_completed')->count());
+
+        $payload = $satgas->notifications()->where('data->notification_type_code', 'investigation_status_changed')->firstOrFail()->data;
+        $this->assertSame($case->case_number, $payload['case_number']);
+        $this->assertSame(InvestigationStatusEnum::Planning->value, $payload['from_status']);
+        $this->assertSame(InvestigationStatusEnum::Completed->value, $payload['to_status']);
+        $this->assertArrayNotHasKey('plan_summary', $payload);
+        $this->assertArrayNotHasKey('findings', $payload);
+        $this->assertArrayNotHasKey('description', $payload);
+
+        $json = AuditLog::query()
+            ->whereIn('action', [
+                AuditAction::InvestigationCreated->value,
+                AuditAction::InvestigationActivityCreated->value,
+                AuditAction::InvestigationStatusChanged->value,
+            ])
+            ->get()
+            ->toJson();
+
+        $this->assertStringNotContainsString('Rencana investigasi awal', $json);
+        $this->assertStringNotContainsString('Satgas melakukan review dokumen', $json);
     }
 
     private function makeInvestigation(CaseRecord $case, User $satgas): Investigation
