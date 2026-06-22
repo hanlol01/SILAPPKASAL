@@ -22,6 +22,7 @@ import { Route as DashboardUsersRouteImport } from './routes/dashboard.users'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard.settings'
 import { Route as DashboardNotificationsRouteImport } from './routes/dashboard.notifications'
 import { Route as DashboardContentRouteImport } from './routes/dashboard.content'
+import { Route as DashboardBreakGlassRouteImport } from './routes/dashboard.break-glass'
 import { Route as DashboardAnalyticsRouteImport } from './routes/dashboard.analytics'
 import { Route as PortalReportsIndexRouteImport } from './routes/portal.reports.index'
 import { Route as DashboardReportsIndexRouteImport } from './routes/dashboard.reports.index'
@@ -96,6 +97,11 @@ const DashboardContentRoute = DashboardContentRouteImport.update({
   path: '/content',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardBreakGlassRoute = DashboardBreakGlassRouteImport.update({
+  id: '/break-glass',
+  path: '/break-glass',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardAnalyticsRoute = DashboardAnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/portal': typeof PortalRouteWithChildren
   '/dashboard/analytics': typeof DashboardAnalyticsRoute
+  '/dashboard/break-glass': typeof DashboardBreakGlassRoute
   '/dashboard/content': typeof DashboardContentRoute
   '/dashboard/notifications': typeof DashboardNotificationsRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
@@ -165,6 +172,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard/analytics': typeof DashboardAnalyticsRoute
+  '/dashboard/break-glass': typeof DashboardBreakGlassRoute
   '/dashboard/content': typeof DashboardContentRoute
   '/dashboard/notifications': typeof DashboardNotificationsRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
@@ -189,6 +197,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/portal': typeof PortalRouteWithChildren
   '/dashboard/analytics': typeof DashboardAnalyticsRoute
+  '/dashboard/break-glass': typeof DashboardBreakGlassRoute
   '/dashboard/content': typeof DashboardContentRoute
   '/dashboard/notifications': typeof DashboardNotificationsRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
@@ -214,6 +223,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/portal'
     | '/dashboard/analytics'
+    | '/dashboard/break-glass'
     | '/dashboard/content'
     | '/dashboard/notifications'
     | '/dashboard/settings'
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/dashboard/analytics'
+    | '/dashboard/break-glass'
     | '/dashboard/content'
     | '/dashboard/notifications'
     | '/dashboard/settings'
@@ -258,6 +269,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/portal'
     | '/dashboard/analytics'
+    | '/dashboard/break-glass'
     | '/dashboard/content'
     | '/dashboard/notifications'
     | '/dashboard/settings'
@@ -376,6 +388,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardContentRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/break-glass': {
+      id: '/dashboard/break-glass'
+      path: '/break-glass'
+      fullPath: '/dashboard/break-glass'
+      preLoaderRoute: typeof DashboardBreakGlassRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/analytics': {
       id: '/dashboard/analytics'
       path: '/analytics'
@@ -437,6 +456,7 @@ declare module '@tanstack/react-router' {
 
 interface DashboardRouteChildren {
   DashboardAnalyticsRoute: typeof DashboardAnalyticsRoute
+  DashboardBreakGlassRoute: typeof DashboardBreakGlassRoute
   DashboardContentRoute: typeof DashboardContentRoute
   DashboardNotificationsRoute: typeof DashboardNotificationsRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
@@ -451,6 +471,7 @@ interface DashboardRouteChildren {
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAnalyticsRoute: DashboardAnalyticsRoute,
+  DashboardBreakGlassRoute: DashboardBreakGlassRoute,
   DashboardContentRoute: DashboardContentRoute,
   DashboardNotificationsRoute: DashboardNotificationsRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,

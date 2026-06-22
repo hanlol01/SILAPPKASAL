@@ -16,10 +16,21 @@ export interface MasterRef {
   description?: string | null;
 }
 
+export type ReportReporter =
+  | {
+      masked: true;
+    }
+  | {
+      id: number;
+      name: string;
+    };
+
 export interface ReportSummary {
   id: number;
   registration_number: string;
   report_type: string;
+  is_anonymous?: boolean;
+  reporter?: ReportReporter | null;
   category?: MasterRef | null;
   status: string;
   priority?: MasterRef | null;

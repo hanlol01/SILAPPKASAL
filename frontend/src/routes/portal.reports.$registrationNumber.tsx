@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -110,6 +111,12 @@ function ReportDetail({ report }: ReportDetailProps) {
         <PortalStatusBadge
           portalStatus={report.portal_status}
         />
+        {report.report_type === "anonymous" && (
+          <Badge variant="outline" className="gap-1 text-muted-foreground">
+            <Lock className="h-3 w-3" />
+            {t("anonymousReport")}
+          </Badge>
+        )}
       </div>
 
       {/* Detail card */}

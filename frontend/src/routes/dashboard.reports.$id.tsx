@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Lock } from "lucide-react";
 import { AccessDenied } from "@/components/access-denied";
+import { BreakGlassRequestDialog } from "@/components/admin/break-glass-request-dialog";
 import { QueryErrorState } from "@/components/query-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { SatgasAssignmentAction } from "@/components/workflow-actions/satgas-assignment-action";
 import { useAuth } from "@/hooks/use-auth";
 import { getReport, operationsQueryKeys } from "@/lib/operations-api";
+import type { ReportReporter } from "@/lib/operations-types";
 
 export const Route = createFileRoute("/dashboard/reports/$id")({
   component: ReportDetailPage,
@@ -17,7 +19,7 @@ export const Route = createFileRoute("/dashboard/reports/$id")({
 
 function ReportDetailPage() {
   const { id } = Route.useParams();
-  const { roleCode } = useAuth();
+  const { roleCode, user } = useAuth();
   const reportQuery = useQuery({
     queryKey: operationsQueryKeys.report(id),
     queryFn: () => getReport(id),
@@ -37,6 +39,8 @@ function ReportDetailPage() {
   }
 
   const report = reportQuery.data;
+  const canRequestBreakGlass = Boolean(user?.permissions?.includes("privacy.request_break_glass"));
+  const isAnonymousReport = Boolean(report.is_anonymous || report.report_type === "anonymous");
 
   return (
     <div className="space-y-6">
@@ -49,8 +53,8 @@ function ReportDetailPage() {
         <div className="flex items-center gap-2">
           <h1 className="font-mono text-lg font-semibold">{report.registration_number}</h1>
           <Badge variant="outline">{label(report.status)}</Badge>
-          {report.report_type === "anonymous" && (
-            <Badge variant="secondary" className="gap-1">
+          {isAnonymousReport && (
+            <Badge variant="outline" className="gap-1 text-muted-foreground">
               <Lock className="h-3 w-3" /> Anonymous
             </Badge>
           )}
@@ -68,6 +72,7 @@ function ReportDetailPage() {
           <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
             <Field label="Registration">{report.registration_number}</Field>
             <Field label="Report type">{label(report.report_type)}</Field>
+            <Field label="Reporter">{reporterDisplay(report.reporter)}</Field>
             <Field label="Category">{report.category?.name ?? "Metadata unavailable"}</Field>
             <Field label="Priority">{report.priority?.name ?? "-"}</Field>
             <Field label="Submitted">{formatDate(report.submitted_at)}</Field>
@@ -84,6 +89,12 @@ function ReportDetailPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <SatgasAssignmentAction mode="forward-report" targetId={report.id} />
+            {isAnonymousReport && canRequestBreakGlass && (
+              <BreakGlassRequestDialog
+                reportId={report.id}
+                registrationNumber={report.registration_number}
+              />
+            )}
             <p className="text-xs text-muted-foreground">
               Select one or more Satgas users and choose a lead from the selected users.
               Backend RBAC remains authoritative.
@@ -106,6 +117,18 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function label(value: string) {
   return value.replace(/[-_]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function reporterDisplay(reporter: ReportReporter | null | undefined) {
+  if (!reporter) {
+    return <span className="text-muted-foreground">Metadata unavailable</span>;
+  }
+
+  if ("masked" in reporter && reporter.masked === true) {
+    return <span className="text-muted-foreground">Reporter identity hidden</span>;
+  }
+
+  return reporter.name;
 }
 
 function formatDate(value: string | null | undefined) {

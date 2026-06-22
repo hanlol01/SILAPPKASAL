@@ -32,6 +32,8 @@
   "status": "Status",
   "submitted": "Dikirim",
   "submittedDate": "Dikirim pada {{date}}",
+  "anonymousReport": "Laporan Anonim",
+  "reporterIdentityHidden": "Identitas pelapor disembunyikan",
   
   "notifications": "Notifikasi",
   "unreadNotifications_one": "{{count}} notifikasi belum dibaca",

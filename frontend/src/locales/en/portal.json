@@ -32,6 +32,8 @@
   "status": "Status",
   "submitted": "Submitted",
   "submittedDate": "Submitted {{date}}",
+  "anonymousReport": "Anonymous Report",
+  "reporterIdentityHidden": "Reporter identity hidden",
   
   "notifications": "Notifications",
   "unreadNotifications_one": "{{count}} unread notification",

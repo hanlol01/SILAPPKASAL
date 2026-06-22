@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { FileText } from "lucide-react";
+import { FileText, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { PortalStatusBadge } from "@/components/portal/portal-status-badge";
 import { formatDate } from "@/lib/format";
@@ -41,6 +42,12 @@ export function PortalReportCard({ report }: PortalReportCardProps) {
             <PortalStatusBadge
               portalStatus={report.portal_status}
             />
+            {report.report_type === "anonymous" && (
+              <Badge variant="outline" className="gap-1 text-muted-foreground">
+                <Lock className="h-3 w-3" />
+                {t("portal:anonymousReport")}
+              </Badge>
+            )}
           </div>
           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
             <span>{portalReportTypeLabel(report.report_type, i18n.language)}</span>

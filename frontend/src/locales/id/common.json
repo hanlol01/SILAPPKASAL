@@ -9,6 +9,11 @@
   "unexpectedError": "Terjadi kesalahan yang tidak terduga.",
   "edit": "Ubah",
   "view": "Lihat",
+  "breakGlass": "Break-glass",
+  "breakGlassRequest": "Ajukan break-glass",
+  "breakGlassPending": "Permintaan break-glass tertunda",
+  "breakGlassHistory": "Riwayat break-glass",
+  "revealedIdentity": "Identitas yang diungkapkan",
   "yes": "Ya",
   "no": "Tidak"
 }

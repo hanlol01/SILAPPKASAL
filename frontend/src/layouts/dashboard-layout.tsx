@@ -7,6 +7,7 @@ import {
   BarChart3,
   Settings,
   ShieldCheck,
+  ShieldAlert,
   LogOut,
   Moon,
   Sun,
@@ -77,6 +78,12 @@ const nav: {
     url: "/dashboard/analytics",
     icon: BarChart3,
     roles: ["super_admin", "admin"],
+  },
+  {
+    title: "Break-glass",
+    url: "/dashboard/break-glass",
+    icon: ShieldAlert,
+    roles: ["super_admin"],
   },
   {
     title: "Settings",

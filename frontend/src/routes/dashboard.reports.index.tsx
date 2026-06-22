@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Search, SlidersHorizontal } from "lucide-react";
+import { FileText, Lock, Search, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 import { AccessDenied } from "@/components/access-denied";
 import { QueryErrorState } from "@/components/query-state";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
 import { getReports, operationsQueryKeys } from "@/lib/operations-api";
+import type { ReportReporter } from "@/lib/operations-types";
 
 export const Route = createFileRoute("/dashboard/reports/")({
   component: ReportsPage,
@@ -115,6 +116,7 @@ function ReportsPage() {
                   <tr>
                     <th className="px-3 py-2 text-left">Registration</th>
                     <th className="px-3 py-2 text-left">Type</th>
+                    <th className="px-3 py-2 text-left">Reporter</th>
                     <th className="px-3 py-2 text-left">Category</th>
                     <th className="px-3 py-2 text-left">Priority</th>
                     <th className="px-3 py-2 text-left">Status</th>
@@ -126,7 +128,18 @@ function ReportsPage() {
                   {filtered.map((report) => (
                     <tr key={report.id} className="border-t hover:bg-muted/40">
                       <td className="px-3 py-2 font-mono text-xs">{report.registration_number}</td>
-                      <td className="px-3 py-2">{label(report.report_type)}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span>{label(report.report_type)}</span>
+                          {(report.is_anonymous || report.report_type === "anonymous") && (
+                            <Badge variant="outline" className="gap-1 text-muted-foreground">
+                              <Lock className="h-3 w-3" />
+                              Anonymous
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">{reporterDisplay(report.reporter)}</td>
                       <td className="px-3 py-2">{report.category?.name ?? "Metadata unavailable"}</td>
                       <td className="px-3 py-2">{report.priority?.name ?? "-"}</td>
                       <td className="px-3 py-2"><Badge variant="outline">{label(report.status)}</Badge></td>
@@ -140,7 +153,7 @@ function ReportsPage() {
                   ))}
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-3 py-12 text-center text-sm text-muted-foreground">
+                      <td colSpan={8} className="px-3 py-12 text-center text-sm text-muted-foreground">
                         No reports match your filters.
                       </td>
                     </tr>
@@ -162,6 +175,18 @@ function ReportsPage() {
 
 function label(value: string) {
   return value.replace(/[-_]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function reporterDisplay(reporter: ReportReporter | null | undefined) {
+  if (!reporter) {
+    return <span className="text-muted-foreground">Metadata unavailable</span>;
+  }
+
+  if ("masked" in reporter && reporter.masked === true) {
+    return <span className="text-muted-foreground">Reporter identity hidden</span>;
+  }
+
+  return reporter.name;
 }
 
 function formatDate(value: string | null | undefined) {
