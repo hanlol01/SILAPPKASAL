@@ -19,6 +19,8 @@ class NotificationService
     public const TYPE_CASE_STATUS_CHANGED = 'NOTIF-13';
     public const TYPE_RECOMMENDATION_SUBMITTED_TO_LEADER = 'NOTIF-14';
     public const TYPE_DECISION_FINALIZED = 'NOTIF-15';
+    public const TYPE_RECOMMENDATION_CREATED = 'NOTIF-16';
+    public const TYPE_RECOMMENDATION_STATUS_CHANGED = 'NOTIF-17';
 
     /**
      * @param list<int> $satgasIds
@@ -72,6 +74,44 @@ class NotificationService
             'event' => 'recommendation_submitted_to_leader',
             'title' => 'Recommendation submitted',
             'body' => 'A recommendation has been submitted for decision review.',
+            'subject_type' => 'recommendation',
+            'subject_id' => $recommendation->id,
+            'case_id' => $recommendation->case_id,
+            'recommendation_id' => $recommendation->id,
+            'status_code' => $recommendation->status_code,
+        ]);
+    }
+
+    public function recommendationCreated(Recommendation $recommendation): void
+    {
+        $recommendation->loadMissing('status');
+
+        $this->send($this->decisionManagers(), [
+            'notification_type_code' => self::TYPE_RECOMMENDATION_CREATED,
+            'event' => 'recommendation_created',
+            'title' => 'Recommendation created',
+            'body' => 'A recommendation has been created for decision preparation.',
+            'subject_type' => 'recommendation',
+            'subject_id' => $recommendation->id,
+            'case_id' => $recommendation->case_id,
+            'recommendation_id' => $recommendation->id,
+            'status_code' => $recommendation->status_code,
+        ]);
+    }
+
+    public function recommendationStatusChanged(Recommendation $recommendation): void
+    {
+        $recommendation->loadMissing(['status', 'case.activeAssignments.satgas']);
+
+        if ($recommendation->status?->name === RecommendationStatusEnum::SubmittedToLeader->value || ! $recommendation->case) {
+            return;
+        }
+
+        $this->send($this->activeAssignedSatgas($recommendation->case), [
+            'notification_type_code' => self::TYPE_RECOMMENDATION_STATUS_CHANGED,
+            'event' => 'recommendation_status_changed',
+            'title' => 'Recommendation status updated',
+            'body' => 'A recommendation for an assigned case has a status update.',
             'subject_type' => 'recommendation',
             'subject_id' => $recommendation->id,
             'case_id' => $recommendation->case_id,

@@ -18,6 +18,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { InvestigationCreateAction } from "@/components/workflow-actions/investigation-create-action";
 import { InvestigationStatusAction } from "@/components/workflow-actions/investigation-status-action";
+import { RecommendationCreateAction } from "@/components/workflow-actions/recommendation-create-action";
+import { RecommendationStatusAction } from "@/components/workflow-actions/recommendation-status-action";
 import { SatgasAssignmentAction } from "@/components/workflow-actions/satgas-assignment-action";
 import {
   CaseStatusAction,
@@ -107,14 +109,23 @@ function CaseDetail() {
     (c.assignments ?? []).some((assignment) => assignment.is_active && assignment.satgas_id === user?.id);
   const canUseSatgasActions = isAssignedSatgas && !c.closed_at;
   const canInvestigate = canUseSatgasActions && Boolean(user?.permissions?.includes("cases.investigate"));
+  const canRecommend = canUseSatgasActions && Boolean(user?.permissions?.includes("cases.recommend"));
   const canManageInstitutionalActions = isAdminRole;
   const canAddRecoveryMonitoring = canManageInstitutionalActions || canUseSatgasActions;
   const activeAssignments = (c.assignments ?? []).filter((assignment) => assignment.is_active);
+  const latestCompletedInvestigation = mostRecentCompletedInvestigation(investigationsQuery.data ?? []);
   const canCreateInvestigation =
     canInvestigate &&
     investigationsQuery.isSuccess &&
     c.status === "investigation" &&
     (investigationsQuery.data ?? []).length === 0;
+  const canCreateRecommendation =
+    canRecommend &&
+    investigationsQuery.isSuccess &&
+    recommendationsQuery.isSuccess &&
+    c.status === "recommendation" &&
+    (recommendationsQuery.data ?? []).length === 0 &&
+    latestCompletedInvestigation !== null;
 
   return (
     <div className="space-y-6">
@@ -160,7 +171,8 @@ function CaseDetail() {
           <RecommendationsSection
             recommendations={recommendationsQuery.data ?? []}
             loading={recommendationsQuery.isLoading}
-            canUpdate={canUseSatgasActions}
+            canUpdate={canRecommend}
+            canTransitionStatus={canRecommend}
             caseId={c.id}
           />
           <DecisionsSection
@@ -249,6 +261,21 @@ function CaseDetail() {
                       ? "Case must be in investigation status before creating an investigation."
                       : "This case already has an investigation or investigation data is still loading."
                   }
+                />
+              )}
+              {canCreateRecommendation && latestCompletedInvestigation && (
+                <RecommendationCreateAction caseId={c.id} investigation={latestCompletedInvestigation} />
+              )}
+              {canRecommend && !canCreateRecommendation && (
+                <DisabledWorkflowAction
+                  title="Create recommendation"
+                  description={recommendationCreateDisabledReason(
+                    c.status,
+                    recommendationsQuery.isSuccess,
+                    (recommendationsQuery.data ?? []).length,
+                    investigationsQuery.isSuccess,
+                    latestCompletedInvestigation,
+                  )}
                 />
               )}
             </CardContent>
@@ -352,11 +379,13 @@ function RecommendationsSection({
   recommendations,
   loading,
   canUpdate,
+  canTransitionStatus,
   caseId,
 }: {
   recommendations: Recommendation[];
   loading: boolean;
   canUpdate: boolean;
+  canTransitionStatus: boolean;
   caseId: number | string;
 }) {
   return (
@@ -367,9 +396,10 @@ function RecommendationsSection({
             <div className="font-medium">Recommendation #{item.id}</div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline">{label(item.status_code)}</Badge>
-              {canUpdate && hasRecommendationDetail(item) && (
+              {canUpdate && canEditRecommendation(item) && hasRecommendationDetail(item) && (
                 <RecommendationUpdateAction recommendation={item} caseId={caseId} />
               )}
+              {canTransitionStatus && <RecommendationStatusAction recommendation={item} caseId={caseId} />}
             </div>
           </div>
           <div className="mt-2 text-muted-foreground">Author: {item.author?.name ?? "Metadata unavailable"}</div>
@@ -384,12 +414,6 @@ function RecommendationsSection({
           ) : (
             <MetadataOnlyText />
           )}
-          <div className="mt-3">
-            <DisabledWorkflowAction
-              title="Recommendation status update"
-              description="Status action is disabled until recommendation status options or transition data are exposed by backend."
-            />
-          </div>
         </div>
       ))}
     </SectionCard>
@@ -591,6 +615,51 @@ function asText(value: unknown) {
 
 function hasRecommendationDetail(item: Recommendation) {
   return item.conclusion !== undefined && item.recommended_actions !== undefined;
+}
+
+function canEditRecommendation(item: Recommendation) {
+  return item.status === "drafting" || item.status === "revised";
+}
+
+function mostRecentCompletedInvestigation(items: Investigation[]) {
+  const completed = items.filter((item) => item.status === "completed" && item.completed_at);
+
+  if (completed.length === 0) {
+    return null;
+  }
+
+  return [...completed].sort((a, b) => {
+    const aTime = a.completed_at ? new Date(a.completed_at).getTime() : 0;
+    const bTime = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+
+    return bTime - aTime;
+  })[0];
+}
+
+function recommendationCreateDisabledReason(
+  status: string | null | undefined,
+  recommendationsLoaded: boolean,
+  recommendationCount: number,
+  investigationsLoaded: boolean,
+  completedInvestigation: Investigation | null,
+) {
+  if (status !== "recommendation") {
+    return "Case must be in recommendation status before creating a recommendation.";
+  }
+
+  if (!recommendationsLoaded || !investigationsLoaded) {
+    return "Recommendation or investigation data is still loading.";
+  }
+
+  if (recommendationCount > 0) {
+    return "This case already has a recommendation.";
+  }
+
+  if (!completedInvestigation) {
+    return "A completed investigation is required before creating a recommendation.";
+  }
+
+  return "Recommendation creation is not available for this case.";
 }
 
 function label(value: string) {

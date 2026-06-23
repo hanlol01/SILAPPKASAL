@@ -2,7 +2,7 @@
 
 > Status: Active Handoff  
 > Last Updated: 2026-06-22  
-> Current Milestone: Milestone 26 Complete - Security & Privacy Enhancement  
+> Current Milestone: Milestone 27 Complete - Investigation Workflow  
 > Next Milestone: TBD
 
 ---
@@ -73,6 +73,7 @@ The Reporter Portal provides a secure self-service area for reporter/student rol
 | 24 | Workflow Activation Foundation | PASS | Frontend activation of report forwarding and case assignment using safe Satgas lookup, React Query invalidation, backend-authoritative validation, and QA verification. |
 | 25 | Localization Foundation | PASS | Frontend localization foundation implemented with Reporter Portal bilingual support, Bahasa Indonesia default, and English optional. |
 | 26 | Security & Privacy Enhancement | PASS | Security and Privacy policies finalized. Implemented Anonymous Reporting, Break Glass, Privacy Enforcement, and Audit Filtering. |
+| 27 | Investigation Workflow | PASS | Investigation backend and frontend components implemented. Added status-options endpoint, lead investigator picker, plan summary validation, audit logs, and notifications. Only assigned Satgas can create/update investigations. |
 
 Latest known fully verified baseline before Milestone 13 implementation:
 

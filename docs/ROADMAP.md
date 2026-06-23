@@ -2,7 +2,7 @@
 
 > Status: Active  
 > Last Updated: 2026-06-22  
-> Current Position: Milestone 26 Complete  
+> Current Position: Milestone 27 Complete  
 > Next: TBD
 
 ---
@@ -673,6 +673,21 @@ Delivered:
 - Privacy Enforcement logic via `BreakGlassService` and backend policies.
 - Audit Filtering excluding `privacy` category from Admin views.
 - Frontend integration with bilingual (ID/EN) labels for break-glass and anonymous features.
+
+### Milestone 27 - Investigation Workflow
+
+Status: PASS
+
+Delivered:
+- Added `GET /api/v1/investigations/{investigation}/status-options` endpoint.
+- Lead investigator assignment limited to active assigned Satgas.
+- Plan Summary validation requiring minimum 50 characters.
+- Audit logs for investigation creation, activity, and status changes.
+- Notification dispatch to assigned Satgas for status changes.
+- Notification dispatch to Admin and Super Admin for creation and completion.
+- `InvestigationCreateAction` and `InvestigationStatusAction` frontend components.
+- Blocked Admin/Super Admin from creating investigations.
+- Ensured Recommendation/Decision/Recovery remain disabled in frontend.
 
 ---
 

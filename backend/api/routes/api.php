@@ -123,6 +123,7 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware('auth:sanctum')->prefix('recommendations')->group(function (): void {
         Route::post('/{recommendation}/decisions', [DecisionController::class, 'storeForRecommendation']);
         Route::get('/{recommendation}/decisions', [DecisionController::class, 'indexForRecommendation']);
+        Route::get('/{recommendation}/status-options', [RecommendationController::class, 'statusOptions']);
         Route::get('/{recommendation}', [RecommendationController::class, 'show']);
         Route::patch('/{recommendation}', [RecommendationController::class, 'update']);
         Route::patch('/{recommendation}/status', [RecommendationController::class, 'updateStatus']);

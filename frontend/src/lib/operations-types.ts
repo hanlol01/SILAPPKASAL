@@ -156,6 +156,15 @@ export interface Recommendation {
   updated_at: string | null;
 }
 
+export interface RecommendationCreatePayload {
+  investigation_id: number;
+  conclusion: string;
+  recommended_actions: string;
+  sanction_recommendation?: string | null;
+  recovery_recommendation?: string | null;
+  prevention_recommendation?: string | null;
+}
+
 export interface Decision {
   id: number;
   recommendation_id: number;
@@ -262,6 +271,21 @@ export interface RecommendationUpdatePayload {
   sanction_recommendation?: string | null;
   recovery_recommendation?: string | null;
   prevention_recommendation?: string | null;
+}
+
+export interface RecommendationStatusPayload {
+  status: string;
+}
+
+export interface RecommendationStatusOption {
+  code: string;
+  name: string;
+  description?: string | null;
+}
+
+export interface RecommendationStatusOptions {
+  current_status: RecommendationStatusOption;
+  valid_transitions: RecommendationStatusOption[];
 }
 
 export interface DecisionUpdatePayload {

@@ -66,6 +66,17 @@ class RecommendationController extends Controller
         ]);
     }
 
+    public function statusOptions(Request $request, Recommendation $recommendation): JsonResponse
+    {
+        Gate::authorize('view', $recommendation);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Recommendation status options retrieved successfully',
+            'data' => $this->recommendationService->statusOptions($recommendation, $request->user()),
+        ]);
+    }
+
     public function update(UpdateRecommendationRequest $request, Recommendation $recommendation): JsonResponse
     {
         Gate::authorize('update', $recommendation);

@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Enums\AuditAction;
+use App\Enums\AuditCategory;
+use App\Enums\AuditSeverity;
 use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Enums\RecommendationStatus as RecommendationStatusEnum;
@@ -18,7 +21,10 @@ use Illuminate\Support\Facades\DB;
 
 class RecommendationService
 {
-    public function __construct(private readonly NotificationService $notificationService)
+    public function __construct(
+        private readonly NotificationService $notificationService,
+        private readonly AuditLogService $auditLogService,
+    )
     {
     }
 
@@ -50,8 +56,24 @@ class RecommendationService
             ]);
 
             $this->recordStatusHistory($recommendation, null, $status->code, $actor);
+            $recommendation = $recommendation->load(['case', 'status', 'author', 'statusHistories.fromStatus', 'statusHistories.toStatus', 'statusHistories.changedBy']);
 
-            return $recommendation->load(['case', 'status', 'author', 'statusHistories.fromStatus', 'statusHistories.toStatus', 'statusHistories.changedBy']);
+            $this->recordAudit(
+                AuditAction::RecommendationCreated,
+                $actor,
+                $recommendation,
+                [
+                    'recommendation_id' => $recommendation->id,
+                    'case_id' => $recommendation->case_id,
+                    'investigation_id' => $recommendation->investigation_id,
+                    'status_code' => $recommendation->status_code,
+                ],
+                afterChanges: ['status_code' => $recommendation->status_code],
+            );
+
+            $this->notificationService->recommendationCreated($recommendation);
+
+            return $recommendation;
         });
     }
 
@@ -95,9 +117,39 @@ class RecommendationService
             $this->authorizeAssignedRecommender($recommendation->case, $actor);
             $this->ensureRecommendationEditable($recommendation);
 
+            $before = $recommendation->only([
+                'conclusion',
+                'recommended_actions',
+                'sanction_recommendation',
+                'recovery_recommendation',
+                'prevention_recommendation',
+            ]);
+
             $recommendation->fill($data)->save();
 
-            return $recommendation->load(['case', 'status', 'author', 'statusHistories.fromStatus', 'statusHistories.toStatus', 'statusHistories.changedBy']);
+            $after = $recommendation->only([
+                'conclusion',
+                'recommended_actions',
+                'sanction_recommendation',
+                'recovery_recommendation',
+                'prevention_recommendation',
+            ]);
+
+            $recommendation = $recommendation->load(['case', 'status', 'author', 'statusHistories.fromStatus', 'statusHistories.toStatus', 'statusHistories.changedBy']);
+
+            $this->recordAudit(
+                AuditAction::RecommendationUpdated,
+                $actor,
+                $recommendation,
+                [
+                    'recommendation_id' => $recommendation->id,
+                    'case_id' => $recommendation->case_id,
+                ],
+                beforeChanges: array_intersect_key($before, $data),
+                afterChanges: array_intersect_key($after, $data),
+            );
+
+            return $recommendation;
         });
     }
 
@@ -122,19 +174,76 @@ class RecommendationService
             }
 
             $fromStatusCode = $recommendation->status_code;
+            $fromStatusName = $recommendation->status?->name;
             $recommendation->forceFill([
                 'status_code' => $nextStatus->code,
                 'submitted_at' => $nextStatus->name === RecommendationStatusEnum::SubmittedToLeader->value ? now() : $recommendation->submitted_at,
             ])->save();
 
             $this->recordStatusHistory($recommendation, $fromStatusCode, $nextStatus->code, $actor);
+            $recommendation = $recommendation->load(['case.activeAssignments.satgas', 'status', 'author', 'statusHistories.fromStatus', 'statusHistories.toStatus', 'statusHistories.changedBy']);
+
+            $this->recordAudit(
+                AuditAction::RecommendationStatusChanged,
+                $actor,
+                $recommendation,
+                [
+                    'recommendation_id' => $recommendation->id,
+                    'case_id' => $recommendation->case_id,
+                    'from_status' => $fromStatusName,
+                    'to_status' => $nextStatus->name,
+                ],
+                beforeChanges: ['status_code' => $fromStatusCode],
+                afterChanges: ['status_code' => $recommendation->status_code],
+            );
 
             if ($nextStatus->name === RecommendationStatusEnum::SubmittedToLeader->value) {
                 $this->notificationService->recommendationSubmittedToLeader($recommendation);
+            } else {
+                $this->notificationService->recommendationStatusChanged($recommendation);
             }
 
-            return $recommendation->load(['case', 'status', 'author', 'statusHistories.fromStatus', 'statusHistories.toStatus', 'statusHistories.changedBy']);
+            return $recommendation;
         });
+    }
+
+    /**
+     * @return array{current_status: array{code: string|null, name: string|null, description: string|null}, valid_transitions: list<array{code: string, name: string, description: string|null}>}
+     */
+    public function statusOptions(Recommendation $recommendation, User $user): array
+    {
+        $recommendation->loadMissing('status');
+
+        $statuses = [];
+
+        if ($this->canReadSensitive($recommendation, $user)) {
+            $transitionNames = collect($recommendation->status?->valid_transitions ?? [])
+                ->reject(fn (string $name): bool => in_array($name, RecommendationStatusEnum::decisionOnlyValues(), true))
+                ->values()
+                ->all();
+
+            $statuses = RecommendationStatus::query()
+                ->where('is_active', true)
+                ->whereIn('name', $transitionNames)
+                ->orderBy('sort_order')
+                ->get()
+                ->map(fn (RecommendationStatus $status): array => [
+                    'code' => $status->code,
+                    'name' => $status->name,
+                    'description' => $status->description,
+                ])
+                ->values()
+                ->all();
+        }
+
+        return [
+            'current_status' => [
+                'code' => $recommendation->status?->code,
+                'name' => $recommendation->status?->name,
+                'description' => $recommendation->status?->description,
+            ],
+            'valid_transitions' => $statuses,
+        ];
     }
 
     public function canReadSensitive(Recommendation $recommendation, User $user): bool
@@ -197,7 +306,7 @@ class RecommendationService
     private function ensureRecommendationOpen(Recommendation $recommendation): void
     {
         if ($recommendation->status?->name === RecommendationStatusEnum::SubmittedToLeader->value) {
-            throw $this->unprocessable('Submitted recommendations cannot transition in Milestone 8');
+            throw $this->unprocessable('Submitted recommendations are terminal for Satgas workflow');
         }
     }
 
@@ -224,6 +333,31 @@ class RecommendationService
     {
         return ($user->hasPermission('cases.read.metadata') && ($user->hasRole('admin') || $user->hasRole('super_admin')))
             || ($user->hasPermission('cases.read.all') && $user->hasRole('super_admin'));
+    }
+
+    /**
+     * @param array<string, mixed> $metadata
+     * @param array<string, mixed> $beforeChanges
+     * @param array<string, mixed> $afterChanges
+     */
+    private function recordAudit(
+        AuditAction $action,
+        User $actor,
+        Recommendation $subject,
+        array $metadata = [],
+        array $beforeChanges = [],
+        array $afterChanges = [],
+    ): void {
+        $this->auditLogService->record(
+            action: $action,
+            category: AuditCategory::Recommendation,
+            severity: AuditSeverity::Info,
+            actor: $actor,
+            subject: $subject,
+            metadata: $metadata,
+            beforeChanges: $beforeChanges,
+            afterChanges: $afterChanges,
+        );
     }
 
     private function statusByName(RecommendationStatusEnum $status): RecommendationStatus

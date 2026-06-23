@@ -6,6 +6,9 @@ use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Enums\RecommendationStatus as RecommendationStatusEnum;
 use App\Enums\ReportStatus;
+use App\Enums\AuditAction;
+use App\Enums\AuditCategory;
+use App\Models\AuditLog;
 use App\Models\CaseAssignment;
 use App\Models\CaseRecord;
 use App\Models\CaseStatus;
@@ -53,6 +56,8 @@ class RecommendationFoundationTest extends TestCase
 
         $this->assertContains(RecommendationStatusEnum::SubmittedToLeader->value, $drafting->valid_transitions);
         $this->assertDatabaseHas('permissions', ['code' => 'cases.recommend']);
+        $this->assertDatabaseHas('notification_types', ['code' => 'NOTIF-16']);
+        $this->assertDatabaseHas('notification_types', ['code' => 'NOTIF-17']);
     }
 
     public function test_assigned_satgas_can_create_recommendation_from_completed_investigation(): void
@@ -218,6 +223,168 @@ class RecommendationFoundationTest extends TestCase
             'status' => RecommendationStatusEnum::Accepted->value,
         ])
             ->assertUnprocessable();
+    }
+
+    public function test_recommendation_status_options_follow_view_policy_and_filter_decision_only_statuses(): void
+    {
+        $admin = $this->makeUser('admin', 'admin@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
+        $reporter = $this->makeUser('reporter', 'reporter@university.ac.id');
+        $case = $this->makeRecommendationCase($admin, $satgas);
+        $investigation = $this->makeCompletedInvestigation($case, $satgas);
+        $recommendation = $this->makeRecommendation($case, $investigation, $satgas);
+
+        RecommendationStatusModel::query()
+            ->where('name', RecommendationStatusEnum::Drafting->value)
+            ->firstOrFail()
+            ->forceFill([
+                'valid_transitions' => [
+                    RecommendationStatusEnum::InternalReview->value,
+                    RecommendationStatusEnum::SubmittedToLeader->value,
+                    RecommendationStatusEnum::Accepted->value,
+                ],
+            ])
+            ->save();
+
+        $this->actingAsApi($satgas);
+        $this->getJson("/api/v1/recommendations/{$recommendation->id}/status-options")
+            ->assertOk()
+            ->assertJsonPath('data.current_status.code', 'RECS-01')
+            ->assertJsonPath('data.current_status.name', RecommendationStatusEnum::Drafting->value)
+            ->assertJsonFragment([
+                'code' => 'RECS-02',
+                'name' => RecommendationStatusEnum::InternalReview->value,
+            ])
+            ->assertJsonFragment([
+                'code' => 'RECS-03',
+                'name' => RecommendationStatusEnum::SubmittedToLeader->value,
+            ])
+            ->assertJsonMissing([
+                'name' => RecommendationStatusEnum::Accepted->value,
+            ]);
+
+        $this->actingAsApi($admin);
+        $this->getJson("/api/v1/recommendations/{$recommendation->id}/status-options")
+            ->assertOk()
+            ->assertJsonPath('data.current_status.name', RecommendationStatusEnum::Drafting->value)
+            ->assertJsonCount(0, 'data.valid_transitions');
+
+        $this->actingAsApi($reporter);
+        $this->getJson("/api/v1/recommendations/{$recommendation->id}/status-options")
+            ->assertForbidden();
+
+        $recommendation->forceFill([
+            'status_code' => RecommendationStatusModel::query()
+                ->where('name', RecommendationStatusEnum::SubmittedToLeader->value)
+                ->firstOrFail()
+                ->code,
+            'submitted_at' => now(),
+        ])->save();
+
+        $this->actingAsApi($satgas);
+        $this->getJson("/api/v1/recommendations/{$recommendation->id}/status-options")
+            ->assertOk()
+            ->assertJsonPath('data.current_status.name', RecommendationStatusEnum::SubmittedToLeader->value)
+            ->assertJsonCount(0, 'data.valid_transitions');
+    }
+
+    public function test_recommendation_workflow_dispatches_audit_logs_and_notifications(): void
+    {
+        $admin = $this->makeUser('admin', 'admin@university.ac.id');
+        $superAdmin = $this->makeUser('super_admin', 'super@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
+        $otherSatgas = $this->makeUser('satgas_ppks', 'other-satgas@university.ac.id');
+        $case = $this->makeRecommendationCase($admin, $satgas);
+
+        CaseAssignment::query()->create([
+            'case_id' => $case->id,
+            'satgas_id' => $otherSatgas->id,
+            'assigned_by' => $admin->id,
+            'is_lead' => false,
+            'is_active' => true,
+            'assigned_at' => now(),
+        ]);
+
+        $investigation = $this->makeCompletedInvestigation($case, $satgas);
+
+        $this->actingAsApi($satgas);
+        $recommendationId = $this->postJson("/api/v1/cases/{$case->id}/recommendations", $this->payload($investigation))
+            ->assertCreated()
+            ->json('data.id');
+
+        $recommendation = Recommendation::query()->findOrFail($recommendationId);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::RecommendationCreated->value,
+            'category' => AuditCategory::Recommendation->value,
+            'subject_type' => $recommendation->getMorphClass(),
+            'subject_id' => $recommendation->id,
+        ]);
+
+        $createdLog = AuditLog::query()
+            ->where('action', AuditAction::RecommendationCreated->value)
+            ->firstOrFail();
+
+        $this->assertSame($recommendation->id, $createdLog->metadata['recommendation_id']);
+        $this->assertSame(1, $admin->notifications()->where('data->notification_type_code', 'NOTIF-16')->count());
+        $this->assertSame(1, $superAdmin->notifications()->where('data->notification_type_code', 'NOTIF-16')->count());
+        $this->assertSame(0, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-16')->count());
+
+        $this->patchJson("/api/v1/recommendations/{$recommendation->id}", [
+            'recommended_actions' => 'Tindakan rekomendasi yang diperbarui dan tetap sensitif.',
+        ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::RecommendationUpdated->value,
+            'category' => AuditCategory::Recommendation->value,
+            'subject_type' => $recommendation->getMorphClass(),
+            'subject_id' => $recommendation->id,
+        ]);
+
+        $this->patchJson("/api/v1/recommendations/{$recommendation->id}/status", [
+            'status' => RecommendationStatusEnum::InternalReview->value,
+        ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::RecommendationStatusChanged->value,
+            'category' => AuditCategory::Recommendation->value,
+            'subject_type' => $recommendation->getMorphClass(),
+            'subject_id' => $recommendation->id,
+        ]);
+
+        $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-17')->count());
+        $this->assertSame(1, $otherSatgas->notifications()->where('data->notification_type_code', 'NOTIF-17')->count());
+        $this->assertSame(0, $admin->notifications()->where('data->notification_type_code', 'NOTIF-17')->count());
+        $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'NOTIF-17')->count());
+
+        $this->patchJson("/api/v1/recommendations/{$recommendation->id}/status", [
+            'status' => RecommendationStatusEnum::SubmittedToLeader->value,
+        ])
+            ->assertOk();
+
+        $this->assertSame(1, $admin->notifications()->where('data->notification_type_code', 'NOTIF-14')->count());
+        $this->assertSame(1, $superAdmin->notifications()->where('data->notification_type_code', 'NOTIF-14')->count());
+        $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-17')->count());
+
+        $auditJson = AuditLog::query()
+            ->whereIn('action', [
+                AuditAction::RecommendationCreated->value,
+                AuditAction::RecommendationUpdated->value,
+                AuditAction::RecommendationStatusChanged->value,
+            ])
+            ->get()
+            ->toJson();
+
+        $this->assertStringNotContainsString('Kesimpulan rekomendasi rahasia', $auditJson);
+        $this->assertStringNotContainsString('Tindakan rekomendasi yang diperbarui', $auditJson);
+
+        $payload = $satgas->notifications()->where('data->notification_type_code', 'NOTIF-17')->firstOrFail()->data;
+        $this->assertSame($case->id, $payload['case_id']);
+        $this->assertSame($recommendation->id, $payload['recommendation_id']);
+        $this->assertArrayNotHasKey('conclusion', $payload);
+        $this->assertArrayNotHasKey('recommended_actions', $payload);
     }
 
     private function payload(Investigation $investigation): array

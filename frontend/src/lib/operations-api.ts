@@ -17,6 +17,9 @@ import type {
   InvestigationStatusPayload,
   PaginatedData,
   Recommendation,
+  RecommendationCreatePayload,
+  RecommendationStatusOptions,
+  RecommendationStatusPayload,
   RecommendationUpdatePayload,
   Recovery,
   RecoveryMonitoring,
@@ -39,6 +42,8 @@ export const operationsQueryKeys = {
     ["operations", "investigation", id, "status-options"] as const,
   recommendations: (caseId: string | number) => ["operations", "case", caseId, "recommendations"] as const,
   recommendation: (id: string | number) => ["operations", "recommendation", id] as const,
+  recommendationStatusOptions: (id: string | number) =>
+    ["operations", "recommendation", id, "status-options"] as const,
   decisions: (recommendationId: string | number) =>
     ["operations", "recommendation", recommendationId, "decisions"] as const,
   decision: (id: string | number) => ["operations", "decision", id] as const,
@@ -88,6 +93,10 @@ export function getCaseRecommendations(caseId: string | number) {
 
 export function getRecommendation(id: string | number) {
   return apiRequest<Recommendation>(`/recommendations/${id}`);
+}
+
+export function getRecommendationStatusOptions(id: string | number) {
+  return apiRequest<RecommendationStatusOptions>(`/recommendations/${id}/status-options`);
 }
 
 export function getRecommendationDecisions(recommendationId: string | number) {
@@ -173,8 +182,22 @@ export function createInvestigationActivity(
   });
 }
 
+export function createRecommendation(caseId: string | number, payload: RecommendationCreatePayload) {
+  return apiRequest<Recommendation>(`/cases/${caseId}/recommendations`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function updateRecommendation(id: string | number, payload: RecommendationUpdatePayload) {
   return apiRequest<Recommendation>(`/recommendations/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateRecommendationStatus(id: string | number, payload: RecommendationStatusPayload) {
+  return apiRequest<Recommendation>(`/recommendations/${id}/status`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
