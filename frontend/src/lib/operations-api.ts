@@ -25,8 +25,11 @@ import type {
   RecommendationStatusPayload,
   RecommendationUpdatePayload,
   Recovery,
+  RecoveryCreatePayload,
   RecoveryMonitoring,
   RecoveryMonitoringPayload,
+  RecoveryStatusOptions,
+  RecoveryStatusPayload,
   ReportSummary,
   SatgasAssignmentPayload,
   UserLookupItem,
@@ -54,6 +57,8 @@ export const operationsQueryKeys = {
     ["operations", "decision", id, "status-options"] as const,
   recoveries: (decisionId: string | number) => ["operations", "decision", decisionId, "recoveries"] as const,
   recovery: (id: string | number) => ["operations", "recovery", id] as const,
+  recoveryStatusOptions: (id: string | number) =>
+    ["operations", "recovery", id, "status-options"] as const,
   recoveryMonitoring: (id: string | number) => ["operations", "recovery", id, "monitoring"] as const,
   evidences: (investigationId: string | number) =>
     ["operations", "investigation", investigationId, "evidences"] as const,
@@ -122,6 +127,10 @@ export function getDecisionRecoveries(decisionId: string | number) {
 
 export function getRecovery(id: string | number) {
   return apiRequest<Recovery>(`/recoveries/${id}`);
+}
+
+export function getRecoveryStatusOptions(id: string | number) {
+  return apiRequest<RecoveryStatusOptions>(`/recoveries/${id}/status-options`);
 }
 
 export function getRecoveryMonitoring(id: string | number) {
@@ -228,6 +237,20 @@ export function createDecision(recommendationId: string | number, payload: Decis
 
 export function updateDecisionStatus(id: string | number, payload: DecisionStatusPayload) {
   return apiRequest<Decision>(`/decisions/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createRecovery(decisionId: string | number, payload: RecoveryCreatePayload) {
+  return apiRequest<Recovery>(`/decisions/${decisionId}/recoveries`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateRecoveryStatus(id: string | number, payload: RecoveryStatusPayload) {
+  return apiRequest<Recovery>(`/recoveries/${id}/status`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });

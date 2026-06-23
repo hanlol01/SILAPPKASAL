@@ -216,6 +216,29 @@ export interface Recovery {
   updated_at: string | null;
 }
 
+export interface RecoveryCreatePayload {
+  recovery_type_code: string;
+  recovery_plan: string;
+  support_needs?: string | null;
+  notes?: string | null;
+}
+
+export interface RecoveryStatusPayload {
+  status: string;
+}
+
+export interface RecoveryStatusOption {
+  code: string;
+  name: string;
+  description?: string | null;
+  soft_warning?: string | null;
+}
+
+export interface RecoveryStatusOptions {
+  current_status: RecoveryStatusOption;
+  valid_transitions: RecoveryStatusOption[];
+}
+
 export interface RecoveryMonitoring {
   id: number;
   recovery_id: number;

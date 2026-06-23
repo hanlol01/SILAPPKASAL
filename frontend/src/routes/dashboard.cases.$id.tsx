@@ -22,6 +22,8 @@ import { InvestigationCreateAction } from "@/components/workflow-actions/investi
 import { InvestigationStatusAction } from "@/components/workflow-actions/investigation-status-action";
 import { RecommendationCreateAction } from "@/components/workflow-actions/recommendation-create-action";
 import { RecommendationStatusAction } from "@/components/workflow-actions/recommendation-status-action";
+import { RecoveryCreateAction } from "@/components/workflow-actions/recovery-create-action";
+import { RecoveryStatusAction } from "@/components/workflow-actions/recovery-status-action";
 import { SatgasAssignmentAction } from "@/components/workflow-actions/satgas-assignment-action";
 import {
   CaseStatusAction,
@@ -114,12 +116,13 @@ function CaseDetail() {
   const canRecommend = canUseSatgasActions && Boolean(user?.permissions?.includes("cases.recommend"));
   const canManageDecisionActions =
     roleCode === "super_admin" && Boolean(user?.permissions?.includes("cases.record_decision"));
-  const canManageInstitutionalActions = isAdminRole;
-  const canAddRecoveryMonitoring = canManageInstitutionalActions || canUseSatgasActions;
+  const canManageRecoveryActions = isAdminRole && Boolean(user?.permissions?.includes("cases.monitor"));
+  const canAddRecoveryMonitoring = canManageRecoveryActions || canUseSatgasActions;
   const activeAssignments = (c.assignments ?? []).filter((assignment) => assignment.is_active);
   const latestCompletedInvestigation = mostRecentCompletedInvestigation(investigationsQuery.data ?? []);
   const submittedDecisionRecommendation = submittedRecommendationForDecision(recommendationsQuery.data ?? []);
   const decisionsLoaded = recommendationsQuery.isSuccess && decisionQueries.every((query) => query.isSuccess);
+  const finalizedDecisionForRecovery = finalizedDecision(decisions);
   const canCreateInvestigation =
     canInvestigate &&
     investigationsQuery.isSuccess &&
@@ -139,6 +142,11 @@ function CaseDetail() {
     c.status === "decision" &&
     submittedDecisionRecommendation !== null &&
     decisions.length === 0;
+  const canCreateRecovery =
+    canManageRecoveryActions &&
+    decisionsLoaded &&
+    finalizedDecisionForRecovery !== null &&
+    !c.closed_at;
 
   return (
     <div className="space-y-6">
@@ -199,6 +207,8 @@ function CaseDetail() {
             recoveries={recoveries}
             loading={recoveryQueries.some((query) => query.isLoading)}
             canAddMonitoring={canAddRecoveryMonitoring}
+            canTransitionStatus={canManageRecoveryActions}
+            caseId={c.id}
           />
           <EvidenceSection
             evidences={evidences}
@@ -306,6 +316,15 @@ function CaseDetail() {
                     submittedDecisionRecommendation,
                     decisions.length,
                   )}
+                />
+              )}
+              {canCreateRecovery && finalizedDecisionForRecovery && (
+                <RecoveryCreateAction caseId={c.id} decision={finalizedDecisionForRecovery} />
+              )}
+              {canManageRecoveryActions && !canCreateRecovery && (
+                <DisabledWorkflowAction
+                  title="Create recovery"
+                  description={recoveryCreateDisabledReason(decisionsLoaded, finalizedDecisionForRecovery, c.closed_at)}
                 />
               )}
             </CardContent>
@@ -499,10 +518,14 @@ function RecoveriesSection({
   recoveries,
   loading,
   canAddMonitoring,
+  canTransitionStatus,
+  caseId,
 }: {
   recoveries: Recovery[];
   loading: boolean;
   canAddMonitoring: boolean;
+  canTransitionStatus: boolean;
+  caseId: number | string;
 }) {
   return (
     <SectionCard icon={BriefcaseMedical} title="Recoveries" loading={loading} empty={recoveries.length === 0}>
@@ -513,6 +536,9 @@ function RecoveriesSection({
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline">{label(item.status_code)}</Badge>
               {canAddMonitoring && <RecoveryMonitoringAction recovery={item} />}
+              {canTransitionStatus && !isTerminalRecovery(item) && (
+                <RecoveryStatusAction recovery={item} caseId={caseId} />
+              )}
             </div>
           </div>
           {item.recovery_plan || item.support_needs || item.notes ? (
@@ -524,12 +550,6 @@ function RecoveriesSection({
           ) : (
             <MetadataOnlyText />
           )}
-          <div className="mt-3">
-            <DisabledWorkflowAction
-              title="Recovery update/status"
-              description="Recovery edit and status actions remain deferred in M16; monitoring creation is the enabled safe action."
-            />
-          </div>
         </div>
       ))}
     </SectionCard>
@@ -656,6 +676,10 @@ function canEditDecision(item: Decision) {
   return item.status === "draft";
 }
 
+function isTerminalRecovery(item: Recovery) {
+  return item.status === "completed" || item.status === "discontinued";
+}
+
 function mostRecentCompletedInvestigation(items: Investigation[]) {
   const completed = items.filter((item) => item.status === "completed" && item.completed_at);
 
@@ -673,6 +697,10 @@ function mostRecentCompletedInvestigation(items: Investigation[]) {
 
 function submittedRecommendationForDecision(items: Recommendation[]) {
   return items.find((item) => item.status === "submitted_to_leader") ?? null;
+}
+
+function finalizedDecision(items: Decision[]) {
+  return items.find((item) => item.status === "finalized") ?? null;
 }
 
 function recommendationCreateDisabledReason(
@@ -725,6 +753,26 @@ function decisionCreateDisabledReason(
   }
 
   return "Decision creation is not available for this case.";
+}
+
+function recoveryCreateDisabledReason(
+  decisionsLoaded: boolean,
+  decision: Decision | null,
+  closedAt: string | null | undefined,
+) {
+  if (closedAt) {
+    return "Closed cases cannot receive recovery actions.";
+  }
+
+  if (!decisionsLoaded) {
+    return "Decision data is still loading.";
+  }
+
+  if (!decision) {
+    return "A finalized decision is required before creating a recovery.";
+  }
+
+  return "Recovery creation is not available for this case.";
 }
 
 function label(value: string) {

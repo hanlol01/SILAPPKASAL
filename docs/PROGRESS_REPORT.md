@@ -3,6 +3,21 @@
 > Last Updated: 2026-06-23
 
 ## Recent Progress
+ 
+ ### Milestone 30 - Recovery Workflow (✅ COMPLETED)
+ - **Backend:**
+   - Added `status-options` endpoint for recoveries.
+   - Implemented soft warning logic for monitoring duration.
+   - Added audit logging with narrative field redaction.
+   - Configured targeted notifications for creation (NOTIF-20) and status changes (NOTIF-21) to assigned Satgas only.
+ - **Frontend:**
+   - Implemented `RecoveryCreateAction` and `RecoveryStatusAction` components.
+   - Displayed soft warning advisory from backend correctly without blocking submission.
+   - Restrict recovery mutation to Admin and Super Admin.
+   - Assigned Satgas can add monitoring but cannot transition statuses.
+ - **Verification:**
+   - Backend tests: PASS (150 tests passed, 1307 assertions).
+   - Frontend build: PASS.
 
 ### Milestone 29 - Decision Workflow (✅ COMPLETED)
 - **Backend:**
@@ -61,4 +76,4 @@
 - **Security & Privacy:** Enforced across all new and existing features.
 
 ## Next Steps
-- Begin planning for Milestone 30 (Recovery Workflow).
+ - Begin planning for Milestone 31 (Evidence/Case Closure).

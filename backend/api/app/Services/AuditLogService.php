@@ -42,6 +42,8 @@ class AuditLogService
         'decision_body',
         'recovery_plan',
         'support_needs',
+        'condition_summary',
+        'follow_up_plan',
         'notes',
         'description',
         'source',

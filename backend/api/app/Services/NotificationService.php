@@ -7,6 +7,7 @@ use App\Enums\RecommendationStatus as RecommendationStatusEnum;
 use App\Models\CaseRecord;
 use App\Models\Decision;
 use App\Models\Recommendation;
+use App\Models\Recovery;
 use App\Models\User;
 use App\Notifications\WorkflowDatabaseNotification;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,6 +24,8 @@ class NotificationService
     public const TYPE_RECOMMENDATION_STATUS_CHANGED = 'NOTIF-17';
     public const TYPE_DECISION_CREATED = 'NOTIF-18';
     public const TYPE_DECISION_STATUS_CHANGED = 'NOTIF-19';
+    public const TYPE_RECOVERY_CREATED = 'NOTIF-20';
+    public const TYPE_RECOVERY_STATUS_CHANGED = 'NOTIF-21';
 
     /**
      * @param list<int> $satgasIds
@@ -191,6 +194,52 @@ class NotificationService
         ]);
     }
 
+    public function recoveryCreated(Recovery $recovery): void
+    {
+        $recovery->loadMissing(['decision.recommendation.case.activeAssignments.satgas']);
+
+        if (! $recovery->decision?->recommendation?->case) {
+            return;
+        }
+
+        $this->send($this->activeAssignedSatgas($recovery->decision->recommendation->case), [
+            'notification_type_code' => self::TYPE_RECOVERY_CREATED,
+            'event' => 'recovery_created',
+            'title' => 'Recovery plan created',
+            'body' => 'A recovery plan has been created for an assigned case.',
+            'subject_type' => 'recovery',
+            'subject_id' => $recovery->id,
+            'case_id' => $recovery->decision->recommendation->case_id,
+            'decision_id' => $recovery->decision_id,
+            'recovery_id' => $recovery->id,
+            'status_code' => $recovery->status_code,
+            'recovery_type_code' => $recovery->recovery_type_code,
+        ]);
+    }
+
+    public function recoveryStatusChanged(Recovery $recovery): void
+    {
+        $recovery->loadMissing(['decision.recommendation.case.activeAssignments.satgas']);
+
+        if (! $recovery->decision?->recommendation?->case) {
+            return;
+        }
+
+        $this->send($this->activeAssignedSatgas($recovery->decision->recommendation->case), [
+            'notification_type_code' => self::TYPE_RECOVERY_STATUS_CHANGED,
+            'event' => 'recovery_status_changed',
+            'title' => 'Recovery status updated',
+            'body' => 'A recovery for an assigned case has a status update.',
+            'subject_type' => 'recovery',
+            'subject_id' => $recovery->id,
+            'case_id' => $recovery->decision->recommendation->case_id,
+            'decision_id' => $recovery->decision_id,
+            'recovery_id' => $recovery->id,
+            'status_code' => $recovery->status_code,
+            'recovery_type_code' => $recovery->recovery_type_code,
+        ]);
+    }
+
     /**
      * @param iterable<int, User> $recipients
      * @param array<string, mixed> $payload
@@ -242,8 +291,10 @@ class NotificationService
             'case_id',
             'recommendation_id',
             'decision_id',
+            'recovery_id',
             'status_code',
             'outcome_code',
+            'recovery_type_code',
         ];
 
         return collect($payload)

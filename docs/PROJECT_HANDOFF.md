@@ -2,7 +2,7 @@
 
 > Status: Active Handoff  
 > Last Updated: 2026-06-23  
-> Current Milestone: Milestone 29 Complete - Decision Workflow  
+> Current Milestone: Milestone 30 Complete - Recovery Workflow  
 > Next Milestone: TBD
 
 ---
@@ -76,6 +76,7 @@ The Reporter Portal provides a secure self-service area for reporter/student rol
 | 27 | Investigation Workflow | ✅ PASS | Investigation backend and frontend components implemented. Added status-options endpoint, lead investigator picker, plan summary validation, audit logs, and notifications. Only assigned Satgas can create/update investigations. |
 | 28 | Recommendation Workflow | ✅ PASS | Recommendation backend and frontend components implemented. Added status-options endpoint, automatic most recent completed investigation selection, audit logs, and notifications. Only assigned Satgas can create/update recommendations. |
 | 29 | Decision Workflow | ✅ PASS | Decision backend and frontend implemented. Pimpinan Kampus (Super Admin) authority enforced. Backend status-options endpoint added. Auto-updates parent recommendation status. Audit logging and targeted notifications (assigned Satgas only) added. |
+| 30 | Recovery Workflow | ✅ PASS | Recovery backend and frontend implemented. Admin/Super Admin manage recoveries. Assigned Satgas has read-only access but can add monitoring. Soft warning advisory implemented for < 3 month monitoring completions. Auto-close rules not triggered by recovery completion. Audit and notifications configured. |
 
 Latest known fully verified baseline before Milestone 13 implementation:
 

@@ -57,6 +57,17 @@ class RecoveryController extends Controller
         ]);
     }
 
+    public function statusOptions(Request $request, Recovery $recovery): JsonResponse
+    {
+        Gate::authorize('view', $recovery);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Recovery status options retrieved successfully',
+            'data' => $this->recoveryService->statusOptions($recovery, $request->user()),
+        ]);
+    }
+
     public function update(UpdateRecoveryRequest $request, Recovery $recovery): JsonResponse
     {
         Gate::authorize('update', $recovery);

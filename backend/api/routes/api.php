@@ -139,6 +139,7 @@ Route::prefix('v1')->group(function (): void {
     });
 
     Route::middleware('auth:sanctum')->prefix('recoveries')->group(function (): void {
+        Route::get('/{recovery}/status-options', [RecoveryController::class, 'statusOptions']);
         Route::get('/{recovery}', [RecoveryController::class, 'show']);
         Route::patch('/{recovery}', [RecoveryController::class, 'update']);
         Route::patch('/{recovery}/status', [RecoveryController::class, 'updateStatus']);

@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Enums\AuditAction;
+use App\Enums\AuditCategory;
+use App\Enums\AuditSeverity;
 use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\DecisionStatus as DecisionStatusEnum;
 use App\Enums\RecoveryStatus as RecoveryStatusEnum;
@@ -19,6 +22,12 @@ use Illuminate\Support\Facades\DB;
 
 class RecoveryService
 {
+    public function __construct(
+        private readonly NotificationService $notificationService,
+        private readonly AuditLogService $auditLogService,
+    ) {
+    }
+
     /**
      * @param array<string, mixed> $data
      */
@@ -49,8 +58,31 @@ class RecoveryService
             ]);
 
             $this->recordStatusHistory($recovery, null, $status->code, $actor);
+            $recovery = $recovery->load($this->detailRelations());
 
-            return $recovery->load($this->detailRelations());
+            $this->recordAudit(
+                AuditAction::RecoveryCreated,
+                $actor,
+                $recovery,
+                [
+                    'recovery_id' => $recovery->id,
+                    'decision_id' => $recovery->decision_id,
+                    'case_id' => $decision->recommendation?->case_id,
+                    'status_code' => $recovery->status_code,
+                    'recovery_type_code' => $recovery->recovery_type_code,
+                ],
+                afterChanges: [
+                    'status_code' => $recovery->status_code,
+                    'recovery_type_code' => $recovery->recovery_type_code,
+                    'recovery_plan' => $recovery->recovery_plan,
+                    'support_needs' => $recovery->support_needs,
+                    'notes' => $recovery->notes,
+                ],
+            );
+
+            $this->notificationService->recoveryCreated($recovery);
+
+            return $recovery;
         });
     }
 
@@ -90,7 +122,7 @@ class RecoveryService
     {
         $this->authorizeRecoveryManager($actor);
 
-        return DB::transaction(function () use ($recovery, $data): Recovery {
+        return DB::transaction(function () use ($recovery, $actor, $data): Recovery {
             $recovery = Recovery::query()->with('status')->whereKey($recovery->id)->lockForUpdate()->firstOrFail();
             $this->ensureRecoveryOpen($recovery);
 
@@ -98,9 +130,39 @@ class RecoveryService
                 $data['recovery_type_code'] = $this->activeRecoveryType($data['recovery_type_code'])->code;
             }
 
+            $before = $recovery->only([
+                'recovery_type_code',
+                'recovery_plan',
+                'support_needs',
+                'notes',
+            ]);
+
             $recovery->fill($data)->save();
 
-            return $recovery->load($this->detailRelations());
+            $after = $recovery->only([
+                'recovery_type_code',
+                'recovery_plan',
+                'support_needs',
+                'notes',
+            ]);
+
+            $recovery = $recovery->load($this->detailRelations());
+
+            $this->recordAudit(
+                AuditAction::RecoveryUpdated,
+                $actor,
+                $recovery,
+                [
+                    'recovery_id' => $recovery->id,
+                    'decision_id' => $recovery->decision_id,
+                    'case_id' => $recovery->decision?->recommendation?->case_id,
+                    'recovery_type_code' => $recovery->recovery_type_code,
+                ],
+                beforeChanges: array_intersect_key($before, $data),
+                afterChanges: array_intersect_key($after, $data),
+            );
+
+            return $recovery;
         });
     }
 
@@ -120,6 +182,7 @@ class RecoveryService
             }
 
             $fromStatusCode = $recovery->status_code;
+            $fromStatusName = $recovery->status?->name;
             $timestamps = [
                 'status_code' => $nextStatus->code,
             ];
@@ -138,9 +201,65 @@ class RecoveryService
 
             $recovery->forceFill($timestamps)->save();
             $this->recordStatusHistory($recovery, $fromStatusCode, $nextStatus->code, $actor);
+            $recovery = $recovery->load($this->detailRelations());
 
-            return $recovery->load($this->detailRelations());
+            $this->recordAudit(
+                AuditAction::RecoveryStatusChanged,
+                $actor,
+                $recovery,
+                [
+                    'recovery_id' => $recovery->id,
+                    'decision_id' => $recovery->decision_id,
+                    'case_id' => $recovery->decision?->recommendation?->case_id,
+                    'from_status' => $fromStatusName,
+                    'to_status' => $nextStatus->name,
+                    'recovery_type_code' => $recovery->recovery_type_code,
+                ],
+                beforeChanges: ['status_code' => $fromStatusCode],
+                afterChanges: ['status_code' => $recovery->status_code],
+            );
+
+            $this->notificationService->recoveryStatusChanged($recovery);
+
+            return $recovery;
         });
+    }
+
+    /**
+     * @return array{current_status: array{code: string|null, name: string|null, description: string|null}, valid_transitions: list<array{code: string, name: string, description: string|null, soft_warning?: string|null}>}
+     */
+    public function statusOptions(Recovery $recovery, User $user): array
+    {
+        $recovery->loadMissing('status');
+
+        $statuses = [];
+
+        if ($this->canManageRecovery($user)) {
+            $transitionNames = $recovery->status?->valid_transitions ?? [];
+
+            $statuses = RecoveryStatus::query()
+                ->where('is_active', true)
+                ->whereIn('name', $transitionNames)
+                ->orderBy('sort_order')
+                ->get()
+                ->map(fn (RecoveryStatus $status): array => [
+                    'code' => $status->code,
+                    'name' => $status->name,
+                    'description' => $status->description,
+                    'soft_warning' => $this->monitoringDurationWarning($recovery, $status),
+                ])
+                ->values()
+                ->all();
+        }
+
+        return [
+            'current_status' => [
+                'code' => $recovery->status?->code,
+                'name' => $recovery->status?->name,
+                'description' => $recovery->status?->description,
+            ],
+            'valid_transitions' => $statuses,
+        ];
     }
 
     /**
@@ -158,14 +277,36 @@ class RecoveryService
             throw $this->unprocessable('Monitoring can only be created for ongoing recovery');
         }
 
-        return RecoveryMonitoring::query()->create([
+        $monitoring = RecoveryMonitoring::query()->create([
             'recovery_id' => $recovery->id,
             'monitor_id' => $actor->id,
             'monitoring_date' => $data['monitoring_date'],
             'condition_summary' => $data['condition_summary'],
             'follow_up_plan' => $data['follow_up_plan'] ?? null,
             'notes' => $data['notes'] ?? null,
-        ])->load(['monitor']);
+        ])->load(['monitor', 'recovery.decision.recommendation.case']);
+
+        $this->auditLogService->record(
+            action: AuditAction::RecoveryMonitoringCreated,
+            category: AuditCategory::Recovery,
+            severity: AuditSeverity::Info,
+            actor: $actor,
+            subject: $monitoring,
+            metadata: [
+                'recovery_monitoring_id' => $monitoring->id,
+                'recovery_id' => $monitoring->recovery_id,
+                'decision_id' => $monitoring->recovery?->decision_id,
+                'case_id' => $monitoring->recovery?->decision?->recommendation?->case_id,
+            ],
+            afterChanges: [
+                'monitoring_date' => $monitoring->monitoring_date?->toDateString(),
+                'condition_summary' => $monitoring->condition_summary,
+                'follow_up_plan' => $monitoring->follow_up_plan,
+                'notes' => $monitoring->notes,
+            ],
+        );
+
+        return $monitoring;
     }
 
     /**
@@ -243,6 +384,44 @@ class RecoveryService
             'changed_by' => $actor->id,
             'changed_at' => now(),
         ]);
+    }
+
+    /**
+     * @param array<string, mixed> $metadata
+     * @param array<string, mixed> $beforeChanges
+     * @param array<string, mixed> $afterChanges
+     */
+    private function recordAudit(
+        AuditAction $action,
+        User $actor,
+        Recovery $recovery,
+        array $metadata = [],
+        array $beforeChanges = [],
+        array $afterChanges = [],
+    ): void {
+        $this->auditLogService->record(
+            action: $action,
+            category: AuditCategory::Recovery,
+            severity: AuditSeverity::Info,
+            actor: $actor,
+            subject: $recovery,
+            metadata: $metadata,
+            beforeChanges: $beforeChanges,
+            afterChanges: $afterChanges,
+        );
+    }
+
+    private function monitoringDurationWarning(Recovery $recovery, RecoveryStatus $status): ?string
+    {
+        if ($status->name !== RecoveryStatusEnum::Completed->value || ! $recovery->started_at) {
+            return null;
+        }
+
+        if ($recovery->started_at->copy()->addMonthsNoOverflow(3)->isPast()) {
+            return null;
+        }
+
+        return 'SOP recommends 3-6 months of monitoring before completing recovery. This is advisory and does not block completion.';
     }
 
     private function authorizeRecoveryManager(User $actor): void

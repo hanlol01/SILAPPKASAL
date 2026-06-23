@@ -2,7 +2,7 @@
 
 > Status: Active  
 > Last Updated: 2026-06-23  
-> Current Position: Milestone 29 Complete  
+> Current Position: Milestone 30 Complete  
 > Next: TBD
 
 ---
@@ -717,6 +717,19 @@ Delivered:
 - Notification dispatch to assigned Satgas for creation (NOTIF-18) and status changes (NOTIF-19).
 - `DecisionCreateAction` and `DecisionStatusAction` frontend components.
 - Ensured Recovery workflows remain disabled in frontend.
+
+### Milestone 30 - Recovery Workflow
+
+Status: ✅ PASS
+
+Delivered:
+- Added `GET /api/v1/recoveries/{recovery}/status-options` endpoint.
+- Recovery mutation scoped to Admin and Super Admin.
+- Assigned Satgas blocked from transitioning statuses or creating recoveries but can add monitoring.
+- Added soft warning advisory functionality for monitoring duration less than 3 months.
+- Audit logs for recovery creation, update, monitoring, and status changes with redacted narratives.
+- Notification dispatch to assigned Satgas for creation (NOTIF-20) and status changes (NOTIF-21).
+- `RecoveryCreateAction` and `RecoveryStatusAction` frontend components.
 
 ---
 

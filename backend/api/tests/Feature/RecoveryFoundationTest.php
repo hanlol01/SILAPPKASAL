@@ -3,11 +3,14 @@
 namespace Tests\Feature;
 
 use App\Enums\CaseStatus as CaseStatusEnum;
+use App\Enums\AuditAction;
+use App\Enums\AuditCategory;
 use App\Enums\DecisionOutcome;
 use App\Enums\DecisionStatus as DecisionStatusEnum;
 use App\Enums\RecommendationStatus as RecommendationStatusEnum;
 use App\Enums\RecoveryStatus as RecoveryStatusEnum;
 use App\Enums\ReportStatus;
+use App\Models\AuditLog;
 use App\Models\CaseAssignment;
 use App\Models\CaseRecord;
 use App\Models\CaseStatus;
@@ -57,6 +60,8 @@ class RecoveryFoundationTest extends TestCase
         $this->assertContains(RecoveryStatusEnum::Ongoing->value, $planned->valid_transitions);
         $this->assertContains(RecoveryStatusEnum::Discontinued->value, $planned->valid_transitions);
         $this->assertDatabaseHas('permissions', ['code' => 'cases.monitor']);
+        $this->assertDatabaseHas('notification_types', ['code' => 'NOTIF-20']);
+        $this->assertDatabaseHas('notification_types', ['code' => 'NOTIF-21']);
     }
 
     public function test_admin_can_create_multiple_recoveries_for_finalized_decision(): void
@@ -187,6 +192,130 @@ class RecoveryFoundationTest extends TestCase
         $this->assertNull($case->closed_at);
         $this->assertSame(DecisionStatusEnum::Finalized->value, $decision->refresh()->status->name);
         $this->assertDatabaseCount('recovery_status_histories', 3);
+    }
+
+    public function test_recovery_status_options_follow_access_scope_and_soft_warning_metadata(): void
+    {
+        $admin = $this->makeUser('admin', 'admin@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
+        $reporter = $this->makeUser('reporter', 'reporter@university.ac.id');
+        $case = $this->makeDecisionCase($admin, $satgas);
+        $decision = $this->makeFinalizedDecision($case, $admin, $satgas);
+        $recovery = $this->makeRecovery($decision, $admin);
+
+        $this->actingAsApi($admin);
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}/status", [
+            'status' => RecoveryStatusEnum::Ongoing->value,
+        ])->assertOk();
+
+        $this->getJson("/api/v1/recoveries/{$recovery->id}/status-options")
+            ->assertOk()
+            ->assertJsonPath('data.current_status.name', RecoveryStatusEnum::Ongoing->value)
+            ->assertJsonPath('data.valid_transitions.0.name', RecoveryStatusEnum::Completed->value)
+            ->assertJsonPath('data.valid_transitions.0.soft_warning', 'SOP recommends 3-6 months of monitoring before completing recovery. This is advisory and does not block completion.')
+            ->assertJsonPath('data.valid_transitions.1.name', RecoveryStatusEnum::Discontinued->value);
+
+        $this->actingAsApi($satgas);
+        $this->getJson("/api/v1/recoveries/{$recovery->id}/status-options")
+            ->assertOk()
+            ->assertJsonPath('data.current_status.name', RecoveryStatusEnum::Ongoing->value)
+            ->assertJsonCount(0, 'data.valid_transitions');
+
+        $this->actingAsApi($reporter);
+        $this->getJson("/api/v1/recoveries/{$recovery->id}/status-options")
+            ->assertForbidden();
+    }
+
+    public function test_recovery_workflow_dispatches_audit_logs_and_notifications(): void
+    {
+        $admin = $this->makeUser('admin', 'admin@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
+        $otherSatgas = $this->makeUser('satgas_ppks', 'other-satgas@university.ac.id');
+        $case = $this->makeDecisionCase($admin, $satgas);
+
+        CaseAssignment::query()->create([
+            'case_id' => $case->id,
+            'satgas_id' => $otherSatgas->id,
+            'assigned_by' => $admin->id,
+            'is_lead' => false,
+            'is_active' => true,
+            'assigned_at' => now(),
+        ]);
+
+        $decision = $this->makeFinalizedDecision($case, $admin, $satgas);
+
+        $this->actingAsApi($admin);
+        $recoveryId = $this->postJson("/api/v1/decisions/{$decision->id}/recoveries", $this->recoveryPayload())
+            ->assertCreated()
+            ->json('data.id');
+
+        $recovery = Recovery::query()->findOrFail($recoveryId);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::RecoveryCreated->value,
+            'category' => AuditCategory::Recovery->value,
+            'subject_type' => $recovery->getMorphClass(),
+            'subject_id' => $recovery->id,
+        ]);
+
+        $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-20')->count());
+        $this->assertSame(1, $otherSatgas->notifications()->where('data->notification_type_code', 'NOTIF-20')->count());
+        $this->assertSame(0, $admin->notifications()->where('data->notification_type_code', 'NOTIF-20')->count());
+
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}", [
+            'recovery_plan' => 'Rencana pemulihan yang diperbarui dan tetap sensitif.',
+            'support_needs' => 'Kebutuhan dukungan lanjutan yang tidak boleh bocor.',
+            'notes' => 'Catatan pemulihan pembaruan rahasia.',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::RecoveryUpdated->value,
+            'category' => AuditCategory::Recovery->value,
+            'subject_type' => $recovery->getMorphClass(),
+            'subject_id' => $recovery->id,
+        ]);
+
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}/status", [
+            'status' => RecoveryStatusEnum::Ongoing->value,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::RecoveryStatusChanged->value,
+            'category' => AuditCategory::Recovery->value,
+            'subject_type' => $recovery->getMorphClass(),
+            'subject_id' => $recovery->id,
+        ]);
+
+        $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-21')->count());
+        $this->assertSame(1, $otherSatgas->notifications()->where('data->notification_type_code', 'NOTIF-21')->count());
+        $this->assertSame(0, $admin->notifications()->where('data->notification_type_code', 'NOTIF-21')->count());
+
+        $this->actingAsApi($satgas);
+        $this->postJson("/api/v1/recoveries/{$recovery->id}/monitoring", $this->monitoringPayload())
+            ->assertCreated();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::RecoveryMonitoringCreated->value,
+            'category' => AuditCategory::Recovery->value,
+        ]);
+
+        $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-21')->count());
+
+        $auditJson = AuditLog::query()
+            ->whereIn('action', [
+                AuditAction::RecoveryCreated->value,
+                AuditAction::RecoveryUpdated->value,
+                AuditAction::RecoveryStatusChanged->value,
+                AuditAction::RecoveryMonitoringCreated->value,
+            ])
+            ->get()
+            ->toJson();
+
+        $this->assertStringNotContainsString('Rencana pendampingan korban secara berkala', $auditJson);
+        $this->assertStringNotContainsString('Kebutuhan dukungan psikologis', $auditJson);
+        $this->assertStringNotContainsString('Catatan pemulihan rahasia', $auditJson);
+        $this->assertStringNotContainsString('Kondisi korban stabil', $auditJson);
+        $this->assertStringNotContainsString('Jadwalkan sesi lanjutan', $auditJson);
     }
 
     private function recoveryPayload(array $overrides = []): array
