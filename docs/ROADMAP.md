@@ -1,8 +1,8 @@
 # ROADMAP.md - SILAPPKASAL Development Roadmap
 
 > Status: Active  
-> Last Updated: 2026-06-22  
-> Current Position: Milestone 27 Complete  
+> Last Updated: 2026-06-23  
+> Current Position: Milestone 29 Complete  
 > Next: TBD
 
 ---
@@ -658,7 +658,7 @@ npm run build: PASS
 
 ### Milestone 26 - Security & Privacy Enhancement
 
-Status: PASS
+Status: ✅ PASS
 
 Delivered:
 - All 6 policy documents finalized and frozen in `docs/security/`:
@@ -676,7 +676,7 @@ Delivered:
 
 ### Milestone 27 - Investigation Workflow
 
-Status: PASS
+Status: ✅ PASS
 
 Delivered:
 - Added `GET /api/v1/investigations/{investigation}/status-options` endpoint.
@@ -688,6 +688,35 @@ Delivered:
 - `InvestigationCreateAction` and `InvestigationStatusAction` frontend components.
 - Blocked Admin/Super Admin from creating investigations.
 - Ensured Recommendation/Decision/Recovery remain disabled in frontend.
+
+### Milestone 28 - Recommendation Workflow
+
+Status: ✅ PASS
+
+Delivered:
+- Added `GET /api/v1/recommendations/{recommendation}/status-options` endpoint.
+- Most recent completed investigation auto-selected without exposing a picker.
+- Audit logs for recommendation creation, update, and status changes with redacted narratives.
+- Notification dispatch to assigned Satgas for status changes (NOTIF-17).
+- Notification dispatch to Admin and Super Admin for creation (NOTIF-16) and completion (NOTIF-14).
+- `RecommendationCreateAction` and `RecommendationStatusAction` frontend components.
+- Blocked Admin, Super Admin, and unassigned Satgas from creating or modifying recommendations.
+- Filtered out decision-only statuses from valid transitions.
+- Ensured Decision and Recovery workflows remain disabled in frontend.
+
+### Milestone 29 - Decision Workflow
+
+Status: ✅ PASS
+
+Delivered:
+- Added `GET /api/v1/decisions/{decision}/status-options` endpoint.
+- Decision mutation strictly scoped to Pimpinan Kampus (Super Admin) per product decision.
+- Admin, Satgas, and Reporter blocked from mutating decisions.
+- Auto-updates parent recommendation status on decision creation (accepted, partially_accepted, rejected).
+- Audit logs for decision creation, update, and status changes with redacted narratives.
+- Notification dispatch to assigned Satgas for creation (NOTIF-18) and status changes (NOTIF-19).
+- `DecisionCreateAction` and `DecisionStatusAction` frontend components.
+- Ensured Recovery workflows remain disabled in frontend.
 
 ---
 

@@ -132,6 +132,7 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware('auth:sanctum')->prefix('decisions')->group(function (): void {
         Route::post('/{decision}/recoveries', [RecoveryController::class, 'storeForDecision']);
         Route::get('/{decision}/recoveries', [RecoveryController::class, 'indexForDecision']);
+        Route::get('/{decision}/status-options', [DecisionController::class, 'statusOptions']);
         Route::get('/{decision}', [DecisionController::class, 'show']);
         Route::patch('/{decision}', [DecisionController::class, 'update']);
         Route::patch('/{decision}/status', [DecisionController::class, 'updateStatus']);

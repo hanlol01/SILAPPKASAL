@@ -3,6 +3,9 @@ import type {
   CaseRecord,
   CaseStatusPayload,
   Decision,
+  DecisionCreatePayload,
+  DecisionStatusOptions,
+  DecisionStatusPayload,
   DecisionUpdatePayload,
   EvidenceCustodyEvent,
   EvidenceMetadata,
@@ -47,6 +50,8 @@ export const operationsQueryKeys = {
   decisions: (recommendationId: string | number) =>
     ["operations", "recommendation", recommendationId, "decisions"] as const,
   decision: (id: string | number) => ["operations", "decision", id] as const,
+  decisionStatusOptions: (id: string | number) =>
+    ["operations", "decision", id, "status-options"] as const,
   recoveries: (decisionId: string | number) => ["operations", "decision", decisionId, "recoveries"] as const,
   recovery: (id: string | number) => ["operations", "recovery", id] as const,
   recoveryMonitoring: (id: string | number) => ["operations", "recovery", id, "monitoring"] as const,
@@ -105,6 +110,10 @@ export function getRecommendationDecisions(recommendationId: string | number) {
 
 export function getDecision(id: string | number) {
   return apiRequest<Decision>(`/decisions/${id}`);
+}
+
+export function getDecisionStatusOptions(id: string | number) {
+  return apiRequest<DecisionStatusOptions>(`/decisions/${id}/status-options`);
 }
 
 export function getDecisionRecoveries(decisionId: string | number) {
@@ -205,6 +214,20 @@ export function updateRecommendationStatus(id: string | number, payload: Recomme
 
 export function updateDecision(id: string | number, payload: DecisionUpdatePayload) {
   return apiRequest<Decision>(`/decisions/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createDecision(recommendationId: string | number, payload: DecisionCreatePayload) {
+  return apiRequest<Decision>(`/recommendations/${recommendationId}/decisions`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateDecisionStatus(id: string | number, payload: DecisionStatusPayload) {
+  return apiRequest<Decision>(`/decisions/${id}/status`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });

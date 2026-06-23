@@ -21,6 +21,8 @@ class NotificationService
     public const TYPE_DECISION_FINALIZED = 'NOTIF-15';
     public const TYPE_RECOMMENDATION_CREATED = 'NOTIF-16';
     public const TYPE_RECOMMENDATION_STATUS_CHANGED = 'NOTIF-17';
+    public const TYPE_DECISION_CREATED = 'NOTIF-18';
+    public const TYPE_DECISION_STATUS_CHANGED = 'NOTIF-19';
 
     /**
      * @param list<int> $satgasIds
@@ -133,6 +135,52 @@ class NotificationService
             'event' => 'decision_finalized',
             'title' => 'Decision finalized',
             'body' => 'A decision has been finalized for an assigned case.',
+            'subject_type' => 'decision',
+            'subject_id' => $decision->id,
+            'case_id' => $decision->recommendation->case_id,
+            'recommendation_id' => $decision->recommendation_id,
+            'decision_id' => $decision->id,
+            'status_code' => $decision->status_code,
+            'outcome_code' => $decision->outcome_code,
+        ]);
+    }
+
+    public function decisionCreated(Decision $decision): void
+    {
+        $decision->loadMissing(['recommendation.case.activeAssignments.satgas']);
+
+        if (! $decision->recommendation?->case) {
+            return;
+        }
+
+        $this->send($this->activeAssignedSatgas($decision->recommendation->case), [
+            'notification_type_code' => self::TYPE_DECISION_CREATED,
+            'event' => 'decision_created',
+            'title' => 'Decision recorded',
+            'body' => 'A decision has been recorded for an assigned case.',
+            'subject_type' => 'decision',
+            'subject_id' => $decision->id,
+            'case_id' => $decision->recommendation->case_id,
+            'recommendation_id' => $decision->recommendation_id,
+            'decision_id' => $decision->id,
+            'status_code' => $decision->status_code,
+            'outcome_code' => $decision->outcome_code,
+        ]);
+    }
+
+    public function decisionStatusChanged(Decision $decision): void
+    {
+        $decision->loadMissing(['status', 'recommendation.case.activeAssignments.satgas']);
+
+        if ($decision->status?->name === DecisionStatusEnum::Finalized->value || ! $decision->recommendation?->case) {
+            return;
+        }
+
+        $this->send($this->activeAssignedSatgas($decision->recommendation->case), [
+            'notification_type_code' => self::TYPE_DECISION_STATUS_CHANGED,
+            'event' => 'decision_status_changed',
+            'title' => 'Decision status updated',
+            'body' => 'A decision for an assigned case has a status update.',
             'subject_type' => 'decision',
             'subject_id' => $decision->id,
             'case_id' => $decision->recommendation->case_id,

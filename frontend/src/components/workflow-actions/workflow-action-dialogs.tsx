@@ -375,7 +375,7 @@ export function DecisionUpdateAction({ decision }: { decision: Decision }) {
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit decision</DialogTitle>
-          <DialogDescription>Decision status changes remain disabled until status options are exposed.</DialogDescription>
+          <DialogDescription>Decision content can be edited while backend rules allow draft changes.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>

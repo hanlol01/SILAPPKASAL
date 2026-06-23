@@ -186,6 +186,14 @@ export interface Decision {
   updated_at: string | null;
 }
 
+export interface DecisionCreatePayload {
+  outcome_code: string;
+  decision_number?: string | null;
+  decision_date: string;
+  decision_summary: string;
+  decision_content: string;
+}
+
 export interface Recovery {
   id: number;
   decision_id: number;
@@ -294,6 +302,21 @@ export interface DecisionUpdatePayload {
   decision_date?: string;
   decision_summary?: string;
   decision_content?: string;
+}
+
+export interface DecisionStatusPayload {
+  status: string;
+}
+
+export interface DecisionStatusOption {
+  code: string;
+  name: string;
+  description?: string | null;
+}
+
+export interface DecisionStatusOptions {
+  current_status: DecisionStatusOption;
+  valid_transitions: DecisionStatusOption[];
 }
 
 export interface RecoveryMonitoringPayload {

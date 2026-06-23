@@ -53,6 +53,17 @@ class DecisionController extends Controller
         ]);
     }
 
+    public function statusOptions(Request $request, Decision $decision): JsonResponse
+    {
+        Gate::authorize('view', $decision);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Decision status options retrieved successfully',
+            'data' => $this->decisionService->statusOptions($decision, $request->user()),
+        ]);
+    }
+
     public function update(UpdateDecisionRequest $request, Decision $decision): JsonResponse
     {
         Gate::authorize('update', $decision);

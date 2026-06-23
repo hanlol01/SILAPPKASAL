@@ -16,6 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { DecisionCreateAction } from "@/components/workflow-actions/decision-create-action";
+import { DecisionStatusAction } from "@/components/workflow-actions/decision-status-action";
 import { InvestigationCreateAction } from "@/components/workflow-actions/investigation-create-action";
 import { InvestigationStatusAction } from "@/components/workflow-actions/investigation-status-action";
 import { RecommendationCreateAction } from "@/components/workflow-actions/recommendation-create-action";
@@ -110,10 +112,14 @@ function CaseDetail() {
   const canUseSatgasActions = isAssignedSatgas && !c.closed_at;
   const canInvestigate = canUseSatgasActions && Boolean(user?.permissions?.includes("cases.investigate"));
   const canRecommend = canUseSatgasActions && Boolean(user?.permissions?.includes("cases.recommend"));
+  const canManageDecisionActions =
+    roleCode === "super_admin" && Boolean(user?.permissions?.includes("cases.record_decision"));
   const canManageInstitutionalActions = isAdminRole;
   const canAddRecoveryMonitoring = canManageInstitutionalActions || canUseSatgasActions;
   const activeAssignments = (c.assignments ?? []).filter((assignment) => assignment.is_active);
   const latestCompletedInvestigation = mostRecentCompletedInvestigation(investigationsQuery.data ?? []);
+  const submittedDecisionRecommendation = submittedRecommendationForDecision(recommendationsQuery.data ?? []);
+  const decisionsLoaded = recommendationsQuery.isSuccess && decisionQueries.every((query) => query.isSuccess);
   const canCreateInvestigation =
     canInvestigate &&
     investigationsQuery.isSuccess &&
@@ -126,6 +132,13 @@ function CaseDetail() {
     c.status === "recommendation" &&
     (recommendationsQuery.data ?? []).length === 0 &&
     latestCompletedInvestigation !== null;
+  const canCreateDecision =
+    canManageDecisionActions &&
+    recommendationsQuery.isSuccess &&
+    decisionsLoaded &&
+    c.status === "decision" &&
+    submittedDecisionRecommendation !== null &&
+    decisions.length === 0;
 
   return (
     <div className="space-y-6">
@@ -178,7 +191,9 @@ function CaseDetail() {
           <DecisionsSection
             decisions={decisions}
             loading={decisionQueries.some((query) => query.isLoading)}
-            canUpdate={canManageInstitutionalActions}
+            canUpdate={canManageDecisionActions}
+            canTransitionStatus={canManageDecisionActions}
+            caseId={c.id}
           />
           <RecoveriesSection
             recoveries={recoveries}
@@ -275,6 +290,21 @@ function CaseDetail() {
                     (recommendationsQuery.data ?? []).length,
                     investigationsQuery.isSuccess,
                     latestCompletedInvestigation,
+                  )}
+                />
+              )}
+              {canCreateDecision && submittedDecisionRecommendation && (
+                <DecisionCreateAction caseId={c.id} recommendation={submittedDecisionRecommendation} />
+              )}
+              {canManageDecisionActions && !canCreateDecision && (
+                <DisabledWorkflowAction
+                  title="Create decision"
+                  description={decisionCreateDisabledReason(
+                    c.status,
+                    recommendationsQuery.isSuccess,
+                    decisionsLoaded,
+                    submittedDecisionRecommendation,
+                    decisions.length,
                   )}
                 />
               )}
@@ -424,10 +454,14 @@ function DecisionsSection({
   decisions,
   loading,
   canUpdate,
+  canTransitionStatus,
+  caseId,
 }: {
   decisions: Decision[];
   loading: boolean;
   canUpdate: boolean;
+  canTransitionStatus: boolean;
+  caseId: number | string;
 }) {
   return (
     <SectionCard icon={Scale} title="Decisions" loading={loading} empty={decisions.length === 0}>
@@ -437,7 +471,10 @@ function DecisionsSection({
             <div className="font-medium">Decision #{item.id}</div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline">{label(item.status_code)}</Badge>
-              {canUpdate && <DecisionUpdateAction decision={item} />}
+              {canUpdate && canEditDecision(item) && <DecisionUpdateAction decision={item} />}
+              {canTransitionStatus && item.status !== "finalized" && (
+                <DecisionStatusAction decision={item} caseId={caseId} />
+              )}
             </div>
           </div>
           <div className="mt-2 grid gap-2 text-muted-foreground sm:grid-cols-2">
@@ -452,12 +489,6 @@ function DecisionsSection({
           ) : (
             <MetadataOnlyText />
           )}
-          <div className="mt-3">
-            <DisabledWorkflowAction
-              title="Decision status update"
-              description="Status action is disabled until decision status options or transition data are exposed by backend."
-            />
-          </div>
         </div>
       ))}
     </SectionCard>
@@ -621,6 +652,10 @@ function canEditRecommendation(item: Recommendation) {
   return item.status === "drafting" || item.status === "revised";
 }
 
+function canEditDecision(item: Decision) {
+  return item.status === "draft";
+}
+
 function mostRecentCompletedInvestigation(items: Investigation[]) {
   const completed = items.filter((item) => item.status === "completed" && item.completed_at);
 
@@ -634,6 +669,10 @@ function mostRecentCompletedInvestigation(items: Investigation[]) {
 
     return bTime - aTime;
   })[0];
+}
+
+function submittedRecommendationForDecision(items: Recommendation[]) {
+  return items.find((item) => item.status === "submitted_to_leader") ?? null;
 }
 
 function recommendationCreateDisabledReason(
@@ -660,6 +699,32 @@ function recommendationCreateDisabledReason(
   }
 
   return "Recommendation creation is not available for this case.";
+}
+
+function decisionCreateDisabledReason(
+  status: string | null | undefined,
+  recommendationsLoaded: boolean,
+  decisionsLoaded: boolean,
+  submittedRecommendation: Recommendation | null,
+  decisionCount: number,
+) {
+  if (status !== "decision") {
+    return "Case must be in decision status before creating a decision.";
+  }
+
+  if (!recommendationsLoaded || !decisionsLoaded) {
+    return "Recommendation or decision data is still loading.";
+  }
+
+  if (decisionCount > 0) {
+    return "This case already has a decision.";
+  }
+
+  if (!submittedRecommendation) {
+    return "A submitted recommendation is required before creating a decision.";
+  }
+
+  return "Decision creation is not available for this case.";
 }
 
 function label(value: string) {
