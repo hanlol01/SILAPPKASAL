@@ -9,6 +9,8 @@
   "unexpectedError": "Terjadi kesalahan yang tidak terduga.",
   "edit": "Ubah",
   "view": "Lihat",
+  "back": "Kembali",
+  "next": "Lanjut",
   "breakGlass": "Break-glass",
   "breakGlassRequest": "Ajukan break-glass",
   "breakGlassPending": "Permintaan break-glass tertunda",

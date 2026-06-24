@@ -9,17 +9,22 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TrackRouteImport } from './routes/track'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PortalIndexRouteImport } from './routes/portal.index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as RegistrationPendingRouteImport } from './routes/registration.pending'
+import { Route as RegistrationCorrectionRouteImport } from './routes/registration.correction'
 import { Route as PortalNotificationsRouteImport } from './routes/portal.notifications'
 import { Route as PortalAccountRouteImport } from './routes/portal.account'
 import { Route as DashboardWorkflowRouteImport } from './routes/dashboard.workflow'
 import { Route as DashboardUsersRouteImport } from './routes/dashboard.users'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard.settings'
+import { Route as DashboardRegistrationsRouteImport } from './routes/dashboard.registrations'
 import { Route as DashboardNotificationsRouteImport } from './routes/dashboard.notifications'
 import { Route as DashboardContentRouteImport } from './routes/dashboard.content'
 import { Route as DashboardBreakGlassRouteImport } from './routes/dashboard.break-glass'
@@ -27,11 +32,23 @@ import { Route as DashboardAnalyticsRouteImport } from './routes/dashboard.analy
 import { Route as PortalReportsIndexRouteImport } from './routes/portal.reports.index'
 import { Route as DashboardReportsIndexRouteImport } from './routes/dashboard.reports.index'
 import { Route as DashboardCasesIndexRouteImport } from './routes/dashboard.cases.index'
+import { Route as PortalReportsNewRouteImport } from './routes/portal.reports.new'
 import { Route as PortalReportsRegistrationNumberRouteImport } from './routes/portal.reports.$registrationNumber'
 import { Route as PortalReportsSplatRouteImport } from './routes/portal.reports.$'
 import { Route as DashboardReportsIdRouteImport } from './routes/dashboard.reports.$id'
+import { Route as DashboardRegistrationsIdRouteImport } from './routes/dashboard.registrations.$id'
 import { Route as DashboardCasesIdRouteImport } from './routes/dashboard.cases.$id'
 
+const TrackRoute = TrackRouteImport.update({
+  id: '/track',
+  path: '/track',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PortalRoute = PortalRouteImport.update({
   id: '/portal',
   path: '/portal',
@@ -62,6 +79,16 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   path: '/',
   getParentRoute: () => DashboardRoute,
 } as any)
+const RegistrationPendingRoute = RegistrationPendingRouteImport.update({
+  id: '/registration/pending',
+  path: '/registration/pending',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegistrationCorrectionRoute = RegistrationCorrectionRouteImport.update({
+  id: '/registration/correction',
+  path: '/registration/correction',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PortalNotificationsRoute = PortalNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
@@ -85,6 +112,11 @@ const DashboardUsersRoute = DashboardUsersRouteImport.update({
 const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardRegistrationsRoute = DashboardRegistrationsRouteImport.update({
+  id: '/registrations',
+  path: '/registrations',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardNotificationsRoute = DashboardNotificationsRouteImport.update({
@@ -122,6 +154,11 @@ const DashboardCasesIndexRoute = DashboardCasesIndexRouteImport.update({
   path: '/cases/',
   getParentRoute: () => DashboardRoute,
 } as any)
+const PortalReportsNewRoute = PortalReportsNewRouteImport.update({
+  id: '/reports/new',
+  path: '/reports/new',
+  getParentRoute: () => PortalRoute,
+} as any)
 const PortalReportsRegistrationNumberRoute =
   PortalReportsRegistrationNumberRouteImport.update({
     id: '/reports/$registrationNumber',
@@ -138,6 +175,12 @@ const DashboardReportsIdRoute = DashboardReportsIdRouteImport.update({
   path: '/reports/$id',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardRegistrationsIdRoute =
+  DashboardRegistrationsIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => DashboardRegistrationsRoute,
+  } as any)
 const DashboardCasesIdRoute = DashboardCasesIdRouteImport.update({
   id: '/cases/$id',
   path: '/cases/$id',
@@ -149,21 +192,28 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
   '/portal': typeof PortalRouteWithChildren
+  '/register': typeof RegisterRoute
+  '/track': typeof TrackRoute
   '/dashboard/analytics': typeof DashboardAnalyticsRoute
   '/dashboard/break-glass': typeof DashboardBreakGlassRoute
   '/dashboard/content': typeof DashboardContentRoute
   '/dashboard/notifications': typeof DashboardNotificationsRoute
+  '/dashboard/registrations': typeof DashboardRegistrationsRouteWithChildren
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/workflow': typeof DashboardWorkflowRoute
   '/portal/account': typeof PortalAccountRoute
   '/portal/notifications': typeof PortalNotificationsRoute
+  '/registration/correction': typeof RegistrationCorrectionRoute
+  '/registration/pending': typeof RegistrationPendingRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/portal/': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
+  '/dashboard/registrations/$id': typeof DashboardRegistrationsIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
   '/portal/reports/$': typeof PortalReportsSplatRoute
   '/portal/reports/$registrationNumber': typeof PortalReportsRegistrationNumberRoute
+  '/portal/reports/new': typeof PortalReportsNewRoute
   '/dashboard/cases/': typeof DashboardCasesIndexRoute
   '/dashboard/reports/': typeof DashboardReportsIndexRoute
   '/portal/reports/': typeof PortalReportsIndexRoute
@@ -171,21 +221,28 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/track': typeof TrackRoute
   '/dashboard/analytics': typeof DashboardAnalyticsRoute
   '/dashboard/break-glass': typeof DashboardBreakGlassRoute
   '/dashboard/content': typeof DashboardContentRoute
   '/dashboard/notifications': typeof DashboardNotificationsRoute
+  '/dashboard/registrations': typeof DashboardRegistrationsRouteWithChildren
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/workflow': typeof DashboardWorkflowRoute
   '/portal/account': typeof PortalAccountRoute
   '/portal/notifications': typeof PortalNotificationsRoute
+  '/registration/correction': typeof RegistrationCorrectionRoute
+  '/registration/pending': typeof RegistrationPendingRoute
   '/dashboard': typeof DashboardIndexRoute
   '/portal': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
+  '/dashboard/registrations/$id': typeof DashboardRegistrationsIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
   '/portal/reports/$': typeof PortalReportsSplatRoute
   '/portal/reports/$registrationNumber': typeof PortalReportsRegistrationNumberRoute
+  '/portal/reports/new': typeof PortalReportsNewRoute
   '/dashboard/cases': typeof DashboardCasesIndexRoute
   '/dashboard/reports': typeof DashboardReportsIndexRoute
   '/portal/reports': typeof PortalReportsIndexRoute
@@ -196,21 +253,28 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
   '/portal': typeof PortalRouteWithChildren
+  '/register': typeof RegisterRoute
+  '/track': typeof TrackRoute
   '/dashboard/analytics': typeof DashboardAnalyticsRoute
   '/dashboard/break-glass': typeof DashboardBreakGlassRoute
   '/dashboard/content': typeof DashboardContentRoute
   '/dashboard/notifications': typeof DashboardNotificationsRoute
+  '/dashboard/registrations': typeof DashboardRegistrationsRouteWithChildren
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/workflow': typeof DashboardWorkflowRoute
   '/portal/account': typeof PortalAccountRoute
   '/portal/notifications': typeof PortalNotificationsRoute
+  '/registration/correction': typeof RegistrationCorrectionRoute
+  '/registration/pending': typeof RegistrationPendingRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/portal/': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
+  '/dashboard/registrations/$id': typeof DashboardRegistrationsIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
   '/portal/reports/$': typeof PortalReportsSplatRoute
   '/portal/reports/$registrationNumber': typeof PortalReportsRegistrationNumberRoute
+  '/portal/reports/new': typeof PortalReportsNewRoute
   '/dashboard/cases/': typeof DashboardCasesIndexRoute
   '/dashboard/reports/': typeof DashboardReportsIndexRoute
   '/portal/reports/': typeof PortalReportsIndexRoute
@@ -222,21 +286,28 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/portal'
+    | '/register'
+    | '/track'
     | '/dashboard/analytics'
     | '/dashboard/break-glass'
     | '/dashboard/content'
     | '/dashboard/notifications'
+    | '/dashboard/registrations'
     | '/dashboard/settings'
     | '/dashboard/users'
     | '/dashboard/workflow'
     | '/portal/account'
     | '/portal/notifications'
+    | '/registration/correction'
+    | '/registration/pending'
     | '/dashboard/'
     | '/portal/'
     | '/dashboard/cases/$id'
+    | '/dashboard/registrations/$id'
     | '/dashboard/reports/$id'
     | '/portal/reports/$'
     | '/portal/reports/$registrationNumber'
+    | '/portal/reports/new'
     | '/dashboard/cases/'
     | '/dashboard/reports/'
     | '/portal/reports/'
@@ -244,21 +315,28 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/register'
+    | '/track'
     | '/dashboard/analytics'
     | '/dashboard/break-glass'
     | '/dashboard/content'
     | '/dashboard/notifications'
+    | '/dashboard/registrations'
     | '/dashboard/settings'
     | '/dashboard/users'
     | '/dashboard/workflow'
     | '/portal/account'
     | '/portal/notifications'
+    | '/registration/correction'
+    | '/registration/pending'
     | '/dashboard'
     | '/portal'
     | '/dashboard/cases/$id'
+    | '/dashboard/registrations/$id'
     | '/dashboard/reports/$id'
     | '/portal/reports/$'
     | '/portal/reports/$registrationNumber'
+    | '/portal/reports/new'
     | '/dashboard/cases'
     | '/dashboard/reports'
     | '/portal/reports'
@@ -268,21 +346,28 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/portal'
+    | '/register'
+    | '/track'
     | '/dashboard/analytics'
     | '/dashboard/break-glass'
     | '/dashboard/content'
     | '/dashboard/notifications'
+    | '/dashboard/registrations'
     | '/dashboard/settings'
     | '/dashboard/users'
     | '/dashboard/workflow'
     | '/portal/account'
     | '/portal/notifications'
+    | '/registration/correction'
+    | '/registration/pending'
     | '/dashboard/'
     | '/portal/'
     | '/dashboard/cases/$id'
+    | '/dashboard/registrations/$id'
     | '/dashboard/reports/$id'
     | '/portal/reports/$'
     | '/portal/reports/$registrationNumber'
+    | '/portal/reports/new'
     | '/dashboard/cases/'
     | '/dashboard/reports/'
     | '/portal/reports/'
@@ -293,10 +378,28 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRouteWithChildren
   LoginRoute: typeof LoginRoute
   PortalRoute: typeof PortalRouteWithChildren
+  RegisterRoute: typeof RegisterRoute
+  TrackRoute: typeof TrackRoute
+  RegistrationCorrectionRoute: typeof RegistrationCorrectionRoute
+  RegistrationPendingRoute: typeof RegistrationPendingRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/track': {
+      id: '/track'
+      path: '/track'
+      fullPath: '/track'
+      preLoaderRoute: typeof TrackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/portal': {
       id: '/portal'
       path: '/portal'
@@ -339,6 +442,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/registration/pending': {
+      id: '/registration/pending'
+      path: '/registration/pending'
+      fullPath: '/registration/pending'
+      preLoaderRoute: typeof RegistrationPendingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/registration/correction': {
+      id: '/registration/correction'
+      path: '/registration/correction'
+      fullPath: '/registration/correction'
+      preLoaderRoute: typeof RegistrationCorrectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/portal/notifications': {
       id: '/portal/notifications'
       path: '/notifications'
@@ -372,6 +489,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/dashboard/settings'
       preLoaderRoute: typeof DashboardSettingsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/registrations': {
+      id: '/dashboard/registrations'
+      path: '/registrations'
+      fullPath: '/dashboard/registrations'
+      preLoaderRoute: typeof DashboardRegistrationsRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/notifications': {
@@ -423,6 +547,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardCasesIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/portal/reports/new': {
+      id: '/portal/reports/new'
+      path: '/reports/new'
+      fullPath: '/portal/reports/new'
+      preLoaderRoute: typeof PortalReportsNewRouteImport
+      parentRoute: typeof PortalRoute
+    }
     '/portal/reports/$registrationNumber': {
       id: '/portal/reports/$registrationNumber'
       path: '/reports/$registrationNumber'
@@ -444,6 +575,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardReportsIdRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/registrations/$id': {
+      id: '/dashboard/registrations/$id'
+      path: '/$id'
+      fullPath: '/dashboard/registrations/$id'
+      preLoaderRoute: typeof DashboardRegistrationsIdRouteImport
+      parentRoute: typeof DashboardRegistrationsRoute
+    }
     '/dashboard/cases/$id': {
       id: '/dashboard/cases/$id'
       path: '/cases/$id'
@@ -454,11 +592,26 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface DashboardRegistrationsRouteChildren {
+  DashboardRegistrationsIdRoute: typeof DashboardRegistrationsIdRoute
+}
+
+const DashboardRegistrationsRouteChildren: DashboardRegistrationsRouteChildren =
+  {
+    DashboardRegistrationsIdRoute: DashboardRegistrationsIdRoute,
+  }
+
+const DashboardRegistrationsRouteWithChildren =
+  DashboardRegistrationsRoute._addFileChildren(
+    DashboardRegistrationsRouteChildren,
+  )
+
 interface DashboardRouteChildren {
   DashboardAnalyticsRoute: typeof DashboardAnalyticsRoute
   DashboardBreakGlassRoute: typeof DashboardBreakGlassRoute
   DashboardContentRoute: typeof DashboardContentRoute
   DashboardNotificationsRoute: typeof DashboardNotificationsRoute
+  DashboardRegistrationsRoute: typeof DashboardRegistrationsRouteWithChildren
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardUsersRoute: typeof DashboardUsersRoute
   DashboardWorkflowRoute: typeof DashboardWorkflowRoute
@@ -474,6 +627,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardBreakGlassRoute: DashboardBreakGlassRoute,
   DashboardContentRoute: DashboardContentRoute,
   DashboardNotificationsRoute: DashboardNotificationsRoute,
+  DashboardRegistrationsRoute: DashboardRegistrationsRouteWithChildren,
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardUsersRoute: DashboardUsersRoute,
   DashboardWorkflowRoute: DashboardWorkflowRoute,
@@ -494,6 +648,7 @@ interface PortalRouteChildren {
   PortalIndexRoute: typeof PortalIndexRoute
   PortalReportsSplatRoute: typeof PortalReportsSplatRoute
   PortalReportsRegistrationNumberRoute: typeof PortalReportsRegistrationNumberRoute
+  PortalReportsNewRoute: typeof PortalReportsNewRoute
   PortalReportsIndexRoute: typeof PortalReportsIndexRoute
 }
 
@@ -503,6 +658,7 @@ const PortalRouteChildren: PortalRouteChildren = {
   PortalIndexRoute: PortalIndexRoute,
   PortalReportsSplatRoute: PortalReportsSplatRoute,
   PortalReportsRegistrationNumberRoute: PortalReportsRegistrationNumberRoute,
+  PortalReportsNewRoute: PortalReportsNewRoute,
   PortalReportsIndexRoute: PortalReportsIndexRoute,
 }
 
@@ -514,6 +670,10 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRouteWithChildren,
   LoginRoute: LoginRoute,
   PortalRoute: PortalRouteWithChildren,
+  RegisterRoute: RegisterRoute,
+  TrackRoute: TrackRoute,
+  RegistrationCorrectionRoute: RegistrationCorrectionRoute,
+  RegistrationPendingRoute: RegistrationPendingRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

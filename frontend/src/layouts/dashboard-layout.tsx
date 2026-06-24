@@ -8,6 +8,8 @@ import {
   Settings,
   ShieldCheck,
   ShieldAlert,
+  Users,
+  ClipboardList,
   LogOut,
   Moon,
   Sun,
@@ -77,6 +79,18 @@ const nav: {
     title: "Analytics",
     url: "/dashboard/analytics",
     icon: BarChart3,
+    roles: ["super_admin", "admin"],
+  },
+  {
+    title: "Registrations",
+    url: "/dashboard/registrations",
+    icon: ClipboardList,
+    roles: ["super_admin", "admin"],
+  },
+  {
+    title: "Users",
+    url: "/dashboard/users",
+    icon: Users,
     roles: ["super_admin", "admin"],
   },
   {

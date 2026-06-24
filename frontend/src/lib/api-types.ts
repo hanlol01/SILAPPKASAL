@@ -35,18 +35,59 @@ export interface ApiUser {
   nim: string | null;
   nip: string | null;
   phone_number: string | null;
+  university_id?: number | null;
+  faculty_id?: number | null;
+  study_program_id?: number | null;
+  university?: CampusRef | null;
+  faculty?: CampusRef | null;
+  study_program?: CampusRef | null;
   role: ApiRole | null;
   permissions: string[];
   is_active: boolean;
   email_verified_at: string | null;
 }
 
-export interface LoginResponseData {
-  token: string;
-  token_type: string;
-  expires_in: number;
-  user: ApiUser;
+export interface CampusRef {
+  id: number;
+  code: string;
+  name: string;
+  abbreviation?: string | null;
+  type?: string | null;
+  has_faculties?: boolean;
+  degree_level?: string | null;
 }
+
+export interface ReporterRegistrationAuthState {
+  id: number;
+  registration_number: string;
+  name: string;
+  email: string;
+  nim: string;
+  phone_number: string;
+  university_id: number;
+  faculty_id: number | null;
+  study_program_id: number;
+  university?: CampusRef | null;
+  faculty?: CampusRef | null;
+  study_program?: CampusRef | null;
+  status: "pending" | "rejected" | string;
+  rejection_reason?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export type LoginResponseData =
+  | {
+      type?: "bearer";
+      token: string;
+      token_type: string;
+      expires_in: number;
+      user: ApiUser;
+    }
+  | {
+      type: "registration";
+      registration: ReporterRegistrationAuthState;
+    };
 
 export interface DashboardFilters {
   date_from?: string;

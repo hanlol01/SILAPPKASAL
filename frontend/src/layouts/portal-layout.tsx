@@ -2,6 +2,7 @@ import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   FileText,
+  PlusCircle,
   Bell,
   UserCog,
   ShieldCheck,
@@ -30,6 +31,7 @@ import type { ReactNode } from "react";
  */
 const nav = [
   { titleKey: "overview", url: "/portal" as const, icon: LayoutDashboard },
+  { titleKey: "newReport", url: "/portal/reports/new" as const, icon: PlusCircle },
   { titleKey: "myReports", url: "/portal/reports" as const, icon: FileText },
   { titleKey: "notifications", url: "/portal/notifications" as const, icon: Bell },
   { titleKey: "account", url: "/portal/account" as const, icon: UserCog },

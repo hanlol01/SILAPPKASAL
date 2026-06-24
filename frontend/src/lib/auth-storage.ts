@@ -2,6 +2,7 @@ export type TokenPersistence = "local" | "session";
 
 const TOKEN_KEY = "silappkasal_auth_token";
 const TOKEN_PERSISTENCE_KEY = "silappkasal_auth_token_persistence";
+const REGISTRATION_STATE_KEY = "silappkasal_registration_state";
 
 function canUseStorage() {
   return typeof window !== "undefined";
@@ -101,4 +102,24 @@ export function clearAuthToken() {
 
 export function hasAuthToken() {
   return Boolean(getAuthToken());
+}
+
+export function getRegistrationState<T>() {
+  const value = getSessionStorageItem(REGISTRATION_STATE_KEY);
+  if (!value) return null;
+
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    removeSessionStorageItem(REGISTRATION_STATE_KEY);
+    return null;
+  }
+}
+
+export function setRegistrationState(value: unknown) {
+  setSessionStorageItem(REGISTRATION_STATE_KEY, JSON.stringify(value));
+}
+
+export function clearRegistrationState() {
+  removeSessionStorageItem(REGISTRATION_STATE_KEY);
 }

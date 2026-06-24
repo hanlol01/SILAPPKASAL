@@ -18,6 +18,9 @@ import type {
   PortalProfileUpdatePayload,
   PortalAccountStatus,
   PortalChangePasswordPayload,
+  ReportSubmissionPayload,
+  ReportSubmissionResult,
+  TrackingLookupResult,
 } from "@/lib/portal-types";
 import type { PaginationMeta } from "@/lib/api-types";
 
@@ -34,6 +37,7 @@ export const portalQueryKeys = {
   notifications: ()                          => ["portal", "notifications"] as const,
   profile:       ()                          => ["portal", "profile"] as const,
   accountStatus: ()                          => ["portal", "account-status"] as const,
+  tracking: (code: string)                   => ["portal", "tracking", code] as const,
 };
 
 // ---------------------------------------------------------------------------
@@ -99,4 +103,17 @@ export function changeMyPassword(data: PortalChangePasswordPayload) {
     method: "PATCH",
     body: JSON.stringify(data),
   });
+}
+
+/** POST /api/v1/reports */
+export function submitReport(data: ReportSubmissionPayload) {
+  return apiRequest<ReportSubmissionResult>("/reports", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+/** GET /api/v1/reports/track/{trackingCode} */
+export function trackReport(trackingCode: string) {
+  return apiRequest<TrackingLookupResult>(`/reports/track/${encodeURIComponent(trackingCode)}`);
 }

@@ -102,3 +102,35 @@ export interface PortalChangePasswordPayload {
   password: string;
   password_confirmation: string;
 }
+
+export interface ReportSubmissionPayload {
+  report_type: "open" | "confidential" | "anonymous" | string;
+  category_code: string;
+  chronology: string;
+  incident_date: string;
+  incident_time?: string | null;
+  incident_location: string;
+  location_type?: string | null;
+  respondent_name?: string | null;
+  respondent_campus_status?: string | null;
+  respondent_relation?: string | null;
+  respondent_details?: string | null;
+  witness_info?: string | null;
+  reporter_phone?: string | null;
+}
+
+export interface ReportSubmissionResult {
+  registration_number: string;
+  tracking_code?: string | null;
+  status?: string | null;
+  submitted_at?: string | null;
+}
+
+export interface TrackingLookupResult {
+  registration_number: string;
+  tracking_code?: string | null;
+  status: string;
+  report_type?: string | null;
+  category?: string | null;
+  submitted_at: string | null;
+}

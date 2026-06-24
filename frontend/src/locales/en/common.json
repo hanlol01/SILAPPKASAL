@@ -9,6 +9,8 @@
   "unexpectedError": "An unexpected error occurred.",
   "edit": "Edit",
   "view": "View",
+  "back": "Back",
+  "next": "Next",
   "breakGlass": "Break-glass",
   "breakGlassRequest": "Request break-glass",
   "breakGlassPending": "Pending break-glass requests",

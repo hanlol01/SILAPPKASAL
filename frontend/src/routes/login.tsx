@@ -91,8 +91,11 @@ function LoginPage() {
     setLoading(true);
 
     try {
-      await login(identifier, password, remember);
+      const result = await login(identifier, password, remember);
       toast.success(t("welcomeBack"));
+      if (result === "registration") {
+        navigate({ to: "/registration/pending", replace: true });
+      }
     } catch (error) {
       const message = error instanceof ApiError ? error.message : t("loginFailed");
       toast.error(message);
@@ -143,6 +146,7 @@ function LoginPage() {
                   onChange={(e) => setIdentifier(e.target.value)}
                   required
                 />
+                <p className="text-xs text-muted-foreground">{t("registrationLoginHint")}</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">{t("password")}</Label>
@@ -170,6 +174,14 @@ function LoginPage() {
                 {loading ? t("signingIn") : t("signIn")}
               </Button>
             </form>
+            <div className="mt-6 flex flex-col gap-2 text-sm">
+              <Link to="/register" className="text-primary hover:underline">
+                {t("registerLink")}
+              </Link>
+              <Link to="/track" className="text-primary hover:underline">
+                {t("trackLink")}
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>
