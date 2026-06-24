@@ -5,9 +5,13 @@ namespace Tests\Feature;
 use App\Enums\AuditAction;
 use App\Enums\ReporterRegistrationStatus;
 use App\Models\AuditLog;
+use App\Models\Faculty;
 use App\Models\ReporterRegistration;
 use App\Models\Role;
+use App\Models\StudyProgram;
+use App\Models\University;
 use App\Models\User;
+use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -23,6 +27,7 @@ class ReporterRegistrationFoundationTest extends TestCase
         parent::setUp();
 
         $this->seed(RbacSeeder::class);
+        $this->seed(CampusMasterDataSeeder::class);
     }
 
     public function test_public_registration_creates_pending_registration_without_user_or_sensitive_response(): void
@@ -49,7 +54,9 @@ class ReporterRegistrationFoundationTest extends TestCase
         $this->postJson('/api/v1/auth/login', [
             'identifier' => 'student@example.test',
             'password' => 'SecurePass123',
-        ])->assertUnauthorized();
+        ])->assertOk()
+            ->assertJsonPath('data.type', 'registration')
+            ->assertJsonPath('data.registration.status', ReporterRegistrationStatus::Pending->value);
 
         $this->assertDatabaseHas('audit_logs', [
             'action' => AuditAction::ReporterRegistrationSubmitted->value,
@@ -62,7 +69,7 @@ class ReporterRegistrationFoundationTest extends TestCase
 
         $this->postJson('/api/v1/reporter-registrations', $this->registrationPayload())
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'An active account already exists for this email or NIM');
+            ->assertJsonPath('message', 'An active account already exists for this email or NIM in the selected university');
 
         $this->assertDatabaseCount('reporter_registrations', 0);
     }
@@ -75,7 +82,7 @@ class ReporterRegistrationFoundationTest extends TestCase
         $this->postJson('/api/v1/reporter-registrations', $this->registrationPayload([
             'email' => 'other@example.test',
         ]))->assertUnprocessable()
-            ->assertJsonPath('message', 'A pending registration already exists for this email or NIM');
+            ->assertJsonPath('message', 'A pending registration already exists for this email or NIM in the selected university');
     }
 
     public function test_admin_can_approve_registration_and_password_hash_is_cleared(): void
@@ -98,6 +105,9 @@ class ReporterRegistrationFoundationTest extends TestCase
         $this->assertSame($reporter->id, $registration->approved_user_id);
         $this->assertTrue($reporter->is_active);
         $this->assertSame('reporter', $reporter->role->code);
+        $this->assertSame($registration->university_id, $reporter->university_id);
+        $this->assertSame($registration->faculty_id, $reporter->faculty_id);
+        $this->assertSame($registration->study_program_id, $reporter->study_program_id);
 
         $this->postJson('/api/v1/auth/login', [
             'identifier' => 'student@example.test',
@@ -186,7 +196,7 @@ class ReporterRegistrationFoundationTest extends TestCase
 
         $this->patchJson("/api/v1/reporter-registrations/{$registration->id}/approve")
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'An active account already exists for this email or NIM');
+            ->assertJsonPath('message', 'An active account already exists for this email or NIM in the selected university');
 
         $registration->refresh();
 
@@ -215,11 +225,18 @@ class ReporterRegistrationFoundationTest extends TestCase
      */
     private function registrationPayload(array $overrides = []): array
     {
+        $university = University::query()->where('code', 'DEMO-UNIV')->firstOrFail();
+        $faculty = Faculty::query()->where('university_id', $university->id)->where('code', 'FT')->firstOrFail();
+        $studyProgram = StudyProgram::query()->where('university_id', $university->id)->where('code', 'TI')->firstOrFail();
+
         return array_merge([
             'name' => 'Mahasiswa Demo',
             'email' => 'student@example.test',
             'nim' => '230001',
             'phone_number' => '081234567890',
+            'university_id' => $university->id,
+            'faculty_id' => $faculty->id,
+            'study_program_id' => $studyProgram->id,
             'password' => 'SecurePass123',
             'password_confirmation' => 'SecurePass123',
         ], $overrides);
@@ -236,9 +253,11 @@ class ReporterRegistrationFoundationTest extends TestCase
     private function makeUser(string $roleCode, string $email, ?string $nim = null): User
     {
         $role = Role::query()->where('code', $roleCode)->firstOrFail();
+        $university = University::query()->where('code', 'DEMO-UNIV')->first();
 
         return User::query()->create([
             'role_id' => $role->id,
+            'university_id' => $university?->id,
             'name' => "{$roleCode} User",
             'email' => $email,
             'nim' => $nim,

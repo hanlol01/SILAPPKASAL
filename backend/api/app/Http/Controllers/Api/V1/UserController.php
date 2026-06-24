@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ManualReporterStoreRequest;
 use App\Http\Requests\UserIndexRequest;
 use App\Http\Requests\UserLookupRequest;
 use App\Http\Requests\UserRoleUpdateRequest;
@@ -24,7 +25,7 @@ class UserController extends Controller
     {
         Gate::authorize('viewAny', User::class);
 
-        $users = $this->userManagementService->list($request->validated());
+        $users = $this->userManagementService->list($request->validated(), $request->user());
 
         return response()->json([
             'success' => true,
@@ -46,7 +47,7 @@ class UserController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'User lookup retrieved successfully',
-            'data' => UserLookupResource::collection($this->userManagementService->lookup($request->validated())),
+            'data' => UserLookupResource::collection($this->userManagementService->lookup($request->validated(), $request->user())),
         ]);
     }
 
@@ -57,8 +58,24 @@ class UserController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'User retrieved successfully',
-            'data' => new UserManagementResource($user->load('role')),
+            'data' => new UserManagementResource($user->load(['role', 'university', 'faculty', 'studyProgram'])),
         ]);
+    }
+
+    public function storeReporter(ManualReporterStoreRequest $request): JsonResponse
+    {
+        Gate::authorize('createReporter', User::class);
+
+        $result = $this->userManagementService->createReporter($request->validated(), $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Reporter user created successfully',
+            'data' => [
+                'user' => new UserManagementResource($result['user']),
+                'temporary_password' => $result['temporary_password'],
+            ],
+        ], 201);
     }
 
     public function activate(Request $request, User $user): JsonResponse
@@ -95,6 +112,22 @@ class UserController extends Controller
                 $request->user(),
                 (string) $request->validated('role_code')
             )),
+        ]);
+    }
+
+    public function resetPassword(Request $request, User $user): JsonResponse
+    {
+        Gate::authorize('resetPassword', $user);
+
+        $result = $this->userManagementService->resetPassword($user, $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User password reset successfully',
+            'data' => [
+                'user' => new UserManagementResource($result['user']),
+                'temporary_password' => $result['temporary_password'],
+            ],
         ]);
     }
 }

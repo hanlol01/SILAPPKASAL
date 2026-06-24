@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Enums\AuditAction;
 use App\Models\Role;
+use App\Models\University;
 use App\Models\User;
+use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -20,6 +22,7 @@ class UserManagementFoundationTest extends TestCase
         parent::setUp();
 
         $this->seed(RbacSeeder::class);
+        $this->seed(CampusMasterDataSeeder::class);
     }
 
     public function test_admin_and_super_admin_can_list_and_view_safe_user_metadata(): void
@@ -239,9 +242,11 @@ class UserManagementFoundationTest extends TestCase
     private function makeUser(string $roleCode, string $email, ?string $nim = null, bool $isActive = true): User
     {
         $role = Role::query()->where('code', $roleCode)->firstOrFail();
+        $university = University::query()->where('code', 'DEMO-UNIV')->firstOrFail();
 
         return User::query()->create([
             'role_id' => $role->id,
+            'university_id' => $university->id,
             'name' => "{$roleCode} User",
             'email' => $email,
             'nim' => $nim,

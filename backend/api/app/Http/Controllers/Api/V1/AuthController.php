@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
+use App\Http\Resources\ReporterRegistrationResource;
 use App\Http\Resources\UserResource;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
@@ -22,10 +23,22 @@ class AuthController extends Controller
             $request->string('password')->toString()
         );
 
+        if (($result['type'] ?? null) === 'registration') {
+            return response()->json([
+                'success' => true,
+                'message' => 'Registration authentication successful',
+                'data' => [
+                    'type' => 'registration',
+                    'registration' => new ReporterRegistrationResource($result['registration']),
+                ],
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
             'data' => [
+                'type' => 'bearer',
                 'token' => $result['token'],
                 'token_type' => $result['token_type'],
                 'expires_in' => $result['expires_in'],

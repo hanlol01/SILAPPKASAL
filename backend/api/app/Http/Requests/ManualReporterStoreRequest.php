@@ -7,7 +7,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
-class ReporterRegistrationStoreRequest extends FormRequest
+class ManualReporterStoreRequest extends FormRequest
 {
     use ValidatesCampusSelection;
 
@@ -20,8 +20,8 @@ class ReporterRegistrationStoreRequest extends FormRequest
     {
         $this->merge([
             'email' => mb_strtolower(trim((string) $this->input('email'))),
-            'nim' => trim((string) $this->input('nim')),
             'name' => trim((string) $this->input('name')),
+            'nim' => trim((string) $this->input('nim')),
             'phone_number' => trim((string) $this->input('phone_number')),
             'faculty_id' => $this->filled('faculty_id') ? $this->integer('faculty_id') : null,
         ]);
@@ -40,7 +40,7 @@ class ReporterRegistrationStoreRequest extends FormRequest
             'university_id' => ['required', 'integer', Rule::exists('universities', 'id')->where('is_active', true)],
             'faculty_id' => ['nullable', 'integer', Rule::exists('faculties', 'id')->where('is_active', true)],
             'study_program_id' => ['required', 'integer', Rule::exists('study_programs', 'id')->where('is_active', true)],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', 'min:8'],
         ];
     }
 

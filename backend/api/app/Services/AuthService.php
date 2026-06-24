@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\ReporterRegistrationStatus;
+use App\Models\ReporterRegistration;
 use App\Models\User;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Hash;
@@ -13,6 +15,12 @@ class AuthService
         $user = $this->findUserByIdentifier($this->normalizeIdentifier($identifier));
 
         if (! $user || ! Hash::check($password, $user->password)) {
+            $registrationResult = $this->registrationLogin($this->normalizeIdentifier($identifier), $password);
+
+            if ($registrationResult) {
+                return $registrationResult;
+            }
+
             throw new HttpResponseException(response()->json([
                 'success' => false,
                 'message' => 'Email/NIM/NIP atau password salah',
@@ -72,5 +80,32 @@ class AuthService
             ->orWhereRaw('LOWER(nim) = ?', [mb_strtolower($identifier)])
             ->orWhereRaw('LOWER(nip) = ?', [mb_strtolower($identifier)])
             ->first();
+    }
+
+    private function registrationLogin(string $identifier, string $password): ?array
+    {
+        if (! filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
+            return null;
+        }
+
+        $registration = ReporterRegistration::query()
+            ->with(['university', 'faculty', 'studyProgram'])
+            ->whereIn('status', [
+                ReporterRegistrationStatus::Pending->value,
+                ReporterRegistrationStatus::Rejected->value,
+            ])
+            ->whereNotNull('password_hash')
+            ->whereRaw('LOWER(email) = ?', [mb_strtolower($identifier)])
+            ->latest()
+            ->first();
+
+        if (! $registration || ! Hash::check($password, (string) $registration->password_hash)) {
+            return null;
+        }
+
+        return [
+            'type' => 'registration',
+            'registration' => $registration,
+        ];
     }
 }

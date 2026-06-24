@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ReporterRegistrationCorrectRequest;
 use App\Http\Requests\ReporterRegistrationIndexRequest;
 use App\Http\Requests\ReporterRegistrationRejectRequest;
 use App\Http\Requests\ReporterRegistrationStoreRequest;
@@ -39,7 +40,7 @@ class ReporterRegistrationController extends Controller
     {
         Gate::authorize('viewAny', ReporterRegistration::class);
 
-        $registrations = $this->registrationService->list($request->validated());
+        $registrations = $this->registrationService->list($request->validated(), $request->user());
 
         return response()->json([
             'success' => true,
@@ -57,6 +58,7 @@ class ReporterRegistrationController extends Controller
     public function show(Request $request, ReporterRegistration $reporterRegistration): JsonResponse
     {
         Gate::authorize('view', $reporterRegistration);
+        $reporterRegistration->load(['university', 'faculty', 'studyProgram']);
 
         return response()->json([
             'success' => true,
@@ -87,6 +89,17 @@ class ReporterRegistrationController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Reporter registration rejected successfully',
+            'data' => new ReporterRegistrationResource($registration),
+        ]);
+    }
+
+    public function correct(ReporterRegistrationCorrectRequest $request): JsonResponse
+    {
+        $registration = $this->registrationService->correct($request->validated());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Reporter registration corrected and resubmitted successfully',
             'data' => new ReporterRegistrationResource($registration),
         ]);
     }

@@ -92,6 +92,8 @@ Route::prefix('v1')->group(function (): void {
     Route::prefix('reporter-registrations')->group(function (): void {
         Route::post('/', [ReporterRegistrationController::class, 'store'])
             ->middleware('throttle:5,1');
+        Route::patch('/correct', [ReporterRegistrationController::class, 'correct'])
+            ->middleware('throttle:5,1');
 
         Route::middleware('auth:sanctum')->group(function (): void {
             Route::get('/', [ReporterRegistrationController::class, 'index']);
@@ -193,10 +195,12 @@ Route::prefix('v1')->group(function (): void {
 
     Route::middleware('auth:sanctum')->prefix('users')->group(function (): void {
         Route::get('/', [UserController::class, 'index']);
+        Route::post('/reporters', [UserController::class, 'storeReporter']);
         Route::get('/lookup', [UserController::class, 'lookup']);
         Route::get('/{user}', [UserController::class, 'show']);
         Route::patch('/{user}/activate', [UserController::class, 'activate']);
         Route::patch('/{user}/deactivate', [UserController::class, 'deactivate']);
+        Route::patch('/{user}/reset-password', [UserController::class, 'resetPassword']);
         Route::patch('/{user}/role', [UserController::class, 'role']);
     });
 

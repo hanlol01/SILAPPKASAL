@@ -26,6 +26,8 @@ class User extends Authenticatable
     protected $fillable = [
         'role_id',
         'university_id',
+        'faculty_id',
+        'study_program_id',
         'name',
         'email',
         'nim',
@@ -67,6 +69,16 @@ class User extends Authenticatable
     public function university(): BelongsTo
     {
         return $this->belongsTo(University::class);
+    }
+
+    public function faculty(): BelongsTo
+    {
+        return $this->belongsTo(Faculty::class);
+    }
+
+    public function studyProgram(): BelongsTo
+    {
+        return $this->belongsTo(StudyProgram::class);
     }
 
     public function reports(): HasMany
