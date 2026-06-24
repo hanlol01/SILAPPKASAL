@@ -88,6 +88,7 @@ class ReporterRegistrationService
 
             $user = User::query()->create([
                 'role_id' => $role->id,
+                'university_id' => $registration->university_id,
                 'name' => $registration->name,
                 'email' => $registration->email,
                 'nim' => $registration->nim,
@@ -142,7 +143,6 @@ class ReporterRegistrationService
                 'reviewed_by' => $actor->id,
                 'reviewed_at' => now(),
                 'rejection_reason' => $data['rejection_reason'],
-                'password_hash' => null,
             ])->save();
 
             $this->auditLogService->record(

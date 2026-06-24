@@ -111,7 +111,7 @@ class ReporterRegistrationFoundationTest extends TestCase
         ]);
     }
 
-    public function test_admin_can_reject_registration_and_password_hash_is_cleared_without_user_creation(): void
+    public function test_admin_can_reject_registration_and_password_hash_is_retained_without_user_creation(): void
     {
         $admin = $this->makeUser('admin', 'admin@example.test');
         $registration = $this->submitRegistration();
@@ -126,7 +126,8 @@ class ReporterRegistrationFoundationTest extends TestCase
         $registration->refresh();
 
         $this->assertSame(ReporterRegistrationStatus::Rejected, $registration->status);
-        $this->assertNull($registration->password_hash);
+        $this->assertNotNull($registration->password_hash);
+        $this->assertTrue(Hash::check('SecurePass123', $registration->password_hash));
         $this->assertDatabaseMissing('users', ['email' => 'student@example.test']);
         $this->assertDatabaseHas('audit_logs', [
             'action' => AuditAction::ReporterRegistrationRejected->value,

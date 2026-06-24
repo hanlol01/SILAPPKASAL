@@ -28,6 +28,7 @@ use App\Models\RecoveryType;
 use App\Models\Report;
 use App\Models\ReportCategory;
 use App\Models\Role;
+use App\Models\University;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -45,25 +46,33 @@ class DemoDataSeeder extends Seeder
         }
 
         DB::transaction(function (): void {
-            $superAdmin = $this->demoUser('super_admin', 'Demo Super Admin', 'demo.superadmin@silappkasal.test');
-            $admin = $this->demoUser('admin', 'Demo Admin', 'demo.admin@silappkasal.test');
-            $satgas = $this->demoUser('satgas_ppks', 'Demo Satgas', 'demo.satgas@silappkasal.test');
+            $university = University::query()->where('code', 'DEMO-UNIV')->first();
+            $universityAttributes = $university ? ['university_id' => $university->id] : [];
 
-            $reportA = $this->report('DEMO-SLP-20260611-0001', ReportStatus::Submitted, [
+            $superAdmin = $this->demoUser('super_admin', 'Demo Super Admin', 'demo.superadmin@silappkasal.test', $universityAttributes);
+            $admin = $this->demoUser('admin', 'Demo Admin', 'demo.admin@silappkasal.test', $universityAttributes);
+            $satgas = $this->demoUser('satgas_ppks', 'Demo Satgas', 'demo.satgas@silappkasal.test', $universityAttributes);
+            $reporter = $this->demoUser('reporter', 'Demo Reporter', 'demo.reporter@silappkasal.test', [
+                ...$universityAttributes,
+                'nim' => '2026000001',
+                'phone_number' => '081200000001',
+            ]);
+
+            $reportA = $this->report($reporter, 'DEMO-SLP-20260611-0001', ReportStatus::Submitted, [
                 'report_type' => 'confidential',
                 'status' => ReportStatus::Submitted->value,
                 'submitted_at' => now()->subDays(7),
                 'forwarded_at' => null,
             ]);
 
-            $reportB = $this->report('DEMO-SLP-20260611-0002', ReportStatus::Forwarded, [
+            $reportB = $this->report($reporter, 'DEMO-SLP-20260611-0002', ReportStatus::Forwarded, [
                 'report_type' => 'confidential',
                 'status' => ReportStatus::Forwarded->value,
                 'submitted_at' => now()->subDays(6),
                 'forwarded_at' => now()->subDays(5),
             ]);
 
-            $reportC = $this->report('DEMO-SLP-20260611-0003', ReportStatus::Forwarded, [
+            $reportC = $this->report($reporter, 'DEMO-SLP-20260611-0003', ReportStatus::Forwarded, [
                 'report_type' => 'open',
                 'status' => ReportStatus::Forwarded->value,
                 'submitted_at' => now()->subDays(12),
@@ -122,32 +131,35 @@ class DemoDataSeeder extends Seeder
         });
     }
 
-    private function demoUser(string $roleCode, string $name, string $email): User
+    /**
+     * @param array<string, mixed> $extra
+     */
+    private function demoUser(string $roleCode, string $name, string $email, array $extra = []): User
     {
         $role = Role::query()->where('code', $roleCode)->firstOrFail();
 
         return User::query()->updateOrCreate(
             ['email' => $email],
-            [
+            array_merge([
                 'role_id' => $role->id,
                 'name' => $name,
                 'password' => Hash::make(self::DEMO_PASSWORD),
                 'is_active' => true,
-            ]
+            ], $extra)
         );
     }
 
     /**
      * @param  array<string, mixed>  $overrides
      */
-    private function report(string $registrationNumber, ReportStatus $status, array $overrides): Report
+    private function report(User $reporter, string $registrationNumber, ReportStatus $status, array $overrides): Report
     {
         $category = ReportCategory::query()->where('is_active', true)->orderBy('sort_order')->firstOrFail();
 
         return Report::query()->updateOrCreate(
             ['registration_number' => $registrationNumber],
             array_merge([
-                'reporter_id' => null,
+                'reporter_id' => $reporter->id,
                 'tracking_code' => null,
                 'report_type' => 'confidential',
                 'category_code' => $category->code,
@@ -161,7 +173,7 @@ class DemoDataSeeder extends Seeder
                 'respondent_relation' => $this->masterCode('relations'),
                 'respondent_details' => 'Fictional respondent context for demo workflow validation only.',
                 'witness_info' => 'Fictional witness availability noted for demo data only.',
-                'reporter_phone_encrypted' => null,
+                'reporter_phone_encrypted' => $reporter->phone_number,
                 'status' => $status->value,
                 'priority' => $this->masterCode('priority_levels'),
                 'submitted_at' => now()->subDays(8),

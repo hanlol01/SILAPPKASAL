@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BreakGlassController;
 use App\Http\Controllers\Api\V1\CaseController;
+use App\Http\Controllers\Api\V1\CampusMasterDataController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DecisionController;
 use App\Http\Controllers\Api\V1\EvidenceController;
@@ -66,6 +67,13 @@ Route::prefix('v1')->group(function (): void {
                 'recovery-statuses',
             ]);
     });
+
+    Route::get('/universities', [CampusMasterDataController::class, 'universities'])
+        ->middleware('throttle:30,1');
+    Route::get('/faculties', [CampusMasterDataController::class, 'faculties'])
+        ->middleware('throttle:30,1');
+    Route::get('/study-programs', [CampusMasterDataController::class, 'studyPrograms'])
+        ->middleware('throttle:30,1');
 
     Route::prefix('reports')->group(function (): void {
         Route::post('/', [ReportController::class, 'store'])

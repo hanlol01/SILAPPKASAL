@@ -13,6 +13,9 @@ class ReporterRegistration extends Model
 
     protected $fillable = [
         'registration_number',
+        'university_id',
+        'faculty_id',
+        'study_program_id',
         'name',
         'email',
         'nim',
@@ -40,6 +43,21 @@ class ReporterRegistration extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function university(): BelongsTo
+    {
+        return $this->belongsTo(University::class);
+    }
+
+    public function faculty(): BelongsTo
+    {
+        return $this->belongsTo(Faculty::class);
+    }
+
+    public function studyProgram(): BelongsTo
+    {
+        return $this->belongsTo(StudyProgram::class);
     }
 
     public function approvedUser(): BelongsTo
