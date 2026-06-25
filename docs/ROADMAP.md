@@ -1,15 +1,15 @@
 # ROADMAP.md - SILAPPKASAL Development Roadmap
 
 > Status: Active  
-> Last Updated: 2026-06-23  
-> Current Position: Milestone 30 Complete  
+> Last Updated: 2026-06-25  
+> Current Position: Milestone 31-B2 Complete  
 > Next: TBD
 
 ---
 
 ## 1. Roadmap Overview
 
-SILAPPKASAL development started backend-first. The Laravel API remains the source of business behavior, and the React web dashboard now has authenticated admin/Satgas dashboard integration, operational report/case screens, and safe workflow action forms backed by approved endpoints.
+SILAPPKASAL development started backend-first. The Laravel API remains the source of business behavior, and the React web dashboard now has authenticated admin/Satgas dashboard integration, operational report/case screens, safe workflow action forms, reporter portal flows, public registration, and multi-campus registration support backed by approved endpoints.
 
 Current priorities:
 
@@ -731,6 +731,64 @@ Delivered:
 - Notification dispatch to assigned Satgas for creation (NOTIF-20) and status changes (NOTIF-21).
 - `RecoveryCreateAction` and `RecoveryStatusAction` frontend components.
 
+### Milestone 31A - Multi-Campus Master Data Foundation
+
+Status: PASS
+
+Delivered:
+- Backend campus master data foundation for one central SILAPPKASAL platform serving multiple universities.
+- Created university, faculty, and study program foundations.
+- Added campus relationships to users and reporter registrations.
+- Relaxed NIM uniqueness toward university-scoped behavior.
+- Added public read-only campus endpoints:
+  - `GET /api/v1/universities`
+  - `GET /api/v1/faculties`
+  - `GET /api/v1/study-programs`
+- Added participating university seed data.
+- Preserved rejected registration password hash for later correction/resubmission flow.
+- No frontend, campus-scoped admin policies, SMTP/OTP, or M31B behavior.
+
+### Milestone 31-B1 - Reporter Registration, Auth States, and Management Backend
+
+Status: PASS
+
+Delivered:
+- Campus-aware reporter registration validation.
+- Required university, study program, full name, NIM, email, phone number, and password for new registrations.
+- Faculty validation remains optional where the selected university has no faculties.
+- University-scoped NIM duplicate validation.
+- Pending and rejected registration authentication states.
+- Email-only pending/rejected registration fallback login; NIM is not accepted for that fallback in multi-campus mode.
+- Correction/resubmission endpoint for rejected applicants.
+- Admin/super_admin registration review with campus-scoped admin behavior.
+- Reporter management backend including list/detail, manual reporter creation, activation/deactivation, and password reset.
+- Audit logging for registration and reporter management mutations.
+- No frontend, SMTP/OTP, notification, Flutter, or M31-B2 UI work.
+
+### Milestone 31-B2 - Reporter Registration and Portal Frontend
+
+Status: PASS with QA note
+
+Delivered:
+- Public `/register` page with bilingual ID/EN labels and mobile-first layout.
+- Cascading campus selects for university, faculty, and study program.
+- Pending registration state page.
+- Rejected registration correction/resubmission page.
+- Login updates for registration-state responses.
+- Admin registration review UI.
+- Reporter management UI with manual reporter creation, activation/deactivation, and password reset display.
+- Reporter report submission wizard.
+- Public `/track` lookup page.
+- Portal navigation update for report creation.
+- QA patch fixed a stray TypeScript brace in `frontend/src/lib/api-types.ts` and a missing `useAuth` import in `frontend/src/routes/registration.correction.tsx`.
+
+Verification:
+
+```text
+npm.cmd run build: PASS
+npx.cmd tsc --noEmit: FAIL due to existing workflow/dashboard TypeScript errors outside the M31-B2 QA patch scope
+```
+
 ---
 
 ## 3. Current API Surface
@@ -755,14 +813,17 @@ Implemented or prepared API areas:
 - Reporter self-service
 - Reporter portal
 - User management
+- Campus master data
+- Public registration and correction states
+- Admin registration review and reporter management UI
+- Public tracking
+- Reporter report submission frontend
 - Frontend dashboard, operational screen, and workflow action foundations
 
 Not implemented yet:
 
 - Evidence upload/download
 - WhatsApp integration
-- Frontend workflow status actions that require unavailable status option APIs
-- Public/reporter frontend flows
 - Flutter mobile app
 
 ---
@@ -793,8 +854,6 @@ Deferred until explicitly approved:
 - WhatsApp/Fonnte integration.
 - Notification delivery tracking.
 - Advanced dashboard analytics beyond M13 metadata aggregates.
-- Frontend workflow status actions that require unavailable status option APIs.
-- Public/reporter frontend flows.
 - Flutter mobile app.
 - Social login.
 - Multi-tenant support.
@@ -830,6 +889,9 @@ Deferred until explicitly approved:
 | Reporter self-service privilege escalation | Milestone 20 only allows role `reporter`, blocks admin/super_admin/satgas, and prohibits email, NIM, NIP, role, permissions, active status, and approval metadata edits. |
 | Reporter portal sensitive data leakage | Milestone 21 uses portal-specific resources with `registration_number` identifiers, safe status labels, own-report scoping, read-only notifications, and no narratives, raw workflow codes, tracking codes, staff identities, assignments, evidence, audit data, or admin notes. |
 | User management lookup exposure | Milestone 23 uses picker-safe lookup fields only, blocks `super_admin` lookup and promotion, and preserves last active Super Admin protection. |
+| Cross-campus data leakage | M31-B1 scopes admin registration/reporter management by university and returns empty/denied behavior for admin users without a university. |
+| Multi-campus NIM ambiguity | M31-B1 scopes duplicate checks by university and restricts pending/rejected registration fallback login to email only. |
+| Public registration frontend drift | M31-B2 consumes campus master data endpoints and correction/auth-state contracts from the backend instead of inventing client-only states. |
 
 ---
 
@@ -932,14 +994,23 @@ npm run lint: PASS
 npm run build: PASS
 ```
 
+Latest M31-B2 frontend QA baseline:
+
+```text
+npm.cmd run build: PASS
+npx.cmd tsc --noEmit: FAIL - existing workflow/dashboard TypeScript errors remain outside the targeted QA patch scope
+```
+
 Verified Milestone 23 route additions:
 
 ```text
 GET /api/v1/users
+POST /api/v1/users/reporters
 GET /api/v1/users/lookup
 GET /api/v1/users/{user}
 PATCH /api/v1/users/{user}/activate
 PATCH /api/v1/users/{user}/deactivate
+PATCH /api/v1/users/{user}/reset-password
 PATCH /api/v1/users/{user}/role
 ```
 
@@ -956,10 +1027,19 @@ Verified Milestone 19 route additions:
 
 ```text
 POST /api/v1/reporter-registrations
+PATCH /api/v1/reporter-registrations/correct
 GET /api/v1/reporter-registrations
 GET /api/v1/reporter-registrations/{reporterRegistration}
 PATCH /api/v1/reporter-registrations/{reporterRegistration}/approve
 PATCH /api/v1/reporter-registrations/{reporterRegistration}/reject
+```
+
+Verified Milestone 31-A campus route additions:
+
+```text
+GET /api/v1/universities
+GET /api/v1/faculties
+GET /api/v1/study-programs
 ```
 
 Verified Milestone 20 route additions:

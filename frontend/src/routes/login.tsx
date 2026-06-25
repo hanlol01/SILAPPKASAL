@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
@@ -61,7 +62,7 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
   head: () => ({
     meta: [
-      { title: "Masuk - SILAPPKASAL Admin" },
+      { title: "Masuk - SILAPPKASAL" },
       { name: "description", content: "Masuk ke dashboard admin/satgas SILAPPKASAL." },
     ],
   }),
@@ -109,7 +110,7 @@ function LoginPage() {
       <div className="relative hidden flex-col justify-between bg-sidebar p-10 text-sidebar-foreground lg:flex">
         <div className="flex items-center gap-2">
           <img src="/Logo.ico" alt="Logo" className="h-10 w-10 object-contain" />
-          <span className="font-semibold">SILAPPKASAL Admin</span>
+          <span className="font-semibold">SILAPPKASAL</span>
         </div>
         <div className="space-y-4">
           <h1 className="text-3xl font-semibold leading-tight">
@@ -150,9 +151,8 @@ function LoginPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">{t("password")}</Label>
-                <Input
+                <PasswordInput
                   id="password"
-                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required

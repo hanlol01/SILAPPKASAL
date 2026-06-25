@@ -2,6 +2,10 @@
 
 namespace Database\Seeders;
 
+use Database\Seeders\Demo\DemoDatasetSeeder;
+use Database\Seeders\Foundation\CampusMasterDataSeeder;
+use Database\Seeders\Foundation\MasterDataSeeder;
+use Database\Seeders\Foundation\RbacSeeder;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -14,8 +18,11 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call(RbacSeeder::class);
-        $this->call(MasterDataSeeder::class);
-        $this->call(CampusMasterDataSeeder::class);
+        $this->call([
+            RbacSeeder::class,
+            MasterDataSeeder::class,
+            CampusMasterDataSeeder::class,
+            DemoDatasetSeeder::class,
+        ]);
     }
 }

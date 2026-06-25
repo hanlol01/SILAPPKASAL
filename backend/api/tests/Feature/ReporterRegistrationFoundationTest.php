@@ -206,7 +206,7 @@ class ReporterRegistrationFoundationTest extends TestCase
 
     public function test_public_registration_endpoint_is_rate_limited(): void
     {
-        for ($i = 1; $i <= 5; $i++) {
+        for ($i = 1; $i <= 20; $i++) {
             $this->postJson('/api/v1/reporter-registrations', $this->registrationPayload([
                 'email' => "student{$i}@example.test",
                 'nim' => "23000{$i}",
@@ -214,8 +214,8 @@ class ReporterRegistrationFoundationTest extends TestCase
         }
 
         $this->postJson('/api/v1/reporter-registrations', $this->registrationPayload([
-            'email' => 'student6@example.test',
-            'nim' => '230006',
+            'email' => 'student21@example.test',
+            'nim' => '2300021',
         ]))->assertTooManyRequests();
     }
 

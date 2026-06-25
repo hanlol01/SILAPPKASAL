@@ -22,6 +22,19 @@ enum AuditAction: string
     case UserReporterCreated = 'user.reporter_created';
     case UserPasswordReset = 'user.password_reset';
 
+    case CampusUniversityCreated = 'university.created';
+    case CampusUniversityUpdated = 'university.updated';
+    case CampusUniversityActivated = 'university.activated';
+    case CampusUniversityDeactivated = 'university.deactivated';
+    case CampusFacultyCreated = 'faculty.created';
+    case CampusFacultyUpdated = 'faculty.updated';
+    case CampusFacultyActivated = 'faculty.activated';
+    case CampusFacultyDeactivated = 'faculty.deactivated';
+    case CampusStudyProgramCreated = 'study_program.created';
+    case CampusStudyProgramUpdated = 'study_program.updated';
+    case CampusStudyProgramActivated = 'study_program.activated';
+    case CampusStudyProgramDeactivated = 'study_program.deactivated';
+
     case ReportCreated = 'report.created';
     case ReportForwarded = 'report.forwarded';
 

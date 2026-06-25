@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate, Outlet, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
@@ -20,6 +20,7 @@ export const Route = createFileRoute("/dashboard/registrations")({
 
 function RegistrationsPage() {
   const { roleCode } = useAuth();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [universityId, setUniversityId] = useState("");
@@ -46,6 +47,7 @@ function RegistrationsPage() {
   });
 
   if (!canAccess) return <Navigate to="/dashboard" replace />;
+  if (pathname !== "/dashboard/registrations") return <Outlet />;
 
   return (
     <div className="space-y-6">

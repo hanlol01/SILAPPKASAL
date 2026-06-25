@@ -14,6 +14,7 @@ import {
   Moon,
   Sun,
   Search,
+  Database,
 } from "lucide-react";
 import {
   Sidebar,
@@ -92,6 +93,12 @@ const nav: {
     url: "/dashboard/users",
     icon: Users,
     roles: ["super_admin", "admin"],
+  },
+  {
+    title: "Master Data",
+    url: "/dashboard/master-data",
+    icon: Database,
+    roles: ["super_admin"],
   },
   {
     title: "Break-glass",

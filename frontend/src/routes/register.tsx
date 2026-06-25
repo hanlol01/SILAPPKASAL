@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 
 export const Route = createFileRoute("/register")({
   component: RegisterPage,
@@ -57,9 +58,12 @@ function RegisterPage() {
     enabled: Boolean(form.university_id && hasFaculties),
   });
 
+  const selectedFaculty = (facultiesQuery.data ?? []).find((item) => String(item.id) === form.faculty_id);
+  const effectiveFacultyId = hasFaculties && selectedFaculty ? selectedFaculty.id : null;
+
   const studyProgramsQuery = useQuery({
-    queryKey: campusQueryKeys.studyPrograms(Number(form.university_id) || null, Number(form.faculty_id) || null),
-    queryFn: () => getStudyPrograms(Number(form.university_id), form.faculty_id ? Number(form.faculty_id) : null),
+    queryKey: campusQueryKeys.studyPrograms(Number(form.university_id) || null, effectiveFacultyId),
+    queryFn: () => getStudyPrograms(Number(form.university_id), effectiveFacultyId),
     enabled: Boolean(form.university_id),
   });
 
@@ -79,7 +83,7 @@ function RegisterPage() {
         email: form.email,
         phone_number: form.phone_number,
         university_id: Number(form.university_id),
-        faculty_id: form.faculty_id ? Number(form.faculty_id) : null,
+        faculty_id: effectiveFacultyId,
         study_program_id: Number(form.study_program_id),
         password: form.password,
         password_confirmation: form.password_confirmation,
@@ -97,7 +101,21 @@ function RegisterPage() {
     },
   });
 
-  const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const update = (key: keyof typeof form, value: string) => {
+    setForm((current) => ({ ...current, [key]: value }));
+    setErrors((current) => ({ ...current, [key]: [] }));
+  };
+
+  const canSubmit = Boolean(
+    form.name &&
+    form.nim &&
+    form.email &&
+    form.phone_number &&
+    form.university_id &&
+    form.study_program_id &&
+    form.password &&
+    form.password_confirmation,
+  );
 
   if (successNumber) {
     return (
@@ -151,24 +169,28 @@ function RegisterPage() {
                 value={form.university_id}
                 onChange={(e) => update("university_id", e.target.value)}
                 required
+                disabled={universitiesQuery.isLoading}
               >
-                <option value="">{t("auth:selectUniversity")}</option>
+                <option value="">{universitiesQuery.isLoading ? "Loading universities..." : t("auth:selectUniversity")}</option>
                 {(universitiesQuery.data ?? []).map((item) => (
                   <option key={item.id} value={item.id}>{item.name}</option>
                 ))}
+                {universitiesQuery.isSuccess && universitiesQuery.data.length === 0 && <option value="" disabled>No universities available</option>}
               </select>
             </Field>
             {hasFaculties && (
-              <Field label={t("auth:faculty")} error={errors.faculty_id?.[0]}>
+              <Field label={`${t("auth:faculty")} (Opsional)`} error={errors.faculty_id?.[0]}>
                 <select
                   className="h-10 rounded-md border bg-background px-3 text-sm"
                   value={form.faculty_id}
                   onChange={(e) => update("faculty_id", e.target.value)}
+                  disabled={facultiesQuery.isLoading}
                 >
-                  <option value="">{t("auth:selectFaculty")}</option>
+                  <option value="">{facultiesQuery.isLoading ? "Loading faculties..." : t("auth:selectFaculty")}</option>
                   {(facultiesQuery.data ?? []).map((item) => (
                     <option key={item.id} value={item.id}>{item.name}</option>
                   ))}
+                  {facultiesQuery.isSuccess && facultiesQuery.data.length === 0 && <option value="" disabled>No faculties available</option>}
                 </select>
               </Field>
             )}
@@ -178,26 +200,27 @@ function RegisterPage() {
                 value={form.study_program_id}
                 onChange={(e) => update("study_program_id", e.target.value)}
                 required
+                disabled={!form.university_id || studyProgramsQuery.isLoading}
               >
-                <option value="">{t("auth:selectStudyProgram")}</option>
+                <option value="">{studyProgramsQuery.isLoading ? "Loading study programs..." : t("auth:selectStudyProgram")}</option>
                 {(studyProgramsQuery.data ?? []).map((item) => (
                   <option key={item.id} value={item.id}>{item.name}</option>
                 ))}
+                {studyProgramsQuery.isSuccess && studyProgramsQuery.data.length === 0 && <option value="" disabled>No study programs available</option>}
               </select>
             </Field>
             <Field label={t("auth:password")} error={errors.password?.[0]}>
-              <Input type="password" value={form.password} onChange={(e) => update("password", e.target.value)} required />
+              <PasswordInput value={form.password} onChange={(e) => update("password", e.target.value)} required />
             </Field>
             <Field label={t("auth:passwordConfirmation")} error={errors.password_confirmation?.[0]}>
-              <Input
-                type="password"
+              <PasswordInput
                 value={form.password_confirmation}
                 onChange={(e) => update("password_confirmation", e.target.value)}
                 required
               />
             </Field>
             <div className="md:col-span-2">
-              <Button type="submit" className="w-full" disabled={mutation.isPending}>
+              <Button type="submit" className="w-full" disabled={mutation.isPending || !canSubmit}>
                 {mutation.isPending ? t("auth:submittingRegistration") : t("auth:submitRegistration")}
               </Button>
               <p className="mt-4 text-center text-sm text-muted-foreground">

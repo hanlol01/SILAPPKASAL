@@ -43,12 +43,14 @@ class RbacSeederTest extends TestCase
         $this->assertTrue($satgas->permissions->contains('code', 'cases.monitor'));
     }
 
-    public function test_database_seeder_does_not_create_dummy_users(): void
+    public function test_database_seeder_creates_demo_dataset_v2_users(): void
     {
-        $userCount = User::query()->count();
-
         $this->seed(DatabaseSeeder::class);
 
-        $this->assertSame($userCount, User::query()->count());
+        $this->assertDatabaseHas('users', ['email' => 'superadmin@silappkasal.test']);
+        $this->assertDatabaseHas('users', ['email' => 'admin.staisa@silappkasal.test']);
+        $this->assertDatabaseHas('users', ['email' => 'satgas.staisa@silappkasal.test']);
+        $this->assertDatabaseHas('users', ['email' => 'reporter.staisa@silappkasal.test']);
+        $this->assertGreaterThanOrEqual(36, User::query()->count());
     }
 }

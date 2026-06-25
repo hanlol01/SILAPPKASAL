@@ -6,6 +6,7 @@ import { User, ShieldCheck, KeyRound, Pencil, Save, X, Loader2 } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import {
   Card,
   CardContent,
@@ -386,9 +387,8 @@ function ChangePasswordSection() {
         <form onSubmit={handleSubmit} className="max-w-md space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="pw-current">{t("currentPassword")}</Label>
-            <Input
+            <PasswordInput
               id="pw-current"
-              type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               autoComplete="current-password"
@@ -403,9 +403,8 @@ function ChangePasswordSection() {
           <Separator />
           <div className="space-y-1.5">
             <Label htmlFor="pw-new">{t("newPassword")}</Label>
-            <Input
+            <PasswordInput
               id="pw-new"
-              type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               autoComplete="new-password"
@@ -419,9 +418,8 @@ function ChangePasswordSection() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="pw-confirm">{t("confirmNewPassword")}</Label>
-            <Input
+            <PasswordInput
               id="pw-confirm"
-              type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               autoComplete="new-password"

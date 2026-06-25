@@ -17,8 +17,8 @@ class CampusMasterDataSeederTest extends TestCase
     {
         $this->seed(CampusMasterDataSeeder::class);
 
-        $demoUniversity = University::query()->where('code', 'DEMO-UNIV')->firstOrFail();
-        $demoCollege = University::query()->where('code', 'DEMO-ST')->firstOrFail();
+        $uikhir = University::query()->where('code', 'UIKHIR')->firstOrFail();
+        $staiSebelasApril = University::query()->where('code', 'STAI-SA')->firstOrFail();
 
         $this->assertDatabaseHas('universities', ['code' => 'STAI-SA', 'name' => 'STAI Sebelas April']);
         $this->assertDatabaseHas('universities', ['code' => 'STAI-AMG', 'name' => 'STAI Al Musaddadiyah Garut']);
@@ -28,14 +28,14 @@ class CampusMasterDataSeederTest extends TestCase
         $this->assertDatabaseHas('universities', ['code' => 'STITNU-AF', 'name' => 'Sekolah Tinggi Ilmu Tarbiyah Nahdlatul Ulama Al-Farabi']);
         $this->assertDatabaseHas('universities', ['code' => 'IMA-BJR', 'name' => 'Institut Miftahul Al Azhar Banjar']);
 
-        $this->assertSame('universitas', $demoUniversity->type);
-        $this->assertTrue($demoUniversity->has_faculties);
-        $this->assertSame('sekolah_tinggi', $demoCollege->type);
-        $this->assertFalse($demoCollege->has_faculties);
-        $this->assertSame(3, $demoUniversity->faculties()->count());
-        $this->assertSame(0, $demoCollege->faculties()->count());
-        $this->assertSame(5, $demoUniversity->studyPrograms()->count());
-        $this->assertSame(2, $demoCollege->studyPrograms()->whereNull('faculty_id')->count());
+        $this->assertSame('universitas', $uikhir->type);
+        $this->assertTrue($uikhir->has_faculties);
+        $this->assertSame('sekolah_tinggi', $staiSebelasApril->type);
+        $this->assertFalse($staiSebelasApril->has_faculties);
+        $this->assertSame(3, $uikhir->faculties()->count());
+        $this->assertSame(0, $staiSebelasApril->faculties()->count());
+        $this->assertSame(4, $uikhir->studyPrograms()->count());
+        $this->assertSame(3, $staiSebelasApril->studyPrograms()->whereNull('faculty_id')->count());
     }
 
     public function test_seeder_is_idempotent(): void
@@ -44,7 +44,7 @@ class CampusMasterDataSeederTest extends TestCase
         $this->seed(CampusMasterDataSeeder::class);
 
         $this->assertSame(9, University::query()->count());
-        $this->assertSame(3, Faculty::query()->count());
-        $this->assertSame(7, StudyProgram::query()->count());
+        $this->assertSame(15, Faculty::query()->count());
+        $this->assertSame(32, StudyProgram::query()->count());
     }
 }

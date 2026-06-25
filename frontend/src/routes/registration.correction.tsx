@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/registration/correction")({
@@ -42,14 +43,15 @@ function RegistrationCorrectionPage() {
   const universitiesQuery = useQuery({ queryKey: campusQueryKeys.universities(), queryFn: getUniversities });
   const selectedUniversity = universitiesQuery.data?.find((item) => String(item.id) === form.university_id);
   const hasFaculties = selectedUniversity?.has_faculties === true;
+  const effectiveFacultyId = hasFaculties && form.faculty_id ? Number(form.faculty_id) : null;
   const facultiesQuery = useQuery({
     queryKey: campusQueryKeys.faculties(Number(form.university_id) || null),
     queryFn: () => getFaculties(Number(form.university_id)),
     enabled: Boolean(form.university_id && hasFaculties),
   });
   const studyProgramsQuery = useQuery({
-    queryKey: campusQueryKeys.studyPrograms(Number(form.university_id) || null, Number(form.faculty_id) || null),
-    queryFn: () => getStudyPrograms(Number(form.university_id), form.faculty_id ? Number(form.faculty_id) : null),
+    queryKey: campusQueryKeys.studyPrograms(Number(form.university_id) || null, effectiveFacultyId),
+    queryFn: () => getStudyPrograms(Number(form.university_id), effectiveFacultyId),
     enabled: Boolean(form.university_id),
   });
 
@@ -58,6 +60,14 @@ function RegistrationCorrectionPage() {
       setForm((current) => ({ ...current, faculty_id: "" }));
     }
   }, [hasFaculties, form.faculty_id]);
+
+  useEffect(() => {
+    setForm((current) => ({ ...current, faculty_id: "", study_program_id: "" }));
+  }, [form.university_id]);
+
+  useEffect(() => {
+    setForm((current) => ({ ...current, study_program_id: "" }));
+  }, [form.faculty_id]);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -68,7 +78,7 @@ function RegistrationCorrectionPage() {
         nim: form.nim,
         phone_number: form.phone_number,
         university_id: Number(form.university_id),
-        faculty_id: form.faculty_id ? Number(form.faculty_id) : null,
+        faculty_id: effectiveFacultyId,
         study_program_id: Number(form.study_program_id),
         new_password: form.new_password || undefined,
         new_password_confirmation: form.new_password_confirmation || undefined,
@@ -89,7 +99,19 @@ function RegistrationCorrectionPage() {
   if (!registration) return <Navigate to="/login" replace />;
   if (registration.status !== "rejected") return <Navigate to="/registration/pending" replace />;
 
-  const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const update = (key: keyof typeof form, value: string) => {
+    setForm((current) => ({ ...current, [key]: value }));
+    setErrors((current) => ({ ...current, [key]: [] }));
+  };
+
+  const canSubmit = Boolean(
+    currentPassword &&
+    form.name &&
+    form.nim &&
+    form.phone_number &&
+    form.university_id &&
+    form.study_program_id,
+  );
 
   return (
     <div className="min-h-screen bg-muted/30 px-4 py-8">
@@ -112,7 +134,7 @@ function RegistrationCorrectionPage() {
               <Input value={registration.email} readOnly />
             </Field>
             <Field label={t("auth:currentPassword")} error={errors.password?.[0]}>
-              <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+              <PasswordInput value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
             </Field>
             <Field label={t("auth:fullName")} error={errors.name?.[0]}>
               <Input value={form.name} onChange={(e) => update("name", e.target.value)} required />
@@ -124,33 +146,36 @@ function RegistrationCorrectionPage() {
               <Input value={form.phone_number} onChange={(e) => update("phone_number", e.target.value)} required />
             </Field>
             <Field label={t("auth:university")} error={errors.university_id?.[0]}>
-              <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.university_id} onChange={(e) => update("university_id", e.target.value)} required>
-                <option value="">{t("auth:selectUniversity")}</option>
+              <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.university_id} onChange={(e) => update("university_id", e.target.value)} required disabled={universitiesQuery.isLoading}>
+                <option value="">{universitiesQuery.isLoading ? "Loading universities..." : t("auth:selectUniversity")}</option>
                 {(universitiesQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                {universitiesQuery.isSuccess && universitiesQuery.data.length === 0 && <option value="" disabled>No universities available</option>}
               </select>
             </Field>
             {hasFaculties && (
-              <Field label={t("auth:faculty")} error={errors.faculty_id?.[0]}>
-                <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.faculty_id} onChange={(e) => update("faculty_id", e.target.value)}>
-                  <option value="">{t("auth:selectFaculty")}</option>
+              <Field label={`${t("auth:faculty")} (Opsional)`} error={errors.faculty_id?.[0]}>
+                <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.faculty_id} onChange={(e) => update("faculty_id", e.target.value)} disabled={facultiesQuery.isLoading}>
+                  <option value="">{facultiesQuery.isLoading ? "Loading faculties..." : t("auth:selectFaculty")}</option>
                   {(facultiesQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                  {facultiesQuery.isSuccess && facultiesQuery.data.length === 0 && <option value="" disabled>No faculties available</option>}
                 </select>
               </Field>
             )}
             <Field label={t("auth:studyProgram")} error={errors.study_program_id?.[0]}>
-              <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.study_program_id} onChange={(e) => update("study_program_id", e.target.value)} required>
-                <option value="">{t("auth:selectStudyProgram")}</option>
+              <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.study_program_id} onChange={(e) => update("study_program_id", e.target.value)} required disabled={!form.university_id || studyProgramsQuery.isLoading}>
+                <option value="">{studyProgramsQuery.isLoading ? "Loading study programs..." : t("auth:selectStudyProgram")}</option>
                 {(studyProgramsQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                {studyProgramsQuery.isSuccess && studyProgramsQuery.data.length === 0 && <option value="" disabled>No study programs available</option>}
               </select>
             </Field>
             <Field label={t("auth:optionalNewPassword")} error={errors.new_password?.[0]}>
-              <Input type="password" value={form.new_password} onChange={(e) => update("new_password", e.target.value)} />
+              <PasswordInput value={form.new_password} onChange={(e) => update("new_password", e.target.value)} />
             </Field>
             <Field label={t("auth:confirmNewPassword")}>
-              <Input type="password" value={form.new_password_confirmation} onChange={(e) => update("new_password_confirmation", e.target.value)} />
+              <PasswordInput value={form.new_password_confirmation} onChange={(e) => update("new_password_confirmation", e.target.value)} />
             </Field>
             <div className="md:col-span-2">
-              <Button type="submit" className="w-full" disabled={mutation.isPending}>
+              <Button type="submit" className="w-full" disabled={mutation.isPending || !canSubmit}>
                 {mutation.isPending ? t("auth:submittingCorrection") : t("auth:submitCorrection")}
               </Button>
             </div>

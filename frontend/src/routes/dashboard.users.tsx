@@ -17,6 +17,7 @@ import { ApiError } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/dashboard/users")({
@@ -180,14 +181,15 @@ function CreateReporterCard({ onCreated }: { onCreated: (temporaryPassword: stri
   const universitiesQuery = useQuery({ queryKey: campusQueryKeys.universities(), queryFn: getUniversities });
   const selectedUniversity = universitiesQuery.data?.find((item) => String(item.id) === form.university_id);
   const hasFaculties = selectedUniversity?.has_faculties === true;
+  const effectiveFacultyId = hasFaculties && form.faculty_id ? Number(form.faculty_id) : null;
   const facultiesQuery = useQuery({
     queryKey: campusQueryKeys.faculties(Number(form.university_id) || null),
     queryFn: () => getFaculties(Number(form.university_id)),
     enabled: Boolean(form.university_id && hasFaculties),
   });
   const studyProgramsQuery = useQuery({
-    queryKey: campusQueryKeys.studyPrograms(Number(form.university_id) || null, Number(form.faculty_id) || null),
-    queryFn: () => getStudyPrograms(Number(form.university_id), form.faculty_id ? Number(form.faculty_id) : null),
+    queryKey: campusQueryKeys.studyPrograms(Number(form.university_id) || null, effectiveFacultyId),
+    queryFn: () => getStudyPrograms(Number(form.university_id), effectiveFacultyId),
     enabled: Boolean(form.university_id),
   });
   const mutation = useMutation({
@@ -198,7 +200,7 @@ function CreateReporterCard({ onCreated }: { onCreated: (temporaryPassword: stri
         nim: form.nim,
         phone_number: form.phone_number,
         university_id: Number(form.university_id),
-        faculty_id: form.faculty_id ? Number(form.faculty_id) : null,
+        faculty_id: effectiveFacultyId,
         study_program_id: Number(form.study_program_id),
         password: form.password,
       }),
@@ -235,7 +237,7 @@ function CreateReporterCard({ onCreated }: { onCreated: (temporaryPassword: stri
             <option value="">Select study program</option>
             {(studyProgramsQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
-          <Input placeholder="Temporary password" type="password" value={form.password} onChange={(e) => update("password", e.target.value)} required />
+          <PasswordInput placeholder="Temporary password" value={form.password} onChange={(e) => update("password", e.target.value)} required />
           {Object.keys(errors).length > 0 && <p className="text-sm text-destructive md:col-span-2">Please review highlighted form values.</p>}
           <Button type="submit" disabled={mutation.isPending} className="md:col-span-2">Create Reporter</Button>
         </form>

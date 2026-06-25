@@ -28,9 +28,9 @@ class CampusMasterDataModelTest extends TestCase
 
     public function test_model_relationships_are_available(): void
     {
-        $university = University::query()->where('code', 'DEMO-UNIV')->firstOrFail();
-        $faculty = $university->faculties()->where('code', 'FT')->firstOrFail();
-        $studyProgram = $faculty->studyPrograms()->where('code', 'TI')->firstOrFail();
+        $university = University::query()->where('code', 'UIKHIR')->firstOrFail();
+        $faculty = $university->faculties()->where('code', 'FTK')->firstOrFail();
+        $studyProgram = $faculty->studyPrograms()->where('code', 'PAI')->firstOrFail();
         $role = Role::query()->where('code', 'reporter')->firstOrFail();
 
         $user = User::query()->create([
@@ -70,8 +70,8 @@ class CampusMasterDataModelTest extends TestCase
     public function test_nim_uniqueness_is_scoped_by_university(): void
     {
         $role = Role::query()->where('code', 'reporter')->firstOrFail();
-        $demoUniversity = University::query()->where('code', 'DEMO-UNIV')->firstOrFail();
-        $demoCollege = University::query()->where('code', 'DEMO-ST')->firstOrFail();
+        $demoUniversity = University::query()->where('code', 'UIKHIR')->firstOrFail();
+        $demoCollege = University::query()->where('code', 'STAI-SA')->firstOrFail();
 
         User::query()->create([
             'role_id' => $role->id,
@@ -108,12 +108,12 @@ class CampusMasterDataModelTest extends TestCase
 
     public function test_faculty_code_uniqueness_is_scoped_by_university(): void
     {
-        $demoUniversity = University::query()->where('code', 'DEMO-UNIV')->firstOrFail();
-        $demoCollege = University::query()->where('code', 'DEMO-ST')->firstOrFail();
+        $demoUniversity = University::query()->where('code', 'UIKHIR')->firstOrFail();
+        $demoCollege = University::query()->where('code', 'STAI-SA')->firstOrFail();
 
         Faculty::query()->create([
             'university_id' => $demoCollege->id,
-            'code' => 'FT',
+            'code' => 'FTK',
             'name' => 'Fakultas Teknik Sekolah Tinggi Demo',
             'is_active' => true,
         ]);
@@ -122,7 +122,7 @@ class CampusMasterDataModelTest extends TestCase
 
         Faculty::query()->create([
             'university_id' => $demoUniversity->id,
-            'code' => 'FT',
+            'code' => 'FTK',
             'name' => 'Duplicate Fakultas Teknik',
             'is_active' => true,
         ]);

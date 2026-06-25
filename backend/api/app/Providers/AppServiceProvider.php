@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Policies\AuditLogPolicy;
 use App\Policies\BreakGlassPolicy;
 use App\Policies\CasePolicy;
+use App\Policies\CampusMasterDataPolicy;
 use App\Policies\DecisionPolicy;
 use App\Policies\DashboardPolicy;
 use App\Policies\EvidencePolicy;
@@ -68,6 +69,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('viewMyWork', fn ($user): bool => app(MyWorkPolicy::class)->view($user));
         Gate::define('accessReporterPortal', fn ($user): bool => app(ReporterPortalPolicy::class)->access($user));
         Gate::define('accessReporterSelfService', fn ($user): bool => app(ReporterSelfServicePolicy::class)->access($user));
+        Gate::define('manage-campus-master-data', fn ($user): bool => app(CampusMasterDataPolicy::class)->manage($user));
 
         RateLimiter::for('reports.submit', function (Request $request) {
             $accessToken = $request->bearerToken()
@@ -78,6 +80,10 @@ class AppServiceProvider extends ServiceProvider
             return $user
                 ? Limit::perHour(10)->by('user:'.$user->id)
                 : Limit::perMinute(3)->by('ip:'.$request->ip());
+        });
+
+        RateLimiter::for('reporter.registration', function (Request $request) {
+            return Limit::perMinute(20)->by('ip:'.$request->ip());
         });
     }
 }

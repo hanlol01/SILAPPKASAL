@@ -1,8 +1,40 @@
 # PROGRESS_REPORT.md - SILAPPKASAL
 
-> Last Updated: 2026-06-23
+> Last Updated: 2026-06-25
 
 ## Recent Progress
+
+### Milestone 31-B2 - Reporter Registration and Portal Frontend (✅ COMPLETED WITH QA NOTE)
+- **Frontend:**
+  - Implemented public `/register` page with campus-aware cascading selects.
+  - Added pending registration and rejected correction/resubmission pages.
+  - Updated login flow for pending/rejected registration auth states.
+  - Added admin registration review pages and reporter management UI.
+  - Added reporter report submission wizard and public `/track` lookup page.
+  - Updated portal navigation for report creation.
+- **QA Patch:**
+  - Fixed stray `}` in `frontend/src/lib/api-types.ts`.
+  - Added missing `useAuth` import in `frontend/src/routes/registration.correction.tsx`.
+- **Verification:**
+  - `npm.cmd run build`: PASS.
+  - `npx.cmd tsc --noEmit`: FAIL due to existing workflow/dashboard TypeScript errors outside the targeted QA patch scope.
+
+### Milestone 31-B1 - Reporter Registration, Auth States, and Management Backend (✅ COMPLETED)
+- **Backend:**
+  - Implemented campus-aware registration validation.
+  - Implemented pending/rejected registration authentication states.
+  - Implemented correction/resubmission endpoint.
+  - Implemented campus-scoped admin registration review and reporter management.
+  - Added manual reporter creation, activation/deactivation, and password reset backend support.
+  - Patched pending/rejected fallback login to email-only to avoid multi-campus NIM ambiguity.
+
+### Milestone 31A - Multi-Campus Master Data Foundation (✅ COMPLETED)
+- **Backend:**
+  - Added university, faculty, and study program foundations.
+  - Added public read-only campus master-data endpoints.
+  - Added campus relationships to users and reporter registrations.
+  - Added participating university seed data.
+  - Preserved rejected registration password hash for later correction/resubmission.
  
  ### Milestone 30 - Recovery Workflow (✅ COMPLETED)
  - **Backend:**
@@ -76,4 +108,5 @@
 - **Security & Privacy:** Enforced across all new and existing features.
 
 ## Next Steps
- - Begin planning for Milestone 31 (Evidence/Case Closure).
+ - Resolve remaining global frontend TypeScript errors in workflow/dashboard files if strict type-check is required as a release gate.
+ - Continue with the next approved milestone after M31-B2 handoff.

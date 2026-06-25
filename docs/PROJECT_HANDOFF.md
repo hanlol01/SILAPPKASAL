@@ -1,8 +1,8 @@
 # PROJECT_HANDOFF.md - SILAPPKASAL Project Handoff
 
 > Status: Active Handoff  
-> Last Updated: 2026-06-23  
-> Current Milestone: Milestone 30 Complete - Recovery Workflow  
+> Last Updated: 2026-06-25  
+> Current Milestone: Milestone 31-B2 Complete - Multi-Campus Reporter Registration Frontend  
 > Next Milestone: TBD
 
 ---
@@ -18,6 +18,8 @@ The backend serves as the source of implemented business behavior, exposing secu
 - A fully integrated **Reporter Portal** enabling students and reporters to register, log in, view their submitted reports, check safe status updates, read notifications, and manage their profiles.
 
 Evidence upload, WhatsApp integration, and Flutter mobile work remain future work.
+
+Milestone 31 expanded the system into a central multi-campus platform: one application and database can now serve multiple universities with campus master data, campus-aware reporter registration, pending/rejected registration states, correction/resubmission, admin registration review, reporter management, public registration, reporter report submission, and public tracking frontend flows.
 
 ### 1.1 Architecture Summary
 The system follows a decoupled client-server architecture:
@@ -77,6 +79,9 @@ The Reporter Portal provides a secure self-service area for reporter/student rol
 | 28 | Recommendation Workflow | ✅ PASS | Recommendation backend and frontend components implemented. Added status-options endpoint, automatic most recent completed investigation selection, audit logs, and notifications. Only assigned Satgas can create/update recommendations. |
 | 29 | Decision Workflow | ✅ PASS | Decision backend and frontend implemented. Pimpinan Kampus (Super Admin) authority enforced. Backend status-options endpoint added. Auto-updates parent recommendation status. Audit logging and targeted notifications (assigned Satgas only) added. |
 | 30 | Recovery Workflow | ✅ PASS | Recovery backend and frontend implemented. Admin/Super Admin manage recoveries. Assigned Satgas has read-only access but can add monitoring. Soft warning advisory implemented for < 3 month monitoring completions. Auto-close rules not triggered by recovery completion. Audit and notifications configured. |
+| 31A | Multi-Campus Master Data Foundation | PASS | Backend campus master data foundation with universities, faculties, study programs, user/registration campus relationships, university-scoped NIM uniqueness foundation, participating university seed data, and public read-only campus endpoints. |
+| 31-B1 | Reporter Registration, Auth States, and Management Backend | PASS | Backend campus-aware registration validation, pending/rejected authentication states, correction/resubmission, campus-scoped admin reporter management, manual reporter creation, activation/deactivation, password reset, audit logging, and email-only pending/rejected registration login fallback. |
+| 31-B2 | Reporter Registration and Portal Frontend | PASS with QA note | Frontend public registration, pending/rejected correction states, admin registration review, reporter management, reporter report submission, public tracking, portal navigation updates, and bilingual public/reporter flows. QA patch fixed a stray TypeScript brace and missing correction-page auth import. |
 
 Latest known fully verified baseline before Milestone 13 implementation:
 
@@ -199,6 +204,7 @@ Implemented or prepared API groups:
 | Health | `GET /api/v1/health` |
 | Auth | `POST /api/v1/auth/login`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me` |
 | Master Data | `GET /api/v1/master/{type}` |
+| Campus Master Data | `GET /api/v1/universities`, `GET /api/v1/faculties`, `GET /api/v1/study-programs` |
 | Reports | `POST /api/v1/reports`, `GET /api/v1/reports`, `GET /api/v1/reports/{report}`, `GET /api/v1/reports/track/{trackingCode}`, `POST /api/v1/reports/{report}/forward-to-case` |
 | Cases | `GET /api/v1/cases`, `GET /api/v1/cases/{case}`, `PATCH /api/v1/cases/{case}/status`, `PATCH /api/v1/cases/{case}/assign` |
 | Investigations | `POST /api/v1/cases/{case}/investigations`, `GET /api/v1/cases/{case}/investigations`, `GET /api/v1/investigations/{investigation}`, `PATCH /api/v1/investigations/{investigation}/status`, `POST /api/v1/investigations/{investigation}/activities` |
@@ -210,8 +216,8 @@ Implemented or prepared API groups:
 | Dashboard | `GET /api/v1/dashboard/summary`, `GET /api/v1/dashboard/reports`, `GET /api/v1/dashboard/cases`, `GET /api/v1/dashboard/workflow`, `GET /api/v1/dashboard/evidence` prepared, pending verification |
 | Notifications | `GET /api/v1/notifications`, `PATCH /api/v1/notifications/{notification}/read`, `PATCH /api/v1/notifications/read-all` |
 | My Work | `GET /api/v1/my-work/summary`, `GET /api/v1/my-work/cases`, `GET /api/v1/my-work/investigations`, `GET /api/v1/my-work/recommendations` |
-| Reporter Registrations | `POST /api/v1/reporter-registrations`, `GET /api/v1/reporter-registrations`, `GET /api/v1/reporter-registrations/{reporterRegistration}`, `PATCH /api/v1/reporter-registrations/{reporterRegistration}/approve`, `PATCH /api/v1/reporter-registrations/{reporterRegistration}/reject` |
-| User Management | `GET /api/v1/users`, `GET /api/v1/users/lookup`, `GET /api/v1/users/{user}`, `PATCH /api/v1/users/{user}/activate`, `PATCH /api/v1/users/{user}/deactivate`, `PATCH /api/v1/users/{user}/role` |
+| Reporter Registrations | `POST /api/v1/reporter-registrations`, `PATCH /api/v1/reporter-registrations/correct`, `GET /api/v1/reporter-registrations`, `GET /api/v1/reporter-registrations/{reporterRegistration}`, `PATCH /api/v1/reporter-registrations/{reporterRegistration}/approve`, `PATCH /api/v1/reporter-registrations/{reporterRegistration}/reject` |
+| User Management | `GET /api/v1/users`, `POST /api/v1/users/reporters`, `GET /api/v1/users/lookup`, `GET /api/v1/users/{user}`, `PATCH /api/v1/users/{user}/activate`, `PATCH /api/v1/users/{user}/deactivate`, `PATCH /api/v1/users/{user}/reset-password`, `PATCH /api/v1/users/{user}/role` |
 | Reporter Self-Service | `GET /api/v1/me/profile`, `PATCH /api/v1/me/profile`, `PATCH /api/v1/me/change-password`, `GET /api/v1/me/account-status` |
 | Reporter Portal | `GET /api/v1/portal/summary`, `GET /api/v1/portal/reports`, `GET /api/v1/portal/reports/{registrationNumber}`, `GET /api/v1/portal/notifications` |
 
@@ -233,7 +239,10 @@ Implemented or prepared API groups:
 - Notifications are in-app Laravel database notifications only; WhatsApp, Fonnte, email, push, and frontend notification UI remain out of scope.
 - My Work queues are metadata-only, role-aware, and assignment-scoped for Satgas; they must not expose narratives, report chronology, victim/reporter identity, anonymous hints, tracking codes, investigation findings, recommendation narratives, decision content, evidence details, `risk_level_code`, or priority filters.
 - Reporter registration requests are stored separately from `users`; a reporter user is created only after admin/super_admin approval.
+- Reporter registration is campus-aware. New registrations require university, study program, full name, NIM, email, phone number, and password; faculty is optional when the selected university has no faculties.
+- NIM duplicate checks are university-scoped for reporter registration and manual reporter creation.
 - Pending registration password hashes are temporary and are cleared after approval or rejection.
+- Pending and rejected applicants authenticate only into limited registration states. In multi-campus mode, the pending/rejected registration fallback lookup is email-only; NIM is not accepted for that fallback.
 - Public reporter registration is rate-limited and must not auto-login users.
 - Reporter self-service endpoints are limited to role `reporter` only; admin, super_admin, and satgas_ppks are forbidden.
 - Reporter self-service may edit only `name` and `phone_number`; email, NIM, NIP, role, permissions, active status, and approval/reviewer metadata are not self-editable.
@@ -241,6 +250,7 @@ Implemented or prepared API groups:
 - Reporter portal endpoints are limited to role `reporter` only and expose only own report metadata using `registration_number` instead of internal report IDs.
 - Reporter portal report statuses are safe labels only: `Submitted`, `Under Review`, `In Process`, and `Completed`.
 - Reporter portal notifications are read-only; notification mutation remains only through M17 notification endpoints.
+- Public registration, correction/resubmission, public tracking, and reporter report submission are now integrated in the frontend through M31-B2.
 - Evidence file upload, download, preview, storage implementation, attachments, WhatsApp, advanced analytics, and Flutter integration are not implemented yet.
 - Tests are expected for each milestone before completion.
 
@@ -317,6 +327,9 @@ Implemented or prepared domain tables include:
 - `audit_logs`
 - `notifications`
 - `reporter_registrations`
+- `universities`
+- `faculties`
+- `study_programs`
 
 Not yet implemented:
 
@@ -354,8 +367,8 @@ php artisan test
 Expected verified test baseline:
 
 ```text
-Backend: 125 tests, 1025 assertions
-Frontend QA: PASS
+Backend: run `php artisan test` from `backend/api`
+Frontend: run `npm.cmd run build` from `frontend`
 ```
 
 Prepared Milestone 13 route additions:
@@ -398,6 +411,13 @@ php artisan test: PASS
 125 passed (1025 assertions)
 ```
 
+Latest M31 backend verification:
+
+```text
+M31-A and M31-B1 backend completed and patched.
+Pending/rejected registration fallback login is email-only.
+```
+
 Latest QA verification:
 
 ```text
@@ -414,6 +434,13 @@ npm run lint: PASS
 npm run build: PASS
 ```
 
+Latest M31-B2 frontend QA:
+
+```text
+npx.cmd tsc --noEmit: FAIL - existing workflow/dashboard TypeScript errors outside the targeted QA patch
+npm.cmd run build: PASS
+```
+
 Verified Milestone 23 route additions:
 
 ```text
@@ -422,7 +449,9 @@ GET /api/v1/users/lookup
 GET /api/v1/users/{user}
 PATCH /api/v1/users/{user}/activate
 PATCH /api/v1/users/{user}/deactivate
+PATCH /api/v1/users/{user}/reset-password
 PATCH /api/v1/users/{user}/role
+POST /api/v1/users/reporters
 ```
 
 Verified Milestone 18 route additions:
@@ -438,10 +467,19 @@ Verified Milestone 19 route additions:
 
 ```text
 POST /api/v1/reporter-registrations
+PATCH /api/v1/reporter-registrations/correct
 GET /api/v1/reporter-registrations
 GET /api/v1/reporter-registrations/{reporterRegistration}
 PATCH /api/v1/reporter-registrations/{reporterRegistration}/approve
 PATCH /api/v1/reporter-registrations/{reporterRegistration}/reject
+```
+
+Verified Milestone 31-A campus route additions:
+
+```text
+GET /api/v1/universities
+GET /api/v1/faculties
+GET /api/v1/study-programs
 ```
 
 Verified Milestone 20 route additions:
@@ -484,27 +522,25 @@ GET /api/v1/portal/notifications
 - Milestone 23 added backend-only user management and lookup APIs that now support assignment pickers and admin operations.
 - Milestone 24 activated report forwarding and case assignment in the frontend using the approved Satgas lookup endpoint and backend-authoritative validation.
 - Milestone 25 implemented the frontend localization foundation and Reporter Portal bilingual behavior with Bahasa Indonesia as the default and English optional.
-- Public reporter registration remains backend-only for approval workflows; public self-registration/request submission UI has not been integrated into the frontend.
+- Public reporter registration, correction/resubmission UI, admin registration review, reporter management UI, reporter report submission, and public tracking page are now integrated in the frontend as part of M31-B2.
+- M31-B2 QA patch modified only `frontend/src/lib/api-types.ts` and `frontend/src/routes/registration.correction.tsx`.
 
 ## Verification Baseline
 
 Backend:
 - php artisan test
-- 125 passed
-- 1025 assertions
+- latest stored baseline before M31: 125 passed, 1025 assertions
+- M31-A and M31-B1 completed and patched
 
 Frontend:
 - Localization foundation implemented
 - Reporter Portal bilingual (ID default, EN optional)
 - QA
 - PASS
-- npm run lint
-- PASS
-- 0 errors
-- 6 pre-existing warnings
-
-- npm run build
-- PASS
+- npm.cmd run build
+- PASS after M31-B2 QA patch
+- npx.cmd tsc --noEmit
+- FAIL due to existing workflow/dashboard TypeScript errors outside the QA patch scope
 
 Milestone 22 Additional QA:
 - Non-empty reporter demo verified

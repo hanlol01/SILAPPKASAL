@@ -26,6 +26,7 @@ import { Route as DashboardUsersRouteImport } from './routes/dashboard.users'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard.settings'
 import { Route as DashboardRegistrationsRouteImport } from './routes/dashboard.registrations'
 import { Route as DashboardNotificationsRouteImport } from './routes/dashboard.notifications'
+import { Route as DashboardMasterDataRouteImport } from './routes/dashboard.master-data'
 import { Route as DashboardContentRouteImport } from './routes/dashboard.content'
 import { Route as DashboardBreakGlassRouteImport } from './routes/dashboard.break-glass'
 import { Route as DashboardAnalyticsRouteImport } from './routes/dashboard.analytics'
@@ -37,6 +38,9 @@ import { Route as PortalReportsRegistrationNumberRouteImport } from './routes/po
 import { Route as PortalReportsSplatRouteImport } from './routes/portal.reports.$'
 import { Route as DashboardReportsIdRouteImport } from './routes/dashboard.reports.$id'
 import { Route as DashboardRegistrationsIdRouteImport } from './routes/dashboard.registrations.$id'
+import { Route as DashboardMasterDataUniversitiesRouteImport } from './routes/dashboard.master-data.universities'
+import { Route as DashboardMasterDataStudyProgramsRouteImport } from './routes/dashboard.master-data.study-programs'
+import { Route as DashboardMasterDataFacultiesRouteImport } from './routes/dashboard.master-data.faculties'
 import { Route as DashboardCasesIdRouteImport } from './routes/dashboard.cases.$id'
 
 const TrackRoute = TrackRouteImport.update({
@@ -124,6 +128,11 @@ const DashboardNotificationsRoute = DashboardNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardMasterDataRoute = DashboardMasterDataRouteImport.update({
+  id: '/master-data',
+  path: '/master-data',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardContentRoute = DashboardContentRouteImport.update({
   id: '/content',
   path: '/content',
@@ -181,6 +190,24 @@ const DashboardRegistrationsIdRoute =
     path: '/$id',
     getParentRoute: () => DashboardRegistrationsRoute,
   } as any)
+const DashboardMasterDataUniversitiesRoute =
+  DashboardMasterDataUniversitiesRouteImport.update({
+    id: '/universities',
+    path: '/universities',
+    getParentRoute: () => DashboardMasterDataRoute,
+  } as any)
+const DashboardMasterDataStudyProgramsRoute =
+  DashboardMasterDataStudyProgramsRouteImport.update({
+    id: '/study-programs',
+    path: '/study-programs',
+    getParentRoute: () => DashboardMasterDataRoute,
+  } as any)
+const DashboardMasterDataFacultiesRoute =
+  DashboardMasterDataFacultiesRouteImport.update({
+    id: '/faculties',
+    path: '/faculties',
+    getParentRoute: () => DashboardMasterDataRoute,
+  } as any)
 const DashboardCasesIdRoute = DashboardCasesIdRouteImport.update({
   id: '/cases/$id',
   path: '/cases/$id',
@@ -197,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/analytics': typeof DashboardAnalyticsRoute
   '/dashboard/break-glass': typeof DashboardBreakGlassRoute
   '/dashboard/content': typeof DashboardContentRoute
+  '/dashboard/master-data': typeof DashboardMasterDataRouteWithChildren
   '/dashboard/notifications': typeof DashboardNotificationsRoute
   '/dashboard/registrations': typeof DashboardRegistrationsRouteWithChildren
   '/dashboard/settings': typeof DashboardSettingsRoute
@@ -209,6 +237,9 @@ export interface FileRoutesByFullPath {
   '/dashboard/': typeof DashboardIndexRoute
   '/portal/': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
+  '/dashboard/master-data/faculties': typeof DashboardMasterDataFacultiesRoute
+  '/dashboard/master-data/study-programs': typeof DashboardMasterDataStudyProgramsRoute
+  '/dashboard/master-data/universities': typeof DashboardMasterDataUniversitiesRoute
   '/dashboard/registrations/$id': typeof DashboardRegistrationsIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
   '/portal/reports/$': typeof PortalReportsSplatRoute
@@ -226,6 +257,7 @@ export interface FileRoutesByTo {
   '/dashboard/analytics': typeof DashboardAnalyticsRoute
   '/dashboard/break-glass': typeof DashboardBreakGlassRoute
   '/dashboard/content': typeof DashboardContentRoute
+  '/dashboard/master-data': typeof DashboardMasterDataRouteWithChildren
   '/dashboard/notifications': typeof DashboardNotificationsRoute
   '/dashboard/registrations': typeof DashboardRegistrationsRouteWithChildren
   '/dashboard/settings': typeof DashboardSettingsRoute
@@ -238,6 +270,9 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardIndexRoute
   '/portal': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
+  '/dashboard/master-data/faculties': typeof DashboardMasterDataFacultiesRoute
+  '/dashboard/master-data/study-programs': typeof DashboardMasterDataStudyProgramsRoute
+  '/dashboard/master-data/universities': typeof DashboardMasterDataUniversitiesRoute
   '/dashboard/registrations/$id': typeof DashboardRegistrationsIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
   '/portal/reports/$': typeof PortalReportsSplatRoute
@@ -258,6 +293,7 @@ export interface FileRoutesById {
   '/dashboard/analytics': typeof DashboardAnalyticsRoute
   '/dashboard/break-glass': typeof DashboardBreakGlassRoute
   '/dashboard/content': typeof DashboardContentRoute
+  '/dashboard/master-data': typeof DashboardMasterDataRouteWithChildren
   '/dashboard/notifications': typeof DashboardNotificationsRoute
   '/dashboard/registrations': typeof DashboardRegistrationsRouteWithChildren
   '/dashboard/settings': typeof DashboardSettingsRoute
@@ -270,6 +306,9 @@ export interface FileRoutesById {
   '/dashboard/': typeof DashboardIndexRoute
   '/portal/': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
+  '/dashboard/master-data/faculties': typeof DashboardMasterDataFacultiesRoute
+  '/dashboard/master-data/study-programs': typeof DashboardMasterDataStudyProgramsRoute
+  '/dashboard/master-data/universities': typeof DashboardMasterDataUniversitiesRoute
   '/dashboard/registrations/$id': typeof DashboardRegistrationsIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
   '/portal/reports/$': typeof PortalReportsSplatRoute
@@ -291,6 +330,7 @@ export interface FileRouteTypes {
     | '/dashboard/analytics'
     | '/dashboard/break-glass'
     | '/dashboard/content'
+    | '/dashboard/master-data'
     | '/dashboard/notifications'
     | '/dashboard/registrations'
     | '/dashboard/settings'
@@ -303,6 +343,9 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/portal/'
     | '/dashboard/cases/$id'
+    | '/dashboard/master-data/faculties'
+    | '/dashboard/master-data/study-programs'
+    | '/dashboard/master-data/universities'
     | '/dashboard/registrations/$id'
     | '/dashboard/reports/$id'
     | '/portal/reports/$'
@@ -320,6 +363,7 @@ export interface FileRouteTypes {
     | '/dashboard/analytics'
     | '/dashboard/break-glass'
     | '/dashboard/content'
+    | '/dashboard/master-data'
     | '/dashboard/notifications'
     | '/dashboard/registrations'
     | '/dashboard/settings'
@@ -332,6 +376,9 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/portal'
     | '/dashboard/cases/$id'
+    | '/dashboard/master-data/faculties'
+    | '/dashboard/master-data/study-programs'
+    | '/dashboard/master-data/universities'
     | '/dashboard/registrations/$id'
     | '/dashboard/reports/$id'
     | '/portal/reports/$'
@@ -351,6 +398,7 @@ export interface FileRouteTypes {
     | '/dashboard/analytics'
     | '/dashboard/break-glass'
     | '/dashboard/content'
+    | '/dashboard/master-data'
     | '/dashboard/notifications'
     | '/dashboard/registrations'
     | '/dashboard/settings'
@@ -363,6 +411,9 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/portal/'
     | '/dashboard/cases/$id'
+    | '/dashboard/master-data/faculties'
+    | '/dashboard/master-data/study-programs'
+    | '/dashboard/master-data/universities'
     | '/dashboard/registrations/$id'
     | '/dashboard/reports/$id'
     | '/portal/reports/$'
@@ -505,6 +556,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardNotificationsRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/master-data': {
+      id: '/dashboard/master-data'
+      path: '/master-data'
+      fullPath: '/dashboard/master-data'
+      preLoaderRoute: typeof DashboardMasterDataRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/content': {
       id: '/dashboard/content'
       path: '/content'
@@ -582,6 +640,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRegistrationsIdRouteImport
       parentRoute: typeof DashboardRegistrationsRoute
     }
+    '/dashboard/master-data/universities': {
+      id: '/dashboard/master-data/universities'
+      path: '/universities'
+      fullPath: '/dashboard/master-data/universities'
+      preLoaderRoute: typeof DashboardMasterDataUniversitiesRouteImport
+      parentRoute: typeof DashboardMasterDataRoute
+    }
+    '/dashboard/master-data/study-programs': {
+      id: '/dashboard/master-data/study-programs'
+      path: '/study-programs'
+      fullPath: '/dashboard/master-data/study-programs'
+      preLoaderRoute: typeof DashboardMasterDataStudyProgramsRouteImport
+      parentRoute: typeof DashboardMasterDataRoute
+    }
+    '/dashboard/master-data/faculties': {
+      id: '/dashboard/master-data/faculties'
+      path: '/faculties'
+      fullPath: '/dashboard/master-data/faculties'
+      preLoaderRoute: typeof DashboardMasterDataFacultiesRouteImport
+      parentRoute: typeof DashboardMasterDataRoute
+    }
     '/dashboard/cases/$id': {
       id: '/dashboard/cases/$id'
       path: '/cases/$id'
@@ -591,6 +670,21 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface DashboardMasterDataRouteChildren {
+  DashboardMasterDataFacultiesRoute: typeof DashboardMasterDataFacultiesRoute
+  DashboardMasterDataStudyProgramsRoute: typeof DashboardMasterDataStudyProgramsRoute
+  DashboardMasterDataUniversitiesRoute: typeof DashboardMasterDataUniversitiesRoute
+}
+
+const DashboardMasterDataRouteChildren: DashboardMasterDataRouteChildren = {
+  DashboardMasterDataFacultiesRoute: DashboardMasterDataFacultiesRoute,
+  DashboardMasterDataStudyProgramsRoute: DashboardMasterDataStudyProgramsRoute,
+  DashboardMasterDataUniversitiesRoute: DashboardMasterDataUniversitiesRoute,
+}
+
+const DashboardMasterDataRouteWithChildren =
+  DashboardMasterDataRoute._addFileChildren(DashboardMasterDataRouteChildren)
 
 interface DashboardRegistrationsRouteChildren {
   DashboardRegistrationsIdRoute: typeof DashboardRegistrationsIdRoute
@@ -610,6 +704,7 @@ interface DashboardRouteChildren {
   DashboardAnalyticsRoute: typeof DashboardAnalyticsRoute
   DashboardBreakGlassRoute: typeof DashboardBreakGlassRoute
   DashboardContentRoute: typeof DashboardContentRoute
+  DashboardMasterDataRoute: typeof DashboardMasterDataRouteWithChildren
   DashboardNotificationsRoute: typeof DashboardNotificationsRoute
   DashboardRegistrationsRoute: typeof DashboardRegistrationsRouteWithChildren
   DashboardSettingsRoute: typeof DashboardSettingsRoute
@@ -626,6 +721,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAnalyticsRoute: DashboardAnalyticsRoute,
   DashboardBreakGlassRoute: DashboardBreakGlassRoute,
   DashboardContentRoute: DashboardContentRoute,
+  DashboardMasterDataRoute: DashboardMasterDataRouteWithChildren,
   DashboardNotificationsRoute: DashboardNotificationsRoute,
   DashboardRegistrationsRoute: DashboardRegistrationsRouteWithChildren,
   DashboardSettingsRoute: DashboardSettingsRoute,

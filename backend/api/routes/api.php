@@ -75,6 +75,26 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/study-programs', [CampusMasterDataController::class, 'studyPrograms'])
         ->middleware('throttle:30,1');
 
+    Route::middleware('auth:sanctum')->prefix('campus-admin')->group(function (): void {
+        Route::get('/universities', [CampusMasterDataController::class, 'indexAdmin']);
+        Route::post('/universities', [CampusMasterDataController::class, 'storeUniversity']);
+        Route::get('/universities/{university}', [CampusMasterDataController::class, 'showUniversity']);
+        Route::put('/universities/{university}', [CampusMasterDataController::class, 'updateUniversity']);
+        Route::patch('/universities/{university}/toggle-active', [CampusMasterDataController::class, 'toggleUniversityActive']);
+
+        Route::get('/faculties', [CampusMasterDataController::class, 'indexFacultiesAdmin']);
+        Route::post('/faculties', [CampusMasterDataController::class, 'storeFaculty']);
+        Route::get('/faculties/{faculty}', [CampusMasterDataController::class, 'showFaculty']);
+        Route::put('/faculties/{faculty}', [CampusMasterDataController::class, 'updateFaculty']);
+        Route::patch('/faculties/{faculty}/toggle-active', [CampusMasterDataController::class, 'toggleFacultyActive']);
+
+        Route::get('/study-programs', [CampusMasterDataController::class, 'indexStudyProgramsAdmin']);
+        Route::post('/study-programs', [CampusMasterDataController::class, 'storeStudyProgram']);
+        Route::get('/study-programs/{studyProgram}', [CampusMasterDataController::class, 'showStudyProgram']);
+        Route::put('/study-programs/{studyProgram}', [CampusMasterDataController::class, 'updateStudyProgram']);
+        Route::patch('/study-programs/{studyProgram}/toggle-active', [CampusMasterDataController::class, 'toggleStudyProgramActive']);
+    });
+
     Route::prefix('reports')->group(function (): void {
         Route::post('/', [ReportController::class, 'store'])
             ->middleware(['auth:sanctum', 'throttle:reports.submit']);
@@ -91,7 +111,7 @@ Route::prefix('v1')->group(function (): void {
 
     Route::prefix('reporter-registrations')->group(function (): void {
         Route::post('/', [ReporterRegistrationController::class, 'store'])
-            ->middleware('throttle:5,1');
+            ->middleware('throttle:reporter.registration');
         Route::patch('/correct', [ReporterRegistrationController::class, 'correct'])
             ->middleware('throttle:5,1');
 
