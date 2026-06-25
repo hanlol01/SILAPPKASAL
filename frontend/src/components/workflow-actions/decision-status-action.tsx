@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { History, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatDecisionStatus } from "@/lib/format-labels";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import {
   getDecisionStatusOptions,
@@ -51,6 +53,7 @@ export function DecisionStatusAction({
   decision: Decision;
   caseId: number | string;
 }) {
+  const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const optionsQuery = useQuery({
@@ -67,7 +70,7 @@ export function DecisionStatusAction({
   const mutation = useMutation({
     mutationFn: (values: DecisionStatusValues) => updateDecisionStatus(decision.id, values),
     onSuccess: () => {
-      toast.success("Decision status updated");
+      toast.success(t("dashboard:workflow.decisionStatusUpdated"));
       setOpen(false);
       form.reset({ status: "" });
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.case(caseId) });
@@ -79,7 +82,7 @@ export function DecisionStatusAction({
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
-      toast.error(apiErrorMessage(error, "Decision status could not be updated"));
+      toast.error(apiErrorMessage(error, t("dashboard:workflow.decisionStatusError")));
     },
   });
 
@@ -87,14 +90,14 @@ export function DecisionStatusAction({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
-          <History className="mr-2 h-4 w-4" /> Status
+          <History className="mr-2 h-4 w-4" /> {t("dashboard:workflow.status")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Update decision status</DialogTitle>
+          <DialogTitle>{t("dashboard:workflow.updateDecisionStatus")}</DialogTitle>
           <DialogDescription>
-            Only valid transitions returned by the backend are available.
+            {t("dashboard:workflow.validTransitionsOnly")}
           </DialogDescription>
         </DialogHeader>
 
@@ -105,7 +108,7 @@ export function DecisionStatusAction({
               name="status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Status</FormLabel>
+                  <FormLabel>{t("dashboard:workflow.status")}</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     value={field.value}
@@ -113,19 +116,19 @@ export function DecisionStatusAction({
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder={optionsQuery.isLoading ? "Loading statuses..." : "Select status"} />
+                        <SelectValue placeholder={optionsQuery.isLoading ? t("dashboard:workflow.loadingStatuses") : t("dashboard:workflow.selectStatus")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {options.map((option) => (
                         <SelectItem key={option.code} value={option.code}>
-                          {label(option.name)}
+                          {formatDecisionStatus(t, option.name)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   {optionsQuery.isSuccess && options.length === 0 && (
-                    <p className="text-xs text-muted-foreground">No valid next status is available.</p>
+                    <p className="text-xs text-muted-foreground">{t("dashboard:common.noValidNextStatus")}</p>
                   )}
                   <FormMessage />
                 </FormItem>
@@ -135,7 +138,7 @@ export function DecisionStatusAction({
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending || options.length === 0}>
                 {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save status
+                {t("dashboard:workflow.saveStatus")}
               </Button>
             </DialogFooter>
           </form>
@@ -143,8 +146,4 @@ export function DecisionStatusAction({
       </DialogContent>
     </Dialog>
   );
-}
-
-function label(value: string) {
-  return value.replace(/[-_]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }

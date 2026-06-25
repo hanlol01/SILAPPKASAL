@@ -15,7 +15,7 @@ import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/dashboard/break-glass")({
   component: BreakGlassPage,
-  head: () => ({ meta: [{ title: "Break-glass - SafeCampus Admin" }] }),
+  head: () => ({ meta: [{ title: "Break-glass - SILAPPKASAL Admin" }] }),
 });
 
 function BreakGlassPage() {

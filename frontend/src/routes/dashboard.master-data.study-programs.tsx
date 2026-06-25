@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import {
@@ -21,6 +22,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatDegreeLevel } from "@/lib/format-labels";
 
 export const Route = createFileRoute("/dashboard/master-data/study-programs")({
   component: StudyProgramsPage,
@@ -29,6 +31,7 @@ export const Route = createFileRoute("/dashboard/master-data/study-programs")({
 const degreeLevels = ["D3", "D4", "S1", "S2", "S3", "profesi"];
 
 function StudyProgramsPage() {
+  const { t } = useTranslation(["dashboard"]);
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [universityId, setUniversityId] = useState("");
@@ -49,38 +52,38 @@ function StudyProgramsPage() {
   const toggleMutation = useMutation({
     mutationFn: toggleCampusStudyProgram,
     onSuccess: () => {
-      toast.success("Study program status updated");
+      toast.success(t("dashboard:masterData.studyProgramStatusUpdated"));
       invalidate();
     },
-    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Unable to update study program status"),
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : t("dashboard:masterData.studyProgramStatusError")),
   });
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3">
-        <Input className="max-w-sm" placeholder="Search study programs" value={search} onChange={(event) => setSearch(event.target.value)} />
+        <Input className="max-w-sm" placeholder={t("dashboard:masterData.searchStudyPrograms")} value={search} onChange={(event) => setSearch(event.target.value)} />
         <select className="h-10 rounded-md border bg-background px-3 text-sm" value={universityId} onChange={(event) => { setUniversityId(event.target.value); setFacultyId(""); }}>
-          <option value="">All universities</option>
+          <option value="">{t("dashboard:common.allUniversities")}</option>
           {(universitiesQuery.data?.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
         <select className="h-10 rounded-md border bg-background px-3 text-sm" value={facultyId} onChange={(event) => setFacultyId(event.target.value)} disabled={!universityId}>
-          <option value="">All faculties</option>
+          <option value="">{t("dashboard:masterData.allFaculties")}</option>
           {(facultiesQuery.data?.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
-        <Button onClick={() => setCreating(true)}>Create Study Program</Button>
+        <Button onClick={() => setCreating(true)}>{t("dashboard:masterData.createStudyProgram")}</Button>
       </div>
       <Card>
         <CardContent className="overflow-x-auto p-0">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-left">
               <tr>
-                <th className="p-3">Code</th>
-                <th className="p-3">Name</th>
-                <th className="p-3">Degree</th>
-                <th className="p-3">Faculty</th>
-                <th className="p-3">University</th>
-                <th className="p-3">Status</th>
-                <th className="p-3 text-right">Actions</th>
+                <th className="p-3">{t("dashboard:masterData.code")}</th>
+                <th className="p-3">{t("dashboard:masterData.name")}</th>
+                <th className="p-3">{t("dashboard:masterData.degree")}</th>
+                <th className="p-3">{t("dashboard:masterData.faculty")}</th>
+                <th className="p-3">{t("dashboard:masterData.university")}</th>
+                <th className="p-3">{t("dashboard:masterData.status")}</th>
+                <th className="p-3 text-right">{t("dashboard:masterData.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -88,25 +91,25 @@ function StudyProgramsPage() {
                 <tr key={item.id} className="border-t">
                   <td className="p-3 font-mono text-xs">{item.code}</td>
                   <td className="p-3 font-medium">{item.name}</td>
-                  <td className="p-3">{item.degree_level}</td>
+                  <td className="p-3">{formatDegreeLevel(t, item.degree_level)}</td>
                   <td className="p-3">{item.faculty?.name ?? "-"}</td>
                   <td className="p-3">{item.university?.name ?? "-"}</td>
-                  <td className="p-3"><Badge variant={item.is_active ? "default" : "outline"}>{item.is_active ? "Active" : "Inactive"}</Badge></td>
+                  <td className="p-3"><Badge variant={item.is_active ? "default" : "outline"}>{item.is_active ? t("dashboard:masterData.active") : t("dashboard:masterData.inactive")}</Badge></td>
                   <td className="p-3 text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setEditing(item)}>Edit</Button>
+                      <Button variant="outline" size="sm" onClick={() => setEditing(item)}>{t("dashboard:common.edit")}</Button>
                       <Button variant="outline" size="sm" onClick={() => toggleMutation.mutate(item.id)}>
-                        {item.is_active ? "Deactivate" : "Activate"}
+                        {item.is_active ? t("dashboard:masterData.deactivate") : t("dashboard:masterData.activate")}
                       </Button>
                     </div>
                   </td>
                 </tr>
               ))}
               {programsQuery.isSuccess && programsQuery.data.data.length === 0 && (
-                <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No study programs found.</td></tr>
+                <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">{t("dashboard:masterData.noStudyPrograms")}</td></tr>
               )}
               {programsQuery.isLoading && (
-                <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Loading study programs...</td></tr>
+                <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">{t("dashboard:masterData.loadingStudyPrograms")}</td></tr>
               )}
             </tbody>
           </table>
@@ -145,6 +148,7 @@ function StudyProgramDialog({
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation(["dashboard"]);
   const [form, setForm] = useState<StudyProgramPayload>(() => toPayload(studyProgram));
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const facultiesQuery = useQuery({
@@ -155,7 +159,7 @@ function StudyProgramDialog({
   const mutation = useMutation({
     mutationFn: () => studyProgram ? updateCampusStudyProgram(studyProgram.id, form) : createCampusStudyProgram(form),
     onSuccess: () => {
-      toast.success(studyProgram ? "Study program updated" : "Study program created");
+      toast.success(studyProgram ? t("dashboard:masterData.studyProgramUpdated") : t("dashboard:masterData.studyProgramCreated"));
       setErrors({});
       onSaved();
     },
@@ -176,29 +180,29 @@ function StudyProgramDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader><DialogTitle>{studyProgram ? "Edit Study Program" : "Create Study Program"}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{studyProgram ? t("dashboard:masterData.editStudyProgram") : t("dashboard:masterData.createStudyProgram")}</DialogTitle></DialogHeader>
         <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); mutation.mutate(); }}>
-          <Field label="University" error={errors.university_id?.[0]}>
+          <Field label={t("dashboard:masterData.university")} error={errors.university_id?.[0]}>
             <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.university_id || ""} onChange={(event) => setForm((current) => ({ ...current, university_id: Number(event.target.value), faculty_id: null }))} required>
-              <option value="">Select university</option>
+              <option value="">{t("dashboard:masterData.selectUniversity")}</option>
               {universities.filter((item) => item.is_active !== false).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </Field>
-          <Field label="Faculty (optional)" error={errors.faculty_id?.[0]}>
+          <Field label={`${t("dashboard:masterData.faculty")} (${t("dashboard:masterData.optional")})`} error={errors.faculty_id?.[0]}>
             <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.faculty_id ?? ""} onChange={(event) => update("faculty_id", event.target.value ? Number(event.target.value) : null)} disabled={!form.university_id}>
-              <option value="">No faculty</option>
+              <option value="">{t("dashboard:masterData.noFaculty")}</option>
               {(facultiesQuery.data?.data ?? []).filter((item) => item.is_active).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </Field>
-          <Field label="Code" error={errors.code?.[0]}><Input value={form.code} onChange={(event) => update("code", event.target.value)} required /></Field>
-          <Field label="Name" error={errors.name?.[0]}><Input value={form.name} onChange={(event) => update("name", event.target.value)} required /></Field>
-          <Field label="Degree Level" error={errors.degree_level?.[0]}>
+          <Field label={t("dashboard:masterData.code")} error={errors.code?.[0]}><Input value={form.code} onChange={(event) => update("code", event.target.value)} required /></Field>
+          <Field label={t("dashboard:masterData.name")} error={errors.name?.[0]}><Input value={form.name} onChange={(event) => update("name", event.target.value)} required /></Field>
+          <Field label={t("dashboard:masterData.degreeLevel")} error={errors.degree_level?.[0]}>
             <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.degree_level} onChange={(event) => update("degree_level", event.target.value)} required>
-              {degreeLevels.map((level) => <option key={level} value={level}>{level}</option>)}
+              {degreeLevels.map((level) => <option key={level} value={level}>{formatDegreeLevel(t, level)}</option>)}
             </select>
           </Field>
-          <Field label="Sort order"><Input type="number" value={form.sort_order ?? 0} onChange={(event) => update("sort_order", Number(event.target.value))} /></Field>
-          <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? "Saving..." : "Save"}</Button>
+          <Field label={t("dashboard:masterData.sortOrder")}><Input type="number" value={form.sort_order ?? 0} onChange={(event) => update("sort_order", Number(event.target.value))} /></Field>
+          <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? t("dashboard:common.saving") : t("dashboard:common.save")}</Button>
         </form>
       </DialogContent>
     </Dialog>

@@ -2,7 +2,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, ClipboardEdit, FilePlus2, History, PenLine } from "lucide-react";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldValues, type Path, type UseFormReturn } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  formatCaseStatus,
+  formatDecisionOutcome,
+  formatEvidenceClassification,
+  formatEvidenceStatus,
+  formatGenericLabel,
+} from "@/lib/format-labels";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import { getMasterData, masterDataQueryKeys } from "@/lib/master-data-api";
 import {
@@ -128,6 +136,7 @@ export function CaseStatusAction({
   caseId: number | string;
   currentStatus: string;
 }) {
+  const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const statusesQuery = useQuery({
@@ -141,7 +150,7 @@ export function CaseStatusAction({
   const mutation = useMutation({
     mutationFn: (values: CaseStatusValues) => updateCaseStatus(caseId, values),
     onSuccess: () => {
-      toast.success("Case status updated");
+      toast.success(t("dashboard:workflow.caseStatusUpdated"));
       setOpen(false);
       form.reset({ status: "" });
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.case(caseId) });
@@ -150,7 +159,7 @@ export function CaseStatusAction({
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
-      toast.error(apiErrorMessage(error, "Case status could not be updated"));
+      toast.error(apiErrorMessage(error, t("dashboard:workflow.caseStatusError")));
     },
   });
 
@@ -160,13 +169,13 @@ export function CaseStatusAction({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="w-full" variant="outline" disabled={statusesQuery.isLoading || options.length === 0}>
-          <History className="mr-2 h-4 w-4" /> Update status
+          <History className="mr-2 h-4 w-4" /> {t("dashboard:workflow.updateCaseStatus")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Update case status</DialogTitle>
-          <DialogDescription>Backend RBAC and transition rules remain authoritative.</DialogDescription>
+          <DialogTitle>{t("dashboard:workflow.updateCaseStatus")}</DialogTitle>
+          <DialogDescription>{t("dashboard:workflow.backendAuthoritative")}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
@@ -175,17 +184,17 @@ export function CaseStatusAction({
               name="status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Status</FormLabel>
+                  <FormLabel>{t("dashboard:workflow.status")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
+                        <SelectValue placeholder={t("dashboard:workflow.selectStatus")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {options.map((item) => (
                         <SelectItem key={item.code} value={item.code}>
-                          {item.name}
+                          {formatCaseStatus(t, item.name)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -196,7 +205,7 @@ export function CaseStatusAction({
             />
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Saving..." : "Save status"}
+                {mutation.isPending ? t("dashboard:common.saving") : t("dashboard:workflow.saveStatus")}
               </Button>
             </DialogFooter>
           </form>
@@ -213,6 +222,7 @@ export function InvestigationActivityAction({
   investigation: Investigation;
   caseId: number | string;
 }) {
+  const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const form = useForm<ActivityValues>({
@@ -229,7 +239,7 @@ export function InvestigationActivityAction({
     mutationFn: (values: ActivityValues) =>
       createInvestigationActivity(investigation.id, nullifyEmpty(values)),
     onSuccess: () => {
-      toast.success("Investigation activity added");
+      toast.success(t("dashboard:workflow.activityAdded"));
       setOpen(false);
       form.reset();
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.investigations(caseId) });
@@ -238,7 +248,7 @@ export function InvestigationActivityAction({
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
-      toast.error(apiErrorMessage(error, "Activity could not be added"));
+      toast.error(apiErrorMessage(error, t("dashboard:workflow.activityError")));
     },
   });
 
@@ -246,24 +256,24 @@ export function InvestigationActivityAction({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
-          <FilePlus2 className="mr-2 h-4 w-4" /> Add activity
+          <FilePlus2 className="mr-2 h-4 w-4" /> {t("dashboard:workflow.addActivity")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add investigation activity</DialogTitle>
-          <DialogDescription>Activity is submitted to the approved backend endpoint.</DialogDescription>
+          <DialogTitle>{t("dashboard:workflow.addActivity")}</DialogTitle>
+          <DialogDescription>{t("dashboard:workflow.activityEndpointDesc")}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
-            <SelectField form={form} name="activity_type" label="Activity type" options={INVESTIGATION_ACTIVITY_TYPES} />
-            <InputField form={form} name="activity_date" label="Activity date" type="date" />
-            <TextareaField form={form} name="description" label="Description" />
-            <TextareaField form={form} name="findings" label="Findings" />
-            <TextareaField form={form} name="notes" label="Notes" />
+            <SelectField form={form} name="activity_type" label={t("dashboard:workflow.activityType")} options={INVESTIGATION_ACTIVITY_TYPES} formatter={(value) => formatGenericLabel(value)} />
+            <InputField form={form} name="activity_date" label={t("dashboard:workflow.activityDate")} type="date" />
+            <TextareaField form={form} name="description" label={t("dashboard:workflow.description")} />
+            <TextareaField form={form} name="findings" label={t("dashboard:workflow.findings")} />
+            <TextareaField form={form} name="notes" label={t("dashboard:workflow.notes")} />
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Saving..." : "Add activity"}
+                {mutation.isPending ? t("dashboard:common.saving") : t("dashboard:workflow.addActivity")}
               </Button>
             </DialogFooter>
           </form>
@@ -280,6 +290,7 @@ export function RecommendationUpdateAction({
   recommendation: Recommendation;
   caseId: number | string;
 }) {
+  const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const form = useForm<RecommendationValues>({
@@ -295,14 +306,14 @@ export function RecommendationUpdateAction({
   const mutation = useMutation({
     mutationFn: (values: RecommendationValues) => updateRecommendation(recommendation.id, nullifyEmpty(values)),
     onSuccess: () => {
-      toast.success("Recommendation updated");
+      toast.success(t("dashboard:workflow.recommendationUpdated"));
       setOpen(false);
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.recommendations(caseId) });
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.recommendation(recommendation.id) });
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
-      toast.error(apiErrorMessage(error, "Recommendation could not be updated"));
+      toast.error(apiErrorMessage(error, t("dashboard:workflow.recommendationUpdateError")));
     },
   });
 
@@ -310,24 +321,24 @@ export function RecommendationUpdateAction({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
-          <PenLine className="mr-2 h-4 w-4" /> Edit
+          <PenLine className="mr-2 h-4 w-4" /> {t("dashboard:common.edit")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit recommendation</DialogTitle>
-          <DialogDescription>Only fields returned by the backend are editable here.</DialogDescription>
+          <DialogTitle>{t("dashboard:workflow.editRecommendation")}</DialogTitle>
+          <DialogDescription>{t("dashboard:workflow.editableBackendFields")}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
-            <TextareaField form={form} name="conclusion" label="Conclusion" />
-            <TextareaField form={form} name="recommended_actions" label="Recommended actions" />
-            <TextareaField form={form} name="sanction_recommendation" label="Sanction recommendation" />
-            <TextareaField form={form} name="recovery_recommendation" label="Recovery recommendation" />
-            <TextareaField form={form} name="prevention_recommendation" label="Prevention recommendation" />
+            <TextareaField form={form} name="conclusion" label={t("dashboard:sections.conclusion")} />
+            <TextareaField form={form} name="recommended_actions" label={t("dashboard:sections.recommendedActions")} />
+            <TextareaField form={form} name="sanction_recommendation" label={t("dashboard:sections.sanction")} />
+            <TextareaField form={form} name="recovery_recommendation" label={t("dashboard:sections.recovery")} />
+            <TextareaField form={form} name="prevention_recommendation" label={t("dashboard:sections.prevention")} />
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Saving..." : "Save recommendation"}
+                {mutation.isPending ? t("dashboard:common.saving") : t("dashboard:workflow.saveRecommendation")}
               </Button>
             </DialogFooter>
           </form>
@@ -338,6 +349,7 @@ export function RecommendationUpdateAction({
 }
 
 export function DecisionUpdateAction({ decision }: { decision: Decision }) {
+  const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const form = useForm<DecisionValues>({
@@ -353,7 +365,7 @@ export function DecisionUpdateAction({ decision }: { decision: Decision }) {
   const mutation = useMutation({
     mutationFn: (values: DecisionValues) => updateDecision(decision.id, nullifyEmpty(values)),
     onSuccess: () => {
-      toast.success("Decision updated");
+      toast.success(t("dashboard:workflow.decisionUpdated"));
       setOpen(false);
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.decisions(decision.recommendation_id) });
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.decision(decision.id) });
@@ -361,7 +373,7 @@ export function DecisionUpdateAction({ decision }: { decision: Decision }) {
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
-      toast.error(apiErrorMessage(error, "Decision could not be updated"));
+      toast.error(apiErrorMessage(error, t("dashboard:workflow.decisionUpdateError")));
     },
   });
 
@@ -369,24 +381,24 @@ export function DecisionUpdateAction({ decision }: { decision: Decision }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
-          <ClipboardEdit className="mr-2 h-4 w-4" /> Edit
+          <ClipboardEdit className="mr-2 h-4 w-4" /> {t("dashboard:common.edit")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit decision</DialogTitle>
-          <DialogDescription>Decision content can be edited while backend rules allow draft changes.</DialogDescription>
+          <DialogTitle>{t("dashboard:workflow.editDecision")}</DialogTitle>
+          <DialogDescription>{t("dashboard:workflow.decisionDraftDesc")}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
-            <SelectField form={form} name="outcome_code" label="Outcome" options={DECISION_OUTCOMES} />
-            <InputField form={form} name="decision_number" label="Decision number" />
-            <InputField form={form} name="decision_date" label="Decision date" type="date" />
-            <TextareaField form={form} name="decision_summary" label="Summary" />
-            <TextareaField form={form} name="decision_content" label="Content" className="min-h-32" />
+            <SelectField form={form} name="outcome_code" label={t("dashboard:workflow.outcome")} options={DECISION_OUTCOMES} formatter={(value) => formatDecisionOutcome(t, value)} />
+            <InputField form={form} name="decision_number" label={t("dashboard:workflow.decisionNumber")} />
+            <InputField form={form} name="decision_date" label={t("dashboard:workflow.decisionDate")} type="date" />
+            <TextareaField form={form} name="decision_summary" label={t("dashboard:workflow.summary")} />
+            <TextareaField form={form} name="decision_content" label={t("dashboard:workflow.content")} className="min-h-32" />
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Saving..." : "Save decision"}
+                {mutation.isPending ? t("dashboard:common.saving") : t("dashboard:workflow.saveDecision")}
               </Button>
             </DialogFooter>
           </form>
@@ -397,6 +409,7 @@ export function DecisionUpdateAction({ decision }: { decision: Decision }) {
 }
 
 export function RecoveryMonitoringAction({ recovery }: { recovery: Recovery }) {
+  const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const form = useForm<RecoveryMonitoringValues>({
@@ -411,7 +424,7 @@ export function RecoveryMonitoringAction({ recovery }: { recovery: Recovery }) {
   const mutation = useMutation({
     mutationFn: (values: RecoveryMonitoringValues) => createRecoveryMonitoring(recovery.id, nullifyEmpty(values)),
     onSuccess: () => {
-      toast.success("Recovery monitoring added");
+      toast.success(t("dashboard:workflow.monitoringAdded"));
       setOpen(false);
       form.reset();
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.recoveries(recovery.decision_id) });
@@ -421,7 +434,7 @@ export function RecoveryMonitoringAction({ recovery }: { recovery: Recovery }) {
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
-      toast.error(apiErrorMessage(error, "Monitoring could not be added"));
+      toast.error(apiErrorMessage(error, t("dashboard:workflow.monitoringError")));
     },
   });
 
@@ -429,23 +442,23 @@ export function RecoveryMonitoringAction({ recovery }: { recovery: Recovery }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
-          <FilePlus2 className="mr-2 h-4 w-4" /> Add monitoring
+          <FilePlus2 className="mr-2 h-4 w-4" /> {t("dashboard:workflow.addMonitoring")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add recovery monitoring</DialogTitle>
-          <DialogDescription>Monitoring creation is allowed only when backend RBAC permits it.</DialogDescription>
+          <DialogTitle>{t("dashboard:workflow.addMonitoring")}</DialogTitle>
+          <DialogDescription>{t("dashboard:workflow.monitoringAllowedDesc")}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
-            <InputField form={form} name="monitoring_date" label="Monitoring date" type="date" />
-            <TextareaField form={form} name="condition_summary" label="Condition summary" />
-            <TextareaField form={form} name="follow_up_plan" label="Follow-up plan" />
-            <TextareaField form={form} name="notes" label="Notes" />
+            <InputField form={form} name="monitoring_date" label={t("dashboard:workflow.monitoringDate")} type="date" />
+            <TextareaField form={form} name="condition_summary" label={t("dashboard:workflow.conditionSummary")} />
+            <TextareaField form={form} name="follow_up_plan" label={t("dashboard:workflow.followUpPlan")} />
+            <TextareaField form={form} name="notes" label={t("dashboard:workflow.notes")} />
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Saving..." : "Add monitoring"}
+                {mutation.isPending ? t("dashboard:common.saving") : t("dashboard:workflow.addMonitoring")}
               </Button>
             </DialogFooter>
           </form>
@@ -456,6 +469,7 @@ export function RecoveryMonitoringAction({ recovery }: { recovery: Recovery }) {
 }
 
 export function EvidenceMetadataAction({ evidence }: { evidence: EvidenceMetadata }) {
+  const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const evidenceTypesQuery = useQuery({
@@ -476,14 +490,14 @@ export function EvidenceMetadataAction({ evidence }: { evidence: EvidenceMetadat
   const mutation = useMutation({
     mutationFn: (values: EvidenceMetadataValues) => updateEvidenceMetadata(evidence.id, nullifyEmpty(values)),
     onSuccess: () => {
-      toast.success("Evidence metadata updated");
+      toast.success(t("dashboard:workflow.evidenceUpdated"));
       setOpen(false);
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.evidences(evidence.investigation_id) });
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.evidence(evidence.id) });
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
-      toast.error(apiErrorMessage(error, "Evidence metadata could not be updated"));
+      toast.error(apiErrorMessage(error, t("dashboard:workflow.evidenceError")));
     },
   });
 
@@ -491,13 +505,13 @@ export function EvidenceMetadataAction({ evidence }: { evidence: EvidenceMetadat
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
-          <PenLine className="mr-2 h-4 w-4" /> Edit metadata
+          <PenLine className="mr-2 h-4 w-4" /> {t("dashboard:workflow.editMetadata")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit evidence metadata</DialogTitle>
-          <DialogDescription>No file upload, download, preview, or storage fields are included.</DialogDescription>
+          <DialogTitle>{t("dashboard:workflow.editMetadata")}</DialogTitle>
+          <DialogDescription>{t("dashboard:workflow.evidenceMetadataDesc")}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
@@ -506,11 +520,11 @@ export function EvidenceMetadataAction({ evidence }: { evidence: EvidenceMetadat
               name="evidence_type_code"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Evidence type</FormLabel>
+                  <FormLabel>{t("dashboard:workflow.evidenceType")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value} disabled={evidenceTypesQuery.isLoading}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select evidence type" />
+                        <SelectValue placeholder={t("dashboard:workflow.selectEvidenceType")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -525,14 +539,14 @@ export function EvidenceMetadataAction({ evidence }: { evidence: EvidenceMetadat
                 </FormItem>
               )}
             />
-            <InputField form={form} name="title" label="Title" />
-            <TextareaField form={form} name="description" label="Description" />
-            <TextareaField form={form} name="source" label="Source" />
-            <InputField form={form} name="collected_at" label="Collected at" type="date" />
-            <SelectField form={form} name="classification" label="Classification" options={EVIDENCE_CLASSIFICATIONS} />
+            <InputField form={form} name="title" label={t("dashboard:workflow.title")} />
+            <TextareaField form={form} name="description" label={t("dashboard:workflow.description")} />
+            <TextareaField form={form} name="source" label={t("dashboard:workflow.source")} />
+            <InputField form={form} name="collected_at" label={t("dashboard:workflow.collectedAt")} type="date" />
+            <SelectField form={form} name="classification" label={t("dashboard:workflow.classification")} options={EVIDENCE_CLASSIFICATIONS} formatter={(value) => formatEvidenceClassification(t, value)} />
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Saving..." : "Save metadata"}
+                {mutation.isPending ? t("dashboard:common.saving") : t("dashboard:workflow.saveMetadata")}
               </Button>
             </DialogFooter>
           </form>
@@ -543,6 +557,7 @@ export function EvidenceMetadataAction({ evidence }: { evidence: EvidenceMetadat
 }
 
 export function EvidenceStatusAction({ evidence }: { evidence: EvidenceMetadata }) {
+  const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const form = useForm<EvidenceStatusValues>({
@@ -552,7 +567,7 @@ export function EvidenceStatusAction({ evidence }: { evidence: EvidenceMetadata 
   const mutation = useMutation({
     mutationFn: (values: EvidenceStatusValues) => updateEvidenceStatus(evidence.id, values),
     onSuccess: () => {
-      toast.success("Evidence status updated");
+      toast.success(t("dashboard:workflow.evidenceStatusUpdated"));
       setOpen(false);
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.evidences(evidence.investigation_id) });
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.evidence(evidence.id) });
@@ -560,7 +575,7 @@ export function EvidenceStatusAction({ evidence }: { evidence: EvidenceMetadata 
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
-      toast.error(apiErrorMessage(error, "Evidence status could not be updated"));
+      toast.error(apiErrorMessage(error, t("dashboard:workflow.evidenceStatusError")));
     },
   });
 
@@ -568,20 +583,20 @@ export function EvidenceStatusAction({ evidence }: { evidence: EvidenceMetadata 
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
-          <History className="mr-2 h-4 w-4" /> Status
+          <History className="mr-2 h-4 w-4" /> {t("dashboard:workflow.status")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Update evidence status</DialogTitle>
-          <DialogDescription>Backend transition rules remain authoritative.</DialogDescription>
+          <DialogTitle>{t("dashboard:workflow.updateEvidenceStatus")}</DialogTitle>
+          <DialogDescription>{t("dashboard:workflow.backendAuthoritative")}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
-            <SelectField form={form} name="status" label="Status" options={EVIDENCE_STATUSES} />
+            <SelectField form={form} name="status" label={t("dashboard:workflow.status")} options={EVIDENCE_STATUSES} formatter={(value) => formatEvidenceStatus(t, value)} />
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Saving..." : "Save status"}
+                {mutation.isPending ? t("dashboard:common.saving") : t("dashboard:workflow.saveStatus")}
               </Button>
             </DialogFooter>
           </form>
@@ -591,14 +606,14 @@ export function EvidenceStatusAction({ evidence }: { evidence: EvidenceMetadata 
   );
 }
 
-function InputField<T extends Record<string, unknown>>({
+function InputField<T extends FieldValues>({
   form,
   name,
   label,
   type = "text",
 }: {
-  form: ReturnType<typeof useForm<T>>;
-  name: keyof T & string;
+  form: UseFormReturn<T>;
+  name: Path<T>;
   label: string;
   type?: string;
 }) {
@@ -619,14 +634,14 @@ function InputField<T extends Record<string, unknown>>({
   );
 }
 
-function TextareaField<T extends Record<string, unknown>>({
+function TextareaField<T extends FieldValues>({
   form,
   name,
   label,
   className,
 }: {
-  form: ReturnType<typeof useForm<T>>;
-  name: keyof T & string;
+  form: UseFormReturn<T>;
+  name: Path<T>;
   label: string;
   className?: string;
 }) {
@@ -647,16 +662,18 @@ function TextareaField<T extends Record<string, unknown>>({
   );
 }
 
-function SelectField<T extends Record<string, unknown>>({
+function SelectField<T extends FieldValues>({
   form,
   name,
   label,
   options,
+  formatter,
 }: {
-  form: ReturnType<typeof useForm<T>>;
-  name: keyof T & string;
+  form: UseFormReturn<T>;
+  name: Path<T>;
   label: string;
   options: readonly string[];
+  formatter?: (value: string) => string;
 }) {
   return (
     <FormField
@@ -668,13 +685,13 @@ function SelectField<T extends Record<string, unknown>>({
           <Select onValueChange={field.onChange} value={(field.value as string | undefined) ?? ""}>
             <FormControl>
               <SelectTrigger>
-                <SelectValue placeholder={`Select ${label.toLowerCase()}`} />
+                <SelectValue placeholder={label} />
               </SelectTrigger>
             </FormControl>
             <SelectContent>
               {options.map((option) => (
                 <SelectItem key={option} value={option}>
-                  {labelOption(option)}
+                  {formatter ? formatter(option) : labelOption(option)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -711,8 +728,11 @@ function asDecisionOutcome(value: string): DecisionValues["outcome_code"] {
 }
 
 function asEvidenceClassification(value: string | null | undefined): EvidenceMetadataValues["classification"] {
-  return EVIDENCE_CLASSIFICATIONS.includes(value as EvidenceMetadataValues["classification"])
-    ? (value as EvidenceMetadataValues["classification"])
+  type EvidenceClassificationValue = NonNullable<EvidenceMetadataValues["classification"]>;
+  const normalized = (value ?? "") as EvidenceClassificationValue;
+
+  return EVIDENCE_CLASSIFICATIONS.includes(normalized)
+    ? normalized
     : "internal";
 }
 

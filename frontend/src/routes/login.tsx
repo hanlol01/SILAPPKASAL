@@ -121,7 +121,7 @@ function LoginPage() {
           </p>
         </div>
         <div className="text-xs text-sidebar-foreground/60">
-          2026 SafeCampus - Confidential prototype
+          2026 SILAPPKASAL - Prototipe rahasia
         </div>
       </div>
       <div className="flex items-center justify-center p-6">
@@ -130,7 +130,7 @@ function LoginPage() {
             <div className="mb-6 lg:hidden">
               <div className="flex items-center gap-2">
                 <img src="/Logo.ico" alt="Logo" className="h-10 w-10 object-contain" />
-                <span className="font-semibold">SafeCampus Admin</span>
+                <span className="font-semibold">SILAPPKASAL</span>
               </div>
             </div>
             <h2 className="text-2xl font-semibold tracking-tight">{t("signIn")}</h2>

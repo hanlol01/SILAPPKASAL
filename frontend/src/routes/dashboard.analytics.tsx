@@ -29,7 +29,7 @@ import {
 
 export const Route = createFileRoute("/dashboard/analytics")({
   component: AnalyticsPage,
-  head: () => ({ meta: [{ title: "Analytics - SafeCampus Admin" }] }),
+  head: () => ({ meta: [{ title: "Analytics - SILAPPKASAL Admin" }] }),
 });
 
 const PIE = [

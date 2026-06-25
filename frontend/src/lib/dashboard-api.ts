@@ -16,22 +16,26 @@ export const dashboardQueryKeys = {
   evidence: (filters?: DashboardFilters) => ["dashboard", "evidence", filters] as const,
 };
 
+function asQuery(filters?: DashboardFilters) {
+  return filters as Record<string, string | number | boolean | undefined> | undefined;
+}
+
 export function getDashboardSummary(filters?: DashboardFilters) {
-  return apiRequest<DashboardSummary>("/dashboard/summary", { query: filters });
+  return apiRequest<DashboardSummary>("/dashboard/summary", { query: asQuery(filters) });
 }
 
 export function getDashboardReports(filters?: DashboardFilters) {
-  return apiRequest<DashboardReports>("/dashboard/reports", { query: filters });
+  return apiRequest<DashboardReports>("/dashboard/reports", { query: asQuery(filters) });
 }
 
 export function getDashboardCases(filters?: DashboardFilters) {
-  return apiRequest<DashboardCases>("/dashboard/cases", { query: filters });
+  return apiRequest<DashboardCases>("/dashboard/cases", { query: asQuery(filters) });
 }
 
 export function getDashboardWorkflow(filters?: DashboardFilters) {
-  return apiRequest<DashboardWorkflow>("/dashboard/workflow", { query: filters });
+  return apiRequest<DashboardWorkflow>("/dashboard/workflow", { query: asQuery(filters) });
 }
 
 export function getDashboardEvidence(filters?: DashboardFilters) {
-  return apiRequest<DashboardEvidence>("/dashboard/evidence", { query: filters });
+  return apiRequest<DashboardEvidence>("/dashboard/evidence", { query: asQuery(filters) });
 }

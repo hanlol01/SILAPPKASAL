@@ -12,7 +12,7 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/settings")({
   component: SettingsPage,
-  head: () => ({ meta: [{ title: "Settings — SafeCampus Admin" }] }),
+  head: () => ({ meta: [{ title: "Settings â€” SILAPPKASAL Admin" }] }),
 });
 
 const KEY = "safecampus_settings";

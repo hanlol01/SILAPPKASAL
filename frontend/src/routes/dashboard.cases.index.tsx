@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Eye, Search, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { QueryErrorState } from "@/components/query-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,11 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatCaseStatus } from "@/lib/format-labels";
 import { getCases, operationsQueryKeys } from "@/lib/operations-api";
 
 export const Route = createFileRoute("/dashboard/cases/")({
   component: CasesPage,
-  head: () => ({ meta: [{ title: "Cases - SafeCampus Admin" }] }),
+  head: () => ({ meta: [{ title: "Cases - SILAPPKASAL Admin" }] }),
 });
 
 const CASE_STATUSES = [
@@ -36,6 +38,7 @@ const CASE_STATUSES = [
 ];
 
 function CasesPage() {
+  const { t } = useTranslation(["dashboard"]);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
   const query = useMemo(
@@ -59,13 +62,11 @@ function CasesPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Cases</h1>
-          <p className="text-sm text-muted-foreground">
-            Browse cases returned by backend RBAC and assignment scope.
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard:cases.title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("dashboard:cases.subtitle")}</p>
         </div>
-        <Button disabled variant="outline" title="Requires an approved Satgas user lookup API">
-          Assignment action unavailable
+        <Button disabled variant="outline" title={t("dashboard:cases.assignmentUnavailableTitle")}>
+          {t("dashboard:cases.assignmentUnavailable")}
         </Button>
       </div>
 
@@ -75,7 +76,7 @@ function CasesPage() {
             <div className="relative min-w-[220px] flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search case number, registration, status..."
+                placeholder={t("dashboard:cases.search")}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 className="pl-9"
@@ -83,33 +84,33 @@ function CasesPage() {
             </div>
             <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="w-[180px]"><SelectValue placeholder={t("dashboard:common.status")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="all">{t("dashboard:common.allStatuses")}</SelectItem>
                 {CASE_STATUSES.map((item) => (
-                  <SelectItem key={item} value={item}>{label(item)}</SelectItem>
+                  <SelectItem key={item} value={item}>{formatCaseStatus(t, item)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
           {casesQuery.isLoading && (
-            <div className="py-12 text-center text-sm text-muted-foreground">Loading cases...</div>
+            <div className="py-12 text-center text-sm text-muted-foreground">{t("dashboard:cases.loading")}</div>
           )}
           {casesQuery.isError && (
-            <QueryErrorState message="Cases could not be loaded." onRetry={() => casesQuery.refetch()} />
+            <QueryErrorState message={t("dashboard:cases.error")} onRetry={() => casesQuery.refetch()} />
           )}
           {casesQuery.isSuccess && (
             <div className="overflow-hidden rounded-lg border">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                   <tr>
-                    <th className="px-3 py-2 text-left">Case</th>
-                    <th className="px-3 py-2 text-left">Registration</th>
-                    <th className="px-3 py-2 text-left">Status</th>
-                    <th className="px-3 py-2 text-left">Risk</th>
-                    <th className="px-3 py-2 text-left">Priority</th>
-                    <th className="px-3 py-2 text-left">Forwarded</th>
+                    <th className="px-3 py-2 text-left">{t("dashboard:cases.case")}</th>
+                    <th className="px-3 py-2 text-left">{t("dashboard:reports.registration")}</th>
+                    <th className="px-3 py-2 text-left">{t("dashboard:common.status")}</th>
+                    <th className="px-3 py-2 text-left">{t("dashboard:common.risk")}</th>
+                    <th className="px-3 py-2 text-left">{t("dashboard:common.priority")}</th>
+                    <th className="px-3 py-2 text-left">{t("dashboard:common.forwarded")}</th>
                     <th className="px-3 py-2"></th>
                   </tr>
                 </thead>
@@ -118,14 +119,14 @@ function CasesPage() {
                     <tr key={item.id} className="border-t hover:bg-muted/40">
                       <td className="px-3 py-2 font-mono text-xs">{item.case_number}</td>
                       <td className="px-3 py-2 font-mono text-xs">{item.registration_number}</td>
-                      <td className="px-3 py-2"><Badge variant="outline">{label(item.status_code)}</Badge></td>
+                      <td className="px-3 py-2"><Badge variant="outline">{formatCaseStatus(t, item.status_code)}</Badge></td>
                       <td className="px-3 py-2">{item.risk_level ?? item.risk_level_code ?? "-"}</td>
                       <td className="px-3 py-2">{item.priority ?? "-"}</td>
                       <td className="px-3 py-2 text-muted-foreground">{formatDate(item.forwarded_at)}</td>
                       <td className="px-3 py-2 text-right">
                         <Button asChild size="sm" variant="ghost">
                           <Link to="/dashboard/cases/$id" params={{ id: String(item.id) }}>
-                            <Eye className="mr-1 h-3.5 w-3.5" /> Detail
+                            <Eye className="mr-1 h-3.5 w-3.5" /> {t("dashboard:common.detail")}
                           </Link>
                         </Button>
                       </td>
@@ -134,7 +135,7 @@ function CasesPage() {
                   {filtered.length === 0 && (
                     <tr>
                       <td colSpan={7} className="px-3 py-12 text-center text-sm text-muted-foreground">
-                        No cases match your filters.
+                        {t("dashboard:cases.empty")}
                       </td>
                     </tr>
                   )}
@@ -144,17 +145,13 @@ function CasesPage() {
           )}
           {casesQuery.data?.meta && (
             <div className="text-sm text-muted-foreground">
-              Showing {filtered.length} of {casesQuery.data.meta.total} cases.
+              {t("dashboard:cases.showing", { shown: filtered.length, total: casesQuery.data.meta.total })}
             </div>
           )}
         </CardContent>
       </Card>
     </div>
   );
-}
-
-function label(value: string) {
-  return value.replace(/[-_]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function formatDate(value: string | null | undefined) {

@@ -38,7 +38,7 @@ export const Route = createFileRoute("/portal/account")({
   component: PortalAccountPage,
   head: () => ({
     meta: [
-      { title: "Account — SafeCampus Portal" },
+      { title: "Account - SILAPPKASAL Portal" },
       {
         name: "description",
         content: "Manage your profile and account settings.",

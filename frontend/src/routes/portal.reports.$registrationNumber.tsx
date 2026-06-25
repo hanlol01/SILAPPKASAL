@@ -24,7 +24,7 @@ export const Route = createFileRoute("/portal/reports/$registrationNumber")({
   component: PortalReportDetailPage,
   head: () => ({
     meta: [
-      { title: "Report Detail — SafeCampus Portal" },
+      { title: "Report Detail â€” SILAPPKASAL Portal" },
       {
         name: "description",
         content: "View the current status and details of your report.",
@@ -86,7 +86,7 @@ export function PortalReportDetailContent({
 }
 
 // ---------------------------------------------------------------------------
-// Report detail content — renders only PortalReportDetail safe fields
+// Report detail content â€” renders only PortalReportDetail safe fields
 // ---------------------------------------------------------------------------
 
 interface ReportDetailProps {
@@ -135,7 +135,7 @@ function ReportDetail({ report }: ReportDetailProps) {
             {portalReportTypeLabel(report.report_type, i18n.language)}
           </Field>
           <Field label={t("category")}>
-            {categoryLabel ? categoryLabel : "—"}
+            {categoryLabel ? categoryLabel : "â€”"}
           </Field>
           <Field label={t("status")}>
             <PortalStatusBadge
@@ -150,7 +150,7 @@ function ReportDetail({ report }: ReportDetailProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Field component — matches admin detail page pattern
+// Field component â€” matches admin detail page pattern
 // ---------------------------------------------------------------------------
 
 function Field({
@@ -171,7 +171,7 @@ function Field({
 }
 
 // ---------------------------------------------------------------------------
-// Loading skeleton — matches the detail card layout shape
+// Loading skeleton â€” matches the detail card layout shape
 // ---------------------------------------------------------------------------
 
 function DetailSkeleton() {

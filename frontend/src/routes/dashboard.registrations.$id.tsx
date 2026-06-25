@@ -1,6 +1,7 @@
 import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import {
@@ -15,12 +16,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { formatRegistrationStatus } from "@/lib/format-labels";
 
 export const Route = createFileRoute("/dashboard/registrations/$id")({
   component: RegistrationDetailPage,
 });
 
 function RegistrationDetailPage() {
+  const { t } = useTranslation(["dashboard"]);
   const { id } = Route.useParams();
   const { roleCode } = useAuth();
   const navigate = useNavigate();
@@ -37,21 +40,21 @@ function RegistrationDetailPage() {
   const approveMutation = useMutation({
     mutationFn: () => approveReporterRegistration(id),
     onSuccess: () => {
-      toast.success("Registration approved.");
+      toast.success(t("dashboard:registrations.approveSuccess"));
       queryClient.invalidateQueries({ queryKey: ["reporter-registrations"] });
       navigate({ to: "/dashboard/registrations" });
     },
-    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Approve failed"),
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : t("dashboard:registrations.approveError")),
   });
 
   const rejectMutation = useMutation({
     mutationFn: () => rejectReporterRegistration(id, reason),
     onSuccess: () => {
-      toast.success("Registration rejected.");
+      toast.success(t("dashboard:registrations.rejectSuccess"));
       queryClient.invalidateQueries({ queryKey: ["reporter-registrations"] });
       navigate({ to: "/dashboard/registrations" });
     },
-    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Reject failed"),
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : t("dashboard:registrations.rejectError")),
   });
 
   if (!canAccess) return <Navigate to="/dashboard" replace />;
@@ -60,43 +63,43 @@ function RegistrationDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Button asChild variant="ghost" size="sm"><Link to="/dashboard/registrations">Back</Link></Button>
+      <Button asChild variant="ghost" size="sm"><Link to="/dashboard/registrations">{t("dashboard:common.back")}</Link></Button>
       <Card>
         <CardHeader>
-          <CardTitle>Registration Detail</CardTitle>
+          <CardTitle>{t("dashboard:registrations.detailTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          {detailQuery.isLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
+          {detailQuery.isLoading && <p className="text-sm text-muted-foreground">{t("dashboard:common.loading")}</p>}
           {item && (
             <>
               <div className="grid gap-3 md:grid-cols-2">
-                <Info label="Registration Number" value={item.registration_number} />
-                <Info label="Status" value={<Badge variant="outline">{item.status}</Badge>} />
-                <Info label="Name" value={item.name} />
-                <Info label="Email" value={item.email} />
-                <Info label="NIM" value={item.nim} />
-                <Info label="Phone" value={item.phone_number} />
-                <Info label="University" value={item.university?.name ?? "-"} />
-                <Info label="Faculty" value={item.faculty?.name ?? "-"} />
-                <Info label="Study Program" value={item.study_program?.name ?? "-"} />
-                <Info label="Rejection Reason" value={item.rejection_reason ?? "-"} />
+                <Info label={t("dashboard:registrations.registrationNumber")} value={item.registration_number} />
+                <Info label={t("dashboard:common.status")} value={<Badge variant="outline">{formatRegistrationStatus(t, item.status)}</Badge>} />
+                <Info label={t("dashboard:registrations.name")} value={item.name} />
+                <Info label={t("dashboard:registrations.email")} value={item.email} />
+                <Info label={t("dashboard:registrations.nim")} value={item.nim} />
+                <Info label={t("dashboard:registrations.phone")} value={item.phone_number} />
+                <Info label={t("dashboard:registrations.university")} value={item.university?.name ?? "-"} />
+                <Info label={t("dashboard:registrations.faculty")} value={item.faculty?.name ?? "-"} />
+                <Info label={t("dashboard:registrations.studyProgram")} value={item.study_program?.name ?? "-"} />
+                <Info label={t("dashboard:registrations.rejectReason")} value={item.rejection_reason ?? "-"} />
               </div>
               {item.status === "pending" && (
                 <div className="space-y-3 rounded-md border p-4">
                   <div className="flex flex-wrap gap-2">
                     <Button onClick={() => approveMutation.mutate()} disabled={approveMutation.isPending}>
-                      Approve
+                      {t("dashboard:registrations.approve")}
                     </Button>
                     <Button
                       variant="destructive"
                       onClick={() => rejectMutation.mutate()}
                       disabled={rejectMutation.isPending || reason.trim().length < 10}
                     >
-                      Reject
+                      {t("dashboard:registrations.reject")}
                     </Button>
                   </div>
                   <Textarea
-                    placeholder="Rejection reason, minimum 10 characters"
+                    placeholder={t("dashboard:registrations.rejectionReasonPlaceholder")}
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                   />

@@ -16,7 +16,7 @@ export const Route = createFileRoute("/portal/reports/")({
   component: MyReportsPage,
   head: () => ({
     meta: [
-      { title: "My Reports — SafeCampus Portal" },
+      { title: "My Reports - SILAPPKASAL Portal" },
       {
         name: "description",
         content: "View and track all your submitted reports.",

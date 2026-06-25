@@ -171,26 +171,26 @@ function RegisterPage() {
                 required
                 disabled={universitiesQuery.isLoading}
               >
-                <option value="">{universitiesQuery.isLoading ? "Loading universities..." : t("auth:selectUniversity")}</option>
+                <option value="">{universitiesQuery.isLoading ? t("auth:loadingUniversities") : t("auth:selectUniversity")}</option>
                 {(universitiesQuery.data ?? []).map((item) => (
                   <option key={item.id} value={item.id}>{item.name}</option>
                 ))}
-                {universitiesQuery.isSuccess && universitiesQuery.data.length === 0 && <option value="" disabled>No universities available</option>}
+                {universitiesQuery.isSuccess && universitiesQuery.data.length === 0 && <option value="" disabled>{t("auth:noUniversitiesAvailable")}</option>}
               </select>
             </Field>
             {hasFaculties && (
-              <Field label={`${t("auth:faculty")} (Opsional)`} error={errors.faculty_id?.[0]}>
+              <Field label={`${t("auth:faculty")} (${t("auth:optional")})`} error={errors.faculty_id?.[0]}>
                 <select
                   className="h-10 rounded-md border bg-background px-3 text-sm"
                   value={form.faculty_id}
                   onChange={(e) => update("faculty_id", e.target.value)}
                   disabled={facultiesQuery.isLoading}
                 >
-                  <option value="">{facultiesQuery.isLoading ? "Loading faculties..." : t("auth:selectFaculty")}</option>
+                  <option value="">{facultiesQuery.isLoading ? t("auth:loadingFaculties") : t("auth:selectFaculty")}</option>
                   {(facultiesQuery.data ?? []).map((item) => (
                     <option key={item.id} value={item.id}>{item.name}</option>
                   ))}
-                  {facultiesQuery.isSuccess && facultiesQuery.data.length === 0 && <option value="" disabled>No faculties available</option>}
+                  {facultiesQuery.isSuccess && facultiesQuery.data.length === 0 && <option value="" disabled>{t("auth:noFacultiesAvailable")}</option>}
                 </select>
               </Field>
             )}
@@ -202,11 +202,11 @@ function RegisterPage() {
                 required
                 disabled={!form.university_id || studyProgramsQuery.isLoading}
               >
-                <option value="">{studyProgramsQuery.isLoading ? "Loading study programs..." : t("auth:selectStudyProgram")}</option>
+                <option value="">{studyProgramsQuery.isLoading ? t("auth:loadingStudyPrograms") : t("auth:selectStudyProgram")}</option>
                 {(studyProgramsQuery.data ?? []).map((item) => (
                   <option key={item.id} value={item.id}>{item.name}</option>
                 ))}
-                {studyProgramsQuery.isSuccess && studyProgramsQuery.data.length === 0 && <option value="" disabled>No study programs available</option>}
+                {studyProgramsQuery.isSuccess && studyProgramsQuery.data.length === 0 && <option value="" disabled>{t("auth:noStudyProgramsAvailable")}</option>}
               </select>
             </Field>
             <Field label={t("auth:password")} error={errors.password?.[0]}>

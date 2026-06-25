@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import {
@@ -26,6 +27,7 @@ export const Route = createFileRoute("/dashboard/master-data/faculties")({
 });
 
 function FacultiesPage() {
+  const { t } = useTranslation(["dashboard"]);
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [universityId, setUniversityId] = useState("");
@@ -38,33 +40,33 @@ function FacultiesPage() {
   const toggleMutation = useMutation({
     mutationFn: toggleCampusFaculty,
     onSuccess: () => {
-      toast.success("Faculty status updated");
+      toast.success(t("dashboard:masterData.facultyStatusUpdated"));
       invalidate();
     },
-    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Unable to update faculty status"),
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : t("dashboard:masterData.facultyStatusError")),
   });
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3">
-        <Input className="max-w-sm" placeholder="Search faculties" value={search} onChange={(event) => setSearch(event.target.value)} />
+        <Input className="max-w-sm" placeholder={t("dashboard:masterData.searchFaculties")} value={search} onChange={(event) => setSearch(event.target.value)} />
         <select className="h-10 rounded-md border bg-background px-3 text-sm" value={universityId} onChange={(event) => setUniversityId(event.target.value)}>
-          <option value="">All universities</option>
+          <option value="">{t("dashboard:common.allUniversities")}</option>
           {(universitiesQuery.data?.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
-        <Button onClick={() => setCreating(true)}>Create Faculty</Button>
+        <Button onClick={() => setCreating(true)}>{t("dashboard:masterData.createFaculty")}</Button>
       </div>
       <Card>
         <CardContent className="overflow-x-auto p-0">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-left">
               <tr>
-                <th className="p-3">Code</th>
-                <th className="p-3">Name</th>
-                <th className="p-3">University</th>
-                <th className="p-3">Programs</th>
-                <th className="p-3">Status</th>
-                <th className="p-3 text-right">Actions</th>
+                <th className="p-3">{t("dashboard:masterData.code")}</th>
+                <th className="p-3">{t("dashboard:masterData.name")}</th>
+                <th className="p-3">{t("dashboard:masterData.university")}</th>
+                <th className="p-3">{t("dashboard:masterData.programs")}</th>
+                <th className="p-3">{t("dashboard:masterData.status")}</th>
+                <th className="p-3 text-right">{t("dashboard:masterData.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -74,22 +76,22 @@ function FacultiesPage() {
                   <td className="p-3 font-medium">{item.name}</td>
                   <td className="p-3">{item.university?.name ?? "-"}</td>
                   <td className="p-3">{item.study_programs_count ?? 0}</td>
-                  <td className="p-3"><Badge variant={item.is_active ? "default" : "outline"}>{item.is_active ? "Active" : "Inactive"}</Badge></td>
+                  <td className="p-3"><Badge variant={item.is_active ? "default" : "outline"}>{item.is_active ? t("dashboard:masterData.active") : t("dashboard:masterData.inactive")}</Badge></td>
                   <td className="p-3 text-right">
                     <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setEditing(item)}>Edit</Button>
+                      <Button size="sm" variant="outline" onClick={() => setEditing(item)}>{t("dashboard:common.edit")}</Button>
                       <Button size="sm" variant="outline" onClick={() => toggleMutation.mutate(item.id)}>
-                        {item.is_active ? "Deactivate" : "Activate"}
+                        {item.is_active ? t("dashboard:masterData.deactivate") : t("dashboard:masterData.activate")}
                       </Button>
                     </div>
                   </td>
                 </tr>
               ))}
               {facultiesQuery.isSuccess && facultiesQuery.data.data.length === 0 && (
-                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No faculties found.</td></tr>
+                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t("dashboard:masterData.noFaculties")}</td></tr>
               )}
               {facultiesQuery.isLoading && (
-                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Loading faculties...</td></tr>
+                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t("dashboard:masterData.loadingFaculties")}</td></tr>
               )}
             </tbody>
           </table>
@@ -128,12 +130,13 @@ function FacultyDialog({
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation(["dashboard"]);
   const [form, setForm] = useState<FacultyPayload>(() => toPayload(faculty));
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const mutation = useMutation({
     mutationFn: () => faculty ? updateCampusFaculty(faculty.id, form) : createCampusFaculty(form),
     onSuccess: () => {
-      toast.success(faculty ? "Faculty updated" : "Faculty created");
+      toast.success(faculty ? t("dashboard:masterData.facultyUpdated") : t("dashboard:masterData.facultyCreated"));
       setErrors({});
       onSaved();
     },
@@ -155,18 +158,18 @@ function FacultyDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader><DialogTitle>{faculty ? "Edit Faculty" : "Create Faculty"}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{faculty ? t("dashboard:masterData.editFaculty") : t("dashboard:masterData.createFaculty")}</DialogTitle></DialogHeader>
         <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); mutation.mutate(); }}>
-          <Field label="University" error={errors.university_id?.[0]}>
+          <Field label={t("dashboard:masterData.university")} error={errors.university_id?.[0]}>
             <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.university_id || ""} onChange={(event) => update("university_id", Number(event.target.value))} required>
-              <option value="">Select university</option>
+              <option value="">{t("dashboard:masterData.selectUniversity")}</option>
               {selectableUniversities.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </Field>
-          <Field label="Code" error={errors.code?.[0]}><Input value={form.code} onChange={(event) => update("code", event.target.value)} required /></Field>
-          <Field label="Name" error={errors.name?.[0]}><Input value={form.name} onChange={(event) => update("name", event.target.value)} required /></Field>
-          <Field label="Sort order"><Input type="number" value={form.sort_order ?? 0} onChange={(event) => update("sort_order", Number(event.target.value))} /></Field>
-          <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? "Saving..." : "Save"}</Button>
+          <Field label={t("dashboard:masterData.code")} error={errors.code?.[0]}><Input value={form.code} onChange={(event) => update("code", event.target.value)} required /></Field>
+          <Field label={t("dashboard:masterData.name")} error={errors.name?.[0]}><Input value={form.name} onChange={(event) => update("name", event.target.value)} required /></Field>
+          <Field label={t("dashboard:masterData.sortOrder")}><Input type="number" value={form.sort_order ?? 0} onChange={(event) => update("sort_order", Number(event.target.value))} /></Field>
+          <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? t("dashboard:common.saving") : t("dashboard:common.save")}</Button>
         </form>
       </DialogContent>
     </Dialog>

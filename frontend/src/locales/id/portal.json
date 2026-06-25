@@ -1,5 +1,6 @@
 {
   "overview": "Ringkasan",
+  "loadingPortal": "Memuat portal...",
   "overviewSubtitle": "Sekilas tentang laporan Anda.",
   "summaryLoadError": "Data ringkasan tidak dapat dimuat.",
   "totalReports": "Total Laporan",

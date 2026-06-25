@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BriefcaseMedical, Loader2 } from "lucide-react";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldValues, type Path, type UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -148,13 +148,13 @@ export function RecoveryCreateAction({
   );
 }
 
-function TextareaField<T extends Record<string, unknown>>({
+function TextareaField<T extends FieldValues>({
   form,
   name,
   label,
 }: {
-  form: ReturnType<typeof useForm<T>>;
-  name: keyof T & string;
+  form: UseFormReturn<T>;
+  name: Path<T>;
   label: string;
 }) {
   return (

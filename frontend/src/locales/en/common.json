@@ -16,6 +16,15 @@
   "breakGlassPending": "Pending break-glass requests",
   "breakGlassHistory": "Break-glass history",
   "revealedIdentity": "Revealed identity",
+  "pageNotFound": "Page not found",
+  "pageNotFoundDesc": "The page you're looking for doesn't exist.",
+  "goHome": "Go to home",
+  "pageError": "This page didn't load",
+  "tryAgain": "Try again",
+  "dataCouldNotBeLoaded": "Data could not be loaded",
+  "accessDenied": "Access denied",
+  "accessDeniedDesc": "Your account is authenticated, but it does not have access to this area.",
+  "backToDashboard": "Back to dashboard",
   "yes": "Yes",
   "no": "No"
 }

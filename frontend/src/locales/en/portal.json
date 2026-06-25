@@ -1,5 +1,6 @@
 {
   "overview": "Overview",
+  "loadingPortal": "Loading portal...",
   "overviewSubtitle": "Your reports at a glance.",
   "summaryLoadError": "Summary data could not be loaded.",
   "totalReports": "Total Reports",

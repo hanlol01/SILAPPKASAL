@@ -1,6 +1,7 @@
 import { createFileRoute, Link, Navigate, Outlet, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   campusQueryKeys,
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { formatRegistrationStatus } from "@/lib/format-labels";
 
 export const Route = createFileRoute("/dashboard/registrations")({
   component: RegistrationsPage,
@@ -20,6 +22,7 @@ export const Route = createFileRoute("/dashboard/registrations")({
 
 function RegistrationsPage() {
   const { roleCode } = useAuth();
+  const { t } = useTranslation(["dashboard"]);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
@@ -52,21 +55,21 @@ function RegistrationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Reporter Registrations</h1>
-        <p className="text-sm text-muted-foreground">Review pending and rejected reporter account requests.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard:registrations.title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("dashboard:registrations.subtitle")}</p>
       </div>
       <Card>
         <CardContent className="grid gap-3 p-4 md:grid-cols-4">
-          <Input placeholder="Search name, email, NIM" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input placeholder={t("dashboard:registrations.search")} value={search} onChange={(e) => setSearch(e.target.value)} />
           <select className="h-10 rounded-md border bg-background px-3 text-sm" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">All statuses</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
+            <option value="">{t("dashboard:common.allStatuses")}</option>
+            <option value="pending">{formatRegistrationStatus(t, "pending")}</option>
+            <option value="approved">{formatRegistrationStatus(t, "approved")}</option>
+            <option value="rejected">{formatRegistrationStatus(t, "rejected")}</option>
           </select>
           {roleCode === "super_admin" && (
             <select className="h-10 rounded-md border bg-background px-3 text-sm" value={universityId} onChange={(e) => setUniversityId(e.target.value)}>
-              <option value="">All universities</option>
+              <option value="">{t("dashboard:common.allUniversities")}</option>
               {(universitiesQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           )}
@@ -76,12 +79,12 @@ function RegistrationsPage() {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left">
             <tr>
-              <th className="p-3">Name</th>
-              <th className="p-3">NIM</th>
-              <th className="p-3">University</th>
-              <th className="p-3">Study Program</th>
-              <th className="p-3">Status</th>
-              <th className="p-3 text-right">Action</th>
+              <th className="p-3">{t("dashboard:registrations.name")}</th>
+              <th className="p-3">{t("dashboard:registrations.nim")}</th>
+              <th className="p-3">{t("dashboard:registrations.university")}</th>
+              <th className="p-3">{t("dashboard:registrations.studyProgram")}</th>
+              <th className="p-3">{t("dashboard:common.status")}</th>
+              <th className="p-3 text-right">{t("dashboard:common.actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -94,16 +97,16 @@ function RegistrationsPage() {
                 <td className="p-3">{item.nim}</td>
                 <td className="p-3">{item.university?.name ?? "-"}</td>
                 <td className="p-3">{item.study_program?.name ?? "-"}</td>
-                <td className="p-3"><Badge variant="outline">{item.status}</Badge></td>
+                <td className="p-3"><Badge variant="outline">{formatRegistrationStatus(t, item.status)}</Badge></td>
                 <td className="p-3 text-right">
                   <Button asChild size="sm" variant="outline">
-                    <Link to="/dashboard/registrations/$id" params={{ id: String(item.id) }}>Review</Link>
+                    <Link to="/dashboard/registrations/$id" params={{ id: String(item.id) }}>{t("dashboard:common.review")}</Link>
                   </Button>
                 </td>
               </tr>
             ))}
             {registrationsQuery.isSuccess && registrationsQuery.data.data.length === 0 && (
-              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No registrations found.</td></tr>
+              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t("dashboard:registrations.empty")}</td></tr>
             )}
           </tbody>
         </table>

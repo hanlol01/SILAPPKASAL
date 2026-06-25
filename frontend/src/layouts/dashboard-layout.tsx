@@ -41,73 +41,76 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
+import { formatRoleLabel } from "@/lib/format-labels";
 import type { ReactNode } from "react";
 import type { RoleCode } from "@/lib/api-types";
+import { useTranslation } from "react-i18next";
 
 const nav: {
-  title: string;
+  key: string;
   url: string;
   icon: React.ComponentType<{ className?: string }>;
   roles: RoleCode[];
 }[] = [
   {
-    title: "Overview",
+    key: "overview",
     url: "/dashboard",
     icon: LayoutDashboard,
     roles: ["super_admin", "admin", "satgas_ppks"],
   },
   {
-    title: "Reports",
+    key: "reports",
     url: "/dashboard/reports",
     icon: FileText,
     roles: ["super_admin", "admin"],
   },
   {
-    title: "Cases",
+    key: "cases",
     url: "/dashboard/cases",
     icon: FolderKanban,
     roles: ["super_admin", "admin", "satgas_ppks"],
   },
   {
-    title: "Workflow",
+    key: "workflow",
     url: "/dashboard/workflow",
     icon: GitBranch,
     roles: ["super_admin", "admin", "satgas_ppks"],
   },
   {
-    title: "Analytics",
+    key: "analytics",
     url: "/dashboard/analytics",
     icon: BarChart3,
     roles: ["super_admin", "admin"],
   },
   {
-    title: "Registrations",
+    key: "registrations",
     url: "/dashboard/registrations",
     icon: ClipboardList,
     roles: ["super_admin", "admin"],
   },
   {
-    title: "Users",
+    key: "users",
     url: "/dashboard/users",
     icon: Users,
     roles: ["super_admin", "admin"],
   },
   {
-    title: "Master Data",
+    key: "masterData",
     url: "/dashboard/master-data",
     icon: Database,
     roles: ["super_admin"],
   },
   {
-    title: "Break-glass",
+    key: "breakGlass",
     url: "/dashboard/break-glass",
     icon: ShieldAlert,
     roles: ["super_admin"],
   },
   {
-    title: "Settings",
+    key: "settings",
     url: "/dashboard/settings",
     icon: Settings,
     roles: ["super_admin", "admin", "satgas_ppks"],
@@ -117,6 +120,7 @@ const nav: {
 function AppSidebar() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const { roleCode } = useAuth();
+  const { t } = useTranslation(["dashboard"]);
   const items = nav.filter((item) => roleCode && item.roles.includes(roleCode));
 
   return (
@@ -127,14 +131,14 @@ function AppSidebar() {
             <ShieldCheck className="h-5 w-5" />
           </div>
           <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-semibold text-sidebar-foreground">SafeCampus</span>
-            <span className="text-xs text-sidebar-foreground/60">Admin Console</span>
+            <span className="text-sm font-semibold text-sidebar-foreground">{t("dashboard:brand.name")}</span>
+            <span className="text-xs text-sidebar-foreground/60">{t("dashboard:brand.console")}</span>
           </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("dashboard:nav.workspace")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => {
@@ -144,10 +148,10 @@ function AppSidebar() {
                     : path.startsWith(item.url);
                 return (
                   <SidebarMenuItem key={item.url}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
+                    <SidebarMenuButton asChild isActive={active} tooltip={t(`dashboard:nav.${item.key}`)}>
                       <Link to={item.url}>
                         <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
+                        <span>{t(`dashboard:nav.${item.key}`)}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -159,7 +163,7 @@ function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
         <div className="px-2 py-2 text-[11px] text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
-          v0.1 - Local prototype
+          {t("dashboard:brand.prototype")}
         </div>
       </SidebarFooter>
     </Sidebar>
@@ -169,6 +173,7 @@ function AppSidebar() {
 function Topbar() {
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
+  const { t } = useTranslation(["dashboard"]);
   const navigate = useNavigate();
   const initials =
     user?.name
@@ -182,10 +187,11 @@ function Topbar() {
       <SidebarTrigger />
       <div className="relative ml-2 hidden max-w-md flex-1 md:block">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Search dashboard..." className="pl-9" />
+        <Input placeholder={t("dashboard:topbar.search")} className="pl-9" />
       </div>
       <div className="ml-auto flex items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
+        <LanguageSwitcher />
+        <Button variant="ghost" size="icon" onClick={toggle} aria-label={t("dashboard:topbar.toggleTheme")}>
           {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
         <DropdownMenu>
@@ -198,7 +204,7 @@ function Topbar() {
               </Avatar>
               <div className="hidden text-left leading-tight md:block">
                 <div className="text-sm font-medium">{user?.name}</div>
-                <div className="text-xs text-muted-foreground">{user?.role?.name}</div>
+                <div className="text-xs text-muted-foreground">{formatRoleLabel(t, user?.role?.code ?? null)}</div>
               </div>
             </Button>
           </DropdownMenuTrigger>
@@ -206,7 +212,7 @@ function Topbar() {
             <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => navigate({ to: "/dashboard/settings" })}>
-              <Settings className="mr-2 h-4 w-4" /> Settings
+              <Settings className="mr-2 h-4 w-4" /> {t("dashboard:topbar.settings")}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={async () => {
@@ -214,7 +220,7 @@ function Topbar() {
                 navigate({ to: "/login" });
               }}
             >
-              <LogOut className="mr-2 h-4 w-4" /> Sign out
+              <LogOut className="mr-2 h-4 w-4" /> {t("dashboard:topbar.signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

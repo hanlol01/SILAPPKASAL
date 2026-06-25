@@ -2,7 +2,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Gavel, Loader2 } from "lucide-react";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldValues, type Path, type UseFormReturn } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -32,10 +33,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { formatDecisionOutcome } from "@/lib/format-labels";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import { createDecision, operationsQueryKeys } from "@/lib/operations-api";
 import type { Recommendation } from "@/lib/operations-types";
-import { DECISION_OUTCOMES, labelOption } from "@/lib/workflow-action-options";
+import { DECISION_OUTCOMES } from "@/lib/workflow-action-options";
 
 const today = new Date().toISOString().slice(0, 10);
 const requiredDate = z.string().min(1, "Required").refine((value) => value <= today, "Date cannot be in the future");
@@ -58,6 +60,7 @@ export function DecisionCreateAction({
   recommendation: Recommendation;
   caseId: number | string;
 }) {
+  const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const form = useForm<DecisionCreateValues>({
@@ -74,7 +77,7 @@ export function DecisionCreateAction({
   const mutation = useMutation({
     mutationFn: (values: DecisionCreateValues) => createDecision(recommendation.id, nullifyEmpty(values)),
     onSuccess: () => {
-      toast.success("Decision created");
+      toast.success(t("dashboard:workflow.decisionCreated"));
       setOpen(false);
       form.reset();
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.case(caseId) });
@@ -86,7 +89,7 @@ export function DecisionCreateAction({
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
-      toast.error(apiErrorMessage(error, "Decision could not be created"));
+      toast.error(apiErrorMessage(error, t("dashboard:workflow.decisionCreateError")));
     },
   });
 
@@ -94,14 +97,14 @@ export function DecisionCreateAction({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="w-full" variant="outline">
-          <Gavel className="mr-2 h-4 w-4" /> Create decision
+          <Gavel className="mr-2 h-4 w-4" /> {t("dashboard:workflow.createDecision")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create decision</DialogTitle>
+          <DialogTitle>{t("dashboard:workflow.createDecision")}</DialogTitle>
           <DialogDescription>
-            Record an institutional decision for the submitted recommendation.
+            {t("dashboard:workflow.decisionDraftDesc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -112,17 +115,17 @@ export function DecisionCreateAction({
               name="outcome_code"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Outcome</FormLabel>
+                  <FormLabel>{t("dashboard:workflow.outcome")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select outcome" />
+                        <SelectValue placeholder={t("dashboard:workflow.selectOutcome")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {DECISION_OUTCOMES.map((outcome) => (
                         <SelectItem key={outcome} value={outcome}>
-                          {labelOption(outcome)}
+                          {formatDecisionOutcome(t, outcome)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -131,15 +134,15 @@ export function DecisionCreateAction({
                 </FormItem>
               )}
             />
-            <InputField form={form} name="decision_number" label="Decision number" />
-            <InputField form={form} name="decision_date" label="Decision date" type="date" />
-            <TextareaField form={form} name="decision_summary" label="Summary" />
-            <TextareaField form={form} name="decision_content" label="Content" className="min-h-32" />
+            <InputField form={form} name="decision_number" label={t("dashboard:workflow.decisionNumber")} />
+            <InputField form={form} name="decision_date" label={t("dashboard:workflow.decisionDate")} type="date" />
+            <TextareaField form={form} name="decision_summary" label={t("dashboard:workflow.summary")} />
+            <TextareaField form={form} name="decision_content" label={t("dashboard:workflow.content")} className="min-h-32" />
 
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
                 {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create decision
+                {t("dashboard:workflow.createDecision")}
               </Button>
             </DialogFooter>
           </form>
@@ -149,14 +152,14 @@ export function DecisionCreateAction({
   );
 }
 
-function InputField<T extends Record<string, unknown>>({
+function InputField<T extends FieldValues>({
   form,
   name,
   label,
   type = "text",
 }: {
-  form: ReturnType<typeof useForm<T>>;
-  name: keyof T & string;
+  form: UseFormReturn<T>;
+  name: Path<T>;
   label: string;
   type?: string;
 }) {
@@ -177,14 +180,14 @@ function InputField<T extends Record<string, unknown>>({
   );
 }
 
-function TextareaField<T extends Record<string, unknown>>({
+function TextareaField<T extends FieldValues>({
   form,
   name,
   label,
   className,
 }: {
-  form: ReturnType<typeof useForm<T>>;
-  name: keyof T & string;
+  form: UseFormReturn<T>;
+  name: Path<T>;
   label: string;
   className?: string;
 }) {

@@ -16,6 +16,15 @@
   "breakGlassPending": "Permintaan break-glass tertunda",
   "breakGlassHistory": "Riwayat break-glass",
   "revealedIdentity": "Identitas yang diungkapkan",
+  "pageNotFound": "Halaman tidak ditemukan",
+  "pageNotFoundDesc": "Halaman yang Anda cari tidak tersedia.",
+  "goHome": "Kembali ke beranda",
+  "pageError": "Halaman ini gagal dimuat",
+  "tryAgain": "Coba lagi",
+  "dataCouldNotBeLoaded": "Data tidak dapat dimuat",
+  "accessDenied": "Akses ditolak",
+  "accessDeniedDesc": "Akun Anda sudah masuk, tetapi tidak memiliki akses ke area ini.",
+  "backToDashboard": "Kembali ke dashboard",
   "yes": "Ya",
   "no": "Tidak"
 }

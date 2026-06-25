@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FileSearch, Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,7 @@ export function InvestigationCreateAction({
   caseId: number | string;
   assignments: CaseAssignment[];
 }) {
+  const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const activeAssignments = useMemo(
@@ -69,9 +71,9 @@ export function InvestigationCreateAction({
       createInvestigation(caseId, {
         lead_investigator_id: Number(values.lead_investigator_id),
         plan_summary: values.plan_summary.trim(),
-      }),
+    }),
     onSuccess: () => {
-      toast.success("Investigation created");
+      toast.success(t("dashboard:workflow.investigationCreated"));
       setOpen(false);
       form.reset({
         lead_investigator_id: activeAssignments[0]?.satgas_id ? String(activeAssignments[0].satgas_id) : "",
@@ -84,7 +86,7 @@ export function InvestigationCreateAction({
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
-      toast.error(apiErrorMessage(error, "Investigation could not be created"));
+      toast.error(apiErrorMessage(error, t("dashboard:workflow.investigationCreateError")));
     },
   });
 
@@ -92,14 +94,14 @@ export function InvestigationCreateAction({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="w-full" variant="outline" disabled={activeAssignments.length === 0}>
-          <FileSearch className="mr-2 h-4 w-4" /> Create investigation
+          <FileSearch className="mr-2 h-4 w-4" /> {t("dashboard:workflow.createInvestigation")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create investigation</DialogTitle>
+          <DialogTitle>{t("dashboard:workflow.createInvestigation")}</DialogTitle>
           <DialogDescription>
-            Select an active assigned Satgas user as lead investigator and provide the investigation plan.
+            {t("dashboard:workflow.createInvestigationDesc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -110,11 +112,11 @@ export function InvestigationCreateAction({
               name="lead_investigator_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Lead investigator</FormLabel>
+                  <FormLabel>{t("dashboard:workflow.leadInvestigator")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select assigned Satgas" />
+                        <SelectValue placeholder={t("dashboard:workflow.selectAssignedSatgas")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -135,15 +137,15 @@ export function InvestigationCreateAction({
               name="plan_summary"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Plan summary</FormLabel>
+                  <FormLabel>{t("dashboard:workflow.planSummary")}</FormLabel>
                   <FormControl>
                     <Textarea
                       {...field}
                       className="min-h-32"
-                      placeholder="Describe the investigation plan, scope, and initial handling steps."
+                      placeholder={t("dashboard:workflow.planSummaryPlaceholder")}
                     />
                   </FormControl>
-                  <p className="text-xs text-muted-foreground">Required, minimum 50 characters.</p>
+                  <p className="text-xs text-muted-foreground">{t("dashboard:workflow.planSummaryHelp")}</p>
                   <FormMessage />
                 </FormItem>
               )}
@@ -152,7 +154,7 @@ export function InvestigationCreateAction({
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
                 {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create investigation
+                {t("dashboard:workflow.createInvestigation")}
               </Button>
             </DialogFooter>
           </form>

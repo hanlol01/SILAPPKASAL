@@ -62,7 +62,7 @@ export function SatgasAssignmentAction({
     [satgasUsers, selectedIds],
   );
 
-  const mutation = useMutation({
+  const mutation = useMutation<unknown, Error, SatgasAssignmentPayload>({
     mutationFn: (payload: SatgasAssignmentPayload) =>
       mode === "forward-report"
         ? forwardReportToCase(targetId, payload)

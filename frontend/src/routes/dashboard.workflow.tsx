@@ -9,7 +9,7 @@ import { dashboardQueryKeys, getDashboardWorkflow } from "@/lib/dashboard-api";
 
 export const Route = createFileRoute("/dashboard/workflow")({
   component: WorkflowPage,
-  head: () => ({ meta: [{ title: "Workflow - SafeCampus Admin" }] }),
+  head: () => ({ meta: [{ title: "Workflow - SILAPPKASAL Admin" }] }),
 });
 
 const steps = [

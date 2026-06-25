@@ -5,7 +5,7 @@ export const Route = createFileRoute("/portal/reports/$")({
   component: PortalReportSplatDetailPage,
   head: () => ({
     meta: [
-      { title: "Report Detail - SafeCampus Portal" },
+      { title: "Report Detail - SILAPPKASAL Portal" },
       {
         name: "description",
         content: "View the current status and details of your report.",

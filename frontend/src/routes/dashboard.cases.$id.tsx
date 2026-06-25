@@ -11,6 +11,8 @@ import {
   Scale,
   UserRoundSearch,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { QueryErrorState } from "@/components/query-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +39,16 @@ import {
 } from "@/components/workflow-actions/workflow-action-dialogs";
 import { useAuth } from "@/hooks/use-auth";
 import {
+  formatCaseStatus,
+  formatDecisionOutcome,
+  formatDecisionStatus,
+  formatEvidenceClassification,
+  formatEvidenceStatus,
+  formatInvestigationStatus,
+  formatRecommendationStatus,
+  formatRecoveryStatus,
+} from "@/lib/format-labels";
+import {
   getCase,
   getCaseInvestigations,
   getCaseRecommendations,
@@ -55,12 +67,13 @@ import type {
 
 export const Route = createFileRoute("/dashboard/cases/$id")({
   component: CaseDetail,
-  head: () => ({ meta: [{ title: "Case detail - SafeCampus Admin" }] }),
+  head: () => ({ meta: [{ title: "Case detail - SILAPPKASAL Admin" }] }),
 });
 
 function CaseDetail() {
   const { id } = Route.useParams();
   const { user, roleCode } = useAuth();
+  const { t } = useTranslation(["dashboard"]);
   const caseQuery = useQuery({
     queryKey: operationsQueryKeys.case(id),
     queryFn: () => getCase(id),
@@ -99,11 +112,11 @@ function CaseDetail() {
   const evidences = evidenceQueries.flatMap((query) => query.data ?? []);
 
   if (caseQuery.isLoading) {
-    return <div className="py-12 text-center text-sm text-muted-foreground">Loading case...</div>;
+    return <div className="py-12 text-center text-sm text-muted-foreground">{t("dashboard:cases.loading")}</div>;
   }
 
   if (caseQuery.isError || !caseQuery.data) {
-    return <QueryErrorState message="Case could not be loaded." onRetry={() => caseQuery.refetch()} />;
+    return <QueryErrorState message={t("dashboard:cases.error")} onRetry={() => caseQuery.refetch()} />;
   }
 
   const c = caseQuery.data;
@@ -153,12 +166,12 @@ function CaseDetail() {
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="ghost" size="sm" asChild>
           <Link to="/dashboard/cases">
-            <ArrowLeft className="mr-2 h-4 w-4" /> All cases
+            <ArrowLeft className="mr-2 h-4 w-4" /> {t("dashboard:cases.allCases")}
           </Link>
         </Button>
         <div className="flex items-center gap-2">
           <h1 className="font-mono text-lg font-semibold">{c.case_number}</h1>
-          <Badge variant="outline">{label(c.status_code)}</Badge>
+          <Badge variant="outline">{formatCaseStatus(t, c.status_code)}</Badge>
         </div>
       </div>
 
@@ -166,28 +179,29 @@ function CaseDetail() {
         <div className="space-y-4 lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Case metadata</CardTitle>
-              <CardDescription>Fields are rendered only when returned by backend RBAC.</CardDescription>
+              <CardTitle className="text-base">{t("dashboard:cases.metadata")}</CardTitle>
+              <CardDescription>{t("dashboard:cases.metadataDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
-              <Field label="Case number">{c.case_number}</Field>
-              <Field label="Registration">{c.registration_number}</Field>
-              <Field label="Status">{c.status ?? label(c.status_code)}</Field>
-              <Field label="Stage">{c.current_stage_label ?? label(c.current_stage ?? "-")}</Field>
-              <Field label="Risk">{c.risk_level ?? c.risk_level_code ?? "-"}</Field>
-              <Field label="Priority">{c.priority ?? "-"}</Field>
-              <Field label="Forwarded">{formatDate(c.forwarded_at)}</Field>
-              <Field label="Closed">{formatDate(c.closed_at)}</Field>
+              <Field label={t("dashboard:cases.caseNumber")}>{c.case_number}</Field>
+              <Field label={t("dashboard:reports.registration")}>{c.registration_number}</Field>
+              <Field label={t("dashboard:common.status")}>{c.status ?? formatCaseStatus(t, c.status_code)}</Field>
+              <Field label={t("dashboard:common.stage")}>{c.current_stage_label ?? formatCaseStatus(t, c.current_stage ?? "-")}</Field>
+              <Field label={t("dashboard:common.risk")}>{c.risk_level ?? c.risk_level_code ?? "-"}</Field>
+              <Field label={t("dashboard:common.priority")}>{c.priority ?? "-"}</Field>
+              <Field label={t("dashboard:common.forwarded")}>{formatDate(c.forwarded_at)}</Field>
+              <Field label={t("dashboard:common.closed")}>{formatDate(c.closed_at)}</Field>
             </CardContent>
           </Card>
 
-          <SensitiveReportSection report={c.report} />
+          <SensitiveReportSection report={c.report} t={t} />
           <InvestigationsSection
             investigations={investigationsQuery.data ?? []}
             loading={investigationsQuery.isLoading}
             canAddActivity={canUseSatgasActions}
             canTransitionStatus={canInvestigate}
             caseId={c.id}
+            t={t}
           />
           <RecommendationsSection
             recommendations={recommendationsQuery.data ?? []}
@@ -195,6 +209,7 @@ function CaseDetail() {
             canUpdate={canRecommend}
             canTransitionStatus={canRecommend}
             caseId={c.id}
+            t={t}
           />
           <DecisionsSection
             decisions={decisions}
@@ -202,6 +217,7 @@ function CaseDetail() {
             canUpdate={canManageDecisionActions}
             canTransitionStatus={canManageDecisionActions}
             caseId={c.id}
+            t={t}
           />
           <RecoveriesSection
             recoveries={recoveries}
@@ -209,29 +225,31 @@ function CaseDetail() {
             canAddMonitoring={canAddRecoveryMonitoring}
             canTransitionStatus={canManageRecoveryActions}
             caseId={c.id}
+            t={t}
           />
           <EvidenceSection
             evidences={evidences}
             loading={evidenceQueries.some((query) => query.isLoading)}
             canUpdate={canUseSatgasActions}
+            t={t}
           />
         </div>
 
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Assignments</CardTitle>
-              <CardDescription>Case assignment data returned by backend.</CardDescription>
+              <CardTitle className="text-base">{t("dashboard:cases.assignments")}</CardTitle>
+              <CardDescription>{t("dashboard:cases.assignmentsDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {(c.assignments ?? []).length === 0 && (
-                <EmptyText>No active assignments returned.</EmptyText>
+                <EmptyText>{t("dashboard:cases.noAssignments")}</EmptyText>
               )}
               {(c.assignments ?? []).map((assignment) => (
                 <div key={assignment.id} className="rounded-lg border p-3 text-sm">
                   <div className="font-medium">{assignment.satgas_name ?? `Satgas #${assignment.satgas_id}`}</div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {assignment.is_lead ? "Lead Satgas" : "Assigned Satgas"} - {formatDate(assignment.assigned_at)}
+                    {assignment.is_lead ? t("dashboard:cases.leadSatgas") : t("dashboard:cases.assignedSatgas")} - {formatDate(assignment.assigned_at)}
                   </div>
                 </div>
               ))}
@@ -240,8 +258,8 @@ function CaseDetail() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Actions</CardTitle>
-              <CardDescription>Safe workflow actions use approved backend endpoints.</CardDescription>
+              <CardTitle className="text-base">{t("dashboard:common.actions")}</CardTitle>
+              <CardDescription>{t("dashboard:cases.actionsDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {isAdminRole ? (
@@ -258,21 +276,20 @@ function CaseDetail() {
                     }
                   />
                   <p className="text-xs text-muted-foreground">
-                    Select one or more Satgas users and choose a lead from the selected users.
-                    Backend RBAC remains authoritative.
+                    {t("dashboard:reports.satgasHint")}
                   </p>
                 </>
               ) : (
                 <Button disabled className="w-full" variant="outline">
-                  <UserRoundSearch className="mr-2 h-4 w-4" /> Assign Satgas
+                  <UserRoundSearch className="mr-2 h-4 w-4" /> {t("dashboard:cases.assignSatgas")}
                 </Button>
               )}
               {canUseSatgasActions ? (
                 <CaseStatusAction caseId={c.id} currentStatus={c.status_code} />
               ) : (
                 <DisabledWorkflowAction
-                  title="Case status update"
-                  description="Only actively assigned Satgas users can update case status. Backend RBAC remains authoritative."
+                  title={t("dashboard:workflow.caseStatusUpdate")}
+                  description={t("dashboard:common.backendRules")}
                 />
               )}
               {canCreateInvestigation && (
@@ -280,11 +297,11 @@ function CaseDetail() {
               )}
               {canInvestigate && !canCreateInvestigation && (
                 <DisabledWorkflowAction
-                  title="Create investigation"
+                  title={t("dashboard:workflow.createInvestigationDisabled")}
                   description={
                     c.status !== "investigation"
-                      ? "Case must be in investigation status before creating an investigation."
-                      : "This case already has an investigation or investigation data is still loading."
+                      ? t("dashboard:workflow.createInvestigationNeedsStatus")
+                      : t("dashboard:workflow.createInvestigationExists")
                   }
                 />
               )}
@@ -293,8 +310,9 @@ function CaseDetail() {
               )}
               {canRecommend && !canCreateRecommendation && (
                 <DisabledWorkflowAction
-                  title="Create recommendation"
+                  title={t("dashboard:workflow.createRecommendationDisabled")}
                   description={recommendationCreateDisabledReason(
+                    t,
                     c.status,
                     recommendationsQuery.isSuccess,
                     (recommendationsQuery.data ?? []).length,
@@ -308,8 +326,9 @@ function CaseDetail() {
               )}
               {canManageDecisionActions && !canCreateDecision && (
                 <DisabledWorkflowAction
-                  title="Create decision"
+                  title={t("dashboard:workflow.createDecisionDisabled")}
                   description={decisionCreateDisabledReason(
+                    t,
                     c.status,
                     recommendationsQuery.isSuccess,
                     decisionsLoaded,
@@ -323,8 +342,8 @@ function CaseDetail() {
               )}
               {canManageRecoveryActions && !canCreateRecovery && (
                 <DisabledWorkflowAction
-                  title="Create recovery"
-                  description={recoveryCreateDisabledReason(decisionsLoaded, finalizedDecisionForRecovery, c.closed_at)}
+                  title={t("dashboard:workflow.createRecoveryDisabled")}
+                  description={recoveryCreateDisabledReason(t, decisionsLoaded, finalizedDecisionForRecovery, c.closed_at)}
                 />
               )}
             </CardContent>
@@ -335,17 +354,15 @@ function CaseDetail() {
   );
 }
 
-function SensitiveReportSection({ report }: { report: unknown }) {
+function SensitiveReportSection({ report, t }: { report: unknown; t: TFunction }) {
   if (!report || typeof report !== "object") {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Lock className="h-4 w-4" /> Sensitive report detail
+            <Lock className="h-4 w-4" /> {t("dashboard:cases.sensitiveReport")}
           </CardTitle>
-          <CardDescription>
-            Backend returned metadata-only access for this case.
-          </CardDescription>
+          <CardDescription>{t("dashboard:cases.sensitiveMetadataOnly")}</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -357,21 +374,21 @@ function SensitiveReportSection({ report }: { report: unknown }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Sensitive report detail</CardTitle>
-        <CardDescription>Shown because backend returned these fields for this user.</CardDescription>
+        <CardTitle className="text-base">{t("dashboard:cases.sensitiveReport")}</CardTitle>
+        <CardDescription>{t("dashboard:cases.sensitiveDesc")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
-        <Field label="Chronology">{asText(data.chronology)}</Field>
+        <Field label={t("dashboard:cases.chronology")}>{asText(data.chronology)}</Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Incident date">{asText(data.incident_date)}</Field>
-          <Field label="Incident time">{asText(data.incident_time)}</Field>
-          <Field label="Incident location">{asText(data.incident_location)}</Field>
-          <Field label="Witness info">{asText(data.witness_info)}</Field>
+          <Field label={t("dashboard:cases.incidentDate")}>{asText(data.incident_date)}</Field>
+          <Field label={t("dashboard:cases.incidentTime")}>{asText(data.incident_time)}</Field>
+          <Field label={t("dashboard:cases.incidentLocation")}>{asText(data.incident_location)}</Field>
+          <Field label={t("dashboard:cases.witnessInfo")}>{asText(data.witness_info)}</Field>
         </div>
         <Separator />
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Respondent name">{respondent?.name ?? "-"}</Field>
-          <Field label="Respondent details">{respondent?.details ?? "-"}</Field>
+          <Field label={t("dashboard:cases.respondentName")}>{respondent?.name ?? "-"}</Field>
+          <Field label={t("dashboard:cases.respondentDetails")}>{respondent?.details ?? "-"}</Field>
         </div>
       </CardContent>
     </Card>
@@ -384,21 +401,23 @@ function InvestigationsSection({
   canAddActivity,
   canTransitionStatus,
   caseId,
+  t,
 }: {
   investigations: Investigation[];
   loading: boolean;
   canAddActivity: boolean;
   canTransitionStatus: boolean;
   caseId: number | string;
+  t: TFunction;
 }) {
   return (
-    <SectionCard icon={FileSearch} title="Investigations" loading={loading} empty={investigations.length === 0}>
+    <SectionCard icon={FileSearch} title={t("dashboard:sections.investigations")} loading={loading} empty={investigations.length === 0} t={t}>
       {investigations.map((item) => (
         <div key={item.id} className="rounded-lg border p-3 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="font-medium">Investigation #{item.id}</div>
+            <div className="font-medium">{t("dashboard:sections.investigationNumber", { id: item.id })}</div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{label(item.status_code)}</Badge>
+              <Badge variant="outline">{formatInvestigationStatus(t, item.status)}</Badge>
               {canAddActivity && <InvestigationActivityAction investigation={item} caseId={caseId} />}
               {canTransitionStatus && item.status !== "completed" && (
                 <InvestigationStatusAction investigation={item} caseId={caseId} />
@@ -406,17 +425,17 @@ function InvestigationsSection({
             </div>
           </div>
           <div className="mt-2 grid gap-2 text-muted-foreground sm:grid-cols-2">
-            <div>Lead: {item.lead_investigator?.name ?? "Metadata unavailable"}</div>
-            <div>Started: {formatDate(item.started_at)}</div>
+            <div>{t("dashboard:sections.lead")}: {item.lead_investigator?.name ?? t("dashboard:common.metadataUnavailable")}</div>
+            <div>{t("dashboard:sections.started")}: {formatDate(item.started_at)}</div>
           </div>
           {item.plan_summary || item.findings || item.conclusion ? (
             <div className="mt-3 space-y-2">
-              {item.plan_summary && <Field label="Plan summary">{item.plan_summary}</Field>}
-              {item.findings && <Field label="Findings">{item.findings}</Field>}
-              {item.conclusion && <Field label="Conclusion">{item.conclusion}</Field>}
+              {item.plan_summary && <Field label={t("dashboard:sections.planSummary")}>{item.plan_summary}</Field>}
+              {item.findings && <Field label={t("dashboard:sections.findings")}>{item.findings}</Field>}
+              {item.conclusion && <Field label={t("dashboard:sections.conclusion")}>{item.conclusion}</Field>}
             </div>
           ) : (
-            <MetadataOnlyText />
+            <MetadataOnlyText t={t} />
           )}
         </div>
       ))}
@@ -430,38 +449,40 @@ function RecommendationsSection({
   canUpdate,
   canTransitionStatus,
   caseId,
+  t,
 }: {
   recommendations: Recommendation[];
   loading: boolean;
   canUpdate: boolean;
   canTransitionStatus: boolean;
   caseId: number | string;
+  t: TFunction;
 }) {
   return (
-    <SectionCard icon={ClipboardList} title="Recommendations" loading={loading} empty={recommendations.length === 0}>
+    <SectionCard icon={ClipboardList} title={t("dashboard:sections.recommendations")} loading={loading} empty={recommendations.length === 0} t={t}>
       {recommendations.map((item) => (
         <div key={item.id} className="rounded-lg border p-3 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="font-medium">Recommendation #{item.id}</div>
+            <div className="font-medium">{t("dashboard:sections.recommendationNumber", { id: item.id })}</div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{label(item.status_code)}</Badge>
+              <Badge variant="outline">{formatRecommendationStatus(t, item.status)}</Badge>
               {canUpdate && canEditRecommendation(item) && hasRecommendationDetail(item) && (
                 <RecommendationUpdateAction recommendation={item} caseId={caseId} />
               )}
               {canTransitionStatus && <RecommendationStatusAction recommendation={item} caseId={caseId} />}
             </div>
           </div>
-          <div className="mt-2 text-muted-foreground">Author: {item.author?.name ?? "Metadata unavailable"}</div>
+          <div className="mt-2 text-muted-foreground">{t("dashboard:sections.author")}: {item.author?.name ?? t("dashboard:common.metadataUnavailable")}</div>
           {item.conclusion || item.recommended_actions ? (
             <div className="mt-3 space-y-2">
-              {item.conclusion && <Field label="Conclusion">{item.conclusion}</Field>}
-              {item.recommended_actions && <Field label="Recommended actions">{item.recommended_actions}</Field>}
-              {item.sanction_recommendation && <Field label="Sanction">{item.sanction_recommendation}</Field>}
-              {item.recovery_recommendation && <Field label="Recovery">{item.recovery_recommendation}</Field>}
-              {item.prevention_recommendation && <Field label="Prevention">{item.prevention_recommendation}</Field>}
+              {item.conclusion && <Field label={t("dashboard:sections.conclusion")}>{item.conclusion}</Field>}
+              {item.recommended_actions && <Field label={t("dashboard:sections.recommendedActions")}>{item.recommended_actions}</Field>}
+              {item.sanction_recommendation && <Field label={t("dashboard:sections.sanction")}>{item.sanction_recommendation}</Field>}
+              {item.recovery_recommendation && <Field label={t("dashboard:sections.recovery")}>{item.recovery_recommendation}</Field>}
+              {item.prevention_recommendation && <Field label={t("dashboard:sections.prevention")}>{item.prevention_recommendation}</Field>}
             </div>
           ) : (
-            <MetadataOnlyText />
+            <MetadataOnlyText t={t} />
           )}
         </div>
       ))}
@@ -475,21 +496,23 @@ function DecisionsSection({
   canUpdate,
   canTransitionStatus,
   caseId,
+  t,
 }: {
   decisions: Decision[];
   loading: boolean;
   canUpdate: boolean;
   canTransitionStatus: boolean;
   caseId: number | string;
+  t: TFunction;
 }) {
   return (
-    <SectionCard icon={Scale} title="Decisions" loading={loading} empty={decisions.length === 0}>
+    <SectionCard icon={Scale} title={t("dashboard:sections.decisions")} loading={loading} empty={decisions.length === 0} t={t}>
       {decisions.map((item) => (
         <div key={item.id} className="rounded-lg border p-3 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="font-medium">Decision #{item.id}</div>
+            <div className="font-medium">{t("dashboard:sections.decisionNumber", { id: item.id })}</div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{label(item.status_code)}</Badge>
+              <Badge variant="outline">{formatDecisionStatus(t, item.status)}</Badge>
               {canUpdate && canEditDecision(item) && <DecisionUpdateAction decision={item} />}
               {canTransitionStatus && item.status !== "finalized" && (
                 <DecisionStatusAction decision={item} caseId={caseId} />
@@ -497,16 +520,16 @@ function DecisionsSection({
             </div>
           </div>
           <div className="mt-2 grid gap-2 text-muted-foreground sm:grid-cols-2">
-            <div>Outcome: {label(item.outcome_code)}</div>
-            <div>Date: {formatDate(item.decision_date)}</div>
+            <div>{t("dashboard:sections.outcome")}: {formatDecisionOutcome(t, item.outcome_code)}</div>
+            <div>{t("dashboard:sections.date")}: {formatDate(item.decision_date)}</div>
           </div>
           {item.decision_summary || item.decision_content ? (
             <div className="mt-3 space-y-2">
-              {item.decision_summary && <Field label="Summary">{item.decision_summary}</Field>}
-              {item.decision_content && <Field label="Content">{item.decision_content}</Field>}
+              {item.decision_summary && <Field label={t("dashboard:sections.summary")}>{item.decision_summary}</Field>}
+              {item.decision_content && <Field label={t("dashboard:sections.content")}>{item.decision_content}</Field>}
             </div>
           ) : (
-            <MetadataOnlyText />
+            <MetadataOnlyText t={t} />
           )}
         </div>
       ))}
@@ -520,21 +543,23 @@ function RecoveriesSection({
   canAddMonitoring,
   canTransitionStatus,
   caseId,
+  t,
 }: {
   recoveries: Recovery[];
   loading: boolean;
   canAddMonitoring: boolean;
   canTransitionStatus: boolean;
   caseId: number | string;
+  t: TFunction;
 }) {
   return (
-    <SectionCard icon={BriefcaseMedical} title="Recoveries" loading={loading} empty={recoveries.length === 0}>
+    <SectionCard icon={BriefcaseMedical} title={t("dashboard:sections.recoveries")} loading={loading} empty={recoveries.length === 0} t={t}>
       {recoveries.map((item) => (
         <div key={item.id} className="rounded-lg border p-3 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="font-medium">{item.recovery_type?.name ?? `Recovery #${item.id}`}</div>
+            <div className="font-medium">{item.recovery_type?.name ?? t("dashboard:sections.recoveryNumber", { id: item.id })}</div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{label(item.status_code)}</Badge>
+              <Badge variant="outline">{formatRecoveryStatus(t, item.status)}</Badge>
               {canAddMonitoring && <RecoveryMonitoringAction recovery={item} />}
               {canTransitionStatus && !isTerminalRecovery(item) && (
                 <RecoveryStatusAction recovery={item} caseId={caseId} />
@@ -543,12 +568,12 @@ function RecoveriesSection({
           </div>
           {item.recovery_plan || item.support_needs || item.notes ? (
             <div className="mt-3 space-y-2">
-              {item.recovery_plan && <Field label="Plan">{item.recovery_plan}</Field>}
-              {item.support_needs && <Field label="Support needs">{item.support_needs}</Field>}
-              {item.notes && <Field label="Notes">{item.notes}</Field>}
+              {item.recovery_plan && <Field label={t("dashboard:sections.plan")}>{item.recovery_plan}</Field>}
+              {item.support_needs && <Field label={t("dashboard:sections.supportNeeds")}>{item.support_needs}</Field>}
+              {item.notes && <Field label={t("dashboard:sections.notes")}>{item.notes}</Field>}
             </div>
           ) : (
-            <MetadataOnlyText />
+            <MetadataOnlyText t={t} />
           )}
         </div>
       ))}
@@ -560,19 +585,21 @@ function EvidenceSection({
   evidences,
   loading,
   canUpdate,
+  t,
 }: {
   evidences: EvidenceMetadata[];
   loading: boolean;
   canUpdate: boolean;
+  t: TFunction;
 }) {
   return (
-    <SectionCard icon={FileArchive} title="Evidence metadata" loading={loading} empty={evidences.length === 0}>
+    <SectionCard icon={FileArchive} title={t("dashboard:sections.evidenceMetadata")} loading={loading} empty={evidences.length === 0} t={t}>
       {evidences.map((item) => (
         <div key={item.id} className="rounded-lg border p-3 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="font-medium">{item.title}</div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{label(item.status)}</Badge>
+              <Badge variant="outline">{formatEvidenceStatus(t, item.status)}</Badge>
               {canUpdate && (
                 <>
                   <EvidenceMetadataAction evidence={item} />
@@ -582,29 +609,29 @@ function EvidenceSection({
             </div>
           </div>
           <div className="mt-2 grid gap-2 text-muted-foreground sm:grid-cols-2">
-            <div>Type: {item.evidence_type?.name ?? "Metadata unavailable"}</div>
-            <div>Classification: {label(item.classification ?? "-")}</div>
-            <div>Collected: {formatDate(item.collected_at)}</div>
-            <div>Submitted by: {item.submitted_by?.name ?? "Metadata unavailable"}</div>
+            <div>{t("dashboard:sections.evidenceType")}: {item.evidence_type?.name ?? t("dashboard:common.metadataUnavailable")}</div>
+            <div>{t("dashboard:sections.classification")}: {formatEvidenceClassification(t, item.classification ?? "-")}</div>
+            <div>{t("dashboard:sections.collected")}: {formatDate(item.collected_at)}</div>
+            <div>{t("dashboard:sections.submittedBy")}: {item.submitted_by?.name ?? t("dashboard:common.metadataUnavailable")}</div>
           </div>
           {item.status_semantics && (
             <div className="mt-3 rounded-md bg-muted p-2 text-xs text-muted-foreground">
               {item.status_semantics}
             </div>
           )}
-          {item.description && <Field label="Description">{item.description}</Field>}
+          {item.description && <Field label={t("dashboard:sections.description")}>{item.description}</Field>}
           {item.file_metadata && (
             <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-              <div>Filename: {item.file_metadata.original_filename ?? "-"}</div>
+              <div>{t("dashboard:sections.filename")}: {item.file_metadata.original_filename ?? "-"}</div>
               <div>MIME: {item.file_metadata.mime_type ?? "-"}</div>
-              <div>Size: {item.file_metadata.file_size ?? "-"}</div>
-              <div>Checksum: {item.file_metadata.checksum_sha256 ?? "-"}</div>
+              <div>{t("dashboard:sections.fileSize")}: {item.file_metadata.file_size ?? "-"}</div>
+              <div>{t("dashboard:sections.checksum")}: {item.file_metadata.checksum_sha256 ?? "-"}</div>
             </div>
           )}
           <div className="mt-3">
             <DisabledWorkflowAction
-              title="Evidence files"
-              description="Upload, download, preview, and storage fields are out of scope for M16."
+              title={t("dashboard:sections.evidenceFiles")}
+              description={t("dashboard:sections.evidenceFilesOutOfScope")}
             />
           </div>
         </div>
@@ -619,12 +646,14 @@ function SectionCard({
   loading,
   empty,
   children,
+  t,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
   loading: boolean;
   empty: boolean;
   children: React.ReactNode;
+  t: TFunction;
 }) {
   return (
     <Card>
@@ -632,11 +661,11 @@ function SectionCard({
         <CardTitle className="flex items-center gap-2 text-base">
           <Icon className="h-4 w-4" /> {title}
         </CardTitle>
-        <CardDescription>Read-only operational data from approved backend endpoints.</CardDescription>
+        <CardDescription>{t("dashboard:common.readOnlyOperationalData")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        {loading && <EmptyText>Loading {title.toLowerCase()}...</EmptyText>}
-        {!loading && empty && <EmptyText>No {title.toLowerCase()} returned.</EmptyText>}
+        {loading && <EmptyText>{t("dashboard:sections.loading", { name: title.toLowerCase() })}</EmptyText>}
+        {!loading && empty && <EmptyText>{t("dashboard:sections.empty", { name: title.toLowerCase() })}</EmptyText>}
         {!loading && !empty && children}
       </CardContent>
     </Card>
@@ -652,8 +681,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function MetadataOnlyText() {
-  return <div className="mt-3 text-xs text-muted-foreground">Metadata-only response for this user.</div>;
+function MetadataOnlyText({ t }: { t: TFunction }) {
+  return <div className="mt-3 text-xs text-muted-foreground">{t("dashboard:common.metadataOnly")}</div>;
 }
 
 function EmptyText({ children }: { children: React.ReactNode }) {
@@ -704,6 +733,7 @@ function finalizedDecision(items: Decision[]) {
 }
 
 function recommendationCreateDisabledReason(
+  t: TFunction,
   status: string | null | undefined,
   recommendationsLoaded: boolean,
   recommendationCount: number,
@@ -711,25 +741,26 @@ function recommendationCreateDisabledReason(
   completedInvestigation: Investigation | null,
 ) {
   if (status !== "recommendation") {
-    return "Case must be in recommendation status before creating a recommendation.";
+    return t("dashboard:workflow.createRecommendationNeedsStatus");
   }
 
   if (!recommendationsLoaded || !investigationsLoaded) {
-    return "Recommendation or investigation data is still loading.";
+    return t("dashboard:workflow.createRecommendationLoading");
   }
 
   if (recommendationCount > 0) {
-    return "This case already has a recommendation.";
+    return t("dashboard:workflow.createRecommendationExists");
   }
 
   if (!completedInvestigation) {
-    return "A completed investigation is required before creating a recommendation.";
+    return t("dashboard:workflow.createRecommendationNeedsInvestigation");
   }
 
-  return "Recommendation creation is not available for this case.";
+  return t("dashboard:workflow.createRecommendationUnavailable");
 }
 
 function decisionCreateDisabledReason(
+  t: TFunction,
   status: string | null | undefined,
   recommendationsLoaded: boolean,
   decisionsLoaded: boolean,
@@ -737,47 +768,43 @@ function decisionCreateDisabledReason(
   decisionCount: number,
 ) {
   if (status !== "decision") {
-    return "Case must be in decision status before creating a decision.";
+    return t("dashboard:workflow.createDecisionNeedsStatus");
   }
 
   if (!recommendationsLoaded || !decisionsLoaded) {
-    return "Recommendation or decision data is still loading.";
+    return t("dashboard:workflow.createDecisionLoading");
   }
 
   if (decisionCount > 0) {
-    return "This case already has a decision.";
+    return t("dashboard:workflow.createDecisionExists");
   }
 
   if (!submittedRecommendation) {
-    return "A submitted recommendation is required before creating a decision.";
+    return t("dashboard:workflow.createDecisionNeedsRecommendation");
   }
 
-  return "Decision creation is not available for this case.";
+  return t("dashboard:workflow.createDecisionUnavailable");
 }
 
 function recoveryCreateDisabledReason(
+  t: TFunction,
   decisionsLoaded: boolean,
   decision: Decision | null,
   closedAt: string | null | undefined,
 ) {
   if (closedAt) {
-    return "Closed cases cannot receive recovery actions.";
+    return t("dashboard:workflow.createRecoveryClosed");
   }
 
   if (!decisionsLoaded) {
-    return "Decision data is still loading.";
+    return t("dashboard:workflow.createRecoveryLoading");
   }
 
   if (!decision) {
-    return "A finalized decision is required before creating a recovery.";
+    return t("dashboard:workflow.createRecoveryNeedsDecision");
   }
 
-  return "Recovery creation is not available for this case.";
-}
-
-function label(value: string) {
-  if (value === "-") return value;
-  return value.replace(/[-_]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+  return t("dashboard:workflow.createRecoveryUnavailable");
 }
 
 function formatDate(value: string | null | undefined) {

@@ -1,6 +1,8 @@
 import type { CaseStatus } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { formatCaseStatus } from "@/lib/format-labels";
+import { useTranslation } from "react-i18next";
 
 const styles: Record<CaseStatus, string> = {
   received: "bg-info/15 text-info border-info/30",
@@ -11,19 +13,12 @@ const styles: Record<CaseStatus, string> = {
   closed: "bg-muted text-muted-foreground border-border",
 };
 
-const labels: Record<CaseStatus, string> = {
-  received: "Received",
-  verification: "Verification",
-  investigation: "Investigation",
-  mediation: "Mediation",
-  resolved: "Resolved",
-  closed: "Closed",
-};
-
 export function StatusBadge({ status, className }: { status: CaseStatus; className?: string }) {
+  const { t } = useTranslation(["dashboard"]);
+
   return (
     <Badge variant="outline" className={cn("font-medium capitalize", styles[status], className)}>
-      {labels[status]}
+      {formatCaseStatus(t, status)}
     </Badge>
   );
 }

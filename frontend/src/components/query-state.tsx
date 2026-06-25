@@ -1,22 +1,25 @@
 import { AlertCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function QueryErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const { t } = useTranslation(["common"]);
+
   return (
     <Card>
       <CardContent className="flex items-center justify-between gap-4 p-5">
         <div className="flex items-center gap-3">
           <AlertCircle className="h-5 w-5 text-destructive" />
           <div>
-            <div className="text-sm font-medium">Data could not be loaded</div>
+            <div className="text-sm font-medium">{t("common:dataCouldNotBeLoaded")}</div>
             <div className="text-sm text-muted-foreground">{message}</div>
           </div>
         </div>
         {onRetry && (
           <Button variant="outline" size="sm" onClick={onRetry}>
-            Retry
+            {t("common:retry")}
           </Button>
         )}
       </CardContent>

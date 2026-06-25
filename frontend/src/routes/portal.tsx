@@ -1,4 +1,5 @@
 import { createFileRoute, Navigate, Outlet, useRouterState } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { AccessDenied } from "@/components/access-denied";
 import { PortalLayout } from "@/layouts/portal-layout";
 import { useAuth } from "@/hooks/use-auth";
@@ -9,6 +10,7 @@ export const Route = createFileRoute("/portal")({
 });
 
 function PortalShell() {
+  const { t } = useTranslation(["common", "portal"]);
   const { isAuthenticated, isHydrating, roleCode } = useAuth();
   const redirectTo = useRouterState({
     select: (state) => `${state.location.pathname}${state.location.searchStr}`,
@@ -17,7 +19,7 @@ function PortalShell() {
   if (isHydrating) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
-        Loading portal...
+        {t("portal:loadingPortal")}
       </div>
     );
   }
@@ -27,7 +29,7 @@ function PortalShell() {
   }
 
   if (isAuthenticated && !hasPortalAccess(roleCode)) {
-    return <AccessDenied backTo="/dashboard" backLabel="Back to dashboard" />;
+    return <AccessDenied backTo="/dashboard" backLabel={t("common:backToDashboard")} />;
   }
 
   return (

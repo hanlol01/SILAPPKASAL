@@ -3,5 +3,5 @@ import { AccessDenied } from "@/components/access-denied";
 
 export const Route = createFileRoute("/dashboard/notifications")({
   component: AccessDenied,
-  head: () => ({ meta: [{ title: "Access denied - SafeCampus Admin" }] }),
+  head: () => ({ meta: [{ title: "Access denied - SILAPPKASAL Admin" }] }),
 });

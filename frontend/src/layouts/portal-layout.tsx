@@ -88,7 +88,7 @@ function PortalTopbar() {
             <ShieldCheck className="h-4 w-4" />
           </div>
           <span className="hidden text-sm font-semibold md:inline">
-            SafeCampus
+            SILAPPKASAL
           </span>
         </Link>
 
