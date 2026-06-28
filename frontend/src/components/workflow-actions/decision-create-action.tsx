@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -135,7 +136,7 @@ export function DecisionCreateAction({
               )}
             />
             <InputField form={form} name="decision_number" label={t("dashboard:workflow.decisionNumber")} />
-            <InputField form={form} name="decision_date" label={t("dashboard:workflow.decisionDate")} type="date" />
+            <DatePickerField form={form} name="decision_date" label={t("dashboard:workflow.decisionDate")} disableFuture />
             <TextareaField form={form} name="decision_summary" label={t("dashboard:workflow.summary")} />
             <TextareaField form={form} name="decision_content" label={t("dashboard:workflow.content")} className="min-h-32" />
 
@@ -172,6 +173,39 @@ function InputField<T extends FieldValues>({
           <FormLabel>{label}</FormLabel>
           <FormControl>
             <Input type={type} {...field} value={(field.value as string | undefined) ?? ""} />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+
+function DatePickerField<T extends FieldValues>({
+  form,
+  name,
+  label,
+  disableFuture,
+}: {
+  form: UseFormReturn<T>;
+  name: Path<T>;
+  label: string;
+  disableFuture?: boolean;
+}) {
+  return (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>{label}</FormLabel>
+          <FormControl>
+            <DatePicker
+              value={(field.value as string | undefined) ?? ""}
+              onChange={field.onChange}
+              placeholder={label}
+              disableFuture={disableFuture}
+            />
           </FormControl>
           <FormMessage />
         </FormItem>

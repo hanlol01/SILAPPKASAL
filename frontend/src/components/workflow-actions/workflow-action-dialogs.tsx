@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -267,7 +268,7 @@ export function InvestigationActivityAction({
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
             <SelectField form={form} name="activity_type" label={t("dashboard:workflow.activityType")} options={INVESTIGATION_ACTIVITY_TYPES} formatter={(value) => formatGenericLabel(value)} />
-            <InputField form={form} name="activity_date" label={t("dashboard:workflow.activityDate")} type="date" />
+            <DatePickerField form={form} name="activity_date" label={t("dashboard:workflow.activityDate")} disableFuture />
             <TextareaField form={form} name="description" label={t("dashboard:workflow.description")} />
             <TextareaField form={form} name="findings" label={t("dashboard:workflow.findings")} />
             <TextareaField form={form} name="notes" label={t("dashboard:workflow.notes")} />
@@ -393,7 +394,7 @@ export function DecisionUpdateAction({ decision }: { decision: Decision }) {
           <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
             <SelectField form={form} name="outcome_code" label={t("dashboard:workflow.outcome")} options={DECISION_OUTCOMES} formatter={(value) => formatDecisionOutcome(t, value)} />
             <InputField form={form} name="decision_number" label={t("dashboard:workflow.decisionNumber")} />
-            <InputField form={form} name="decision_date" label={t("dashboard:workflow.decisionDate")} type="date" />
+            <DatePickerField form={form} name="decision_date" label={t("dashboard:workflow.decisionDate")} disableFuture />
             <TextareaField form={form} name="decision_summary" label={t("dashboard:workflow.summary")} />
             <TextareaField form={form} name="decision_content" label={t("dashboard:workflow.content")} className="min-h-32" />
             <DialogFooter>
@@ -452,7 +453,7 @@ export function RecoveryMonitoringAction({ recovery }: { recovery: Recovery }) {
         </DialogHeader>
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
-            <InputField form={form} name="monitoring_date" label={t("dashboard:workflow.monitoringDate")} type="date" />
+            <DatePickerField form={form} name="monitoring_date" label={t("dashboard:workflow.monitoringDate")} disableFuture />
             <TextareaField form={form} name="condition_summary" label={t("dashboard:workflow.conditionSummary")} />
             <TextareaField form={form} name="follow_up_plan" label={t("dashboard:workflow.followUpPlan")} />
             <TextareaField form={form} name="notes" label={t("dashboard:workflow.notes")} />
@@ -542,7 +543,7 @@ export function EvidenceMetadataAction({ evidence }: { evidence: EvidenceMetadat
             <InputField form={form} name="title" label={t("dashboard:workflow.title")} />
             <TextareaField form={form} name="description" label={t("dashboard:workflow.description")} />
             <TextareaField form={form} name="source" label={t("dashboard:workflow.source")} />
-            <InputField form={form} name="collected_at" label={t("dashboard:workflow.collectedAt")} type="date" />
+            <DatePickerField form={form} name="collected_at" label={t("dashboard:workflow.collectedAt")} disableFuture />
             <SelectField form={form} name="classification" label={t("dashboard:workflow.classification")} options={EVIDENCE_CLASSIFICATIONS} formatter={(value) => formatEvidenceClassification(t, value)} />
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
@@ -634,6 +635,39 @@ function InputField<T extends FieldValues>({
   );
 }
 
+function DatePickerField<T extends FieldValues>({
+  form,
+  name,
+  label,
+  disableFuture,
+}: {
+  form: UseFormReturn<T>;
+  name: Path<T>;
+  label: string;
+  disableFuture?: boolean;
+}) {
+  return (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>{label}</FormLabel>
+          <FormControl>
+            <DatePicker
+              value={(field.value as string | undefined) ?? ""}
+              onChange={field.onChange}
+              placeholder={label}
+              disableFuture={disableFuture}
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+
 function TextareaField<T extends FieldValues>({
   form,
   name,
@@ -704,11 +738,24 @@ function SelectField<T extends FieldValues>({
 }
 
 function caseStatusOptions(items: { code: string; name: string; valid_transitions?: string[] | null }[], current: string) {
-  const currentItem = items.find((item) => item.code === current);
+  const currentItem = items.find((item) => matchesCaseStatus(item, current));
   const transitions = currentItem?.valid_transitions ?? [];
-  const allowed = transitions.length > 0 ? transitions : items.map((item) => item.code).filter((code) => code !== current);
 
-  return items.filter((item) => allowed.includes(item.code));
+  if (transitions.length === 0) return [];
+
+  const allowed = new Set(transitions.map(normalizeCaseStatusKey));
+
+  return items.filter((item) => allowed.has(normalizeCaseStatusKey(item.code)) || allowed.has(normalizeCaseStatusKey(item.name)));
+}
+
+function matchesCaseStatus(item: { code: string; name: string }, value: string) {
+  const normalizedValue = normalizeCaseStatusKey(value);
+
+  return normalizeCaseStatusKey(item.code) === normalizedValue || normalizeCaseStatusKey(item.name) === normalizedValue;
+}
+
+function normalizeCaseStatusKey(value: string) {
+  return value.trim().toLowerCase();
 }
 
 function nullifyEmpty<T extends Record<string, unknown>>(values: T): T {

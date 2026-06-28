@@ -34,7 +34,7 @@ const TimePicker = React.forwardRef<HTMLDivElement, TimePickerProps>(
       unknownLabel,
       hourLabel,
       minuteLabel,
-      placeholder = "Contoh : 00.00",
+      placeholder = "Contoh : 00:00",
       maxTime,
       disabled,
       className,
@@ -64,7 +64,7 @@ const TimePicker = React.forwardRef<HTMLDivElement, TimePickerProps>(
                 !normalizedValue && "text-muted-foreground",
               )}
             >
-              <span className="font-medium">{normalizedValue ? normalizedValue.replace(":", ".") : placeholder}</span>
+              <span className="font-medium">{normalizedValue || placeholder}</span>
               <Clock aria-hidden="true" className="ml-auto h-4 w-4 text-foreground opacity-80" />
             </Button>
           </PopoverTrigger>

@@ -276,7 +276,7 @@ function NewPortalReportPage() {
                               unknownLabel={t("portal:reportWizard.timeUnknown")}
                               hourLabel={t("portal:reportWizard.timeHour")}
                               minuteLabel={t("portal:reportWizard.timeMinute")}
-                              placeholder="Contoh : 00.00"
+                              placeholder="Contoh : 00:00"
                               maxTime={maxIncidentTime}
                               disabled={mutation.isPending}
                             />

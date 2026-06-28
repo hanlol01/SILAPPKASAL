@@ -22,6 +22,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectInput } from "@/components/form-fields";
 import { formatDegreeLevel } from "@/lib/format-labels";
 
 export const Route = createFileRoute("/dashboard/master-data/study-programs")({
@@ -62,14 +63,28 @@ function StudyProgramsPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3">
         <Input className="max-w-sm" placeholder={t("dashboard:masterData.searchStudyPrograms")} value={search} onChange={(event) => setSearch(event.target.value)} />
-        <select className="h-10 rounded-md border bg-background px-3 text-sm" value={universityId} onChange={(event) => { setUniversityId(event.target.value); setFacultyId(""); }}>
-          <option value="">{t("dashboard:common.allUniversities")}</option>
-          {(universitiesQuery.data?.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
-        <select className="h-10 rounded-md border bg-background px-3 text-sm" value={facultyId} onChange={(event) => setFacultyId(event.target.value)} disabled={!universityId}>
-          <option value="">{t("dashboard:masterData.allFaculties")}</option>
-          {(facultiesQuery.data?.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
+        <SelectInput
+          value={universityId}
+          onValueChange={(value) => {
+            setUniversityId(value);
+            setFacultyId("");
+          }}
+          placeholder={t("dashboard:common.allUniversities")}
+          options={[
+            { value: "", label: t("dashboard:common.allUniversities") },
+            ...(universitiesQuery.data?.data ?? []).map((item) => ({ value: String(item.id), label: item.name })),
+          ]}
+        />
+        <SelectInput
+          value={facultyId}
+          onValueChange={setFacultyId}
+          placeholder={t("dashboard:masterData.allFaculties")}
+          disabled={!universityId}
+          options={[
+            { value: "", label: t("dashboard:masterData.allFaculties") },
+            ...(facultiesQuery.data?.data ?? []).map((item) => ({ value: String(item.id), label: item.name })),
+          ]}
+        />
         <Button onClick={() => setCreating(true)}>{t("dashboard:masterData.createStudyProgram")}</Button>
       </div>
       <Card>
@@ -183,23 +198,39 @@ function StudyProgramDialog({
         <DialogHeader><DialogTitle>{studyProgram ? t("dashboard:masterData.editStudyProgram") : t("dashboard:masterData.createStudyProgram")}</DialogTitle></DialogHeader>
         <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); mutation.mutate(); }}>
           <Field label={t("dashboard:masterData.university")} error={errors.university_id?.[0]}>
-            <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.university_id || ""} onChange={(event) => setForm((current) => ({ ...current, university_id: Number(event.target.value), faculty_id: null }))} required>
-              <option value="">{t("dashboard:masterData.selectUniversity")}</option>
-              {universities.filter((item) => item.is_active !== false).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
+            <SelectInput
+              value={form.university_id ? String(form.university_id) : ""}
+              onValueChange={(value) => setForm((current) => ({ ...current, university_id: Number(value), faculty_id: null }))}
+              placeholder={t("dashboard:masterData.selectUniversity")}
+              options={[
+                { value: "", label: t("dashboard:masterData.selectUniversity") },
+                ...universities.filter((item) => item.is_active !== false).map((item) => ({ value: String(item.id), label: item.name })),
+              ]}
+            />
           </Field>
           <Field label={`${t("dashboard:masterData.faculty")} (${t("dashboard:masterData.optional")})`} error={errors.faculty_id?.[0]}>
-            <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.faculty_id ?? ""} onChange={(event) => update("faculty_id", event.target.value ? Number(event.target.value) : null)} disabled={!form.university_id}>
-              <option value="">{t("dashboard:masterData.noFaculty")}</option>
-              {(facultiesQuery.data?.data ?? []).filter((item) => item.is_active).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
+            <SelectInput
+              value={form.faculty_id ? String(form.faculty_id) : ""}
+              onValueChange={(value) => update("faculty_id", value ? Number(value) : null)}
+              placeholder={t("dashboard:masterData.noFaculty")}
+              disabled={!form.university_id}
+              options={[
+                { value: "", label: t("dashboard:masterData.noFaculty") },
+                ...(facultiesQuery.data?.data ?? [])
+                  .filter((item) => item.is_active)
+                  .map((item) => ({ value: String(item.id), label: item.name })),
+              ]}
+            />
           </Field>
           <Field label={t("dashboard:masterData.code")} error={errors.code?.[0]}><Input value={form.code} onChange={(event) => update("code", event.target.value)} required /></Field>
           <Field label={t("dashboard:masterData.name")} error={errors.name?.[0]}><Input value={form.name} onChange={(event) => update("name", event.target.value)} required /></Field>
           <Field label={t("dashboard:masterData.degreeLevel")} error={errors.degree_level?.[0]}>
-            <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.degree_level} onChange={(event) => update("degree_level", event.target.value)} required>
-              {degreeLevels.map((level) => <option key={level} value={level}>{formatDegreeLevel(t, level)}</option>)}
-            </select>
+            <SelectInput
+              value={form.degree_level}
+              onValueChange={(value) => update("degree_level", value)}
+              placeholder={t("dashboard:masterData.degreeLevel")}
+              options={degreeLevels.map((level) => ({ value: level, label: formatDegreeLevel(t, level) }))}
+            />
           </Field>
           <Field label={t("dashboard:masterData.sortOrder")}><Input type="number" value={form.sort_order ?? 0} onChange={(event) => update("sort_order", Number(event.target.value))} /></Field>
           <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? t("dashboard:common.saving") : t("dashboard:common.save")}</Button>

@@ -31,6 +31,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectInput } from "@/components/form-fields";
 import { formatCampusType } from "@/lib/format-labels";
 
 export const Route = createFileRoute("/dashboard/master-data/universities")({
@@ -200,19 +201,27 @@ function UniversityDialog({
           <Field label={t("dashboard:masterData.name")} error={errors.name?.[0]}><Input value={form.name} onChange={(event) => update("name", event.target.value)} required /></Field>
           <Field label={t("dashboard:masterData.abbreviation")}><Input value={form.abbreviation ?? ""} onChange={(event) => update("abbreviation", event.target.value || null)} /></Field>
           <Field label={t("dashboard:masterData.type")} error={errors.type?.[0]}>
-            <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.type} onChange={(event) => update("type", event.target.value)} required>
-              {universityTypes.map((type) => <option key={type} value={type}>{formatCampusType(t, type)}</option>)}
-            </select>
+            <SelectInput
+              value={form.type}
+              onValueChange={(value) => update("type", value)}
+              placeholder={t("dashboard:masterData.type")}
+              options={universityTypes.map((type) => ({ value: type, label: formatCampusType(t, type) }))}
+            />
           </Field>
           <Field label={t("dashboard:masterData.website")} error={errors.website?.[0]}><Input value={form.website ?? ""} onChange={(event) => update("website", event.target.value || null)} /></Field>
           <Field label={t("dashboard:masterData.email")} error={errors.email?.[0]}><Input value={form.email ?? ""} onChange={(event) => update("email", event.target.value || null)} /></Field>
           <Field label={t("dashboard:masterData.hotline")} error={errors.hotline?.[0]}><Input value={form.hotline ?? ""} onChange={(event) => update("hotline", event.target.value || null)} /></Field>
           <Field label={t("dashboard:masterData.sortOrder")}><Input type="number" value={form.sort_order ?? 0} onChange={(event) => update("sort_order", Number(event.target.value))} /></Field>
           <Field label={t("dashboard:masterData.hasFaculties")}>
-            <select className="h-10 rounded-md border bg-background px-3 text-sm" value={String(form.has_faculties)} onChange={(event) => update("has_faculties", event.target.value === "true")}>
-              <option value="true">{t("dashboard:masterData.yes")}</option>
-              <option value="false">{t("dashboard:masterData.no")}</option>
-            </select>
+            <SelectInput
+              value={String(form.has_faculties)}
+              onValueChange={(value) => update("has_faculties", value === "true")}
+              placeholder={t("dashboard:masterData.hasFaculties")}
+              options={[
+                { value: "true", label: t("dashboard:masterData.yes") },
+                { value: "false", label: t("dashboard:masterData.no") },
+              ]}
+            />
           </Field>
           <Field label={t("dashboard:masterData.address")}><Input value={form.address ?? ""} onChange={(event) => update("address", event.target.value || null)} /></Field>
           <div className="md:col-span-2"><Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? t("dashboard:common.saving") : t("dashboard:common.save")}</Button></div>

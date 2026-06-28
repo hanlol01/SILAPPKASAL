@@ -24,3 +24,11 @@
 | Bug ID | Severity | Status | Affected Page | Expected Behavior | Actual Behavior | Possible Root Cause | Recommended Fix |
 |---|---|---|---|---|---|---|---|
 | UX03-BUG-001 | High | Verified | `/login` | The forgot-password affordance should not be an active dead link. Per UX-03 checklist, it should either be removed or disabled with clear explanatory copy until a real forgot-password flow exists. | Verified fixed in hotfix QA recheck: the `Lupa kata sandi?` / `Forgot password?` link is no longer rendered in the login form, and no `Link to="/login"` forgot-password affordance remains in `frontend/src/routes/login.tsx`. | Previous root cause was that UX-03 removed the dashboard topbar dead search but missed the login forgot-password dead affordance from `REPORT_UX_AUDIT.md` F-11 and the UX-03 manual checklist. | No further fix required for UX-03. Keep the forgot-password capability out of the UI until a real flow is implemented in a future milestone. |
+
+# UX-04
+
+## Bugs Found During QA
+
+| Bug ID | Severity | Status | Affected Page | Expected Behavior | Actual Behavior | Possible Root Cause | Recommended Fix |
+|---|---|---|---|---|---|---|---|
+| UX04-BUG-001 | Medium | Verified | `/portal/reports/new`, shared `TimePicker` | Time display should be consistent with the UX plan's `HH:mm` format while payload remains `HH:mm \| null`. | Verified fixed in hotfix QA recheck: `TimePicker` now defaults to `Contoh : 00:00`, renders selected values directly as `HH:mm`, and `/portal/reports/new` passes `placeholder="Contoh : 00:00"`. | Previous root cause was localized dot-separated presentation that diverged from the UX plan and smoke expectation. | No further fix required. Keep UX-04 smoke coverage for TimePicker display, quick picks, and unknown-time payload behavior. |

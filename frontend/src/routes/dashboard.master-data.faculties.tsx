@@ -21,6 +21,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectInput } from "@/components/form-fields";
 
 export const Route = createFileRoute("/dashboard/master-data/faculties")({
   component: FacultiesPage,
@@ -50,10 +51,15 @@ function FacultiesPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3">
         <Input className="max-w-sm" placeholder={t("dashboard:masterData.searchFaculties")} value={search} onChange={(event) => setSearch(event.target.value)} />
-        <select className="h-10 rounded-md border bg-background px-3 text-sm" value={universityId} onChange={(event) => setUniversityId(event.target.value)}>
-          <option value="">{t("dashboard:common.allUniversities")}</option>
-          {(universitiesQuery.data?.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
+        <SelectInput
+          value={universityId}
+          onValueChange={setUniversityId}
+          placeholder={t("dashboard:common.allUniversities")}
+          options={[
+            { value: "", label: t("dashboard:common.allUniversities") },
+            ...(universitiesQuery.data?.data ?? []).map((item) => ({ value: String(item.id), label: item.name })),
+          ]}
+        />
         <Button onClick={() => setCreating(true)}>{t("dashboard:masterData.createFaculty")}</Button>
       </div>
       <Card>
@@ -161,10 +167,15 @@ function FacultyDialog({
         <DialogHeader><DialogTitle>{faculty ? t("dashboard:masterData.editFaculty") : t("dashboard:masterData.createFaculty")}</DialogTitle></DialogHeader>
         <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); mutation.mutate(); }}>
           <Field label={t("dashboard:masterData.university")} error={errors.university_id?.[0]}>
-            <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.university_id || ""} onChange={(event) => update("university_id", Number(event.target.value))} required>
-              <option value="">{t("dashboard:masterData.selectUniversity")}</option>
-              {selectableUniversities.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
+            <SelectInput
+              value={form.university_id ? String(form.university_id) : ""}
+              onValueChange={(value) => update("university_id", Number(value))}
+              placeholder={t("dashboard:masterData.selectUniversity")}
+              options={[
+                { value: "", label: t("dashboard:masterData.selectUniversity") },
+                ...selectableUniversities.map((item) => ({ value: String(item.id), label: item.name })),
+              ]}
+            />
           </Field>
           <Field label={t("dashboard:masterData.code")} error={errors.code?.[0]}><Input value={form.code} onChange={(event) => update("code", event.target.value)} required /></Field>
           <Field label={t("dashboard:masterData.name")} error={errors.name?.[0]}><Input value={form.name} onChange={(event) => update("name", event.target.value)} required /></Field>

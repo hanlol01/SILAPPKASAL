@@ -270,3 +270,141 @@ Tooling notes:
 
 - Manual browser verification is still recommended for `/login` in Bahasa Indonesia and English to confirm the removed affordance is absent visually.
 - The actual forgot-password capability remains outside UX-03 scope and should only return as a real, implemented flow in a future milestone.
+
+# UX-04
+
+## Executive Summary
+
+UX-04 was reviewed against `docs/REPORT_UX_AUDIT.md` findings F-05, F-06, and F-07, and against the UX-04 acceptance criteria in `docs/UX_IMPROVEMENT_PLAN.md`.
+
+The implementation substantially improves consistency. Native `<select>` usage has been removed from `frontend/src`, legacy dropdowns now route through shared shadcn `Select` wrappers, DatePicker is centralized with locale-aware month names and `YYYY-MM-DD` storage, workflow action date fields now use the shared DatePicker pattern, and the reporter report wizard uses the shared TimePicker with quick picks and the "I don't remember" option.
+
+One UX consistency issue remains: the TimePicker displays and placeholders time as `HH.mm` / `00.00`, while the UX plan specifies time display/storage as `HH:mm`. The internal value and report payload still use `HH:mm | null`, so this is not a payload regression, but it is a visible consistency mismatch and was logged as `UX04-BUG-001`.
+
+## Implementation Score (0-100)
+
+88
+
+## PASS / FAIL
+
+FAIL
+
+## Findings
+
+| ID | Area | Result | Evidence |
+|---|---|---|---|
+| QA-UX04-001 | Scope compliance | FAIL | UX-04 target files and related consumers were reviewed. Dropdown/date/time migration is broadly complete, but TimePicker display format does not match the plan's `HH:mm` display expectation. |
+| QA-UX04-002 | Native select removal | PASS | `rg -n '<select' frontend/src` returned no matches; legacy public/admin dropdown consumers now use `SelectFormField` or `SelectInput`. |
+| QA-UX04-003 | Native date input removal | PASS | `rg -n 'type="date"' frontend/src` returned no matches; date selection is centralized through `DatePicker`. |
+| QA-UX04-004 | Native time input removal | PASS | `rg -n 'type="time"' frontend/src` returned no matches; incident time is handled by `TimePicker`. |
+| QA-UX04-005 | DatePicker architecture | PASS | `components/ui/date-picker.tsx` uses shadcn `Popover` + `Calendar`, maps `i18n.language` to `date-fns` `id` / `enUS`, formats display as `d MMMM yyyy`, and emits `yyyy-MM-dd`. |
+| QA-UX04-006 | TimePicker architecture | PASS with issue | `components/ui/time-picker.tsx` provides hour/minute selection, quick picks, disabled max-time options, and an unknown-time checkbox. It emits `HH:mm` or `null`, but displays selected values with dots. |
+| QA-UX04-007 | Reporter report wizard payload | PASS | `portal.reports.new.tsx` passes TimePicker values through RHF state and `toReportPayload()` normalizes empty/unknown time to `incident_time: null`. |
+| QA-UX04-008 | Public registration/correction dropdowns | PASS | `/register` and `/registration/correction` use `SelectFormField` for university, faculty, and study program fields, preserving dependent reset behavior. |
+| QA-UX04-009 | Admin dropdowns | PASS | Registration filters, Create Reporter, and campus master-data university/faculty/study-program selects use shared shadcn select wrappers rather than native selects. |
+| QA-UX04-010 | Regression | PASS | `npx.cmd tsc --noEmit`, `npm.cmd run build`, and `npm.cmd run lint` passed. Lint retained 6 existing react-refresh warnings in shared UI files. |
+
+## Recommendations
+
+1. Fix `UX04-BUG-001` by aligning TimePicker visible placeholder and selected display with `HH:mm`, or update the UX plan and smoke expectations if `HH.mm` is intentionally chosen for Indonesian display.
+2. Product Owner should manually verify DatePicker month names in Bahasa Indonesia and English because QA verified locale wiring by static inspection, not browser interaction.
+3. Keep `SelectInput` / `SelectFormField` as the single path for future dropdowns so native select usage does not re-enter the codebase.
+
+## Verification
+
+| Check | Command | Result |
+|---|---|---|
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | PASS |
+| Build | `npm.cmd run build` from `frontend/` | PASS with non-blocking Vite/TanStack chunk/import warnings |
+| Lint | `npm.cmd run lint` from `frontend/` | PASS with 0 errors and 6 existing react-refresh warnings |
+| Native select search | `rg -n '<select' frontend/src` | PASS, no matches |
+| Native date input search | `rg -n 'type="date"' frontend/src` | PASS, no matches |
+| Native time input search | `rg -n 'type="time"' frontend/src` | PASS, no matches |
+
+# UX-04 Hotfix QA Recheck
+
+## Summary
+
+QA recheck focused only on the UX-04 hotfix for `UX04-BUG-001`.
+
+Verified hotfix behavior:
+
+- `TimePicker` default placeholder now uses `Contoh : 00:00`.
+- Selected TimePicker values render directly as `HH:mm` instead of replacing `:` with `.`.
+- `/portal/reports/new` passes `placeholder="Contoh : 00:00"` to the shared TimePicker.
+- Quick-pick values remain `HH:mm`, for example `08:00`, and the unknown-time path still supports `null`.
+
+## Score
+
+98
+
+## PASS / FAIL
+
+PASS
+
+## Regression Findings
+
+No regression found in the UX-04 hotfix scope.
+
+Verification commands:
+
+| Check | Command | Result |
+|---|---|---|
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | PASS |
+| Build | `npm.cmd run build` from `frontend/` | PASS with non-blocking Vite/TanStack chunk/import warnings |
+| Lint | `npm.cmd run lint` from `frontend/` | PASS with 0 errors and 6 existing react-refresh warnings |
+
+Tooling notes:
+
+- Build retained the existing non-blocking Vite/TanStack chunk-size and unused-import warnings.
+- Lint retained the existing 6 react-refresh warnings in shared shadcn UI files.
+
+## Remaining Risks
+
+- Manual browser verification is still recommended to confirm the TimePicker display reads naturally in Bahasa Indonesia and English.
+- The recheck was limited to the display-format hotfix and did not re-execute the full UX-04 smoke suite.
+
+# Functional Hotfix QA Recheck - Case Status Transitions
+
+## Summary
+
+QA recheck focused on the frontend case status transition hotfix for assigned Satgas users after a report has been forwarded to a case.
+
+Verified behavior by static implementation review:
+
+- Assigned Satgas users can see `CaseStatusAction` on `/dashboard/cases/$id` when they are actively assigned to the case and the case is not closed.
+- Non-assigned users, non-Satgas users, or closed cases see the disabled workflow explanation instead of the transition action.
+- `CaseStatusAction` reads `case-statuses` master data and derives options from the current status `valid_transitions`.
+- The frontend now matches transition targets against both status `code` and `name`, so backend seed transitions like `forwarded -> assessment` and `assessment -> investigation` resolve to selectable options even when the current case status is passed as a code.
+- Backend still remains authoritative: `CasePolicy::updateStatus()` requires an active assigned Satgas user, and `CaseService::updateStatus()` rejects any target not present in the current status `valid_transitions` with `Invalid case status transition`.
+- No backend implementation change was observed for this hotfix; reviewed backend files were read-only during QA.
+
+## Score
+
+96
+
+## PASS / FAIL
+
+PASS
+
+## Regression Findings
+
+No regression found in the functional hotfix scope.
+
+Verification commands:
+
+| Check | Command | Result |
+|---|---|---|
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | PASS |
+| Build | `npm.cmd run build` from `frontend/` | PASS with non-blocking Vite/TanStack chunk/import warnings |
+| Lint | `npm.cmd run lint` from `frontend/` | PASS with 0 errors and 6 existing react-refresh warnings |
+
+Tooling notes:
+
+- `git status --short` initially showed modified files only in docs and frontend paths; no `backend/api` path appeared in the modified-file list.
+- A later path-limited Git status/diff attempt was blocked by Git dubious-ownership protection in the sandbox, so backend-change confirmation is based on the successful status output plus read-only backend inspection.
+
+## Remaining Risks
+
+- Browser/session verification with an actual assigned Satgas account is still recommended because QA did not execute an authenticated end-to-end UI flow.
+- Backend invalid-transition behavior was verified by code review, not by sending a live invalid PATCH request.

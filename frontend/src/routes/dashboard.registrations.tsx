@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { SelectInput } from "@/components/form-fields";
 import { formatRegistrationStatus } from "@/lib/format-labels";
 
 export const Route = createFileRoute("/dashboard/registrations")({
@@ -61,17 +62,27 @@ function RegistrationsPage() {
       <Card>
         <CardContent className="grid gap-3 p-4 md:grid-cols-4">
           <Input placeholder={t("dashboard:registrations.search")} value={search} onChange={(e) => setSearch(e.target.value)} />
-          <select className="h-10 rounded-md border bg-background px-3 text-sm" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">{t("dashboard:common.allStatuses")}</option>
-            <option value="pending">{formatRegistrationStatus(t, "pending")}</option>
-            <option value="approved">{formatRegistrationStatus(t, "approved")}</option>
-            <option value="rejected">{formatRegistrationStatus(t, "rejected")}</option>
-          </select>
+          <SelectInput
+            value={status}
+            onValueChange={setStatus}
+            placeholder={t("dashboard:common.allStatuses")}
+            options={[
+              { value: "", label: t("dashboard:common.allStatuses") },
+              { value: "pending", label: formatRegistrationStatus(t, "pending") },
+              { value: "approved", label: formatRegistrationStatus(t, "approved") },
+              { value: "rejected", label: formatRegistrationStatus(t, "rejected") },
+            ]}
+          />
           {roleCode === "super_admin" && (
-            <select className="h-10 rounded-md border bg-background px-3 text-sm" value={universityId} onChange={(e) => setUniversityId(e.target.value)}>
-              <option value="">{t("dashboard:common.allUniversities")}</option>
-              {(universitiesQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
+            <SelectInput
+              value={universityId}
+              onValueChange={setUniversityId}
+              placeholder={t("dashboard:common.allUniversities")}
+              options={[
+                { value: "", label: t("dashboard:common.allUniversities") },
+                ...(universitiesQuery.data ?? []).map((item) => ({ value: String(item.id), label: item.name })),
+              ]}
+            />
           )}
         </CardContent>
       </Card>
