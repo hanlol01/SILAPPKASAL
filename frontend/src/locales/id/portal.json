@@ -102,6 +102,7 @@
   "notificationsLoadError": "Notifikasi tidak dapat dimuat.",
   "noNotifications": "Tidak ada notifikasi",
   "noNotificationsDesc": "Anda akan diberi tahu jika ada pembaruan pada laporan Anda.",
+  "notificationsAdvisory": "Notifikasi ini hanya untuk dibaca dan akan ditandai otomatis saat Anda membuka laporan terkait.",
   
   "account": "Akun",
   "accountSubtitle": "Kelola profil dan pengaturan keamanan Anda.",

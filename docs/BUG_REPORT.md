@@ -54,3 +54,11 @@ No new UX-06 bugs were found during QA.
 ## Bugs Found During QA
 
 No new UX-07 bugs were found during QA.
+
+# UX-08
+
+## Bugs Found During QA
+
+| Bug ID | Severity | Status | Affected Page | Expected Behavior | Actual Behavior | Possible Root Cause | Recommended Fix |
+|---|---|---|---|---|---|---|---|
+| UX08-BUG-001 | Medium | Verified | `/dashboard/cases/:id` | Case detail workflow tabs should default to the tab that matches the current case status or stage, for example recommendation cases should open on Recommendation and decision cases should open on Decision. | Verified fixed in UX-08 hotfix QA recheck: `dashboard.cases.$id.tsx` now computes `defaultWorkflowTab` from `current_stage`, `current_stage_label`, `status`, `status_label`, and `status_code`, then passes it to `<Tabs defaultValue={defaultWorkflowTab}>`. | Previous root cause was a static `defaultValue="investigation"` with no status-to-tab mapping. Hotfix added `WORKFLOW_TAB_BY_TOKEN`, normalization, and `defaultWorkflowTabForCase()`. | No further fix required. Keep UX08-ST-011 in manual smoke coverage for real case records across recommendation, decision, and recovery statuses. |

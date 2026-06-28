@@ -657,3 +657,113 @@ PASS
 - QA did not run an authenticated browser session with a screen reader; accessible names and badge semantics were verified by static inspection and grep.
 - Contrast calculation was performed for success/info against white; Product Owner should still inspect badge combinations in real pages, including tinted backgrounds and dark mode.
 - Global success/info token darkening can subtly affect other light-mode UI surfaces using `text-success`, `text-info`, `bg-success/15`, or `bg-info/15`; no blocking regression was found during static review/build.
+
+# UX-08
+
+## Executive Summary
+
+QA reviewed UX-08 against `REPORT_UX_AUDIT.md` and `UX_IMPROVEMENT_PLAN.md`, focusing on Workflow & Detail Polish for F-17, F-18, F-23, and the UI-only portion of F-27.
+
+Most UX-08 implementation is aligned with scope. A shared `EmptyState` component was introduced and adopted across the targeted admin list pages, workflow and registration-detail loading states now use skeleton placeholders, case detail workflow sections are grouped into tabs without route changes, portal notifications display the advisory copy, and localization keys exist in Bahasa Indonesia and English.
+
+QA found one acceptance gap: the case detail workflow tabs always default to `investigation`, while the UX-08 plan requires the default tab to be determined by the current case status. Because this is an explicit acceptance criterion, UX-08 is marked FAIL until fixed.
+
+## Implementation Score (0-100)
+
+88
+
+## PASS / FAIL
+
+FAIL
+
+## Findings
+
+| ID | Area | Result | Evidence |
+|---|---|---|---|
+| QA-UX08-001 | Scope compliance | PASS | UX-08 target files were reviewed: `components/empty-state.tsx`, targeted admin lists, `dashboard.workflow.tsx`, `dashboard.registrations.$id.tsx`, `dashboard.cases.$id.tsx`, `portal.notifications.tsx`, and locale files. |
+| QA-UX08-002 | Shared EmptyState | PASS | `components/empty-state.tsx` exposes icon, title, description, and optional action props, and renders a consistent dashed-border empty state. |
+| QA-UX08-003 | Admin list empty states | PASS | Registrations, users, reports, cases, and master-data universities render `EmptyState` for both filtered-empty and truly-empty conditions. |
+| QA-UX08-004 | Skeleton loaders | PASS | `dashboard.workflow.tsx`, `dashboard.registrations.$id.tsx`, `dashboard.master-data.universities.tsx`, and `portal.notifications.tsx` render shadcn `Skeleton` placeholders during loading states. |
+| QA-UX08-005 | Case workflow tabs | FAIL | `dashboard.cases.$id.tsx` wraps Investigation, Recommendation, Decision, Recovery, and Evidence in shadcn `Tabs`, but uses `defaultValue="investigation"` statically instead of deriving the default tab from current case status. |
+| QA-UX08-006 | Routing and navigation | PASS | Static inspection found workflow tabs are local UI state and do not introduce route params; existing links to case, report, and registration detail pages remain present. |
+| QA-UX08-007 | Portal notification advisory | PASS | `portal.notifications.tsx` renders `t("notificationsAdvisory")`, and the advisory key exists in `id/portal.json` and `en/portal.json`. |
+| QA-UX08-008 | Localization consistency | PASS | Empty-state, tab, and notification advisory keys exist in both `id` and `en` locale files. |
+| QA-UX08-009 | Responsive behavior | PASS | Reports and cases lists retain UX-06 mobile card layouts (`md:hidden`) and desktop table wrappers (`hidden ... md:block`) while adding EmptyState coverage. |
+| QA-UX08-010 | Accessibility preservation | PASS | Existing UX-07 topbar `aria-label` coverage, breadcrumb semantics, and status badge components remain present in static inspection. |
+| QA-UX08-011 | Regression UX-01 through UX-07 | PASS with risk | No static regression was found in validation/localization/responsive/accessibility surfaces touched by UX-08. The new tabs acceptance issue is scoped to UX-08 and logged as `UX08-BUG-001`. |
+| QA-UX08-012 | Runtime/tooling | PASS | `npx.cmd tsc --noEmit`, `npm.cmd run build`, and `npm.cmd run lint` all passed. Lint retained 6 existing react-refresh warnings in shared UI files. |
+
+## Recommendations
+
+1. Fix `UX08-BUG-001` by deriving the case detail tab default from `c.status` or `c.current_stage`, mapping workflow statuses to `investigation`, `recommendation`, `decision`, `recovery`, or `evidence`.
+2. Product Owner should manually verify each workflow status opens the most relevant tab by default and that switching tabs does not change the URL.
+3. Include mobile viewport checks for EmptyState and Tabs because wide tab labels can wrap on small screens.
+
+## Verification
+
+| Check | Command | Result |
+|---|---|---|
+| UX-08 scope grep | `rg -n "UX-08|F-17|F-18|F-23|F-27|empty|skeleton|Tabs|notifications" docs/REPORT_UX_AUDIT.md docs/UX_IMPROVEMENT_PLAN.md` | PASS; milestone scope and acceptance criteria confirmed |
+| Implementation inspection | Direct read/grep of UX-08 target files | FAIL; `Tabs defaultValue="investigation"` is static and does not follow current case status |
+| EmptyState and skeleton grep | `rg -n "EmptyState|Skeleton|Loading...|Tabs|notificationsAdvisory" ...` | PASS with one risk; EmptyState/advisory/skeletons found in target files, but case detail initial loading still uses text outside the explicit skeleton replacement file list |
+| Regression grep | `rg -n 'md:hidden|hidden overflow-x-auto|Breadcrumb|aria-label|StatusBadge|PortalStatusBadge|EmptyState|Tabs defaultValue' ...` | PASS with bug noted; UX-06/UX-07 patterns remain present and the static tab default was confirmed |
+| Localization grep | `rg -n 'filteredEmptyTitle|filteredEmptyDesc|emptyTitle|emptyDesc|notificationsAdvisory|tabInvestigation|tabRecommendation|tabDecision|tabRecovery|tabEvidence' ...` | PASS; keys exist in Bahasa Indonesia and English |
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | PASS |
+| Build | `npm.cmd run build` from `frontend/` | PASS with existing non-blocking Vite/TanStack chunk-size and unused-import warnings |
+| Lint | `npm.cmd run lint` from `frontend/` | PASS with 0 errors and 6 existing react-refresh warnings |
+
+## Bugs Found
+
+| Bug ID | Severity | Status | Summary |
+|---|---|---|---|
+| UX08-BUG-001 | Medium | Open | Case detail workflow tabs always default to Investigation instead of defaulting based on current case status. |
+
+## Remaining Risks
+
+- QA did not run authenticated browser walkthroughs or visual snapshots; responsive behavior, navigation, and runtime safety were verified by static inspection plus TypeScript/build/lint.
+- `dashboard.cases.$id.tsx` still uses a text loading state for the initial case query; UX-08 approach only explicitly targeted skeleton replacement in `dashboard.workflow.tsx` and `dashboard.registrations.$id.tsx`, so this is tracked as residual polish risk rather than a blocking UX-08 bug.
+- The portal notifications advisory says notifications are marked automatically when opening related reports; QA did not verify backend read-state behavior and treats this as a product-truth item for Product Owner confirmation.
+
+# UX-08 Hotfix QA Recheck
+
+## Summary
+
+QA rechecked the UX-08 hotfix for `UX08-BUG-001`, focusing only on case-detail workflow tab default behavior, manual tab switching, and regression risk.
+
+The hotfix resolves the reported issue. `dashboard.cases.$id.tsx` now computes `defaultWorkflowTab` through `defaultWorkflowTabForCase(c)`, prioritizing `current_stage`, `current_stage_label`, `status`, `status_label`, and `status_code`. The mapping covers workflow stage numbers and known case status tokens for investigation, recommendation, decision, and recovery. The tab component remains local UI state via `defaultValue={defaultWorkflowTab}`, so manual tab switching remains available and does not introduce URL parameters.
+
+## Score
+
+97
+
+## PASS / FAIL
+
+PASS
+
+## Regression Findings
+
+No regression found in the UX-08 hotfix scope.
+
+Verification evidence:
+
+| Check | Command | Result |
+|---|---|---|
+| Bug status inspection | `rg -n "UX08-BUG-001|defaultWorkflowTab|Tabs defaultValue" docs/BUG_REPORT.md docs/QA_REPORT.md frontend/src/routes/dashboard.cases.$id.tsx` | PASS; bug still tracked in docs and implementation now uses `defaultWorkflowTab` instead of a static `investigation` default |
+| Implementation inspection | Direct read of `frontend/src/routes/dashboard.cases.$id.tsx` | PASS; `WORKFLOW_TAB_BY_TOKEN` maps stage/status tokens and `defaultWorkflowTabForCase(c)` derives the default tab from case record fields |
+| Backend/resource shape check | `rg -n "CaseRecord|current_stage|current_stage_label|status_code" frontend/src/lib/operations-types.ts backend/api/app` | PASS; `CaseRecord` includes the fields used by the hotfix and backend resource exposes `current_stage`, `current_stage_label`, and `status_code` |
+| Manual tab switching review | Static inspection of `<Tabs defaultValue={defaultWorkflowTab}>` and tab triggers | PASS; tabs remain uncontrolled/local and no route param or URL state was introduced |
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | PASS |
+| Build | `npm.cmd run build` from `frontend/` | PASS with existing non-blocking Vite/TanStack chunk-size and unused-import warnings |
+| Lint | `npm.cmd run lint` from `frontend/` | PASS with 0 errors and 6 existing react-refresh warnings |
+
+## Bug Status Updates
+
+| Bug ID | Status | QA Result |
+|---|---|---|
+| UX08-BUG-001 | Verified | Workflow tabs now default according to available case status/stage fields, and manual tab switching remains local to the component. |
+
+## Remaining Risks
+
+- QA did not execute an authenticated browser session with real case records for every workflow status; verification was based on static inspection, backend/resource shape checks, and build tooling.
+- The Evidence tab is not selected by default from case status because evidence is a supporting workflow section rather than a case status/stage token in the current backend model.
+- Unknown future status codes still fall back to Investigation by design; future backend statuses should be added to `WORKFLOW_TAB_BY_TOKEN` when introduced.

@@ -50,6 +50,9 @@ function PortalNotificationsPage() {
               : t("allCaughtUp")
             : t("notificationsSubtitle")}
         </p>
+        <p className="mt-1 text-xs text-muted-foreground/80">
+          {t("notificationsAdvisory")}
+        </p>
       </div>
 
       {/* Loading */}

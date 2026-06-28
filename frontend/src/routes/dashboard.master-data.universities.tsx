@@ -14,6 +14,7 @@ import {
   type UniversityPayload,
 } from "@/lib/campus-admin-api";
 import { ApiError } from "@/lib/api-client";
+import { Inbox, SearchX } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +34,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectInput } from "@/components/form-fields";
 import { formatCampusType } from "@/lib/format-labels";
+import { EmptyState } from "@/components/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/dashboard/master-data/universities")({
   component: UniversitiesPage,
@@ -128,10 +131,29 @@ function UniversitiesPage() {
                 </tr>
               ))}
               {universitiesQuery.isSuccess && universitiesQuery.data.data.length === 0 && (
-                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t("dashboard:masterData.noUniversities")}</td></tr>
+                <tr>
+                  <td colSpan={6} className="p-0">
+                    {search ? (
+                      <EmptyState icon={SearchX} title={t("dashboard:masterData.filteredEmptyTitle")} description={t("dashboard:masterData.filteredEmptyDesc")} />
+                    ) : (
+                      <EmptyState icon={Inbox} title={t("dashboard:masterData.emptyTitle")} description={t("dashboard:masterData.emptyDesc")} />
+                    )}
+                  </td>
+                </tr>
               )}
               {universitiesQuery.isLoading && (
-                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t("dashboard:masterData.loadingUniversities")}</td></tr>
+                <>
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <tr key={i} className="border-t">
+                      <td className="p-3"><Skeleton className="h-4 w-16" /></td>
+                      <td className="p-3"><Skeleton className="h-4 w-40" /></td>
+                      <td className="p-3"><Skeleton className="h-4 w-20" /></td>
+                      <td className="p-3"><Skeleton className="h-4 w-10" /></td>
+                      <td className="p-3"><Skeleton className="h-4 w-14" /></td>
+                      <td className="p-3"><Skeleton className="h-4 w-24" /></td>
+                    </tr>
+                  ))}
+                </>
               )}
             </tbody>
           </table>

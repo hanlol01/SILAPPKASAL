@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DecisionCreateAction } from "@/components/workflow-actions/decision-create-action";
 import { DecisionStatusAction } from "@/components/workflow-actions/decision-status-action";
 import { InvestigationCreateAction } from "@/components/workflow-actions/investigation-create-action";
@@ -67,12 +68,52 @@ import {
   operationsQueryKeys,
 } from "@/lib/operations-api";
 import type {
+  CaseRecord,
   Decision,
   EvidenceMetadata,
   Investigation,
   Recommendation,
   Recovery,
 } from "@/lib/operations-types";
+
+const WORKFLOW_TABS = ["investigation", "recommendation", "decision", "recovery", "evidence"] as const;
+type WorkflowTab = (typeof WORKFLOW_TABS)[number];
+
+const WORKFLOW_TAB_FALLBACK: WorkflowTab = "investigation";
+const WORKFLOW_TAB_BY_TOKEN: Record<string, WorkflowTab> = {
+  "4": "investigation",
+  csts_07: "investigation",
+  csts_08: "investigation",
+  investigation: "investigation",
+  investigations: "investigation",
+  investigasi: "investigation",
+  mediation: "investigation",
+  mediasi: "investigation",
+
+  "5": "recommendation",
+  csts_09: "recommendation",
+  recommendation: "recommendation",
+  recommendations: "recommendation",
+  rekomendasi: "recommendation",
+
+  "6": "decision",
+  csts_10: "decision",
+  csts_11: "decision",
+  decided: "decision",
+  decision: "decision",
+  decisions: "decision",
+  keputusan: "decision",
+
+  "7": "recovery",
+  csts_12: "recovery",
+  csts_13: "recovery",
+  csts_14: "recovery",
+  closed: "recovery",
+  monitoring: "recovery",
+  pemulihan: "recovery",
+  recovery: "recovery",
+  recoveries: "recovery",
+};
 
 export const Route = createFileRoute("/dashboard/cases/$id")({
   component: CaseDetail,
@@ -169,6 +210,7 @@ function CaseDetail() {
     decisionsLoaded &&
     finalizedDecisionForRecovery !== null &&
     !c.closed_at;
+  const defaultWorkflowTab = defaultWorkflowTabForCase(c);
 
   return (
     <div className="space-y-6">
@@ -223,47 +265,66 @@ function CaseDetail() {
           </Card>
 
           <SensitiveReportSection report={c.report} t={t} />
-          <InvestigationsSection
-            investigations={investigationsQuery.data ?? []}
-            loading={investigationsQuery.isLoading}
-            canAddActivity={canUseSatgasActions}
-            canTransitionStatus={canInvestigate}
-            caseId={c.id}
-            language={i18n.language}
-            t={t}
-          />
-          <RecommendationsSection
-            recommendations={recommendationsQuery.data ?? []}
-            loading={recommendationsQuery.isLoading}
-            canUpdate={canRecommend}
-            canTransitionStatus={canRecommend}
-            caseId={c.id}
-            t={t}
-          />
-          <DecisionsSection
-            decisions={decisions}
-            loading={decisionQueries.some((query) => query.isLoading)}
-            canUpdate={canManageDecisionActions}
-            canTransitionStatus={canManageDecisionActions}
-            caseId={c.id}
-            language={i18n.language}
-            t={t}
-          />
-          <RecoveriesSection
-            recoveries={recoveries}
-            loading={recoveryQueries.some((query) => query.isLoading)}
-            canAddMonitoring={canAddRecoveryMonitoring}
-            canTransitionStatus={canManageRecoveryActions}
-            caseId={c.id}
-            t={t}
-          />
-          <EvidenceSection
-            evidences={evidences}
-            loading={evidenceQueries.some((query) => query.isLoading)}
-            canUpdate={canUseSatgasActions}
-            language={i18n.language}
-            t={t}
-          />
+          <Tabs defaultValue={defaultWorkflowTab} className="w-full">
+            <TabsList className="w-full flex-wrap justify-start">
+              <TabsTrigger value="investigation">{t("dashboard:cases.tabInvestigation")}</TabsTrigger>
+              <TabsTrigger value="recommendation">{t("dashboard:cases.tabRecommendation")}</TabsTrigger>
+              <TabsTrigger value="decision">{t("dashboard:cases.tabDecision")}</TabsTrigger>
+              <TabsTrigger value="recovery">{t("dashboard:cases.tabRecovery")}</TabsTrigger>
+              <TabsTrigger value="evidence">{t("dashboard:cases.tabEvidence")}</TabsTrigger>
+            </TabsList>
+            <TabsContent value="investigation">
+              <InvestigationsSection
+                investigations={investigationsQuery.data ?? []}
+                loading={investigationsQuery.isLoading}
+                canAddActivity={canUseSatgasActions}
+                canTransitionStatus={canInvestigate}
+                caseId={c.id}
+                language={i18n.language}
+                t={t}
+              />
+            </TabsContent>
+            <TabsContent value="recommendation">
+              <RecommendationsSection
+                recommendations={recommendationsQuery.data ?? []}
+                loading={recommendationsQuery.isLoading}
+                canUpdate={canRecommend}
+                canTransitionStatus={canRecommend}
+                caseId={c.id}
+                t={t}
+              />
+            </TabsContent>
+            <TabsContent value="decision">
+              <DecisionsSection
+                decisions={decisions}
+                loading={decisionQueries.some((query) => query.isLoading)}
+                canUpdate={canManageDecisionActions}
+                canTransitionStatus={canManageDecisionActions}
+                caseId={c.id}
+                language={i18n.language}
+                t={t}
+              />
+            </TabsContent>
+            <TabsContent value="recovery">
+              <RecoveriesSection
+                recoveries={recoveries}
+                loading={recoveryQueries.some((query) => query.isLoading)}
+                canAddMonitoring={canAddRecoveryMonitoring}
+                canTransitionStatus={canManageRecoveryActions}
+                caseId={c.id}
+                t={t}
+              />
+            </TabsContent>
+            <TabsContent value="evidence">
+              <EvidenceSection
+                evidences={evidences}
+                loading={evidenceQueries.some((query) => query.isLoading)}
+                canUpdate={canUseSatgasActions}
+                language={i18n.language}
+                t={t}
+              />
+            </TabsContent>
+          </Tabs>
         </div>
 
         <div className="space-y-4">
@@ -724,6 +785,42 @@ function MetadataOnlyText({ t }: { t: TFunction }) {
 
 function EmptyText({ children }: { children: React.ReactNode }) {
   return <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">{children}</div>;
+}
+
+function defaultWorkflowTabForCase(caseRecord: CaseRecord): WorkflowTab {
+  const values = [
+    caseRecord.current_stage,
+    caseRecord.current_stage_label,
+    caseRecord.status,
+    caseRecord.status_label,
+    caseRecord.status_code,
+  ];
+
+  for (const value of values) {
+    const tab = WORKFLOW_TAB_BY_TOKEN[normalizeWorkflowToken(value)];
+
+    if (tab && isWorkflowTab(tab)) {
+      return tab;
+    }
+  }
+
+  return WORKFLOW_TAB_FALLBACK;
+}
+
+function normalizeWorkflowToken(value: unknown) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function isWorkflowTab(value: string): value is WorkflowTab {
+  return (WORKFLOW_TABS as readonly string[]).includes(value);
 }
 
 function asText(value: unknown) {

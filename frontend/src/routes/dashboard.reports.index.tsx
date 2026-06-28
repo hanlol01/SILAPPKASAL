@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Lock, Search, SlidersHorizontal } from "lucide-react";
+import { FileText, Inbox, Lock, Search, SearchX, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AccessDenied } from "@/components/access-denied";
@@ -21,6 +21,7 @@ import { formatDateTime } from "@/lib/format";
 import { formatReportStatus, formatReportType } from "@/lib/format-labels";
 import { getReports, operationsQueryKeys } from "@/lib/operations-api";
 import type { ReportReporter } from "@/lib/operations-types";
+import { EmptyState } from "@/components/empty-state";
 
 export const Route = createFileRoute("/dashboard/reports/")({
   component: ReportsPage,
@@ -143,9 +144,11 @@ function ReportsPage() {
                   </div>
                 ))}
                 {filtered.length === 0 && (
-                  <div className="rounded-lg border border-dashed px-3 py-12 text-center text-sm text-muted-foreground">
-                    {t("dashboard:reports.empty")}
-                  </div>
+                  status !== "all" || reportType !== "all" || q ? (
+                    <EmptyState icon={SearchX} title={t("dashboard:reports.filteredEmptyTitle")} description={t("dashboard:reports.filteredEmptyDesc")} />
+                  ) : (
+                    <EmptyState icon={Inbox} title={t("dashboard:reports.emptyTitle")} description={t("dashboard:reports.emptyDesc")} />
+                  )
                 )}
               </div>
               <div className="hidden overflow-x-auto rounded-lg border md:block">
@@ -191,8 +194,12 @@ function ReportsPage() {
                     ))}
                     {filtered.length === 0 && (
                       <tr>
-                        <td colSpan={8} className="px-3 py-12 text-center text-sm text-muted-foreground">
-                          {t("dashboard:reports.empty")}
+                        <td colSpan={8} className="p-0">
+                          {status !== "all" || reportType !== "all" || q ? (
+                            <EmptyState icon={SearchX} title={t("dashboard:reports.filteredEmptyTitle")} description={t("dashboard:reports.filteredEmptyDesc")} />
+                          ) : (
+                            <EmptyState icon={Inbox} title={t("dashboard:reports.emptyTitle")} description={t("dashboard:reports.emptyDesc")} />
+                          )}
                         </td>
                       </tr>
                     )}

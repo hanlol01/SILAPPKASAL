@@ -35,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatRegistrationStatus } from "@/lib/format-labels";
 
 export const Route = createFileRoute("/dashboard/registrations/$id")({
@@ -107,7 +108,16 @@ function RegistrationDetailPage() {
           <CardTitle>{t("dashboard:registrations.detailTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          {detailQuery.isLoading && <p className="text-sm text-muted-foreground">{t("dashboard:common.loading")}</p>}
+          {detailQuery.isLoading && (
+            <div className="grid gap-3 md:grid-cols-2">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div key={i} className="rounded-md border bg-muted/20 p-3 space-y-2">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-4 w-40" />
+                </div>
+              ))}
+            </div>
+          )}
           {item && (
             <>
               <div className="grid gap-3 md:grid-cols-2">

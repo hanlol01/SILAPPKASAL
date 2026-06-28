@@ -2,6 +2,7 @@ import { createFileRoute, Link, Navigate, Outlet, useRouterState } from "@tansta
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Inbox, SearchX } from "lucide-react";
 
 import {
   campusQueryKeys,
@@ -16,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { SelectInput } from "@/components/form-fields";
 import { formatRegistrationStatus } from "@/lib/format-labels";
+import { EmptyState } from "@/components/empty-state";
 
 export const Route = createFileRoute("/dashboard/registrations")({
   component: RegistrationsPage,
@@ -117,7 +119,15 @@ function RegistrationsPage() {
               </tr>
             ))}
             {registrationsQuery.isSuccess && registrationsQuery.data.data.length === 0 && (
-              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t("dashboard:registrations.empty")}</td></tr>
+              <tr>
+                <td colSpan={6} className="p-0">
+                  {status || search || universityId ? (
+                    <EmptyState icon={SearchX} title={t("dashboard:registrations.filteredEmptyTitle")} description={t("dashboard:registrations.filteredEmptyDesc")} />
+                  ) : (
+                    <EmptyState icon={Inbox} title={t("dashboard:registrations.emptyTitle")} description={t("dashboard:registrations.emptyDesc")} />
+                  )}
+                </td>
+              </tr>
             )}
           </tbody>
         </table>

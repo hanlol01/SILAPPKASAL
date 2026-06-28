@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { QueryErrorState } from "@/components/query-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { dashboardQueryKeys, getDashboardWorkflow } from "@/lib/dashboard-api";
 import { formatDate } from "@/lib/format";
 import {
@@ -65,8 +66,22 @@ function WorkflowPage() {
           description={t("dashboard:workflow.pipeline.loadingDescription")}
         />
         <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">
-            {t("dashboard:workflow.pipeline.loading")}
+          <CardHeader>
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-4 w-80" />
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-5">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="rounded-lg border p-4 space-y-3">
+                  <Skeleton className="h-10 w-10 rounded-lg" />
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-8 w-14" />
+                  <Skeleton className="h-2 w-full rounded-full" />
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>

@@ -102,6 +102,7 @@
   "notificationsLoadError": "Notifications could not be loaded.",
   "noNotifications": "No notifications",
   "noNotificationsDesc": "You'll be notified when there are updates to your reports.",
+  "notificationsAdvisory": "These notifications are read-only and will be marked automatically when you open the related report.",
   
   "account": "Account",
   "accountSubtitle": "Manage your profile and security settings.",

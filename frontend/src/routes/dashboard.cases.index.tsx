@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Eye, Search, SlidersHorizontal } from "lucide-react";
+import { Eye, Inbox, Search, SearchX, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { QueryErrorState } from "@/components/query-state";
@@ -18,6 +18,7 @@ import {
 import { formatDateTime } from "@/lib/format";
 import { formatCaseStatus } from "@/lib/format-labels";
 import { getCases, operationsQueryKeys } from "@/lib/operations-api";
+import { EmptyState } from "@/components/empty-state";
 
 export const Route = createFileRoute("/dashboard/cases/")({
   component: CasesPage,
@@ -126,9 +127,11 @@ function CasesPage() {
                   </div>
                 ))}
                 {filtered.length === 0 && (
-                  <div className="rounded-lg border border-dashed px-3 py-12 text-center text-sm text-muted-foreground">
-                    {t("dashboard:cases.empty")}
-                  </div>
+                  status !== "all" || q ? (
+                    <EmptyState icon={SearchX} title={t("dashboard:cases.filteredEmptyTitle")} description={t("dashboard:cases.filteredEmptyDesc")} />
+                  ) : (
+                    <EmptyState icon={Inbox} title={t("dashboard:cases.emptyTitle")} description={t("dashboard:cases.emptyDesc")} />
+                  )
                 )}
               </div>
               <div className="hidden overflow-x-auto rounded-lg border md:block">
@@ -164,8 +167,12 @@ function CasesPage() {
                     ))}
                     {filtered.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="px-3 py-12 text-center text-sm text-muted-foreground">
-                          {t("dashboard:cases.empty")}
+                        <td colSpan={7} className="p-0">
+                          {status !== "all" || q ? (
+                            <EmptyState icon={SearchX} title={t("dashboard:cases.filteredEmptyTitle")} description={t("dashboard:cases.filteredEmptyDesc")} />
+                          ) : (
+                            <EmptyState icon={Inbox} title={t("dashboard:cases.emptyTitle")} description={t("dashboard:cases.emptyDesc")} />
+                          )}
                         </td>
                       </tr>
                     )}

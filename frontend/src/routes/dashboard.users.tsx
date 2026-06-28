@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod";
+import { Inbox, SearchX } from "lucide-react";
 
 import {
   activateUser,
@@ -37,6 +38,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Form } from "@/components/ui/form";
 import { PasswordField, SelectFormField, SelectInput, TextInputField } from "@/components/form-fields";
+import { EmptyState } from "@/components/empty-state";
 
 export const Route = createFileRoute("/dashboard/users")({
   component: DashboardUsersPage,
@@ -277,7 +279,15 @@ function DashboardUsersPage() {
               </tr>
             ))}
             {usersQuery.isSuccess && usersQuery.data.data.length === 0 && (
-              <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">{t("dashboard:users.noReporters")}</td></tr>
+              <tr>
+                <td colSpan={5} className="p-0">
+                  {search || isActive || universityId || facultyId || studyProgramId ? (
+                    <EmptyState icon={SearchX} title={t("dashboard:users.filteredEmptyTitle")} description={t("dashboard:users.filteredEmptyDesc")} />
+                  ) : (
+                    <EmptyState icon={Inbox} title={t("dashboard:users.emptyTitle")} description={t("dashboard:users.emptyDesc")} />
+                  )}
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
