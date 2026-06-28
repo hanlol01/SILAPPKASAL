@@ -26,5 +26,10 @@
   "accessDeniedDesc": "Your account is authenticated, but it does not have access to this area.",
   "backToDashboard": "Back to dashboard",
   "yes": "Yes",
-  "no": "No"
+  "no": "No",
+  "validation": {
+    "required": "This field is required.",
+    "email": "Enter a valid email address.",
+    "passwordConfirmationMismatch": "Password confirmation does not match."
+  }
 }

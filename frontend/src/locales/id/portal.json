@@ -40,6 +40,7 @@
   "trackSubmit": "Lacak",
   "trackingLoading": "Melacak...",
   "trackingError": "Laporan tidak dapat dilacak.",
+  "trackingInvalidFormat": "Format kode pelacakan tidak valid.",
   "myReports": "Laporan Saya",
   "myReportsSubtitle": "Semua laporan yang telah Anda kirimkan.",
   "searchPlaceholder": "Cari berdasarkan nomor registrasi, status, kategori...",

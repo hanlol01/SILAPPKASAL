@@ -1,8 +1,11 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import {
   activateUser,
@@ -15,11 +18,13 @@ import {
 import { campusQueryKeys, getFaculties, getStudyPrograms, getUniversities } from "@/lib/registration-api";
 import { useAuth } from "@/hooks/use-auth";
 import { ApiError } from "@/lib/api-client";
+import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { PasswordInput } from "@/components/ui/password-input";
 import { Badge } from "@/components/ui/badge";
+import { Form } from "@/components/ui/form";
+import { PasswordField, SelectFormField, SelectInput, TextInputField } from "@/components/form-fields";
 
 export const Route = createFileRoute("/dashboard/users")({
   component: DashboardUsersPage,
@@ -107,23 +112,52 @@ function DashboardUsersPage() {
       <Card>
         <CardContent className="grid gap-3 p-4 md:grid-cols-5">
           <Input placeholder={t("dashboard:users.searchReporters")} value={search} onChange={(e) => setSearch(e.target.value)} />
-          <select className="h-10 rounded-md border bg-background px-3 text-sm" value={isActive} onChange={(e) => setIsActive(e.target.value)}>
-            <option value="">{t("dashboard:users.anyActiveStatus")}</option>
-            <option value="true">{t("dashboard:users.active")}</option>
-            <option value="false">{t("dashboard:users.inactive")}</option>
-          </select>
-          <select className="h-10 rounded-md border bg-background px-3 text-sm" value={universityId} onChange={(e) => { setUniversityId(e.target.value); setFacultyId(""); setStudyProgramId(""); }}>
-            <option value="">{t("dashboard:common.allUniversities")}</option>
-            {(universitiesQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
-          <select className="h-10 rounded-md border bg-background px-3 text-sm" value={facultyId} onChange={(e) => { setFacultyId(e.target.value); setStudyProgramId(""); }} disabled={!universityId}>
-            <option value="">{t("dashboard:users.allFaculties")}</option>
-            {(facultiesQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
-          <select className="h-10 rounded-md border bg-background px-3 text-sm" value={studyProgramId} onChange={(e) => setStudyProgramId(e.target.value)} disabled={!universityId}>
-            <option value="">{t("dashboard:users.allStudyPrograms")}</option>
-            {(studyProgramsQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
+          <SelectInput
+            value={isActive}
+            onValueChange={setIsActive}
+            placeholder={t("dashboard:users.anyActiveStatus")}
+            options={[
+              { value: "", label: t("dashboard:users.anyActiveStatus") },
+              { value: "true", label: t("dashboard:users.active") },
+              { value: "false", label: t("dashboard:users.inactive") },
+            ]}
+          />
+          <SelectInput
+            value={universityId}
+            onValueChange={(value) => {
+              setUniversityId(value);
+              setFacultyId("");
+              setStudyProgramId("");
+            }}
+            placeholder={t("dashboard:common.allUniversities")}
+            options={[
+              { value: "", label: t("dashboard:common.allUniversities") },
+              ...(universitiesQuery.data ?? []).map((item) => ({ value: String(item.id), label: item.name })),
+            ]}
+          />
+          <SelectInput
+            value={facultyId}
+            onValueChange={(value) => {
+              setFacultyId(value);
+              setStudyProgramId("");
+            }}
+            placeholder={t("dashboard:users.allFaculties")}
+            disabled={!universityId}
+            options={[
+              { value: "", label: t("dashboard:users.allFaculties") },
+              ...(facultiesQuery.data ?? []).map((item) => ({ value: String(item.id), label: item.name })),
+            ]}
+          />
+          <SelectInput
+            value={studyProgramId}
+            onValueChange={setStudyProgramId}
+            placeholder={t("dashboard:users.allStudyPrograms")}
+            disabled={!universityId}
+            options={[
+              { value: "", label: t("dashboard:users.allStudyPrograms") },
+              ...(studyProgramsQuery.data ?? []).map((item) => ({ value: String(item.id), label: item.name })),
+            ]}
+          />
         </CardContent>
       </Card>
 
@@ -169,82 +203,145 @@ function DashboardUsersPage() {
 }
 
 function CreateReporterCard({ onCreated }: { onCreated: (temporaryPassword: string) => void }) {
-  const { t } = useTranslation(["auth", "dashboard", "portal"]);
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    nim: "",
-    phone_number: "",
-    university_id: "",
-    faculty_id: "",
-    study_program_id: "",
-    password: "",
+  const { t } = useTranslation(["auth", "dashboard", "portal", "common"]);
+  const form = useForm<CreateReporterValues>({
+    resolver: zodResolver(createCreateReporterSchema(validationMessages(t))),
+    defaultValues: {
+      name: "",
+      email: "",
+      nim: "",
+      phone_number: "",
+      university_id: "",
+      faculty_id: "",
+      study_program_id: "",
+      password: "",
+    },
   });
-  const [errors, setErrors] = useState<Record<string, string[]>>({});
+  const universityId = form.watch("university_id");
+  const facultyId = form.watch("faculty_id");
+  const values = form.watch();
   const universitiesQuery = useQuery({ queryKey: campusQueryKeys.universities(), queryFn: getUniversities });
-  const selectedUniversity = universitiesQuery.data?.find((item) => String(item.id) === form.university_id);
+  const selectedUniversity = universitiesQuery.data?.find((item) => String(item.id) === universityId);
   const hasFaculties = selectedUniversity?.has_faculties === true;
-  const effectiveFacultyId = hasFaculties && form.faculty_id ? Number(form.faculty_id) : null;
+  const effectiveFacultyId = hasFaculties && facultyId ? Number(facultyId) : null;
   const facultiesQuery = useQuery({
-    queryKey: campusQueryKeys.faculties(Number(form.university_id) || null),
-    queryFn: () => getFaculties(Number(form.university_id)),
-    enabled: Boolean(form.university_id && hasFaculties),
+    queryKey: campusQueryKeys.faculties(Number(universityId) || null),
+    queryFn: () => getFaculties(Number(universityId)),
+    enabled: Boolean(universityId && hasFaculties),
   });
   const studyProgramsQuery = useQuery({
-    queryKey: campusQueryKeys.studyPrograms(Number(form.university_id) || null, effectiveFacultyId),
-    queryFn: () => getStudyPrograms(Number(form.university_id), effectiveFacultyId),
-    enabled: Boolean(form.university_id),
+    queryKey: campusQueryKeys.studyPrograms(Number(universityId) || null, effectiveFacultyId),
+    queryFn: () => getStudyPrograms(Number(universityId), effectiveFacultyId),
+    enabled: Boolean(universityId),
   });
   const mutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (values: CreateReporterValues) =>
       createReporter({
-        name: form.name,
-        email: form.email,
-        nim: form.nim,
-        phone_number: form.phone_number,
-        university_id: Number(form.university_id),
+        name: values.name,
+        email: values.email,
+        nim: values.nim,
+        phone_number: values.phone_number,
+        university_id: Number(values.university_id),
         faculty_id: effectiveFacultyId,
-        study_program_id: Number(form.study_program_id),
-        password: form.password,
+        study_program_id: Number(values.study_program_id),
+        password: values.password,
       }),
     onSuccess: (data) => onCreated(data.temporary_password),
     onError: (error) => {
-      if (error instanceof ApiError) {
-        setErrors(error.errors ?? {});
-        toast.error(error.message);
-      }
+      applyLaravelErrors(form, error);
+      toast.error(apiErrorMessage(error, t("common:unexpectedError")));
     },
   });
-  const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const canSubmit = Boolean(
+    values.name &&
+    values.email &&
+    values.nim &&
+    values.phone_number &&
+    values.university_id &&
+    values.study_program_id &&
+    values.password,
+  );
 
   return (
     <Card>
       <CardHeader><CardTitle>{t("dashboard:users.createReporter")}</CardTitle></CardHeader>
       <CardContent>
-        <form className="grid gap-3 md:grid-cols-2" onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }}>
-          <Input placeholder={t("dashboard:users.name")} value={form.name} onChange={(e) => update("name", e.target.value)} required />
-          <Input placeholder={t("dashboard:users.email")} type="email" value={form.email} onChange={(e) => update("email", e.target.value)} required />
-          <Input placeholder="NIM" value={form.nim} onChange={(e) => update("nim", e.target.value)} required />
-          <Input placeholder={t("portal:phoneNumber")} value={form.phone_number} onChange={(e) => update("phone_number", e.target.value)} required />
-          <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.university_id} onChange={(e) => { update("university_id", e.target.value); update("faculty_id", ""); update("study_program_id", ""); }} required>
-            <option value="">{t("auth:selectUniversity")}</option>
-            {(universitiesQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
-          {hasFaculties && (
-            <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.faculty_id} onChange={(e) => { update("faculty_id", e.target.value); update("study_program_id", ""); }}>
-              <option value="">{t("auth:selectFaculty")}</option>
-              {(facultiesQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
-          )}
-          <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.study_program_id} onChange={(e) => update("study_program_id", e.target.value)} required>
-            <option value="">{t("auth:selectStudyProgram")}</option>
-            {(studyProgramsQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
-          <PasswordInput placeholder={t("dashboard:users.temporaryPasswordPlaceholder")} value={form.password} onChange={(e) => update("password", e.target.value)} required />
-          {Object.keys(errors).length > 0 && <p className="text-sm text-destructive md:col-span-2">{t("dashboard:users.reviewFormValues")}</p>}
-          <Button type="submit" disabled={mutation.isPending} className="md:col-span-2">{t("dashboard:users.createReporter")}</Button>
-        </form>
+        <Form {...form}>
+          <form className="grid gap-3 md:grid-cols-2" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+            <TextInputField control={form.control} name="name" label={t("dashboard:users.name")} />
+            <TextInputField control={form.control} name="email" label={t("dashboard:users.email")} type="email" />
+            <TextInputField control={form.control} name="nim" label="NIM" />
+            <TextInputField control={form.control} name="phone_number" label={t("portal:phoneNumber")} />
+            <SelectFormField
+              control={form.control}
+              name="university_id"
+              label={t("auth:university")}
+              placeholder={t("auth:selectUniversity")}
+              onValueChange={() => {
+                form.setValue("faculty_id", "");
+                form.setValue("study_program_id", "");
+              }}
+              options={(universitiesQuery.data ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
+            />
+            {hasFaculties && (
+              <SelectFormField
+                control={form.control}
+                name="faculty_id"
+                label={`${t("auth:faculty")} (${t("auth:optional")})`}
+                placeholder={t("auth:selectFaculty")}
+                onValueChange={() => form.setValue("study_program_id", "")}
+                options={[
+                  { value: "", label: t("auth:selectFaculty") },
+                  ...(facultiesQuery.data ?? []).map((item) => ({ value: String(item.id), label: item.name })),
+                ]}
+              />
+            )}
+            <SelectFormField
+              control={form.control}
+              name="study_program_id"
+              label={t("auth:studyProgram")}
+              placeholder={t("auth:selectStudyProgram")}
+              disabled={!universityId || studyProgramsQuery.isLoading}
+              options={(studyProgramsQuery.data ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
+            />
+            <PasswordField
+              control={form.control}
+              name="password"
+              label={t("dashboard:users.temporaryPasswordPlaceholder")}
+            />
+            <Button type="submit" disabled={mutation.isPending || !canSubmit} className="md:col-span-2">
+              {mutation.isPending ? t("dashboard:common.saving") : t("dashboard:users.createReporter")}
+            </Button>
+          </form>
+        </Form>
       </CardContent>
     </Card>
   );
+}
+
+function createCreateReporterSchema(messages: ValidationMessages) {
+  return z.object({
+    name: z.string().min(1, messages.required),
+    email: z.string().min(1, messages.required).email(messages.email),
+    nim: z.string().min(1, messages.required),
+    phone_number: z.string().min(1, messages.required),
+    university_id: z.string().min(1, messages.required),
+    faculty_id: z.string().optional(),
+    study_program_id: z.string().min(1, messages.required),
+    password: z.string().min(1, messages.required),
+  });
+}
+
+type CreateReporterValues = z.infer<ReturnType<typeof createCreateReporterSchema>>;
+
+type ValidationMessages = {
+  required: string;
+  email: string;
+};
+
+function validationMessages(t: ReturnType<typeof useTranslation>["t"]): ValidationMessages {
+  return {
+    required: t("common:validation.required"),
+    email: t("common:validation.email"),
+  };
 }

@@ -26,5 +26,10 @@
   "accessDeniedDesc": "Akun Anda sudah masuk, tetapi tidak memiliki akses ke area ini.",
   "backToDashboard": "Kembali ke dashboard",
   "yes": "Ya",
-  "no": "Tidak"
+  "no": "Tidak",
+  "validation": {
+    "required": "Wajib diisi.",
+    "email": "Masukkan alamat email yang valid.",
+    "passwordConfirmationMismatch": "Konfirmasi kata sandi tidak cocok."
+  }
 }

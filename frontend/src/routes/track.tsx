@@ -1,15 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { Search } from "lucide-react";
+import { z } from "zod";
 
 import { ApiError } from "@/lib/api-client";
 import { trackReport } from "@/lib/portal-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Form } from "@/components/ui/form";
+import { TextInputField } from "@/components/form-fields";
 
 export const Route = createFileRoute("/track")({
   component: TrackPage,
@@ -22,15 +25,24 @@ export const Route = createFileRoute("/track")({
 });
 
 function TrackPage() {
-  const { t } = useTranslation(["portal", "auth"]);
-  const [trackingCode, setTrackingCode] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation(["portal", "auth", "common"]);
+  const form = useForm<TrackingValues>({
+    resolver: zodResolver(trackingSchema(t("portal:trackingInvalidFormat"))),
+    defaultValues: {
+      tracking_code: "",
+    },
+  });
 
   const mutation = useMutation({
-    mutationFn: () => trackReport(trackingCode.trim()),
-    onMutate: () => setError(null),
+    mutationFn: (values: TrackingValues) => trackReport(values.tracking_code.trim()),
     onError: (err) => {
-      setError(err instanceof ApiError ? err.message : t("portal:trackingError"));
+      form.setError("tracking_code", {
+        type: "server",
+        message: err instanceof ApiError ? err.message : t("portal:trackingError"),
+      });
+      if (!(err instanceof ApiError)) {
+        toast.error(t("common:unexpectedError"));
+      }
     },
   });
 
@@ -53,30 +65,21 @@ function TrackPage() {
           <p className="text-sm text-muted-foreground">{t("portal:trackSubtitle")}</p>
         </CardHeader>
         <CardContent className="space-y-5">
-          <form
-            className="space-y-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              mutation.mutate();
-            }}
-          >
-            <div className="space-y-2">
-              <Label htmlFor="tracking_code">{t("portal:trackingCode")}</Label>
-              <Input
-                id="tracking_code"
-                value={trackingCode}
-                onChange={(e) => setTrackingCode(e.target.value.toUpperCase())}
+          <Form {...form}>
+            <form className="space-y-3" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+              <TextInputField
+                control={form.control}
+                name="tracking_code"
+                label={t("portal:trackingCode")}
                 placeholder="XXXX-XXXX-XXXX-XXXX"
-                required
+                transformValue={(value) => value.toUpperCase()}
               />
-            </div>
-            <Button type="submit" className="w-full gap-2" disabled={mutation.isPending}>
-              <Search className="h-4 w-4" />
-              {mutation.isPending ? t("portal:trackingLoading") : t("portal:trackSubmit")}
-            </Button>
-          </form>
-
-          {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+              <Button type="submit" className="w-full gap-2" disabled={mutation.isPending}>
+                <Search className="h-4 w-4" />
+                {mutation.isPending ? t("portal:trackingLoading") : t("portal:trackSubmit")}
+              </Button>
+            </form>
+          </Form>
 
           {result && (
             <div className="rounded-md border bg-background p-4">
@@ -101,3 +104,16 @@ function TrackPage() {
     </div>
   );
 }
+
+const trackingCodePattern = /^[A-Z0-9-]{16,32}$/;
+
+function trackingSchema(invalidMessage: string) {
+  return z.object({
+    tracking_code: z
+      .string()
+      .min(1, invalidMessage)
+      .refine((value) => trackingCodePattern.test(value.trim().toUpperCase()), invalidMessage),
+  });
+}
+
+type TrackingValues = z.infer<ReturnType<typeof trackingSchema>>;

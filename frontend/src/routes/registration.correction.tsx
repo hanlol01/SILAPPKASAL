@@ -1,10 +1,13 @@
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { z } from "zod";
 
-import { ApiError } from "@/lib/api-client";
+import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import {
   campusQueryKeys,
   correctReporterRegistration,
@@ -14,9 +17,8 @@ import {
 } from "@/lib/registration-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { PasswordInput } from "@/components/ui/password-input";
+import { Form } from "@/components/ui/form";
+import { PasswordField, SelectFormField, TextInputField } from "@/components/form-fields";
 import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/registration/correction")({
@@ -24,64 +26,55 @@ export const Route = createFileRoute("/registration/correction")({
 });
 
 function RegistrationCorrectionPage() {
-  const { t } = useTranslation(["auth", "portal"]);
+  const { t } = useTranslation(["auth", "portal", "common"]);
   const { registration, setRegistration } = useAuth();
   const navigate = useNavigate();
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [form, setForm] = useState(() => ({
-    name: registration?.name ?? "",
-    nim: registration?.nim ?? "",
-    phone_number: registration?.phone_number ?? "",
-    university_id: registration?.university_id ? String(registration.university_id) : "",
-    faculty_id: registration?.faculty_id ? String(registration.faculty_id) : "",
-    study_program_id: registration?.study_program_id ? String(registration.study_program_id) : "",
-    new_password: "",
-    new_password_confirmation: "",
-  }));
-  const [errors, setErrors] = useState<Record<string, string[]>>({});
+  const form = useForm<CorrectionValues>({
+    resolver: zodResolver(createCorrectionSchema(validationMessages(t))),
+    defaultValues: toFormValues(registration),
+  });
+  const universityId = form.watch("university_id");
+  const facultyId = form.watch("faculty_id");
+  const values = form.watch();
 
   const universitiesQuery = useQuery({ queryKey: campusQueryKeys.universities(), queryFn: getUniversities });
-  const selectedUniversity = universitiesQuery.data?.find((item) => String(item.id) === form.university_id);
+  const selectedUniversity = universitiesQuery.data?.find((item) => String(item.id) === universityId);
   const hasFaculties = selectedUniversity?.has_faculties === true;
-  const effectiveFacultyId = hasFaculties && form.faculty_id ? Number(form.faculty_id) : null;
+  const effectiveFacultyId = hasFaculties && facultyId ? Number(facultyId) : null;
   const facultiesQuery = useQuery({
-    queryKey: campusQueryKeys.faculties(Number(form.university_id) || null),
-    queryFn: () => getFaculties(Number(form.university_id)),
-    enabled: Boolean(form.university_id && hasFaculties),
+    queryKey: campusQueryKeys.faculties(Number(universityId) || null),
+    queryFn: () => getFaculties(Number(universityId)),
+    enabled: Boolean(universityId && hasFaculties),
   });
   const studyProgramsQuery = useQuery({
-    queryKey: campusQueryKeys.studyPrograms(Number(form.university_id) || null, effectiveFacultyId),
-    queryFn: () => getStudyPrograms(Number(form.university_id), effectiveFacultyId),
-    enabled: Boolean(form.university_id),
+    queryKey: campusQueryKeys.studyPrograms(Number(universityId) || null, effectiveFacultyId),
+    queryFn: () => getStudyPrograms(Number(universityId), effectiveFacultyId),
+    enabled: Boolean(universityId),
   });
 
   useEffect(() => {
-    if (!hasFaculties && form.faculty_id) {
-      setForm((current) => ({ ...current, faculty_id: "" }));
+    form.reset(toFormValues(registration));
+  }, [form, registration]);
+
+  useEffect(() => {
+    if (selectedUniversity && !hasFaculties && facultyId) {
+      form.setValue("faculty_id", "");
     }
-  }, [hasFaculties, form.faculty_id]);
-
-  useEffect(() => {
-    setForm((current) => ({ ...current, faculty_id: "", study_program_id: "" }));
-  }, [form.university_id]);
-
-  useEffect(() => {
-    setForm((current) => ({ ...current, study_program_id: "" }));
-  }, [form.faculty_id]);
+  }, [facultyId, form, hasFaculties, selectedUniversity]);
 
   const mutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (values: CorrectionValues) =>
       correctReporterRegistration({
-        email: registration?.email ?? "",
-        password: currentPassword,
-        name: form.name,
-        nim: form.nim,
-        phone_number: form.phone_number,
-        university_id: Number(form.university_id),
+        email: values.email,
+        password: values.password,
+        name: values.name,
+        nim: values.nim,
+        phone_number: values.phone_number,
+        university_id: Number(values.university_id),
         faculty_id: effectiveFacultyId,
-        study_program_id: Number(form.study_program_id),
-        new_password: form.new_password || undefined,
-        new_password_confirmation: form.new_password_confirmation || undefined,
+        study_program_id: Number(values.study_program_id),
+        new_password: values.new_password || undefined,
+        new_password_confirmation: values.new_password_confirmation || undefined,
       }),
     onSuccess: (data) => {
       setRegistration(data);
@@ -89,28 +82,21 @@ function RegistrationCorrectionPage() {
       navigate({ to: "/registration/pending", replace: true });
     },
     onError: (error) => {
-      if (error instanceof ApiError) {
-        setErrors(error.errors ?? {});
-        toast.error(error.message);
-      }
+      applyLaravelErrors(form, error);
+      toast.error(apiErrorMessage(error, t("common:unexpectedError")));
     },
   });
 
   if (!registration) return <Navigate to="/login" replace />;
   if (registration.status !== "rejected") return <Navigate to="/registration/pending" replace />;
 
-  const update = (key: keyof typeof form, value: string) => {
-    setForm((current) => ({ ...current, [key]: value }));
-    setErrors((current) => ({ ...current, [key]: [] }));
-  };
-
   const canSubmit = Boolean(
-    currentPassword &&
-    form.name &&
-    form.nim &&
-    form.phone_number &&
-    form.university_id &&
-    form.study_program_id,
+    values.password &&
+    values.name &&
+    values.nim &&
+    values.phone_number &&
+    values.university_id &&
+    values.study_program_id,
   );
 
   return (
@@ -123,75 +109,126 @@ function RegistrationCorrectionPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <form
-            className="grid gap-4 md:grid-cols-2"
-            onSubmit={(event) => {
-              event.preventDefault();
-              mutation.mutate();
-            }}
-          >
-            <Field label={t("auth:emailAddress")}>
-              <Input value={registration.email} readOnly />
-            </Field>
-            <Field label={t("auth:currentPassword")} error={errors.password?.[0]}>
-              <PasswordInput value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
-            </Field>
-            <Field label={t("auth:fullName")} error={errors.name?.[0]}>
-              <Input value={form.name} onChange={(e) => update("name", e.target.value)} required />
-            </Field>
-            <Field label={t("auth:nim")} error={errors.nim?.[0]}>
-              <Input value={form.nim} onChange={(e) => update("nim", e.target.value)} required />
-            </Field>
-            <Field label={t("portal:phoneNumber")} error={errors.phone_number?.[0]}>
-              <Input value={form.phone_number} onChange={(e) => update("phone_number", e.target.value)} required />
-            </Field>
-            <Field label={t("auth:university")} error={errors.university_id?.[0]}>
-              <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.university_id} onChange={(e) => update("university_id", e.target.value)} required disabled={universitiesQuery.isLoading}>
-                <option value="">{universitiesQuery.isLoading ? t("auth:loadingUniversities") : t("auth:selectUniversity")}</option>
-                {(universitiesQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                {universitiesQuery.isSuccess && universitiesQuery.data.length === 0 && <option value="" disabled>{t("auth:noUniversitiesAvailable")}</option>}
-              </select>
-            </Field>
-            {hasFaculties && (
-              <Field label={`${t("auth:faculty")} (${t("auth:optional")})`} error={errors.faculty_id?.[0]}>
-                <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.faculty_id} onChange={(e) => update("faculty_id", e.target.value)} disabled={facultiesQuery.isLoading}>
-                  <option value="">{facultiesQuery.isLoading ? t("auth:loadingFaculties") : t("auth:selectFaculty")}</option>
-                  {(facultiesQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                  {facultiesQuery.isSuccess && facultiesQuery.data.length === 0 && <option value="" disabled>{t("auth:noFacultiesAvailable")}</option>}
-                </select>
-              </Field>
-            )}
-            <Field label={t("auth:studyProgram")} error={errors.study_program_id?.[0]}>
-              <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.study_program_id} onChange={(e) => update("study_program_id", e.target.value)} required disabled={!form.university_id || studyProgramsQuery.isLoading}>
-                <option value="">{studyProgramsQuery.isLoading ? t("auth:loadingStudyPrograms") : t("auth:selectStudyProgram")}</option>
-                {(studyProgramsQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                {studyProgramsQuery.isSuccess && studyProgramsQuery.data.length === 0 && <option value="" disabled>{t("auth:noStudyProgramsAvailable")}</option>}
-              </select>
-            </Field>
-            <Field label={t("auth:optionalNewPassword")} error={errors.new_password?.[0]}>
-              <PasswordInput value={form.new_password} onChange={(e) => update("new_password", e.target.value)} />
-            </Field>
-            <Field label={t("auth:confirmNewPassword")}>
-              <PasswordInput value={form.new_password_confirmation} onChange={(e) => update("new_password_confirmation", e.target.value)} />
-            </Field>
-            <div className="md:col-span-2">
-              <Button type="submit" className="w-full" disabled={mutation.isPending || !canSubmit}>
-                {mutation.isPending ? t("auth:submittingCorrection") : t("auth:submitCorrection")}
-              </Button>
-            </div>
-          </form>
+          <Form {...form}>
+            <form className="grid gap-4 md:grid-cols-2" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+              <TextInputField control={form.control} name="email" label={t("auth:emailAddress")} readOnly />
+              <PasswordField control={form.control} name="password" label={t("auth:currentPassword")} />
+              <TextInputField control={form.control} name="name" label={t("auth:fullName")} />
+              <TextInputField control={form.control} name="nim" label={t("auth:nim")} />
+              <TextInputField control={form.control} name="phone_number" label={t("portal:phoneNumber")} />
+              <SelectFormField
+                control={form.control}
+                name="university_id"
+                label={t("auth:university")}
+                placeholder={universitiesQuery.isLoading ? t("auth:loadingUniversities") : t("auth:selectUniversity")}
+                disabled={universitiesQuery.isLoading}
+                onValueChange={() => {
+                  form.setValue("faculty_id", "");
+                  form.setValue("study_program_id", "");
+                }}
+                options={
+                  universitiesQuery.isSuccess && universitiesQuery.data.length === 0
+                    ? [{ value: "", label: t("auth:noUniversitiesAvailable"), disabled: true }]
+                    : (universitiesQuery.data ?? []).map((item) => ({ value: String(item.id), label: item.name }))
+                }
+              />
+              {hasFaculties && (
+                <SelectFormField
+                  control={form.control}
+                  name="faculty_id"
+                  label={`${t("auth:faculty")} (${t("auth:optional")})`}
+                  placeholder={facultiesQuery.isLoading ? t("auth:loadingFaculties") : t("auth:selectFaculty")}
+                  disabled={facultiesQuery.isLoading}
+                  onValueChange={() => form.setValue("study_program_id", "")}
+                  options={[
+                    { value: "", label: facultiesQuery.isLoading ? t("auth:loadingFaculties") : t("auth:selectFaculty") },
+                    ...(facultiesQuery.isSuccess && facultiesQuery.data.length === 0
+                      ? [{ value: "", label: t("auth:noFacultiesAvailable"), disabled: true }]
+                      : (facultiesQuery.data ?? []).map((item) => ({ value: String(item.id), label: item.name }))),
+                  ]}
+                />
+              )}
+              <SelectFormField
+                control={form.control}
+                name="study_program_id"
+                label={t("auth:studyProgram")}
+                placeholder={studyProgramsQuery.isLoading ? t("auth:loadingStudyPrograms") : t("auth:selectStudyProgram")}
+                disabled={!universityId || studyProgramsQuery.isLoading}
+                options={
+                  studyProgramsQuery.isSuccess && studyProgramsQuery.data.length === 0
+                    ? [{ value: "", label: t("auth:noStudyProgramsAvailable"), disabled: true }]
+                    : (studyProgramsQuery.data ?? []).map((item) => ({ value: String(item.id), label: item.name }))
+                }
+              />
+              <PasswordField control={form.control} name="new_password" label={t("auth:optionalNewPassword")} />
+              <PasswordField control={form.control} name="new_password_confirmation" label={t("auth:confirmNewPassword")} />
+              <div className="md:col-span-2">
+                <Button type="submit" className="w-full" disabled={mutation.isPending || !canSubmit}>
+                  {mutation.isPending ? t("auth:submittingCorrection") : t("auth:submitCorrection")}
+                </Button>
+              </div>
+            </form>
+          </Form>
         </CardContent>
       </Card>
     </div>
   );
 }
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
-  return (
-    <div className="grid gap-2">
-      <Label>{label}</Label>
-      {children}
-      {error && <p className="text-xs text-destructive">{error}</p>}
-    </div>
-  );
+function createCorrectionSchema(messages: ValidationMessages) {
+  return z
+    .object({
+      email: z.string().min(1, messages.required).email(messages.email),
+      password: z.string().min(1, messages.required),
+      name: z.string().min(1, messages.required),
+      nim: z.string().min(1, messages.required),
+      phone_number: z.string().min(1, messages.required),
+      university_id: z.string().min(1, messages.required),
+      faculty_id: z.string().optional(),
+      study_program_id: z.string().min(1, messages.required),
+      new_password: z.string().optional(),
+      new_password_confirmation: z.string().optional(),
+    })
+    .superRefine((values, context) => {
+      if (!values.new_password && !values.new_password_confirmation) return;
+
+      if (values.new_password !== values.new_password_confirmation) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["new_password_confirmation"],
+          message: messages.passwordConfirmationMismatch,
+        });
+      }
+    });
+}
+
+type CorrectionValues = z.infer<ReturnType<typeof createCorrectionSchema>>;
+
+function toFormValues(registration: ReturnType<typeof useAuth>["registration"]): CorrectionValues {
+  return {
+    email: registration?.email ?? "",
+    password: "",
+    name: registration?.name ?? "",
+    nim: registration?.nim ?? "",
+    phone_number: registration?.phone_number ?? "",
+    university_id: registration?.university_id ? String(registration.university_id) : "",
+    faculty_id: registration?.faculty_id ? String(registration.faculty_id) : "",
+    study_program_id: registration?.study_program_id ? String(registration.study_program_id) : "",
+    new_password: "",
+    new_password_confirmation: "",
+  };
+}
+
+type ValidationMessages = {
+  required: string;
+  email: string;
+  passwordConfirmationMismatch: string;
+};
+
+function validationMessages(t: ReturnType<typeof useTranslation>["t"]): ValidationMessages {
+  return {
+    required: t("common:validation.required"),
+    email: t("common:validation.email"),
+    passwordConfirmationMismatch: t("common:validation.passwordConfirmationMismatch"),
+  };
 }
