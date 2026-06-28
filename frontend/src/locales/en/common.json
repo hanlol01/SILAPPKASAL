@@ -25,6 +25,7 @@
   "accessDenied": "Access denied",
   "accessDeniedDesc": "Your account is authenticated, but it does not have access to this area.",
   "backToDashboard": "Back to dashboard",
+  "userMenu": "User menu",
   "yes": "Yes",
   "no": "No",
   "validation": {

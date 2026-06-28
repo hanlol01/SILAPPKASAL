@@ -601,3 +601,59 @@ PASS
 - QA did not run an authenticated browser viewport test at 360x740; responsive behavior was verified by static inspection and build/lint/TypeScript checks.
 - Breadcrumbs on some admin detail pages are rendered after successful data load; manual QA should also observe loading/error states to confirm the experience remains understandable.
 - The portal nav is horizontally scrollable by design on narrow screens; manual QA should confirm this feels usable with all labels visible.
+
+# UX-07
+
+## Executive Summary
+
+QA reviewed UX-07 against `REPORT_UX_AUDIT.md` and `UX_IMPROVEMENT_PLAN.md`, focusing on Accessibility & Status Multi-channel for F-20 and F-21.
+
+Implementation is aligned with the milestone scope. Case and portal status badges now provide multi-channel status communication through text, color, and leading icons. Dashboard and portal avatar dropdown triggers now have localized accessible names. Light-mode `success` and `info` tokens were darkened and independently checked against white backgrounds, passing WCAG AA contrast for normal text.
+
+No new UX-07 bugs were found during static QA, contrast calculation, and tooling verification.
+
+## Implementation Score (0-100)
+
+96
+
+## PASS / FAIL
+
+PASS
+
+## Findings
+
+| ID | Area | Result | Evidence |
+|---|---|---|---|
+| QA-UX07-001 | Scope compliance | PASS | UX-07 target files were reviewed: `status-badge.tsx`, `portal-status-badge.tsx`, `dashboard-layout.tsx`, `portal-layout.tsx`, `styles.css`, and common locale files. Changes map to F-20 and F-21 only. |
+| QA-UX07-002 | Case status multi-channel badges | PASS | `StatusBadge` maps each `CaseStatus` to a distinct Lucide icon and renders icon + localized label + tonal color. Icons are `aria-hidden="true"` so the text label remains the accessible status. |
+| QA-UX07-003 | Portal status multi-channel badges | PASS | `PortalStatusBadge` maps Submitted, Under Review, In Process, Completed, and unknown fallback labels to leading icons and keeps localized label rendering via `t("portal:${portalStatus}")`. |
+| QA-UX07-004 | Accessible avatar menu trigger | PASS | Dashboard and portal topbar avatar dropdown triggers include `aria-label={t("common:userMenu")}` with matching `id/common.json` and `en/common.json` keys. |
+| QA-UX07-005 | Icon-only control audit | PASS | Grep found named/sr-only coverage for known icon-only controls: dashboard theme toggle, portal nav/theme buttons, language switcher, breadcrumb overflow, carousel controls, dialog/sheet close buttons, password toggle, pagination, and sidebar trigger. `dashboard.users.tsx` row actions are text buttons, not icon-only buttons. |
+| QA-UX07-006 | Contrast | PASS | Light-mode `--success` is `oklch(0.45 0.15 155)` and `--info` is `oklch(0.45 0.13 230)`. Independent OKLCH-to-sRGB WCAG calculation returned approximately 6.65:1 for success and 6.89:1 for info against white. |
+| QA-UX07-007 | Localization | PASS | New `common:userMenu` key exists in Bahasa Indonesia and English. Portal status badge still resolves labels from locale files instead of hardcoded display text. |
+| QA-UX07-008 | Regression | PASS | `npx.cmd tsc --noEmit`, `npm.cmd run build`, and `npm.cmd run lint` passed. Lint retained 6 existing react-refresh warnings in shared UI files. |
+
+## Recommendations
+
+1. Product Owner should manually verify status badges in both light and dark themes using browser accessibility inspection, especially warning, success, and info states.
+2. Include color-blindness simulation or grayscale review during manual UX sign-off to confirm the new icons make status distinguishable without relying on color.
+3. Keep future status additions guarded by the same pattern: explicit icon mapping, localized text label, and contrast-checked tone.
+
+## Verification
+
+| Check | Command | Result |
+|---|---|---|
+| UX-07 scope grep | `rg -n "UX-07|F-20|F-21|status|contrast|aria|accessib" docs/REPORT_UX_AUDIT.md docs/UX_IMPROVEMENT_PLAN.md` | PASS; milestone scope confirmed as Accessibility & Status Multi-channel |
+| Implementation inspection | Direct read/grep of UX-07 target files | PASS; status icons, avatar `aria-label`, locale keys, and token updates present |
+| Icon-only accessibility grep | `rg -n 'size="icon"|aria-label|sr-only' frontend/src/components frontend/src/layouts frontend/src/routes` | PASS; known icon-only controls have accessible names or sr-only text |
+| Status hardcode grep | `rg -n 'Dikirim|Dalam Peninjauan|Sedang Diproses|Selesai|Submitted|Under Review|In Process|Completed' frontend/src/components frontend/src/routes frontend/src/locales` | PASS; user-facing status text remains in locale files or comments, not hardcoded badge rendering |
+| Contrast calculation | Node OKLCH-to-sRGB WCAG calculation for `--success` and `--info` against white | PASS; success approximately 6.65:1, info approximately 6.89:1 |
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | PASS |
+| Build | `npm.cmd run build` from `frontend/` | PASS with existing non-blocking Vite/TanStack chunk-size and unused-import warnings |
+| Lint | `npm.cmd run lint` from `frontend/` | PASS with 0 errors and 6 existing react-refresh warnings |
+
+## Remaining Risks
+
+- QA did not run an authenticated browser session with a screen reader; accessible names and badge semantics were verified by static inspection and grep.
+- Contrast calculation was performed for success/info against white; Product Owner should still inspect badge combinations in real pages, including tinted backgrounds and dark mode.
+- Global success/info token darkening can subtly affect other light-mode UI surfaces using `text-success`, `text-info`, `bg-success/15`, or `bg-info/15`; no blocking regression was found during static review/build.

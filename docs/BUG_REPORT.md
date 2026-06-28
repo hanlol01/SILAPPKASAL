@@ -48,3 +48,9 @@
 ## Bugs Found During QA
 
 No new UX-06 bugs were found during QA.
+
+# UX-07
+
+## Bugs Found During QA
+
+No new UX-07 bugs were found during QA.

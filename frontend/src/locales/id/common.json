@@ -25,6 +25,7 @@
   "accessDenied": "Akses ditolak",
   "accessDeniedDesc": "Akun Anda sudah masuk, tetapi tidak memiliki akses ke area ini.",
   "backToDashboard": "Kembali ke dashboard",
+  "userMenu": "Menu pengguna",
   "yes": "Ya",
   "no": "Tidak",
   "validation": {
