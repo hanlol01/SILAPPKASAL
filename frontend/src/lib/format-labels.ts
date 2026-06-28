@@ -90,6 +90,16 @@ export function formatRegistrationStatus(t: TFunction, value: string | null | un
   return translatedLabel(t, "registrationStatus", value);
 }
 
+export function formatLocationType(t: TFunction, value: string | null | undefined) {
+  if (!value || value === "-") {
+    return "-";
+  }
+
+  return t(`portal:locationTypes.${value}`, {
+    defaultValue: fallbackLabel(value),
+  });
+}
+
 export function formatGenericLabel(value: string | null | undefined) {
   return fallbackLabel(value);
 }
