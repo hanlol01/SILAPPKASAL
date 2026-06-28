@@ -42,7 +42,7 @@ function PortalNav() {
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   return (
-    <nav className="flex items-center gap-1 overflow-x-auto">
+    <nav className="flex min-w-0 items-center gap-1 overflow-x-auto">
       {nav.map((item) => {
         const active =
           item.url === "/portal"
@@ -54,11 +54,12 @@ function PortalNav() {
             asChild
             variant={active ? "secondary" : "ghost"}
             size="sm"
-            className="shrink-0 gap-2"
+            className="h-auto shrink-0 gap-1.5 px-2 py-1.5 sm:gap-2"
+            aria-label={t(item.titleKey)}
           >
             <Link to={item.url}>
-              <item.icon className="h-4 w-4" />
-              <span className="hidden sm:inline">{t(item.titleKey)}</span>
+              <item.icon className="h-4 w-4 shrink-0" />
+              <span className="text-xs sm:text-sm">{t(item.titleKey)}</span>
             </Link>
           </Button>
         );

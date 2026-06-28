@@ -112,27 +112,15 @@ function ReportsPage() {
             <QueryErrorState message={t("dashboard:reports.error")} onRetry={() => reportsQuery.refetch()} />
           )}
           {reportsQuery.isSuccess && (
-            <div className="overflow-hidden rounded-lg border">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 text-left">{t("dashboard:reports.registration")}</th>
-                    <th className="px-3 py-2 text-left">{t("dashboard:common.type")}</th>
-                    <th className="px-3 py-2 text-left">{t("dashboard:reports.reporter")}</th>
-                    <th className="px-3 py-2 text-left">{t("dashboard:common.category")}</th>
-                    <th className="px-3 py-2 text-left">{t("dashboard:common.priority")}</th>
-                    <th className="px-3 py-2 text-left">{t("dashboard:common.status")}</th>
-                    <th className="px-3 py-2 text-left">{t("dashboard:common.submitted")}</th>
-                    <th className="px-3 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((report) => (
-                    <tr key={report.id} className="border-t hover:bg-muted/40">
-                      <td className="px-3 py-2 font-mono text-xs">{report.registration_number}</td>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span>{formatReportType(t, report.report_type)}</span>
+            <>
+              <div className="grid gap-3 md:hidden">
+                {filtered.map((report) => (
+                  <div key={report.id} className="rounded-lg border bg-background p-3 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate font-mono text-xs font-medium">{report.registration_number}</div>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <Badge variant="outline">{formatReportStatus(t, report.status)}</Badge>
                           {(report.is_anonymous || report.report_type === "anonymous") && (
                             <Badge variant="outline" className="gap-1 text-muted-foreground">
                               <Lock className="h-3 w-3" />
@@ -140,29 +128,78 @@ function ReportsPage() {
                             </Badge>
                           )}
                         </div>
-                      </td>
-                      <td className="px-3 py-2">{reporterDisplay(report.reporter, t)}</td>
-                      <td className="px-3 py-2">{report.category?.name ?? t("dashboard:common.metadataUnavailable")}</td>
-                      <td className="px-3 py-2">{report.priority?.name ?? "-"}</td>
-                      <td className="px-3 py-2"><Badge variant="outline">{formatReportStatus(t, report.status)}</Badge></td>
-                      <td className="px-3 py-2 text-muted-foreground">{formatDateTime(report.submitted_at, i18n.language)}</td>
-                      <td className="px-3 py-2 text-right">
-                        <Button asChild size="sm" variant="ghost">
-                          <Link to="/dashboard/reports/$id" params={{ id: String(report.id) }}>{t("dashboard:common.detail")}</Link>
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                  {filtered.length === 0 && (
+                      </div>
+                      <Button asChild size="sm" variant="outline" className="shrink-0">
+                        <Link to="/dashboard/reports/$id" params={{ id: String(report.id) }}>{t("dashboard:common.detail")}</Link>
+                      </Button>
+                    </div>
+                    <div className="mt-3 grid gap-2 text-xs">
+                      <MobileField label={t("dashboard:common.type")}>{formatReportType(t, report.report_type)}</MobileField>
+                      <MobileField label={t("dashboard:reports.reporter")}>{reporterDisplay(report.reporter, t)}</MobileField>
+                      <MobileField label={t("dashboard:common.category")}>{report.category?.name ?? t("dashboard:common.metadataUnavailable")}</MobileField>
+                      <MobileField label={t("dashboard:common.priority")}>{report.priority?.name ?? "-"}</MobileField>
+                      <MobileField label={t("dashboard:common.submitted")}>{formatDateTime(report.submitted_at, i18n.language)}</MobileField>
+                    </div>
+                  </div>
+                ))}
+                {filtered.length === 0 && (
+                  <div className="rounded-lg border border-dashed px-3 py-12 text-center text-sm text-muted-foreground">
+                    {t("dashboard:reports.empty")}
+                  </div>
+                )}
+              </div>
+              <div className="hidden overflow-x-auto rounded-lg border md:block">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                     <tr>
-                      <td colSpan={8} className="px-3 py-12 text-center text-sm text-muted-foreground">
-                        {t("dashboard:reports.empty")}
-                      </td>
+                      <th className="px-3 py-2 text-left">{t("dashboard:reports.registration")}</th>
+                      <th className="px-3 py-2 text-left">{t("dashboard:common.type")}</th>
+                      <th className="px-3 py-2 text-left">{t("dashboard:reports.reporter")}</th>
+                      <th className="px-3 py-2 text-left">{t("dashboard:common.category")}</th>
+                      <th className="px-3 py-2 text-left">{t("dashboard:common.priority")}</th>
+                      <th className="px-3 py-2 text-left">{t("dashboard:common.status")}</th>
+                      <th className="px-3 py-2 text-left">{t("dashboard:common.submitted")}</th>
+                      <th className="px-3 py-2"></th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {filtered.map((report) => (
+                      <tr key={report.id} className="border-t hover:bg-muted/40">
+                        <td className="px-3 py-2 font-mono text-xs">{report.registration_number}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span>{formatReportType(t, report.report_type)}</span>
+                            {(report.is_anonymous || report.report_type === "anonymous") && (
+                              <Badge variant="outline" className="gap-1 text-muted-foreground">
+                                <Lock className="h-3 w-3" />
+                                {t("dashboard:reports.anonymous")}
+                              </Badge>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">{reporterDisplay(report.reporter, t)}</td>
+                        <td className="px-3 py-2">{report.category?.name ?? t("dashboard:common.metadataUnavailable")}</td>
+                        <td className="px-3 py-2">{report.priority?.name ?? "-"}</td>
+                        <td className="px-3 py-2"><Badge variant="outline">{formatReportStatus(t, report.status)}</Badge></td>
+                        <td className="px-3 py-2 text-muted-foreground">{formatDateTime(report.submitted_at, i18n.language)}</td>
+                        <td className="px-3 py-2 text-right">
+                          <Button asChild size="sm" variant="ghost">
+                            <Link to="/dashboard/reports/$id" params={{ id: String(report.id) }}>{t("dashboard:common.detail")}</Link>
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                    {filtered.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="px-3 py-12 text-center text-sm text-muted-foreground">
+                          {t("dashboard:reports.empty")}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
           {reportsQuery.data?.meta && (
             <div className="text-sm text-muted-foreground">
@@ -171,6 +208,15 @@ function ReportsPage() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function MobileField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-[11px] uppercase text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-sm">{children}</div>
     </div>
   );
 }

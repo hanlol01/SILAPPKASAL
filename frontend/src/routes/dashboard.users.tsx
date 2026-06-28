@@ -177,7 +177,7 @@ function DashboardUsersPage() {
         </CardContent>
       </Card>
 
-      <div className="overflow-hidden rounded-md border bg-background">
+      <div className="overflow-x-auto rounded-md border bg-background">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left">
             <tr>

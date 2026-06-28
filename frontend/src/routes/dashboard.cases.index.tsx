@@ -102,47 +102,77 @@ function CasesPage() {
             <QueryErrorState message={t("dashboard:cases.error")} onRetry={() => casesQuery.refetch()} />
           )}
           {casesQuery.isSuccess && (
-            <div className="overflow-hidden rounded-lg border">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 text-left">{t("dashboard:cases.case")}</th>
-                    <th className="px-3 py-2 text-left">{t("dashboard:reports.registration")}</th>
-                    <th className="px-3 py-2 text-left">{t("dashboard:common.status")}</th>
-                    <th className="px-3 py-2 text-left">{t("dashboard:common.risk")}</th>
-                    <th className="px-3 py-2 text-left">{t("dashboard:common.priority")}</th>
-                    <th className="px-3 py-2 text-left">{t("dashboard:common.forwarded")}</th>
-                    <th className="px-3 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((item) => (
-                    <tr key={item.id} className="border-t hover:bg-muted/40">
-                      <td className="px-3 py-2 font-mono text-xs">{item.case_number}</td>
-                      <td className="px-3 py-2 font-mono text-xs">{item.registration_number}</td>
-                      <td className="px-3 py-2"><Badge variant="outline">{formatCaseStatus(t, item.status_code)}</Badge></td>
-                      <td className="px-3 py-2">{item.risk_level ?? item.risk_level_code ?? "-"}</td>
-                      <td className="px-3 py-2">{item.priority ?? "-"}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{formatDateTime(item.forwarded_at, i18n.language)}</td>
-                      <td className="px-3 py-2 text-right">
-                        <Button asChild size="sm" variant="ghost">
-                          <Link to="/dashboard/cases/$id" params={{ id: String(item.id) }}>
-                            <Eye className="mr-1 h-3.5 w-3.5" /> {t("dashboard:common.detail")}
-                          </Link>
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                  {filtered.length === 0 && (
+            <>
+              <div className="grid gap-3 md:hidden">
+                {filtered.map((item) => (
+                  <div key={item.id} className="rounded-lg border bg-background p-3 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate font-mono text-xs font-medium">{item.case_number}</div>
+                        <div className="mt-1 font-mono text-xs text-muted-foreground">{item.registration_number}</div>
+                      </div>
+                      <Badge variant="outline" className="shrink-0">{formatCaseStatus(t, item.status_code)}</Badge>
+                    </div>
+                    <div className="mt-3 grid gap-2 text-xs">
+                      <MobileField label={t("dashboard:common.risk")}>{item.risk_level ?? item.risk_level_code ?? "-"}</MobileField>
+                      <MobileField label={t("dashboard:common.priority")}>{item.priority ?? "-"}</MobileField>
+                      <MobileField label={t("dashboard:common.forwarded")}>{formatDateTime(item.forwarded_at, i18n.language)}</MobileField>
+                    </div>
+                    <Button asChild size="sm" variant="outline" className="mt-3 w-full">
+                      <Link to="/dashboard/cases/$id" params={{ id: String(item.id) }}>
+                        <Eye className="mr-1 h-3.5 w-3.5" /> {t("dashboard:common.detail")}
+                      </Link>
+                    </Button>
+                  </div>
+                ))}
+                {filtered.length === 0 && (
+                  <div className="rounded-lg border border-dashed px-3 py-12 text-center text-sm text-muted-foreground">
+                    {t("dashboard:cases.empty")}
+                  </div>
+                )}
+              </div>
+              <div className="hidden overflow-x-auto rounded-lg border md:block">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                     <tr>
-                      <td colSpan={7} className="px-3 py-12 text-center text-sm text-muted-foreground">
-                        {t("dashboard:cases.empty")}
-                      </td>
+                      <th className="px-3 py-2 text-left">{t("dashboard:cases.case")}</th>
+                      <th className="px-3 py-2 text-left">{t("dashboard:reports.registration")}</th>
+                      <th className="px-3 py-2 text-left">{t("dashboard:common.status")}</th>
+                      <th className="px-3 py-2 text-left">{t("dashboard:common.risk")}</th>
+                      <th className="px-3 py-2 text-left">{t("dashboard:common.priority")}</th>
+                      <th className="px-3 py-2 text-left">{t("dashboard:common.forwarded")}</th>
+                      <th className="px-3 py-2"></th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {filtered.map((item) => (
+                      <tr key={item.id} className="border-t hover:bg-muted/40">
+                        <td className="px-3 py-2 font-mono text-xs">{item.case_number}</td>
+                        <td className="px-3 py-2 font-mono text-xs">{item.registration_number}</td>
+                        <td className="px-3 py-2"><Badge variant="outline">{formatCaseStatus(t, item.status_code)}</Badge></td>
+                        <td className="px-3 py-2">{item.risk_level ?? item.risk_level_code ?? "-"}</td>
+                        <td className="px-3 py-2">{item.priority ?? "-"}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{formatDateTime(item.forwarded_at, i18n.language)}</td>
+                        <td className="px-3 py-2 text-right">
+                          <Button asChild size="sm" variant="ghost">
+                            <Link to="/dashboard/cases/$id" params={{ id: String(item.id) }}>
+                              <Eye className="mr-1 h-3.5 w-3.5" /> {t("dashboard:common.detail")}
+                            </Link>
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                    {filtered.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="px-3 py-12 text-center text-sm text-muted-foreground">
+                          {t("dashboard:cases.empty")}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
           {casesQuery.data?.meta && (
             <div className="text-sm text-muted-foreground">
@@ -151,6 +181,15 @@ function CasesPage() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function MobileField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-[11px] uppercase text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-sm">{children}</div>
     </div>
   );
 }

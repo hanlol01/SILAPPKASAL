@@ -548,3 +548,56 @@ Verification evidence:
 - QA did not execute an authenticated browser session against live dashboard data; `/dashboard/analytics` runtime behavior was verified through static inspection, production build, and targeted formatter runtime checks.
 - Unknown backend aggregation shapes still fall back to serialized/formatted labels, so Product Owner should include real analytics data in manual smoke verification.
 - The first targeted formatter runtime command attempted to fetch `tsx` and was blocked by sandbox network restrictions; the re-run was approved and completed successfully.
+
+# UX-06
+
+## Executive Summary
+
+QA reviewed UX-06 against `REPORT_UX_AUDIT.md` and `UX_IMPROVEMENT_PLAN.md`, focusing on Responsive & Mobile-first Improvements for F-13, F-14, F-19, and F-22.
+
+Implementation is aligned with the milestone scope. Admin table surfaces now use horizontal overflow containment, reports/cases lists include mobile card layouts below `md`, portal navigation labels remain visible at small breakpoints with nav button labels, toaster placement is `top-center`, and the required detail pages now include breadcrumbs with localized parent labels.
+
+No new UX-06 bugs were found during static QA and tooling verification.
+
+## Implementation Score (0-100)
+
+94
+
+## PASS / FAIL
+
+PASS
+
+## Findings
+
+| ID | Area | Result | Evidence |
+|---|---|---|---|
+| QA-UX06-001 | Scope compliance | PASS | UX-06 target files were reviewed: admin list pages, portal layout, root toaster, and four detail pages. Changes map to F-13, F-14, F-19, and F-22. |
+| QA-UX06-002 | Admin table overflow containment | PASS | `dashboard.registrations.tsx`, `dashboard.users.tsx`, `dashboard.reports.index.tsx`, `dashboard.cases.index.tsx`, and `dashboard.master-data.universities.tsx` contain `overflow-x-auto` wrappers around table surfaces. |
+| QA-UX06-003 | Reports mobile card layout | PASS | `/dashboard/reports` renders a `grid gap-3 md:hidden` card list and a `hidden ... md:block` table wrapper for desktop/tablet. |
+| QA-UX06-004 | Cases mobile card layout | PASS | `/dashboard/cases` renders a `grid gap-3 md:hidden` card list and a `hidden ... md:block` table wrapper for desktop/tablet. |
+| QA-UX06-005 | Portal nav mobile labels | PASS | `portal-layout.tsx` removed the `hidden sm:inline` label pattern, uses `text-xs sm:text-sm`, keeps nav labels visible, and adds `aria-label={t(item.titleKey)}` to each nav button. |
+| QA-UX06-006 | Toast position | PASS | `routes/__root.tsx` renders `<Toaster richColors position="top-center" />`. |
+| QA-UX06-007 | Detail page breadcrumbs | PASS | Breadcrumbs are present in `/dashboard/cases/$id`, `/dashboard/registrations/$id`, `/dashboard/reports/$id`, and `/portal/reports/$registrationNumber` with localized parent labels. |
+| QA-UX06-008 | Regression | PASS | `npx.cmd tsc --noEmit`, `npm.cmd run build`, and `npm.cmd run lint` passed. Lint retained 6 existing react-refresh warnings in shared UI files. |
+
+## Recommendations
+
+1. Product Owner should manually execute the UX-06 smoke suite on a real 360x740 or browser-emulated viewport to confirm there is no page-level horizontal overflow.
+2. Include at least one long registration number, long reporter name, and long university/program name in manual testing to verify truncation/wrapping remains readable on mobile cards and scrolled tables.
+3. Keep UX-07 separate for icon-only accessibility and status contrast work; UX-06 did not need to complete those future-scope items.
+
+## Verification
+
+| Check | Command | Result |
+|---|---|---|
+| Responsive pattern grep | `rg -n "overflow-x-auto|md:hidden|hidden md:table|hidden md:block|hidden sm:inline|aria-label|position=\"top-center\"|Breadcrumb" ...` | PASS; expected wrappers, mobile card layouts, nav labels, toaster position, and breadcrumbs found |
+| Table/breadcrumb/toaster grep | `rg -n "<table|<Breadcrumb|position=|hidden sm:inline|aria-label=\\{t\\(item.titleKey\\)\\}" ...` | PASS; target tables and breadcrumbs present; no active `hidden sm:inline` portal nav label pattern found |
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | PASS |
+| Build | `npm.cmd run build` from `frontend/` | PASS with existing non-blocking Vite/TanStack chunk-size and unused-import warnings |
+| Lint | `npm.cmd run lint` from `frontend/` | PASS with 0 errors and 6 existing react-refresh warnings |
+
+## Remaining Risks
+
+- QA did not run an authenticated browser viewport test at 360x740; responsive behavior was verified by static inspection and build/lint/TypeScript checks.
+- Breadcrumbs on some admin detail pages are rendered after successful data load; manual QA should also observe loading/error states to confirm the experience remains understandable.
+- The portal nav is horizontally scrollable by design on narrow screens; manual QA should confirm this feels usable with all labels visible.
