@@ -359,7 +359,33 @@
     "createRecoveryClosed": "Kasus yang sudah ditutup tidak dapat menerima aksi pemulihan.",
     "createRecoveryLoading": "Data putusan masih dimuat.",
     "createRecoveryNeedsDecision": "Putusan final diperlukan sebelum pemulihan dibuat.",
-    "createRecoveryUnavailable": "Pembuatan pemulihan tidak tersedia untuk kasus ini."
+    "createRecoveryUnavailable": "Pembuatan pemulihan tidak tersedia untuk kasus ini.",
+    "pipeline": {
+      "title": "Alur investigasi",
+      "loadingDescription": "Memuat analitik alur kerja dari backend.",
+      "description": "Hitungan alur kerja backend sesuai role dan penugasan pengguna.",
+      "loading": "Memuat alur kerja...",
+      "unavailable": "Analitik alur kerja tidak tersedia.",
+      "conversionTitle": "Hitungan konversi alur",
+      "metricSemantics": "Hitungan ini bersifat deskriptif untuk pemantauan operasional. Data ini bukan KPI, SLA, tingkat keberhasilan, atau skor kinerja.",
+      "step": "Langkah {{number}}",
+      "steps": {
+        "forwardedReports": "Laporan diteruskan",
+        "investigations": "Investigasi",
+        "recommendations": "Rekomendasi",
+        "decisions": "Putusan",
+        "recoveries": "Pemulihan"
+      },
+      "distributionDescription": "Distribusi status dari analitik alur kerja backend",
+      "noStatusData": "Tidak ada data status.",
+      "decisionOutcomes": "Hasil putusan",
+      "descriptiveCountsOnly": "Hanya hitungan deskriptif",
+      "noDecisionOutcomeData": "Tidak ada data hasil putusan.",
+      "recoveryTypes": "Jenis pemulihan",
+      "recoveryDistributionDescription": "Distribusi pemulihan dari analitik backend",
+      "noRecoveryTypeData": "Tidak ada data jenis pemulihan.",
+      "footer": "Cakupan: {{scope}}. Rentang: {{dateFrom}} sampai {{dateTo}}."
+    }
   },
   "masterData": {
     "title": "Master Data",
@@ -438,7 +464,59 @@
   },
   "analytics": {
     "title": "Analitik",
-    "subtitle": "Agregat metadata-only untuk pemantauan operasional."
+    "subtitle": "Agregat metadata-only untuk pemantauan operasional.",
+    "unavailable": "Data analitik tidak tersedia.",
+    "evidencePrivacy": "Hanya hitungan metadata bukti. Nama file, checksum, dan riwayat custody tidak ditampilkan.",
+    "cards": {
+      "totalReports": "Total laporan",
+      "totalCases": "Total kasus",
+      "evidenceRecords": "Metadata bukti",
+      "anonymousShare": "Porsi anonim",
+      "metadataCountsOnly": "Hanya hitungan metadata",
+      "ofReportsInRange": "dari laporan pada rentang ini",
+      "assigned": "{{count}} kasus ditugaskan",
+      "scope": "Cakupan: {{scope}}"
+    },
+    "charts": {
+      "casesByStage": "Kasus berdasarkan tahap",
+      "casesByStageDesc": "Distribusi tahap kasus dari data dashboard backend",
+      "reportsByCategory": "Laporan berdasarkan kategori",
+      "reportsByCategoryDesc": "Hitungan kategori laporan dari data dashboard backend",
+      "monthlyTrends": "Tren bulanan",
+      "monthlyTrendsDesc": "Laporan, kasus, dan metadata bukti dari waktu ke waktu",
+      "evidenceClassification": "Klasifikasi bukti"
+    },
+    "empty": {
+      "caseStage": "Tidak ada data tahap kasus.",
+      "category": "Tidak ada data kategori.",
+      "evidenceClassification": "Tidak ada data klasifikasi bukti."
+    },
+    "series": {
+      "count": "Jumlah",
+      "reports": "Laporan",
+      "cases": "Kasus",
+      "evidence": "Bukti"
+    },
+    "summary": {
+      "title": "Ringkasan dashboard",
+      "description": "Total agregat dari data ringkasan dashboard",
+      "totals": {
+        "reports": "Laporan",
+        "cases": "Kasus",
+        "investigations": "Investigasi",
+        "recommendations": "Rekomendasi",
+        "decisions": "Putusan",
+        "recoveries": "Pemulihan",
+        "evidences": "Bukti"
+      }
+    },
+    "scopes": {
+      "global": "Global",
+      "university": "Universitas",
+      "assigned": "Penugasan",
+      "own": "Milik pengguna",
+      "restricted": "Terbatas"
+    }
   },
   "enum": {
     "roles": {
@@ -475,14 +553,19 @@
     "investigationStatus": {
       "planning": "Perencanaan",
       "document_review": "Telaah dokumen",
+      "evidence_collection": "Pengumpulan bukti",
       "victim_interview": "Wawancara korban",
       "witness_interview": "Wawancara saksi",
       "reported_party_interview": "Wawancara terlapor",
+      "respondent_interview": "Wawancara terlapor",
+      "evidence_analysis": "Analisis bukti",
       "timeline_review": "Telaah kronologi",
+      "report_drafting": "Penyusunan laporan",
       "completed": "Selesai"
     },
     "recommendationStatus": {
       "drafting": "Penyusunan",
+      "internal_review": "Review internal",
       "revised": "Direvisi",
       "submitted_to_leader": "Dikirim ke pimpinan",
       "accepted": "Diterima",
@@ -491,6 +574,7 @@
     },
     "decisionStatus": {
       "draft": "Draf",
+      "recorded": "Dicatat",
       "reviewed": "Ditinjau",
       "finalized": "Final"
     },
@@ -537,6 +621,54 @@
       "pending": "Tertunda",
       "approved": "Disetujui",
       "rejected": "Ditolak"
+    },
+    "reportCategory": {
+      "RCAT-01": "Pelecehan seksual verbal",
+      "RCAT-02": "Pelecehan seksual non-verbal",
+      "RCAT-03": "Pelecehan seksual fisik",
+      "RCAT-04": "Pemaksaan hubungan seksual",
+      "RCAT-05": "Kekerasan seksual berbasis digital",
+      "RCAT-06": "Pemaksaan kontrasepsi",
+      "RCAT-07": "Pemaksaan sterilisasi",
+      "RCAT-08": "Pemaksaan perkawinan",
+      "RCAT-09": "Penyiksaan seksual",
+      "RCAT-10": "Eksploitasi seksual",
+      "RCAT-11": "Perbudakan seksual",
+      "RCAT-99": "Lainnya"
+    },
+    "priorityLevel": {
+      "urgent": "Mendesak",
+      "high": "Tinggi",
+      "normal": "Normal",
+      "low": "Rendah",
+      "PRIO-01": "Mendesak",
+      "PRIO-02": "Tinggi",
+      "PRIO-03": "Normal",
+      "PRIO-04": "Rendah"
+    },
+    "riskLevel": {
+      "low": "Rendah",
+      "medium": "Sedang",
+      "high": "Tinggi",
+      "RISK-01": "Rendah",
+      "RISK-02": "Sedang",
+      "RISK-03": "Tinggi"
+    },
+    "recoveryType": {
+      "psychological": "Psikologis",
+      "legal": "Hukum",
+      "academic": "Akademik",
+      "medical": "Medis",
+      "RCV-01": "Psikologis",
+      "RCV-02": "Hukum",
+      "RCV-03": "Akademik",
+      "RCV-04": "Medis"
+    },
+    "evidenceType": {
+      "EVID-01": "Foto",
+      "EVID-02": "Video",
+      "EVID-03": "Dokumen",
+      "EVID-04": "Tangkapan Layar"
     }
   }
 }

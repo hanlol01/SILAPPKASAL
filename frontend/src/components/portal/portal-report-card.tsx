@@ -52,7 +52,7 @@ export function PortalReportCard({ report }: PortalReportCardProps) {
           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
             <span>{portalReportTypeLabel(report.report_type, i18n.language)}</span>
             {categoryLabel && <span>{categoryLabel}</span>}
-            <span>{t("portal:submittedDate", { date: formatDate(report.submitted_at) })}</span>
+            <span>{t("portal:submittedDate", { date: formatDate(report.submitted_at, i18n.language) })}</span>
           </div>
         </div>
 

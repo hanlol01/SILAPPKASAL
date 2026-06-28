@@ -52,6 +52,11 @@
     "luar_kampus_tidak_terkait": "Luar kampus tidak terkait kegiatan kampus",
     "online": "Online / daring"
   },
+  "reportTypes": {
+    "open": "Terbuka",
+    "confidential": "Rahasia",
+    "anonymous": "Anonim"
+  },
   "submitReport": "Kirim Laporan",
   "submittingReport": "Mengirim laporan...",
   "reportSubmittedSuccess": "Laporan berhasil dikirim",

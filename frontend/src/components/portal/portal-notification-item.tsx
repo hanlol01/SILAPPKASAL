@@ -91,7 +91,7 @@ export function PortalNotificationItem({
           ) : null}
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
             <span>{portalNotificationTypeLabel(notification.type, i18n.language)}</span>
-            <span>{formatDate(notification.created_at)}</span>
+            <span>{formatDate(notification.created_at, i18n.language)}</span>
           </div>
         </div>
       </CardContent>

@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
+import { formatDateTime } from "@/lib/format";
 import { formatReportStatus, formatReportType } from "@/lib/format-labels";
 import { getReports, operationsQueryKeys } from "@/lib/operations-api";
 import type { ReportReporter } from "@/lib/operations-types";
@@ -31,7 +32,7 @@ const REPORT_TYPES = ["open", "confidential", "anonymous"];
 
 function ReportsPage() {
   const { roleCode } = useAuth();
-  const { t } = useTranslation(["dashboard"]);
+  const { t, i18n } = useTranslation(["dashboard"]);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
   const [reportType, setReportType] = useState("all");
@@ -144,7 +145,7 @@ function ReportsPage() {
                       <td className="px-3 py-2">{report.category?.name ?? t("dashboard:common.metadataUnavailable")}</td>
                       <td className="px-3 py-2">{report.priority?.name ?? "-"}</td>
                       <td className="px-3 py-2"><Badge variant="outline">{formatReportStatus(t, report.status)}</Badge></td>
-                      <td className="px-3 py-2 text-muted-foreground">{formatDate(report.submitted_at)}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{formatDateTime(report.submitted_at, i18n.language)}</td>
                       <td className="px-3 py-2 text-right">
                         <Button asChild size="sm" variant="ghost">
                           <Link to="/dashboard/reports/$id" params={{ id: String(report.id) }}>{t("dashboard:common.detail")}</Link>
@@ -184,8 +185,4 @@ function reporterDisplay(reporter: ReportReporter | null | undefined, t: ReturnT
   }
 
   return "name" in reporter ? reporter.name : t("dashboard:common.metadataUnavailable");
-}
-
-function formatDate(value: string | null | undefined) {
-  return value ? new Date(value).toLocaleString() : "-";
 }

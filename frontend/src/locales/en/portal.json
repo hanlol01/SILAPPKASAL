@@ -52,6 +52,11 @@
     "luar_kampus_tidak_terkait": "Off campus not related to campus activities",
     "online": "Online"
   },
+  "reportTypes": {
+    "open": "Open",
+    "confidential": "Confidential",
+    "anonymous": "Anonymous"
+  },
   "submitReport": "Submit Report",
   "submittingReport": "Submitting report...",
   "reportSubmittedSuccess": "Report submitted successfully",

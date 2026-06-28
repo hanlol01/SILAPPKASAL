@@ -38,6 +38,7 @@ import {
   RecoveryMonitoringAction,
 } from "@/components/workflow-actions/workflow-action-dialogs";
 import { useAuth } from "@/hooks/use-auth";
+import { formatDateTime } from "@/lib/format";
 import {
   formatCaseStatus,
   formatDecisionOutcome,
@@ -73,7 +74,7 @@ export const Route = createFileRoute("/dashboard/cases/$id")({
 function CaseDetail() {
   const { id } = Route.useParams();
   const { user, roleCode } = useAuth();
-  const { t } = useTranslation(["dashboard"]);
+  const { t, i18n } = useTranslation(["dashboard"]);
   const caseQuery = useQuery({
     queryKey: operationsQueryKeys.case(id),
     queryFn: () => getCase(id),
@@ -189,8 +190,8 @@ function CaseDetail() {
               <Field label={t("dashboard:common.stage")}>{c.current_stage_label ?? formatCaseStatus(t, c.current_stage ?? "-")}</Field>
               <Field label={t("dashboard:common.risk")}>{c.risk_level ?? c.risk_level_code ?? "-"}</Field>
               <Field label={t("dashboard:common.priority")}>{c.priority ?? "-"}</Field>
-              <Field label={t("dashboard:common.forwarded")}>{formatDate(c.forwarded_at)}</Field>
-              <Field label={t("dashboard:common.closed")}>{formatDate(c.closed_at)}</Field>
+              <Field label={t("dashboard:common.forwarded")}>{formatDate(c.forwarded_at, i18n.language)}</Field>
+              <Field label={t("dashboard:common.closed")}>{formatDate(c.closed_at, i18n.language)}</Field>
             </CardContent>
           </Card>
 
@@ -201,6 +202,7 @@ function CaseDetail() {
             canAddActivity={canUseSatgasActions}
             canTransitionStatus={canInvestigate}
             caseId={c.id}
+            language={i18n.language}
             t={t}
           />
           <RecommendationsSection
@@ -217,6 +219,7 @@ function CaseDetail() {
             canUpdate={canManageDecisionActions}
             canTransitionStatus={canManageDecisionActions}
             caseId={c.id}
+            language={i18n.language}
             t={t}
           />
           <RecoveriesSection
@@ -231,6 +234,7 @@ function CaseDetail() {
             evidences={evidences}
             loading={evidenceQueries.some((query) => query.isLoading)}
             canUpdate={canUseSatgasActions}
+            language={i18n.language}
             t={t}
           />
         </div>
@@ -249,7 +253,7 @@ function CaseDetail() {
                 <div key={assignment.id} className="rounded-lg border p-3 text-sm">
                   <div className="font-medium">{assignment.satgas_name ?? `Satgas #${assignment.satgas_id}`}</div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {assignment.is_lead ? t("dashboard:cases.leadSatgas") : t("dashboard:cases.assignedSatgas")} - {formatDate(assignment.assigned_at)}
+                    {assignment.is_lead ? t("dashboard:cases.leadSatgas") : t("dashboard:cases.assignedSatgas")} - {formatDate(assignment.assigned_at, i18n.language)}
                   </div>
                 </div>
               ))}
@@ -401,6 +405,7 @@ function InvestigationsSection({
   canAddActivity,
   canTransitionStatus,
   caseId,
+  language,
   t,
 }: {
   investigations: Investigation[];
@@ -408,6 +413,7 @@ function InvestigationsSection({
   canAddActivity: boolean;
   canTransitionStatus: boolean;
   caseId: number | string;
+  language: string;
   t: TFunction;
 }) {
   return (
@@ -426,7 +432,7 @@ function InvestigationsSection({
           </div>
           <div className="mt-2 grid gap-2 text-muted-foreground sm:grid-cols-2">
             <div>{t("dashboard:sections.lead")}: {item.lead_investigator?.name ?? t("dashboard:common.metadataUnavailable")}</div>
-            <div>{t("dashboard:sections.started")}: {formatDate(item.started_at)}</div>
+            <div>{t("dashboard:sections.started")}: {formatDate(item.started_at, language)}</div>
           </div>
           {item.plan_summary || item.findings || item.conclusion ? (
             <div className="mt-3 space-y-2">
@@ -496,6 +502,7 @@ function DecisionsSection({
   canUpdate,
   canTransitionStatus,
   caseId,
+  language,
   t,
 }: {
   decisions: Decision[];
@@ -503,6 +510,7 @@ function DecisionsSection({
   canUpdate: boolean;
   canTransitionStatus: boolean;
   caseId: number | string;
+  language: string;
   t: TFunction;
 }) {
   return (
@@ -521,7 +529,7 @@ function DecisionsSection({
           </div>
           <div className="mt-2 grid gap-2 text-muted-foreground sm:grid-cols-2">
             <div>{t("dashboard:sections.outcome")}: {formatDecisionOutcome(t, item.outcome_code)}</div>
-            <div>{t("dashboard:sections.date")}: {formatDate(item.decision_date)}</div>
+            <div>{t("dashboard:sections.date")}: {formatDate(item.decision_date, language)}</div>
           </div>
           {item.decision_summary || item.decision_content ? (
             <div className="mt-3 space-y-2">
@@ -585,11 +593,13 @@ function EvidenceSection({
   evidences,
   loading,
   canUpdate,
+  language,
   t,
 }: {
   evidences: EvidenceMetadata[];
   loading: boolean;
   canUpdate: boolean;
+  language: string;
   t: TFunction;
 }) {
   return (
@@ -611,7 +621,7 @@ function EvidenceSection({
           <div className="mt-2 grid gap-2 text-muted-foreground sm:grid-cols-2">
             <div>{t("dashboard:sections.evidenceType")}: {item.evidence_type?.name ?? t("dashboard:common.metadataUnavailable")}</div>
             <div>{t("dashboard:sections.classification")}: {formatEvidenceClassification(t, item.classification ?? "-")}</div>
-            <div>{t("dashboard:sections.collected")}: {formatDate(item.collected_at)}</div>
+            <div>{t("dashboard:sections.collected")}: {formatDate(item.collected_at, language)}</div>
             <div>{t("dashboard:sections.submittedBy")}: {item.submitted_by?.name ?? t("dashboard:common.metadataUnavailable")}</div>
           </div>
           {item.status_semantics && (
@@ -807,6 +817,6 @@ function recoveryCreateDisabledReason(
   return t("dashboard:workflow.createRecoveryUnavailable");
 }
 
-function formatDate(value: string | null | undefined) {
-  return value ? new Date(value).toLocaleString() : "-";
+function formatDate(value: string | null | undefined, language: string) {
+  return formatDateTime(value, language);
 }

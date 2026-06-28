@@ -1,7 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
 
 /**
  * Reporter-safe status badge for the portal.
@@ -31,24 +30,6 @@ function statusTone(portalStatus: string): string {
   }
 }
 
-/**
- * Maps raw backend portal_status text to deterministic i18n keys or translations.
- */
-function getStatusLabel(status: string, t: TFunction): string {
-  switch (status.toLowerCase()) {
-    case "submitted":
-      return "Dikirim";
-    case "under review":
-      return "Dalam Peninjauan";
-    case "in process":
-      return "Sedang Diproses";
-    case "completed":
-      return "Selesai";
-    default:
-      return status;
-  }
-}
-
 interface PortalStatusBadgeProps {
   /** Backend-curated reporter-safe status label. */
   portalStatus: string;
@@ -60,12 +41,14 @@ export function PortalStatusBadge({
   className,
 }: PortalStatusBadgeProps) {
   const { t } = useTranslation(["portal"]);
+  const label = t(`portal:${portalStatus}`, { defaultValue: portalStatus });
+
   return (
     <Badge
       variant="outline"
       className={cn("font-medium", statusTone(portalStatus), className)}
     >
-      {getStatusLabel(portalStatus, t)}
+      {label}
     </Badge>
   );
 }

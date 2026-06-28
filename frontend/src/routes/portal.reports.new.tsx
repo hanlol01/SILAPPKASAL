@@ -39,10 +39,10 @@ export const Route = createFileRoute("/portal/reports/new")({
 
 type WizardStep = 1 | 2 | 3;
 
-const REPORT_TYPE_LABEL_KEYS: Record<string, "Open" | "Confidential" | "Anonymous"> = {
-  open: "Open",
-  confidential: "Confidential",
-  anonymous: "Anonymous",
+const REPORT_TYPE_LABEL_KEYS: Record<string, string> = {
+  open: "reportTypes.open",
+  confidential: "reportTypes.confidential",
+  anonymous: "reportTypes.anonymous",
 };
 
 const REPORT_TYPE_VALUES = new Set(Object.keys(REPORT_TYPE_LABEL_KEYS));

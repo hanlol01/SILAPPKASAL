@@ -359,7 +359,33 @@
     "createRecoveryClosed": "Closed cases cannot receive recovery actions.",
     "createRecoveryLoading": "Decision data is still loading.",
     "createRecoveryNeedsDecision": "A finalized decision is required before creating a recovery.",
-    "createRecoveryUnavailable": "Recovery creation is not available for this case."
+    "createRecoveryUnavailable": "Recovery creation is not available for this case.",
+    "pipeline": {
+      "title": "Investigation workflow",
+      "loadingDescription": "Loading backend workflow analytics.",
+      "description": "Backend workflow counts scoped to the authenticated user's role and assignments.",
+      "loading": "Loading workflow...",
+      "unavailable": "Workflow analytics are unavailable.",
+      "conversionTitle": "Pipeline conversion counts",
+      "metricSemantics": "These are descriptive counts for operational monitoring. They are not KPI, SLA, success-rate, or performance scoring metrics.",
+      "step": "Step {{number}}",
+      "steps": {
+        "forwardedReports": "Forwarded reports",
+        "investigations": "Investigations",
+        "recommendations": "Recommendations",
+        "decisions": "Decisions",
+        "recoveries": "Recoveries"
+      },
+      "distributionDescription": "Status distribution from backend workflow analytics",
+      "noStatusData": "No status data available.",
+      "decisionOutcomes": "Decision outcomes",
+      "descriptiveCountsOnly": "Descriptive counts only",
+      "noDecisionOutcomeData": "No decision outcome data available.",
+      "recoveryTypes": "Recovery types",
+      "recoveryDistributionDescription": "Recovery distribution from backend analytics",
+      "noRecoveryTypeData": "No recovery type data available.",
+      "footer": "Scope: {{scope}}. Range: {{dateFrom}} to {{dateTo}}."
+    }
   },
   "masterData": {
     "title": "Master Data",
@@ -438,7 +464,59 @@
   },
   "analytics": {
     "title": "Analytics",
-    "subtitle": "Metadata-only aggregates for operational monitoring."
+    "subtitle": "Metadata-only aggregates for operational monitoring.",
+    "unavailable": "Analytics data is unavailable.",
+    "evidencePrivacy": "Evidence metadata counts only. Filenames, checksums, and custody history are not shown.",
+    "cards": {
+      "totalReports": "Total reports",
+      "totalCases": "Total cases",
+      "evidenceRecords": "Evidence metadata",
+      "anonymousShare": "Anonymous share",
+      "metadataCountsOnly": "Metadata counts only",
+      "ofReportsInRange": "of reports in range",
+      "assigned": "{{count}} assigned cases",
+      "scope": "Scope: {{scope}}"
+    },
+    "charts": {
+      "casesByStage": "Cases by stage",
+      "casesByStageDesc": "Case stage distribution from backend dashboard data",
+      "reportsByCategory": "Reports by category",
+      "reportsByCategoryDesc": "Report category counts from backend dashboard data",
+      "monthlyTrends": "Monthly trends",
+      "monthlyTrendsDesc": "Reports, cases, and evidence metadata over time",
+      "evidenceClassification": "Evidence classification"
+    },
+    "empty": {
+      "caseStage": "No case stage data available.",
+      "category": "No category data available.",
+      "evidenceClassification": "No evidence classification data available."
+    },
+    "series": {
+      "count": "Count",
+      "reports": "Reports",
+      "cases": "Cases",
+      "evidence": "Evidence"
+    },
+    "summary": {
+      "title": "Dashboard summary",
+      "description": "Aggregate totals from dashboard summary data",
+      "totals": {
+        "reports": "Reports",
+        "cases": "Cases",
+        "investigations": "Investigations",
+        "recommendations": "Recommendations",
+        "decisions": "Decisions",
+        "recoveries": "Recoveries",
+        "evidences": "Evidence"
+      }
+    },
+    "scopes": {
+      "global": "Global",
+      "university": "University",
+      "assigned": "Assigned",
+      "own": "Own",
+      "restricted": "Restricted"
+    }
   },
   "enum": {
     "roles": {
@@ -475,14 +553,19 @@
     "investigationStatus": {
       "planning": "Planning",
       "document_review": "Document review",
+      "evidence_collection": "Evidence collection",
       "victim_interview": "Victim interview",
       "witness_interview": "Witness interview",
       "reported_party_interview": "Reported party interview",
+      "respondent_interview": "Respondent interview",
+      "evidence_analysis": "Evidence analysis",
       "timeline_review": "Timeline review",
+      "report_drafting": "Report drafting",
       "completed": "Completed"
     },
     "recommendationStatus": {
       "drafting": "Drafting",
+      "internal_review": "Internal review",
       "revised": "Revised",
       "submitted_to_leader": "Submitted to leader",
       "accepted": "Accepted",
@@ -491,6 +574,7 @@
     },
     "decisionStatus": {
       "draft": "Draft",
+      "recorded": "Recorded",
       "reviewed": "Reviewed",
       "finalized": "Finalized"
     },
@@ -537,6 +621,54 @@
       "pending": "Pending",
       "approved": "Approved",
       "rejected": "Rejected"
+    },
+    "reportCategory": {
+      "RCAT-01": "Verbal sexual harassment",
+      "RCAT-02": "Non-verbal sexual harassment",
+      "RCAT-03": "Physical sexual harassment",
+      "RCAT-04": "Forced sexual intercourse",
+      "RCAT-05": "Technology-facilitated sexual violence",
+      "RCAT-06": "Forced contraception",
+      "RCAT-07": "Forced sterilization",
+      "RCAT-08": "Forced marriage",
+      "RCAT-09": "Sexual torture",
+      "RCAT-10": "Sexual exploitation",
+      "RCAT-11": "Sexual slavery",
+      "RCAT-99": "Other"
+    },
+    "priorityLevel": {
+      "urgent": "Urgent",
+      "high": "High",
+      "normal": "Normal",
+      "low": "Low",
+      "PRIO-01": "Urgent",
+      "PRIO-02": "High",
+      "PRIO-03": "Normal",
+      "PRIO-04": "Low"
+    },
+    "riskLevel": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "RISK-01": "Low",
+      "RISK-02": "Medium",
+      "RISK-03": "High"
+    },
+    "recoveryType": {
+      "psychological": "Psychological",
+      "legal": "Legal",
+      "academic": "Academic",
+      "medical": "Medical",
+      "RCV-01": "Psychological",
+      "RCV-02": "Legal",
+      "RCV-03": "Academic",
+      "RCV-04": "Medical"
+    },
+    "evidenceType": {
+      "EVID-01": "Photo",
+      "EVID-02": "Video",
+      "EVID-03": "Document",
+      "EVID-04": "Screenshot"
     }
   }
 }

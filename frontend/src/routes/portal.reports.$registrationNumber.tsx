@@ -44,7 +44,7 @@ export function PortalReportDetailContent({
 }: {
   registrationNumber: string;
 }) {
-  const { t } = useTranslation(["portal"]);
+  const { t } = useTranslation(["portal", "common"]);
   const { roleCode } = useAuth();
 
   const reportQuery = useQuery({
@@ -64,7 +64,7 @@ export function PortalReportDetailContent({
         asChild
       >
         <Link to="/portal/reports">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Kembali
+          <ArrowLeft className="mr-2 h-4 w-4" /> {t("common:back")}
         </Link>
       </Button>
 
@@ -142,7 +142,7 @@ function ReportDetail({ report }: ReportDetailProps) {
               portalStatus={report.portal_status}
             />
           </Field>
-          <Field label={t("submitted")}>{formatDate(report.submitted_at)}</Field>
+          <Field label={t("submitted")}>{formatDate(report.submitted_at, i18n.language)}</Field>
         </CardContent>
       </Card>
     </>

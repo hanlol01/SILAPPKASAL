@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Eye, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { BreakGlassRevealView } from "@/components/admin/break-glass-reveal-view";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api-client";
+import { formatDateTime } from "@/lib/format";
 import {
   approveBreakGlass,
   denyBreakGlass,
@@ -44,6 +46,7 @@ export function BreakGlassPendingList({
   emptyMessage = "No break-glass requests found.",
 }: BreakGlassPendingListProps) {
   const queryClient = useQueryClient();
+  const { i18n } = useTranslation();
   const [denyTarget, setDenyTarget] = useState<BreakGlassRequest | null>(null);
   const [denialReason, setDenialReason] = useState("");
   const [reveal, setReveal] = useState<BreakGlassReveal | null>(null);
@@ -135,7 +138,7 @@ export function BreakGlassPendingList({
                   <Badge variant="outline">{label(request.status)}</Badge>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {formatDate(request.requested_at)}
+                  {formatDateTime(request.requested_at, i18n.language)}
                 </TableCell>
                 {showActions && (
                   <TableCell className="text-right">
@@ -249,8 +252,4 @@ function reasonCategoryLabel(value: string) {
 
 function label(value: string) {
   return value.replace(/[-_]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function formatDate(value: string | null | undefined) {
-  return value ? new Date(value).toLocaleString() : "-";
 }

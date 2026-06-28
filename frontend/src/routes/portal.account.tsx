@@ -289,7 +289,7 @@ function AccountStatusSection({
 }: {
   data: import("@/lib/portal-types").PortalAccountStatus;
 }) {
-  const { t } = useTranslation(["portal", "common"]);
+  const { t, i18n } = useTranslation(["portal", "common"]);
   return (
     <Card>
       <CardHeader>
@@ -310,11 +310,11 @@ function AccountStatusSection({
         />
         <ReadOnlyField
           label={t("emailVerified")}
-          value={formatDate(data.email_verified_at)}
+          value={formatDate(data.email_verified_at, i18n.language)}
         />
         <ReadOnlyField
           label={t("accountCreated")}
-          value={formatDate(data.created_at)}
+          value={formatDate(data.created_at, i18n.language)}
         />
         {data.registration_number && (
           <ReadOnlyField

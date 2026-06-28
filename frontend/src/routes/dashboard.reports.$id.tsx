@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { SatgasAssignmentAction } from "@/components/workflow-actions/satgas-assignment-action";
 import { useAuth } from "@/hooks/use-auth";
+import { formatDateTime } from "@/lib/format";
 import { formatReportStatus, formatReportType } from "@/lib/format-labels";
 import { getReport, operationsQueryKeys } from "@/lib/operations-api";
 import type { ReportReporter } from "@/lib/operations-types";
@@ -22,7 +23,7 @@ export const Route = createFileRoute("/dashboard/reports/$id")({
 function ReportDetailPage() {
   const { id } = Route.useParams();
   const { roleCode, user } = useAuth();
-  const { t } = useTranslation(["dashboard"]);
+  const { t, i18n } = useTranslation(["dashboard"]);
   const reportQuery = useQuery({
     queryKey: operationsQueryKeys.report(id),
     queryFn: () => getReport(id),
@@ -76,9 +77,9 @@ function ReportDetailPage() {
             <Field label={t("dashboard:reports.reporter")}>{reporterDisplay(report.reporter, t)}</Field>
             <Field label={t("dashboard:common.category")}>{report.category?.name ?? t("dashboard:common.metadataUnavailable")}</Field>
             <Field label={t("dashboard:common.priority")}>{report.priority?.name ?? "-"}</Field>
-            <Field label={t("dashboard:common.submitted")}>{formatDate(report.submitted_at)}</Field>
-            <Field label={t("dashboard:common.forwarded")}>{formatDate(report.forwarded_at)}</Field>
-            <Field label={t("dashboard:common.created")}>{formatDate(report.created_at)}</Field>
+            <Field label={t("dashboard:common.submitted")}>{formatDateTime(report.submitted_at, i18n.language)}</Field>
+            <Field label={t("dashboard:common.forwarded")}>{formatDateTime(report.forwarded_at, i18n.language)}</Field>
+            <Field label={t("dashboard:common.created")}>{formatDateTime(report.created_at, i18n.language)}</Field>
           </CardContent>
         </Card>
 
@@ -124,8 +125,4 @@ function reporterDisplay(reporter: ReportReporter | null | undefined, t: ReturnT
   }
 
   return "name" in reporter ? reporter.name : t("dashboard:common.metadataUnavailable");
-}
-
-function formatDate(value: string | null | undefined) {
-  return value ? new Date(value).toLocaleString() : "-";
 }

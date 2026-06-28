@@ -1,11 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, ClipboardCheck, FileSearch, Gavel, HeartHandshake, Scale } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { QueryErrorState } from "@/components/query-state";
 import { dashboardQueryKeys, getDashboardWorkflow } from "@/lib/dashboard-api";
+import { formatDate } from "@/lib/format";
+import {
+  formatDecisionOutcome,
+  formatDecisionStatus,
+  formatInvestigationStatus,
+  formatRecommendationStatus,
+  formatRecoveryStatus,
+  formatRecoveryType,
+} from "@/lib/format-labels";
 
 export const Route = createFileRoute("/dashboard/workflow")({
   component: WorkflowPage,
@@ -15,39 +25,33 @@ export const Route = createFileRoute("/dashboard/workflow")({
 const steps = [
   {
     key: "reports_forwarded_to_cases",
-    label: "Forwarded reports",
+    labelKey: "forwardedReports",
     icon: ClipboardCheck,
   },
   {
     key: "cases_with_investigations",
-    label: "Investigations",
+    labelKey: "investigations",
     icon: FileSearch,
   },
   {
     key: "cases_with_recommendations",
-    label: "Recommendations",
+    labelKey: "recommendations",
     icon: Gavel,
   },
   {
     key: "recommendations_with_decisions",
-    label: "Decisions",
+    labelKey: "decisions",
     icon: Scale,
   },
   {
     key: "decisions_with_recoveries",
-    label: "Recoveries",
+    labelKey: "recoveries",
     icon: HeartHandshake,
   },
 ] as const;
 
-function labelFromKey(key: string | null) {
-  if (!key) return "Unspecified";
-  return key
-    .replace(/[-_]/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
 function WorkflowPage() {
+  const { t, i18n } = useTranslation(["dashboard"]);
   const workflowQuery = useQuery({
     queryKey: dashboardQueryKeys.workflow(),
     queryFn: () => getDashboardWorkflow(),
@@ -56,14 +60,14 @@ function WorkflowPage() {
   if (workflowQuery.isLoading) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Investigation workflow</h1>
-          <p className="text-sm text-muted-foreground">
-            Loading backend workflow analytics.
-          </p>
-        </div>
+        <PageHeader
+          title={t("dashboard:workflow.pipeline.title")}
+          description={t("dashboard:workflow.pipeline.loadingDescription")}
+        />
         <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">Loading workflow...</CardContent>
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            {t("dashboard:workflow.pipeline.loading")}
+          </CardContent>
         </Card>
       </div>
     );
@@ -72,14 +76,12 @@ function WorkflowPage() {
   if (workflowQuery.isError || !workflowQuery.data) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Investigation workflow</h1>
-          <p className="text-sm text-muted-foreground">
-            A clear path from intake to resolution, designed for confidential handling.
-          </p>
-        </div>
+        <PageHeader
+          title={t("dashboard:workflow.pipeline.title")}
+          description={t("dashboard:workflow.pipeline.description")}
+        />
         <QueryErrorState
-          message="Workflow analytics are unavailable."
+          message={t("dashboard:workflow.pipeline.unavailable")}
           onRetry={() => workflowQuery.refetch()}
         />
       </div>
@@ -89,25 +91,23 @@ function WorkflowPage() {
   const workflow = workflowQuery.data;
   const maxConversion = Math.max(...Object.values(workflow.conversion_counts), 1);
   const distributions = [
-    { title: "Investigations", rows: workflow.status_distributions.investigations },
-    { title: "Recommendations", rows: workflow.status_distributions.recommendations },
-    { title: "Decisions", rows: workflow.status_distributions.decisions },
-    { title: "Recoveries", rows: workflow.status_distributions.recoveries },
+    { title: t("dashboard:sections.investigations"), rows: workflow.status_distributions.investigations, formatter: formatInvestigationStatus },
+    { title: t("dashboard:sections.recommendations"), rows: workflow.status_distributions.recommendations, formatter: formatRecommendationStatus },
+    { title: t("dashboard:sections.decisions"), rows: workflow.status_distributions.decisions, formatter: formatDecisionStatus },
+    { title: t("dashboard:sections.recoveries"), rows: workflow.status_distributions.recoveries, formatter: formatRecoveryStatus },
   ];
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Investigation workflow</h1>
-        <p className="text-sm text-muted-foreground">
-          Backend workflow counts scoped to the authenticated user's role and assignments.
-        </p>
-      </div>
+      <PageHeader
+        title={t("dashboard:workflow.pipeline.title")}
+        description={t("dashboard:workflow.pipeline.description")}
+      />
 
       <Card>
         <CardHeader>
-          <CardTitle>Pipeline conversion counts</CardTitle>
-          <CardDescription>{workflow.metric_semantics}</CardDescription>
+          <CardTitle>{t("dashboard:workflow.pipeline.conversionTitle")}</CardTitle>
+          <CardDescription>{t("dashboard:workflow.pipeline.metricSemantics")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ol className="grid gap-4 md:grid-cols-5">
@@ -124,9 +124,11 @@ function WorkflowPage() {
                     {index < steps.length - 1 && <ArrowRight className="hidden h-4 w-4 text-muted-foreground md:block" />}
                   </div>
                   <div className="mt-4 text-xs uppercase tracking-wide text-muted-foreground">
-                    Step {index + 1}
+                    {t("dashboard:workflow.pipeline.step", { number: index + 1 })}
                   </div>
-                  <div className="mt-1 text-sm font-medium">{step.label}</div>
+                  <div className="mt-1 text-sm font-medium">
+                    {t(`dashboard:workflow.pipeline.steps.${step.labelKey}`)}
+                  </div>
                   <div className="mt-2 text-2xl font-semibold">{count}</div>
                   <Progress value={pct} className="mt-3" />
                 </li>
@@ -141,18 +143,18 @@ function WorkflowPage() {
           <Card key={group.title}>
             <CardHeader>
               <CardTitle>{group.title}</CardTitle>
-              <CardDescription>Status distribution from backend workflow analytics</CardDescription>
+              <CardDescription>{t("dashboard:workflow.pipeline.distributionDescription")}</CardDescription>
             </CardHeader>
             <CardContent>
               {group.rows.length === 0 ? (
                 <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                  No status data available.
+                  {t("dashboard:workflow.pipeline.noStatusData")}
                 </div>
               ) : (
                 <div className="space-y-3">
                   {group.rows.map((row) => (
                     <div key={row.key ?? "unspecified"} className="flex items-center justify-between rounded-lg border p-3">
-                      <div className="text-sm font-medium">{labelFromKey(row.key)}</div>
+                      <div className="text-sm font-medium">{group.formatter(t, row.key)}</div>
                       <Badge variant="secondary">{row.count}</Badge>
                     </div>
                   ))}
@@ -166,16 +168,16 @@ function WorkflowPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Decision outcomes</CardTitle>
-            <CardDescription>Descriptive counts only</CardDescription>
+            <CardTitle>{t("dashboard:workflow.pipeline.decisionOutcomes")}</CardTitle>
+            <CardDescription>{t("dashboard:workflow.pipeline.descriptiveCountsOnly")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {workflow.decision_outcomes.length === 0 ? (
-              <div className="text-sm text-muted-foreground">No decision outcome data available.</div>
+              <div className="text-sm text-muted-foreground">{t("dashboard:workflow.pipeline.noDecisionOutcomeData")}</div>
             ) : (
               workflow.decision_outcomes.map((row) => (
                 <div key={row.key ?? "unspecified"} className="flex items-center justify-between rounded-lg border p-3">
-                  <span className="text-sm font-medium">{labelFromKey(row.key)}</span>
+                  <span className="text-sm font-medium">{formatDecisionOutcome(t, row.key)}</span>
                   <Badge variant="outline">{row.count}</Badge>
                 </div>
               ))
@@ -185,16 +187,16 @@ function WorkflowPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Recovery types</CardTitle>
-            <CardDescription>Recovery distribution from backend analytics</CardDescription>
+            <CardTitle>{t("dashboard:workflow.pipeline.recoveryTypes")}</CardTitle>
+            <CardDescription>{t("dashboard:workflow.pipeline.recoveryDistributionDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {workflow.recovery_types.length === 0 ? (
-              <div className="text-sm text-muted-foreground">No recovery type data available.</div>
+              <div className="text-sm text-muted-foreground">{t("dashboard:workflow.pipeline.noRecoveryTypeData")}</div>
             ) : (
               workflow.recovery_types.map((row) => (
                 <div key={row.key ?? "unspecified"} className="flex items-center justify-between rounded-lg border p-3">
-                  <span className="text-sm font-medium">{labelFromKey(row.key)}</span>
+                  <span className="text-sm font-medium">{formatRecoveryType(t, row.key)}</span>
                   <Badge variant="outline">{row.count}</Badge>
                 </div>
               ))
@@ -204,8 +206,21 @@ function WorkflowPage() {
       </div>
 
       <div className="text-xs text-muted-foreground">
-        Scope: {workflow.scope}. Range: {workflow.filters.date_from} to {workflow.filters.date_to}.
+        {t("dashboard:workflow.pipeline.footer", {
+          scope: workflow.scope,
+          dateFrom: formatDate(workflow.filters.date_from, i18n.language),
+          dateTo: formatDate(workflow.filters.date_to, i18n.language),
+        })}
       </div>
+    </div>
+  );
+}
+
+function PageHeader({ title, description }: { title: string; description: string }) {
+  return (
+    <div>
+      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+      <p className="text-sm text-muted-foreground">{description}</p>
     </div>
   );
 }

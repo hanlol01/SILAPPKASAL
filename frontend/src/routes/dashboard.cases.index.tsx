@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatDateTime } from "@/lib/format";
 import { formatCaseStatus } from "@/lib/format-labels";
 import { getCases, operationsQueryKeys } from "@/lib/operations-api";
 
@@ -38,7 +39,7 @@ const CASE_STATUSES = [
 ];
 
 function CasesPage() {
-  const { t } = useTranslation(["dashboard"]);
+  const { t, i18n } = useTranslation(["dashboard"]);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
   const query = useMemo(
@@ -122,7 +123,7 @@ function CasesPage() {
                       <td className="px-3 py-2"><Badge variant="outline">{formatCaseStatus(t, item.status_code)}</Badge></td>
                       <td className="px-3 py-2">{item.risk_level ?? item.risk_level_code ?? "-"}</td>
                       <td className="px-3 py-2">{item.priority ?? "-"}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{formatDate(item.forwarded_at)}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{formatDateTime(item.forwarded_at, i18n.language)}</td>
                       <td className="px-3 py-2 text-right">
                         <Button asChild size="sm" variant="ghost">
                           <Link to="/dashboard/cases/$id" params={{ id: String(item.id) }}>
@@ -152,8 +153,4 @@ function CasesPage() {
       </Card>
     </div>
   );
-}
-
-function formatDate(value: string | null | undefined) {
-  return value ? new Date(value).toLocaleString() : "-";
 }

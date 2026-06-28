@@ -8,6 +8,7 @@ import { Search } from "lucide-react";
 import { z } from "zod";
 
 import { ApiError } from "@/lib/api-client";
+import { formatDateTime } from "@/lib/format";
 import { trackReport } from "@/lib/portal-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +26,7 @@ export const Route = createFileRoute("/track")({
 });
 
 function TrackPage() {
-  const { t } = useTranslation(["portal", "auth", "common"]);
+  const { t, i18n } = useTranslation(["portal", "auth", "common"]);
   const form = useForm<TrackingValues>({
     resolver: zodResolver(trackingSchema(t("portal:trackingInvalidFormat"))),
     defaultValues: {
@@ -94,7 +95,7 @@ function TrackPage() {
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted-foreground">{t("portal:submitted")}</dt>
-                  <dd className="font-medium">{result.submitted_at ? new Date(result.submitted_at).toLocaleString() : "-"}</dd>
+                  <dd className="font-medium">{formatDateTime(result.submitted_at, i18n.language)}</dd>
                 </div>
               </dl>
             </div>

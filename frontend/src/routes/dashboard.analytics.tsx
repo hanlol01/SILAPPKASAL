@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   BarChart,
   Bar,
@@ -26,6 +27,11 @@ import {
   getDashboardReports,
   getDashboardSummary,
 } from "@/lib/dashboard-api";
+import {
+  formatCaseStatus,
+  formatEvidenceClassification,
+  formatReportCategory,
+} from "@/lib/format-labels";
 
 export const Route = createFileRoute("/dashboard/analytics")({
   component: AnalyticsPage,
@@ -41,34 +47,9 @@ const PIE = [
   "var(--muted-foreground)",
 ];
 
-function labelFromKey(key: unknown) {
-  if (key === null || key === undefined || key === "") return "Unknown";
-
-  const normalized =
-    typeof key === "object"
-      ? safeObjectLabel(key)
-      : String(key);
-
-  if (!normalized) return "Unknown";
-
-  return normalized
-    .replace(/[-_]/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function safeObjectLabel(value: object) {
-  if ("name" in value && typeof value.name === "string") return value.name;
-  if ("code" in value && typeof value.code === "string") return value.code;
-
-  try {
-    return JSON.stringify(value) || "Unknown";
-  } catch {
-    return "Unknown";
-  }
-}
-
 function AnalyticsPage() {
   const { roleCode } = useAuth();
+  const { t } = useTranslation(["dashboard"]);
   const canViewAnalytics = roleCode === "super_admin" || roleCode === "admin";
 
   const summaryQuery = useQuery({
@@ -104,12 +85,10 @@ function AnalyticsPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
-          <p className="text-sm text-muted-foreground">
-            Backend dashboard analytics across reports, cases, workflow, and evidence metadata.
-          </p>
-        </div>
+        <PageHeader
+          title={t("dashboard:analytics.title")}
+          description={t("dashboard:analytics.subtitle")}
+        />
         <StatSkeletonGrid />
       </div>
     );
@@ -124,14 +103,12 @@ function AnalyticsPage() {
   ) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
-          <p className="text-sm text-muted-foreground">
-            Backend dashboard analytics across reports, cases, workflow, and evidence metadata.
-          </p>
-        </div>
+        <PageHeader
+          title={t("dashboard:analytics.title")}
+          description={t("dashboard:analytics.subtitle")}
+        />
         <QueryErrorState
-          message="Analytics data is unavailable."
+          message={t("dashboard:analytics.unavailable")}
           onRetry={() => {
             summaryQuery.refetch();
             reportsQuery.refetch();
@@ -156,15 +133,15 @@ function AnalyticsPage() {
     evidence: evidence.time_series.find((item) => item.bucket === point.bucket)?.count ?? 0,
   }));
   const caseStages = cases.by_current_stage.map((item) => ({
-    stage: labelFromKey(item.key),
+    stage: formatCaseStatus(t, analyticsLabelKey(item.key)),
     count: item.count,
   }));
   const categories = reports.by_category_code.map((item) => ({
-    name: labelFromKey(item.key),
+    name: formatReportCategory(t, analyticsLabelKey(item.key)),
     value: item.count,
   }));
   const evidenceClasses = evidence.by_classification.map((item) => ({
-    name: labelFromKey(item.key),
+    name: formatEvidenceClassification(t, analyticsLabelKey(item.key)),
     value: item.count,
   }));
 
@@ -179,48 +156,44 @@ function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
-        <p className="text-sm text-muted-foreground">
-          Backend dashboard analytics across reports, cases, workflow, and evidence metadata.
-        </p>
-      </div>
+      <PageHeader
+        title={t("dashboard:analytics.title")}
+        description={t("dashboard:analytics.subtitle")}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card><CardContent className="p-5">
-          <div className="text-sm text-muted-foreground">Total reports</div>
-          <div className="mt-2 text-3xl font-semibold">{reports.total}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{reports.scope}</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-5">
-          <div className="text-sm text-muted-foreground">Total cases</div>
-          <div className="mt-2 text-3xl font-semibold">{cases.total}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{cases.assignments.assigned_cases} assigned</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-5">
-          <div className="text-sm text-muted-foreground">Evidence records</div>
-          <div className="mt-2 text-3xl font-semibold">{evidence.total}</div>
-          <div className="mt-1 text-xs text-muted-foreground">Metadata counts only</div>
-        </CardContent></Card>
-        <Card><CardContent className="p-5">
-          <div className="text-sm text-muted-foreground">Anonymous share</div>
-          <div className="mt-2 text-3xl font-semibold">{anonymousShare}%</div>
-          <div className="mt-1 text-xs text-muted-foreground">of reports in range</div>
-        </CardContent></Card>
+        <StatCard
+          label={t("dashboard:analytics.cards.totalReports")}
+          value={reports.total}
+          description={t("dashboard:analytics.cards.scope", { scope: formatScope(t, reports.scope) })}
+        />
+        <StatCard
+          label={t("dashboard:analytics.cards.totalCases")}
+          value={cases.total}
+          description={t("dashboard:analytics.cards.assigned", { count: cases.assignments.assigned_cases })}
+        />
+        <StatCard
+          label={t("dashboard:analytics.cards.evidenceRecords")}
+          value={evidence.total}
+          description={t("dashboard:analytics.cards.metadataCountsOnly")}
+        />
+        <StatCard
+          label={t("dashboard:analytics.cards.anonymousShare")}
+          value={`${anonymousShare}%`}
+          description={t("dashboard:analytics.cards.ofReportsInRange")}
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Cases by stage</CardTitle>
-            <CardDescription>Distribution from `/dashboard/cases`</CardDescription>
+            <CardTitle>{t("dashboard:analytics.charts.casesByStage")}</CardTitle>
+            <CardDescription>{t("dashboard:analytics.charts.casesByStageDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-72">
               {caseStages.length === 0 ? (
-                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                  No case stage data available.
-                </div>
+                <EmptyChart>{t("dashboard:analytics.empty.caseStage")}</EmptyChart>
               ) : (
                 <ResponsiveContainer>
                   <BarChart data={caseStages} layout="vertical" margin={{ left: 30 }}>
@@ -228,7 +201,7 @@ function AnalyticsPage() {
                     <XAxis type="number" stroke="var(--muted-foreground)" fontSize={12} />
                     <YAxis dataKey="stage" type="category" stroke="var(--muted-foreground)" fontSize={11} width={130} />
                     <Tooltip {...tooltip} />
-                    <Bar dataKey="count" fill="var(--chart-1)" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="count" name={t("dashboard:analytics.series.count")} fill="var(--chart-1)" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -238,15 +211,13 @@ function AnalyticsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Reports by category</CardTitle>
-            <CardDescription>Category counts from `/dashboard/reports`</CardDescription>
+            <CardTitle>{t("dashboard:analytics.charts.reportsByCategory")}</CardTitle>
+            <CardDescription>{t("dashboard:analytics.charts.reportsByCategoryDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-72">
               {categories.length === 0 ? (
-                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                  No category data available.
-                </div>
+                <EmptyChart>{t("dashboard:analytics.empty.category")}</EmptyChart>
               ) : (
                 <ResponsiveContainer>
                   <PieChart>
@@ -266,8 +237,8 @@ function AnalyticsPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Monthly trends</CardTitle>
-            <CardDescription>Reports, cases, and evidence metadata over time</CardDescription>
+            <CardTitle>{t("dashboard:analytics.charts.monthlyTrends")}</CardTitle>
+            <CardDescription>{t("dashboard:analytics.charts.monthlyTrendsDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-80">
@@ -278,9 +249,9 @@ function AnalyticsPage() {
                   <YAxis stroke="var(--muted-foreground)" fontSize={12} />
                   <Tooltip {...tooltip} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line type="monotone" dataKey="reports" stroke="var(--chart-1)" strokeWidth={2.5} dot={false} />
-                  <Line type="monotone" dataKey="cases" stroke="var(--chart-2)" strokeWidth={2.5} dot={false} />
-                  <Line type="monotone" dataKey="evidence" stroke="var(--chart-3)" strokeWidth={2.5} dot={false} />
+                  <Line type="monotone" dataKey="reports" name={t("dashboard:analytics.series.reports")} stroke="var(--chart-1)" strokeWidth={2.5} dot={false} />
+                  <Line type="monotone" dataKey="cases" name={t("dashboard:analytics.series.cases")} stroke="var(--chart-2)" strokeWidth={2.5} dot={false} />
+                  <Line type="monotone" dataKey="evidence" name={t("dashboard:analytics.series.evidence")} stroke="var(--chart-3)" strokeWidth={2.5} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -289,15 +260,13 @@ function AnalyticsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Evidence classification</CardTitle>
-            <CardDescription>{evidence.privacy}</CardDescription>
+            <CardTitle>{t("dashboard:analytics.charts.evidenceClassification")}</CardTitle>
+            <CardDescription>{t("dashboard:analytics.evidencePrivacy")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-80">
               {evidenceClasses.length === 0 ? (
-                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                  No evidence classification data available.
-                </div>
+                <EmptyChart>{t("dashboard:analytics.empty.evidenceClassification")}</EmptyChart>
               ) : (
                 <ResponsiveContainer>
                   <PieChart>
@@ -316,13 +285,13 @@ function AnalyticsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Backend summary</CardTitle>
-          <CardDescription>Totals from `/dashboard/summary`</CardDescription>
+          <CardTitle>{t("dashboard:analytics.summary.title")}</CardTitle>
+          <CardDescription>{t("dashboard:analytics.summary.description")}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
           {Object.entries(summary.totals).map(([key, value]) => (
             <div key={key} className="rounded-lg border p-3">
-              <div className="text-muted-foreground">{labelFromKey(key)}</div>
+              <div className="text-muted-foreground">{formatSummaryTotal(t, key)}</div>
               <div className="mt-1 text-lg font-semibold">{value}</div>
             </div>
           ))}
@@ -330,4 +299,62 @@ function AnalyticsPage() {
       </Card>
     </div>
   );
+}
+
+function PageHeader({ title, description }: { title: string; description: string }) {
+  return (
+    <div>
+      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+      <p className="text-sm text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+function StatCard({ label, value, description }: { label: string; value: string | number; description: string }) {
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <div className="text-sm text-muted-foreground">{label}</div>
+        <div className="mt-2 text-3xl font-semibold">{value}</div>
+        <div className="mt-1 text-xs text-muted-foreground">{description}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function EmptyChart({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+      {children}
+    </div>
+  );
+}
+
+function formatSummaryTotal(t: ReturnType<typeof useTranslation>["t"], key: string) {
+  return t(`dashboard:analytics.summary.totals.${key}`, {
+    defaultValue: t("dashboard:common.notAvailable"),
+  });
+}
+
+function formatScope(t: ReturnType<typeof useTranslation>["t"], scope: string) {
+  return t(`dashboard:analytics.scopes.${scope}`, {
+    defaultValue: t("dashboard:common.notAvailable"),
+  });
+}
+
+function analyticsLabelKey(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") return String(value);
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    for (const key of ["code", "name", "label", "title", "value", "key"]) {
+      const item = record[key];
+      if (typeof item === "string" && item.trim()) return item;
+      if (typeof item === "number" || typeof item === "boolean" || typeof item === "bigint") return String(item);
+    }
+  }
+
+  return String(value);
 }

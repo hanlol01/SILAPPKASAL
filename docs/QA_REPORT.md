@@ -408,3 +408,143 @@ Tooling notes:
 
 - Browser/session verification with an actual assigned Satgas account is still recommended because QA did not execute an authenticated end-to-end UI flow.
 - Backend invalid-transition behavior was verified by code review, not by sending a live invalid PATCH request.
+
+# UX-05
+
+## Executive Summary
+
+QA reviewed UX-05 against `REPORT_UX_AUDIT.md` and `UX_IMPROVEMENT_PLAN.md`, focusing on Localization & Enum Consistency.
+
+Implementation is partially complete. Portal status badges, report type labels, master-data pages, dashboard reports list, and case-detail date formatting are mostly aligned with the UX-05 target. TypeScript, build, and lint verification did not show blocking regressions.
+
+However, UX-05 does not fully satisfy the localization acceptance criteria. The workflow analytics page still exposes backend/raw enum semantics through user-visible copy, and the dashboard analytics page remains largely hardcoded in English despite being part of the audited localization/date-format consistency surface.
+
+## Implementation Score (0-100)
+
+78
+
+## PASS / FAIL
+
+FAIL
+
+## Findings
+
+| ID | Area | Result | Evidence |
+|---|---|---|---|
+| QA-UX05-001 | Scope compliance | FAIL | UX-05 goal requires audited visible labels to route through i18n/format helpers. `dashboard.workflow.tsx` still renders `workflow.metric_semantics` directly, and `dashboard.analytics.tsx` still contains hardcoded English UI copy. |
+| QA-UX05-002 | Portal status badge localization | PASS | `components/portal/portal-status-badge.tsx` uses `useTranslation(["portal"])` and renders `t(\`portal:${portalStatus}\`)` instead of hardcoded Indonesian status labels. |
+| QA-UX05-003 | Report type localization | PASS | `portal.reports.new.tsx` maps `open`, `confidential`, and `anonymous` through `portal:reportTypes.*` keys; the dashboard reports list uses `formatReportType(t, ...)`. |
+| QA-UX05-004 | Master-data localization | PASS | Master-data index, universities, faculties, and study-program pages use `dashboard:masterData.*` and enum format helpers for campus type and degree level labels. |
+| QA-UX05-005 | Workflow localization | FAIL | Static labels are translated, but distribution rows use `formatGenericLabel()` and the metric description renders raw backend `metric_semantics`, so user-visible workflow strings are not fully localized. |
+| QA-UX05-006 | Date formatting consistency | PASS with residual risk | `dashboard.reports.index.tsx` and `dashboard.cases.$id.tsx` use `formatDateTime(value, i18n.language)` for displayed dates. Remaining `new Date()` usage in case detail is internal sorting only, not display formatting. |
+| QA-UX05-007 | Analytics localization | FAIL | `dashboard.analytics.tsx` still uses hardcoded English headings, descriptions, empty states, chart titles, and `labelFromKey()` returning English title-case labels. |
+| QA-UX05-008 | Accessibility and design consistency | PASS | UX-05 changes reuse existing shadcn/Radix controls, badges, cards, and translation-driven labels without introducing obvious new keyboard or layout risks. |
+| QA-UX05-009 | Regression | PASS | `npx.cmd tsc --noEmit`, `npm.cmd run build`, and `npm.cmd run lint` passed. Lint retained 6 existing react-refresh warnings in shared UI files. |
+
+## Recommendations
+
+1. Fix `UX05-BUG-001` by replacing user-visible workflow backend semantics and generic enum labels with locale-aware translation keys or typed enum formatters.
+2. Fix `UX05-BUG-002` by migrating `dashboard.analytics.tsx` visible copy to `dashboard:analytics.*` locale keys and replacing `labelFromKey()` with `format-labels.ts` helpers where enum codes are known.
+3. Keep backend-provided names that are true master-data names as data, but avoid rendering backend technical codes or semantics strings directly as explanatory UI copy.
+4. Product Owner should manually execute UX-05 smoke tests in both Bahasa Indonesia and English after the hotfix.
+
+## Verification
+
+| Check | Command | Result |
+|---|---|---|
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | PASS |
+| Build | `npm.cmd run build` from `frontend/` | PASS with non-blocking Vite/TanStack chunk-size and unused-import warnings |
+| Lint | `npm.cmd run lint` from `frontend/` | PASS with 0 errors and 6 existing react-refresh warnings |
+| Hardcoded portal status search | `rg -n 'Dikirim|Dalam Peninjauan|Sedang Diproses|Selesai' frontend/src/components` | PASS, no component matches |
+| Date display search | `rg -n 'toLocaleString|toLocaleDateString|new Date\(' ...` on audited dashboard routes | PASS for display formatting; only internal sorting `new Date()` remains in case detail |
+
+# UX-05 Hotfix QA Recheck
+
+## Summary
+
+QA recheck focused only on the UX-05 hotfix for the previously reported open bugs:
+
+- `UX05-BUG-001` on `/dashboard/workflow`
+- `UX05-BUG-002` on `/dashboard/analytics`
+
+Both bugs are verified resolved. The workflow page no longer renders backend `metric_semantics` directly and now uses localized explanatory copy plus typed enum formatters. The analytics page has been migrated to `dashboard:analytics.*` locale keys and typed format helpers for known enum-like values.
+
+`docs/SMOKE_TEST.md` was not changed because the manual UX-05 smoke scope remains the same.
+
+## Score
+
+96
+
+## PASS / FAIL
+
+PASS
+
+## Regression Findings
+
+No regression found in the UX-05 hotfix scope.
+
+Verification evidence:
+
+| Check | Command | Result |
+|---|---|---|
+| Workflow/analytics stale string search | `rg -n "metric_semantics\|labelFromKey\|Backend dashboard analytics across\|Total reports\|Cases by stage\|No case stage data\|descriptive_counts_only_not_kpi\|formatGenericLabel" frontend/src/routes/dashboard.workflow.tsx frontend/src/routes/dashboard.analytics.tsx` | PASS, no matches |
+| Locale and formatter wiring search | `rg -n "dashboard:analytics\|metricSemantics\|reportCategory\|priorityLevel\|riskLevel\|recoveryType\|evidenceType" ...` | PASS, expected locale keys and formatter usage found |
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | PASS |
+| Build | `npm.cmd run build` from `frontend/` | PASS with non-blocking Vite/TanStack chunk-size and unused-import warnings |
+| Lint | `npm.cmd run lint` from `frontend/` | PASS with 0 errors and 6 existing react-refresh warnings |
+
+## Remaining Risks
+
+- QA verified the hotfix by static inspection and tooling, not by an authenticated browser session toggling Bahasa Indonesia and English.
+- Chart labels that come from backend data still depend on backend keys matching the locale dictionaries; unknown keys fall back to formatted raw labels by design.
+- Existing build chunk-size warnings and existing shared UI `react-refresh/only-export-components` lint warnings remain non-blocking and unchanged.
+
+# UX-05 Runtime Hotfix QA Recheck
+
+## Summary
+
+QA recheck focused on the runtime hotfix for `/dashboard/analytics` after the crash symptom `value.replace is not a function`.
+
+Verified outcomes:
+
+- `/dashboard/analytics` formatter path no longer assumes label values are strings.
+- `format-labels.ts` helpers now accept `unknown` and normalize strings, numbers, booleans, bigint values, objects, arrays, null, undefined, and empty strings before fallback formatting.
+- Analytics aggregation labels now pass through `analyticsLabelKey()` before calling `formatCaseStatus`, `formatReportCategory`, and `formatEvidenceClassification`.
+- Workflow and analytics localization fixes from the previous UX-05 hotfix remain intact.
+- TypeScript, build, and lint did not introduce a blocking regression.
+
+## Score
+
+97
+
+## PASS / FAIL
+
+PASS
+
+## Regression Findings
+
+No regression found in the UX-05 runtime hotfix scope.
+
+Verification evidence:
+
+| Check | Command | Result |
+|---|---|---|
+| Formatter runtime non-string check | `npx.cmd tsx -e "...formatCaseStatus/formatReportCategory/formatGenericLabel..."` from `frontend/` | PASS; string, number, boolean, object, array, null, undefined, and empty string inputs completed without `value.replace is not a function` |
+| Replace usage inspection | `rg -n "\.replace\(|formatCaseStatus\(|formatReportCategory\(|formatEvidenceClassification\(|analyticsLabelKey\(" frontend/src/lib/format-labels.ts frontend/src/routes/dashboard.analytics.tsx frontend/src/routes/dashboard.workflow.tsx` | PASS; `.replace()` remains only after `fallbackSource()` normalization in `format-labels.ts`; analytics uses `analyticsLabelKey()` before enum formatters |
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | PASS |
+| Build | `npm.cmd run build` from `frontend/` | PASS with existing non-blocking Vite/TanStack chunk-size and unused-import warnings |
+| Lint | `npm.cmd run lint` from `frontend/` | PASS with 0 errors and 6 existing react-refresh warnings |
+
+## Bug Status Updates
+
+| Bug ID | Status | QA Result |
+|---|---|---|
+| UX05-BUG-001 | Verified | Workflow localization remained intact. |
+| UX05-BUG-002 | Verified | Analytics localization remained intact. |
+| UX05-BUG-003 | Verified | Runtime formatter crash is fixed. |
+
+## Remaining Risks
+
+- QA did not execute an authenticated browser session against live dashboard data; `/dashboard/analytics` runtime behavior was verified through static inspection, production build, and targeted formatter runtime checks.
+- Unknown backend aggregation shapes still fall back to serialized/formatted labels, so Product Owner should include real analytics data in manual smoke verification.
+- The first targeted formatter runtime command attempted to fetch `tsx` and was blocked by sandbox network restrictions; the re-run was approved and completed successfully.
