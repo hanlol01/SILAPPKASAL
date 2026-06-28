@@ -14,6 +14,17 @@ import {
   type UniversityPayload,
 } from "@/lib/campus-admin-api";
 import { ApiError } from "@/lib/api-client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -82,9 +93,35 @@ function UniversitiesPage() {
                   <td className="p-3 text-right">
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" size="sm" onClick={() => setEditing(item)}>{t("dashboard:common.edit")}</Button>
-                      <Button variant="outline" size="sm" onClick={() => toggleMutation.mutate(item.id)}>
-                        {item.is_active ? t("dashboard:masterData.deactivate") : t("dashboard:masterData.activate")}
-                      </Button>
+                      {item.is_active ? (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm">{t("dashboard:masterData.deactivate")}</Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t("dashboard:masterData.universityDeactivateConfirmTitle", { name: item.name })}</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {t("dashboard:masterData.universityDeactivateConfirmDescription", { name: item.name })}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>{t("dashboard:common.cancel")}</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                disabled={toggleMutation.isPending}
+                                onClick={() => toggleMutation.mutate(item.id)}
+                              >
+                                {t("dashboard:masterData.deactivate")}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      ) : (
+                        <Button variant="outline" size="sm" onClick={() => toggleMutation.mutate(item.id)} disabled={toggleMutation.isPending}>
+                          {t("dashboard:masterData.activate")}
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>

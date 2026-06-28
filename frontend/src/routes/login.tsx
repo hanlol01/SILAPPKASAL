@@ -158,7 +158,7 @@ function LoginPage() {
                   required
                 />
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center">
                 <label className="flex items-center gap-2 text-sm">
                   <Checkbox
                     checked={remember}
@@ -166,9 +166,6 @@ function LoginPage() {
                   />
                   {t("rememberMe")}
                 </label>
-                <Link to="/login" className="text-sm text-primary hover:underline">
-                  {t("forgotPassword")}
-                </Link>
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? t("signingIn") : t("signIn")}

@@ -1,6 +1,7 @@
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AlertTriangle } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -16,6 +17,7 @@ import {
   getUniversities,
 } from "@/lib/registration-api";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
 import { PasswordField, SelectFormField, TextInputField } from "@/components/form-fields";
@@ -104,9 +106,13 @@ function RegistrationCorrectionPage() {
       <Card className="mx-auto max-w-2xl">
         <CardHeader>
           <CardTitle>{t("correctionTitle")}</CardTitle>
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-            {registration.rejection_reason}
-          </div>
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>{t("rejectionReasonTitle")}</AlertTitle>
+            <AlertDescription>
+              {registration.rejection_reason || t("rejectionReasonUnavailable")}
+            </AlertDescription>
+          </Alert>
         </CardHeader>
         <CardContent>
           <Form {...form}>

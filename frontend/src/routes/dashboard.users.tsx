@@ -18,7 +18,19 @@ import {
 import { campusQueryKeys, getFaculties, getStudyPrograms, getUniversities } from "@/lib/registration-api";
 import { useAuth } from "@/hooks/use-auth";
 import { ApiError } from "@/lib/api-client";
+import type { ApiUser } from "@/lib/api-types";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -41,6 +53,8 @@ function DashboardUsersPage() {
   const [studyProgramId, setStudyProgramId] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
+  const [resetTarget, setResetTarget] = useState<ApiUser | null>(null);
+  const [resetConfirmationEmail, setResetConfirmationEmail] = useState("");
   const canAccess = roleCode === "admin" || roleCode === "super_admin";
   const query = useMemo(
     () => ({
@@ -79,6 +93,8 @@ function DashboardUsersPage() {
     mutationFn: resetUserPassword,
     onSuccess: (data) => {
       setTemporaryPassword(data.temporary_password);
+      setResetTarget(null);
+      setResetConfirmationEmail("");
       invalidate();
     },
     onError: (error) => toast.error(error instanceof ApiError ? error.message : t("dashboard:users.passwordResetError")),
@@ -184,10 +200,78 @@ function DashboardUsersPage() {
                 <td className="p-3"><Badge variant={user.is_active ? "default" : "outline"}>{user.is_active ? t("dashboard:users.active") : t("dashboard:users.inactive")}</Badge></td>
                 <td className="p-3 text-right">
                   <div className="flex flex-wrap justify-end gap-2">
-                    <Button size="sm" variant="outline" onClick={() => user.is_active ? deactivateMutation.mutate(user.id) : activateMutation.mutate(user.id)}>
-                      {user.is_active ? t("dashboard:users.deactivate") : t("dashboard:users.activate")}
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => resetMutation.mutate(user.id)}>{t("dashboard:users.resetPassword")}</Button>
+                    {user.is_active ? (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" variant="outline">{t("dashboard:users.deactivate")}</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{t("dashboard:users.deactivateConfirmTitle", { name: user.name })}</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {t("dashboard:users.deactivateConfirmDescription", { name: user.name })}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>{t("dashboard:common.cancel")}</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              disabled={deactivateMutation.isPending}
+                              onClick={() => deactivateMutation.mutate(user.id)}
+                            >
+                              {t("dashboard:users.deactivate")}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => activateMutation.mutate(user.id)} disabled={activateMutation.isPending}>
+                        {t("dashboard:users.activate")}
+                      </Button>
+                    )}
+                    <AlertDialog
+                      open={resetTarget?.id === user.id}
+                      onOpenChange={(open) => {
+                        setResetTarget(open ? user : null);
+                        setResetConfirmationEmail("");
+                      }}
+                    >
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="outline">{t("dashboard:users.resetPassword")}</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>{t("dashboard:users.resetPasswordConfirmTitle", { name: user.name })}</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {t("dashboard:users.resetPasswordConfirmDescription", { email: user.email })}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <div className="grid gap-2">
+                          <label className="text-sm font-medium" htmlFor={`reset-email-${user.id}`}>
+                            {t("dashboard:users.resetPasswordConfirmLabel")}
+                          </label>
+                          <Input
+                            id={`reset-email-${user.id}`}
+                            value={resetConfirmationEmail}
+                            onChange={(event) => setResetConfirmationEmail(event.target.value)}
+                            placeholder={user.email}
+                          />
+                        </div>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>{t("dashboard:common.cancel")}</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            disabled={resetMutation.isPending || resetConfirmationEmail !== user.email}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              resetMutation.mutate(user.id);
+                            }}
+                          >
+                            {t("dashboard:users.resetPassword")}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </td>
               </tr>

@@ -180,3 +180,93 @@ Tooling notes:
 - Manual browser verification is still required for the exact current-time boundary because the validation depends on the local clock at submit time.
 - Dark-mode time picker appearance was verified by code review and build/lint, not visual browser inspection.
 - Location type localization depends on backend/master-data codes matching the `portal:locationTypes.*` keys.
+
+# UX-03
+
+## Executive Summary
+
+UX-03 was reviewed against `docs/REPORT_UX_AUDIT.md` and the UX-03 scope in `docs/UX_IMPROVEMENT_PLAN.md`, focused on validation experience, error surfaces, destructive-action confirmations, and removal of dead affordances.
+
+The implementation is mostly aligned with the UX-03 plan. Registration correction now surfaces rejection reasons with a destructive alert and field-level Laravel errors, disabled workflow actions use an informational shadcn Alert pattern, the dashboard topbar search affordance has been removed, and the targeted destructive actions use AlertDialog confirmations. TypeScript, build, and lint completed without errors.
+
+One UX-03 checklist item remains unresolved: the `/login` "Lupa kata sandi?" / "Forgot password?" affordance is still an active link pointing back to `/login`, despite the UX-03 manual checklist requiring it to be removed, disabled, or made non-active until a real flow exists. This was logged as `UX03-BUG-001`, so UX-03 does not fully pass QA.
+
+## Implementation Score (0-100)
+
+84
+
+## PASS / FAIL
+
+FAIL
+
+## Findings
+
+| ID | Area | Result | Evidence |
+|---|---|---|---|
+| QA-UX03-001 | Scope compliance | FAIL | Reviewed UX-03 surfaces from the plan: registration correction, dashboard layout topbar, workflow disabled action, user destructive actions, registration rejection, and university deactivation. The login forgot-password dead affordance remains unresolved from the UX-03 checklist. |
+| QA-UX03-002 | Registration correction error surface | PASS | `/registration/correction` renders rejection reason inside a destructive `Alert` with icon/title/description and keeps Laravel 422 mapping through `applyLaravelErrors()`. |
+| QA-UX03-003 | Dashboard topbar dead search | PASS | `dashboard-layout.tsx` no longer renders the nonfunctional topbar search input; the topbar keeps sidebar trigger, notification, language switcher, theme toggle, and user menu. |
+| QA-UX03-004 | Disabled workflow action | PASS | `DisabledWorkflowAction` renders a shadcn `Alert` with an Info icon, `AlertTitle`, and `AlertDescription`, replacing the previous button-like dead affordance. |
+| QA-UX03-005 | Destructive user actions | PASS | `/dashboard/users` wraps deactivate and reset-password actions in `AlertDialog`; reset password requires typing the exact reporter email before the confirm action is enabled. |
+| QA-UX03-006 | Registration rejection confirmation | PASS | `/dashboard/registrations/$id` disables reject until the reason has at least 10 characters, then shows an `AlertDialog` containing the rejection reason before mutation. |
+| QA-UX03-007 | University deactivation confirmation | PASS | `/dashboard/master-data/universities` wraps deactivate in `AlertDialog` and includes the institution name in the title/description. |
+| QA-UX03-008 | Localization | PASS | New confirmation/rejection alert copy is present in both `id` and `en` locale files for auth/dashboard surfaces reviewed. |
+| QA-UX03-009 | Accessibility | PASS with residual risk | AlertDialog primitives provide accessible dialog semantics; labels are present for reset-password email confirmation. Manual keyboard/screen-reader verification is still recommended. |
+| QA-UX03-010 | Regression | PASS | `npx.cmd tsc --noEmit`, `npm.cmd run build`, and `npm.cmd run lint` passed. Lint retained 6 existing react-refresh warnings in shared UI files. |
+
+## Recommendations
+
+1. Fix `UX03-BUG-001` by removing the active forgot-password link or rendering it as a disabled/informational control until a real forgot-password flow is available.
+2. Product Owner should execute the UX-03 smoke cases manually, especially destructive-dialog cancel/confirm behavior.
+3. Keep destructive confirmations consistent in future milestones by using the shared `AlertDialog` pattern and explicit object names in titles/descriptions.
+
+## Verification
+
+| Check | Command | Result |
+|---|---|---|
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | PASS |
+| Build | `npm.cmd run build` from `frontend/` | PASS with non-blocking Vite/TanStack chunk/import warnings |
+| Lint | `npm.cmd run lint` from `frontend/` | PASS with 0 errors and 6 existing react-refresh warnings |
+
+# UX-03 Hotfix QA Recheck
+
+## Summary
+
+QA recheck focused only on the UX-03 hotfix for `UX03-BUG-001`.
+
+Verified hotfix behavior:
+
+- The `/login` form no longer renders the active `Lupa kata sandi?` / `Forgot password?` link.
+- No `Link to="/login"` forgot-password affordance remains in `frontend/src/routes/login.tsx`.
+- Login page still keeps the expected active links to `/register` and `/track`.
+- The hotfix aligns with `docs/REPORT_UX_AUDIT.md` F-11 and the UX-03 checklist item that forgot password must not exist as an active dead link.
+
+## Score
+
+98
+
+## PASS / FAIL
+
+PASS
+
+## Regression Findings
+
+No regression found in the UX-03 hotfix scope.
+
+Verification commands:
+
+| Check | Command | Result |
+|---|---|---|
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | PASS |
+| Build | `npm.cmd run build` from `frontend/` | PASS with non-blocking Vite/TanStack chunk/import warnings |
+| Lint | `npm.cmd run lint` from `frontend/` | PASS with 0 errors and 6 existing react-refresh warnings |
+
+Tooling notes:
+
+- Build retained the existing non-blocking Vite/TanStack chunk-size and unused-import warnings.
+- Lint retained the existing 6 react-refresh warnings in shared shadcn UI files.
+
+## Remaining Risks
+
+- Manual browser verification is still recommended for `/login` in Bahasa Indonesia and English to confirm the removed affordance is absent visually.
+- The actual forgot-password capability remains outside UX-03 scope and should only return as a real, implemented flow in a future milestone.

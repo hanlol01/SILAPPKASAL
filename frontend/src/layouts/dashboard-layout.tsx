@@ -13,7 +13,6 @@ import {
   LogOut,
   Moon,
   Sun,
-  Search,
   Database,
 } from "lucide-react";
 import {
@@ -31,7 +30,6 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -185,10 +183,7 @@ function Topbar() {
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur">
       <SidebarTrigger />
-      <div className="relative ml-2 hidden max-w-md flex-1 md:block">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder={t("dashboard:topbar.search")} className="pl-9" />
-      </div>
+      <div className="ml-2 flex-1" aria-hidden="true" />
       <div className="ml-auto flex items-center gap-2">
         <LanguageSwitcher />
         <Button variant="ghost" size="icon" onClick={toggle} aria-label={t("dashboard:topbar.toggleTheme")}>

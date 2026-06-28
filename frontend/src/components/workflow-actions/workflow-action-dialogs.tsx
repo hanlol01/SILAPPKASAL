@@ -1,12 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, ClipboardEdit, FilePlus2, History, PenLine } from "lucide-react";
+import { ClipboardEdit, FilePlus2, History, Info, PenLine } from "lucide-react";
 import { useState } from "react";
 import { useForm, type FieldValues, type Path, type UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -120,12 +121,11 @@ type EvidenceStatusValues = z.infer<typeof evidenceStatusSchema>;
 
 export function DisabledWorkflowAction({ title, description }: { title: string; description: string }) {
   return (
-    <div className="rounded-lg border border-dashed p-3 text-sm">
-      <div className="flex items-center gap-2 font-medium">
-        <Ban className="h-4 w-4" /> {title}
-      </div>
-      <p className="mt-2 text-xs text-muted-foreground">{description}</p>
-    </div>
+    <Alert className="border-primary/30 bg-primary/5 [&>svg]:text-primary">
+      <Info className="h-4 w-4" />
+      <AlertTitle>{title}</AlertTitle>
+      <AlertDescription>{description}</AlertDescription>
+    </Alert>
   );
 }
 

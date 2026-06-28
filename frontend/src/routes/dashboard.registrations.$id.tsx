@@ -12,6 +12,17 @@ import {
 } from "@/lib/registration-api";
 import { useAuth } from "@/hooks/use-auth";
 import { ApiError } from "@/lib/api-client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -90,13 +101,40 @@ function RegistrationDetailPage() {
                     <Button onClick={() => approveMutation.mutate()} disabled={approveMutation.isPending}>
                       {t("dashboard:registrations.approve")}
                     </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => rejectMutation.mutate()}
-                      disabled={rejectMutation.isPending || reason.trim().length < 10}
-                    >
-                      {t("dashboard:registrations.reject")}
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          disabled={rejectMutation.isPending || reason.trim().length < 10}
+                        >
+                          {t("dashboard:registrations.reject")}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>{t("dashboard:registrations.rejectConfirmTitle", { name: item.name })}</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {t("dashboard:registrations.rejectConfirmDescription")}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <div className="rounded-md border bg-muted/30 p-3">
+                          <div className="text-xs font-medium text-muted-foreground">
+                            {t("dashboard:registrations.rejectReason")}
+                          </div>
+                          <p className="mt-2 whitespace-pre-wrap text-sm">{reason.trim()}</p>
+                        </div>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>{t("dashboard:common.cancel")}</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            disabled={rejectMutation.isPending}
+                            onClick={() => rejectMutation.mutate()}
+                          >
+                            {t("dashboard:registrations.reject")}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                   <Textarea
                     placeholder={t("dashboard:registrations.rejectionReasonPlaceholder")}
