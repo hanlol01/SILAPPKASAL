@@ -7,6 +7,7 @@ import {
   FileArchive,
   FileSearch,
   Gavel,
+  Inbox,
   Lock,
   Scale,
   UserRoundSearch,
@@ -17,7 +18,6 @@ import { QueryErrorState } from "@/components/query-state";
 import { StatusBadge, WorkflowStatusBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Inbox } from "lucide-react";
 import {
   Breadcrumb,
   BreadcrumbItem,
