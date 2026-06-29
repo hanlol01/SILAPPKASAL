@@ -183,7 +183,7 @@ function NewPortalReportPage() {
         <h1 className="text-2xl font-semibold tracking-tight">{t("portal:newReport")}</h1>
         <p className="text-sm text-muted-foreground">{t("portal:newReportSubtitle")}</p>
       </div>
-      <div className="rounded-md border bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+      <div className="rounded-md border border-warning/30 bg-warning/15 p-3 text-sm text-warning-foreground dark:text-warning">
         {t("portal:reportContentWarning")}
       </div>
       <WizardProgress

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { QueryErrorState } from "@/components/query-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageBreadcrumb } from "@/components/page-breadcrumb";
+import { PageHeader } from "@/components/page-header";
 import { dashboardQueryKeys, getDashboardWorkflow } from "@/lib/dashboard-api";
 import { formatDate } from "@/lib/format";
 import {
@@ -238,11 +239,4 @@ function WorkflowPage() {
   );
 }
 
-function PageHeader({ title, description }: { title: string; description: string }) {
-  return (
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-      <p className="text-sm text-muted-foreground">{description}</p>
-    </div>
-  );
-}
+

@@ -117,7 +117,7 @@ function DashboardUsersPage() {
       </div>
 
       {temporaryPassword && (
-        <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+        <Card className="border-warning/40 bg-warning/10">
           <CardContent className="space-y-3 p-4">
             <div className="font-medium">{t("dashboard:users.temporaryPasswordGenerated")}</div>
             <p className="text-sm text-muted-foreground">{t("dashboard:users.copySecurely")}</p>
@@ -219,7 +219,7 @@ function DashboardUsersPage() {
                           <AlertDialogFooter>
                             <AlertDialogCancel>{t("dashboard:common.cancel")}</AlertDialogCancel>
                             <AlertDialogAction
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              variant="destructive"
                               disabled={deactivateMutation.isPending}
                               onClick={() => deactivateMutation.mutate(user.id)}
                             >
@@ -264,7 +264,7 @@ function DashboardUsersPage() {
                         <AlertDialogFooter>
                           <AlertDialogCancel>{t("dashboard:common.cancel")}</AlertDialogCancel>
                           <AlertDialogAction
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            variant="destructive"
                             disabled={resetMutation.isPending || resetConfirmationEmail !== user.email}
                             onClick={(event) => {
                               event.preventDefault();

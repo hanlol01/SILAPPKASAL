@@ -15,7 +15,9 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { QueryErrorState } from "@/components/query-state";
 import { StatusBadge, WorkflowStatusBadge } from "@/components/status-badge";
+import { EmptyState } from "@/components/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Inbox } from "lucide-react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -331,7 +333,11 @@ function CaseDetail() {
             </CardHeader>
             <CardContent className="space-y-3">
               {(c.assignments ?? []).length === 0 && (
-                <EmptyText>{t("dashboard:cases.noAssignments")}</EmptyText>
+                <EmptyState.Inline
+                  icon={Inbox}
+                  title={t("dashboard:cases.noAssignments")}
+                  description={t("dashboard:common.readOnlyOperationalData")}
+                />
               )}
               {(c.assignments ?? []).map((assignment) => (
                 <div key={assignment.id} className="rounded-lg border p-3 text-sm">
@@ -758,8 +764,19 @@ function SectionCard({
         <CardDescription>{t("dashboard:common.readOnlyOperationalData")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        {loading && <EmptyText>{t("dashboard:sections.loading", { name: title.toLowerCase() })}</EmptyText>}
-        {!loading && empty && <EmptyText>{t("dashboard:sections.empty", { name: title.toLowerCase() })}</EmptyText>}
+        {loading && (
+          <div className="space-y-2" aria-busy="true" aria-live="polite">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        )}
+        {!loading && empty && (
+          <EmptyState.Inline
+            icon={Inbox}
+            title={t("dashboard:sections.empty", { name: title.toLowerCase() })}
+            description={t("dashboard:common.readOnlyOperationalData")}
+          />
+        )}
         {!loading && !empty && children}
       </CardContent>
     </Card>
@@ -779,9 +796,7 @@ function MetadataOnlyText({ t }: { t: TFunction }) {
   return <div className="mt-3 text-xs text-muted-foreground">{t("dashboard:common.metadataOnly")}</div>;
 }
 
-function EmptyText({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">{children}</div>;
-}
+
 
 function defaultWorkflowTabForCase(caseRecord: CaseRecord): WorkflowTab {
   const values = [

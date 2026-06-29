@@ -144,4 +144,21 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
+
+  /*
+   * Honor the user's reduced-motion preference (WCAG 2.3.3).
+   * Caps every animation and transition at near-zero so loading
+   * skeletons, dialog transitions and the like still visually
+   * indicate state without animating.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
