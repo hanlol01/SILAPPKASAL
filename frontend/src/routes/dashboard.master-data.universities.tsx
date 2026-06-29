@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -36,6 +36,9 @@ import { SelectInput } from "@/components/form-fields";
 import { formatCampusType } from "@/lib/format-labels";
 import { EmptyState } from "@/components/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FilterResetButton } from "@/components/filter-reset-button";
+import { ListPagination } from "@/components/list-pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/list-controls";
 
 export const Route = createFileRoute("/dashboard/master-data/universities")({
   component: UniversitiesPage,
@@ -47,12 +50,29 @@ function UniversitiesPage() {
   const { t } = useTranslation(["dashboard"]);
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [editing, setEditing] = useState<CampusUniversity | null>(null);
   const [creating, setCreating] = useState(false);
-  const query = useMemo(() => ({ search: search || undefined, per_page: 50 }), [search]);
+  const filtersActive = search !== "";
+
+  const resetFilters = () => {
+    setSearch("");
+    setPage(1);
+  };
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, pageSize]);
+
+  const query = useMemo(
+    () => ({ search: search || undefined, per_page: pageSize, page }),
+    [search, pageSize, page],
+  );
   const universitiesQuery = useQuery({
     queryKey: campusAdminQueryKeys.universities(query),
     queryFn: () => getCampusUniversities(query),
+    placeholderData: keepPreviousData,
   });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["campus-admin", "universities"] });
   const toggleMutation = useMutation({
@@ -66,97 +86,112 @@ function UniversitiesPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Input className="max-w-sm" placeholder={t("dashboard:masterData.searchUniversities")} value={search} onChange={(event) => setSearch(event.target.value)} />
-        <Button onClick={() => setCreating(true)}>{t("dashboard:masterData.createUniversity")}</Button>
+        <FilterResetButton active={filtersActive} onReset={resetFilters} />
+        <div className="ml-auto">
+          <Button onClick={() => setCreating(true)}>{t("dashboard:masterData.createUniversity")}</Button>
+        </div>
       </div>
       <Card>
-        <CardContent className="overflow-x-auto p-0">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left">
-              <tr>
-                <th className="p-3">{t("dashboard:masterData.code")}</th>
-                <th className="p-3">{t("dashboard:masterData.name")}</th>
-                <th className="p-3">{t("dashboard:masterData.type")}</th>
-                <th className="p-3">{t("dashboard:masterData.facultiesColumn")}</th>
-                <th className="p-3">{t("dashboard:masterData.status")}</th>
-                <th className="p-3 text-right">{t("dashboard:masterData.actions")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(universitiesQuery.data?.data ?? []).map((item) => (
-                <tr key={item.id} className="border-t">
-                  <td className="p-3 font-mono text-xs">{item.code}</td>
-                  <td className="p-3">
-                    <div className="font-medium">{item.name}</div>
-                    <div className="text-xs text-muted-foreground">{item.abbreviation ?? "-"}</div>
-                  </td>
-                  <td className="p-3">{formatCampusType(t, item.type)}</td>
-                  <td className="p-3">{item.has_faculties ? t("dashboard:masterData.yes") : t("dashboard:masterData.no")}</td>
-                  <td className="p-3"><StatusBadge active={item.is_active} /></td>
-                  <td className="p-3 text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setEditing(item)}>{t("dashboard:common.edit")}</Button>
-                      {item.is_active ? (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm">{t("dashboard:masterData.deactivate")}</Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>{t("dashboard:masterData.universityDeactivateConfirmTitle", { name: item.name })}</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                {t("dashboard:masterData.universityDeactivateConfirmDescription", { name: item.name })}
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>{t("dashboard:common.cancel")}</AlertDialogCancel>
-                              <AlertDialogAction
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                disabled={toggleMutation.isPending}
-                                onClick={() => toggleMutation.mutate(item.id)}
-                              >
-                                {t("dashboard:masterData.deactivate")}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      ) : (
-                        <Button variant="outline" size="sm" onClick={() => toggleMutation.mutate(item.id)} disabled={toggleMutation.isPending}>
-                          {t("dashboard:masterData.activate")}
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {universitiesQuery.isSuccess && universitiesQuery.data.data.length === 0 && (
+        <CardContent className="space-y-3 p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-left">
                 <tr>
-                  <td colSpan={6} className="p-0">
-                    {search ? (
-                      <EmptyState icon={SearchX} title={t("dashboard:masterData.filteredEmptyTitle")} description={t("dashboard:masterData.filteredEmptyDesc")} />
-                    ) : (
-                      <EmptyState icon={Inbox} title={t("dashboard:masterData.emptyTitle")} description={t("dashboard:masterData.emptyDesc")} />
-                    )}
-                  </td>
+                  <th className="p-3">{t("dashboard:masterData.code")}</th>
+                  <th className="p-3">{t("dashboard:masterData.name")}</th>
+                  <th className="p-3">{t("dashboard:masterData.type")}</th>
+                  <th className="p-3">{t("dashboard:masterData.facultiesColumn")}</th>
+                  <th className="p-3">{t("dashboard:masterData.status")}</th>
+                  <th className="p-3 text-right">{t("dashboard:masterData.actions")}</th>
                 </tr>
-              )}
-              {universitiesQuery.isLoading && (
-                <>
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <tr key={i} className="border-t">
-                      <td className="p-3"><Skeleton className="h-4 w-16" /></td>
-                      <td className="p-3"><Skeleton className="h-4 w-40" /></td>
-                      <td className="p-3"><Skeleton className="h-4 w-20" /></td>
-                      <td className="p-3"><Skeleton className="h-4 w-10" /></td>
-                      <td className="p-3"><Skeleton className="h-4 w-14" /></td>
-                      <td className="p-3"><Skeleton className="h-4 w-24" /></td>
-                    </tr>
-                  ))}
-                </>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(universitiesQuery.data?.data ?? []).map((item) => (
+                  <tr key={item.id} className="border-t">
+                    <td className="p-3 font-mono text-xs">{item.code}</td>
+                    <td className="p-3">
+                      <div className="font-medium">{item.name}</div>
+                      <div className="text-xs text-muted-foreground">{item.abbreviation ?? "-"}</div>
+                    </td>
+                    <td className="p-3">{formatCampusType(t, item.type)}</td>
+                    <td className="p-3">{item.has_faculties ? t("dashboard:masterData.yes") : t("dashboard:masterData.no")}</td>
+                    <td className="p-3"><StatusBadge active={item.is_active} /></td>
+                    <td className="p-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setEditing(item)}>{t("dashboard:common.edit")}</Button>
+                        {item.is_active ? (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" size="sm">{t("dashboard:masterData.deactivate")}</Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>{t("dashboard:masterData.universityDeactivateConfirmTitle", { name: item.name })}</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  {t("dashboard:masterData.universityDeactivateConfirmDescription", { name: item.name })}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>{t("dashboard:common.cancel")}</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  disabled={toggleMutation.isPending}
+                                  onClick={() => toggleMutation.mutate(item.id)}
+                                >
+                                  {t("dashboard:masterData.deactivate")}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        ) : (
+                          <Button variant="outline" size="sm" onClick={() => toggleMutation.mutate(item.id)} disabled={toggleMutation.isPending}>
+                            {t("dashboard:masterData.activate")}
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {universitiesQuery.isSuccess && universitiesQuery.data.data.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="p-0">
+                      {filtersActive ? (
+                        <EmptyState icon={SearchX} title={t("dashboard:masterData.filteredEmptyTitle")} description={t("dashboard:masterData.filteredEmptyDesc")} />
+                      ) : (
+                        <EmptyState icon={Inbox} title={t("dashboard:masterData.emptyTitle")} description={t("dashboard:masterData.emptyDesc")} />
+                      )}
+                    </td>
+                  </tr>
+                )}
+                {universitiesQuery.isLoading && (
+                  <>
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <tr key={i} className="border-t">
+                        <td className="p-3"><Skeleton className="h-4 w-16" /></td>
+                        <td className="p-3"><Skeleton className="h-4 w-40" /></td>
+                        <td className="p-3"><Skeleton className="h-4 w-20" /></td>
+                        <td className="p-3"><Skeleton className="h-4 w-10" /></td>
+                        <td className="p-3"><Skeleton className="h-4 w-14" /></td>
+                        <td className="p-3"><Skeleton className="h-4 w-24" /></td>
+                      </tr>
+                    ))}
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4 pb-4">
+            <ListPagination
+              meta={universitiesQuery.data?.meta}
+              page={page}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              isFetching={universitiesQuery.isFetching}
+            />
+          </div>
         </CardContent>
       </Card>
       <UniversityDialog

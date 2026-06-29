@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { Inbox, SearchX } from "lucide-react";
 
 import {
   campusAdminQueryKeys,
@@ -22,6 +23,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectInput } from "@/components/form-fields";
+import { EmptyState } from "@/components/empty-state";
+import { FilterResetButton } from "@/components/filter-reset-button";
+import { ListPagination } from "@/components/list-pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/list-controls";
 
 export const Route = createFileRoute("/dashboard/master-data/faculties")({
   component: FacultiesPage,
@@ -32,11 +37,36 @@ function FacultiesPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [universityId, setUniversityId] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [editing, setEditing] = useState<CampusFaculty | null>(null);
   const [creating, setCreating] = useState(false);
-  const query = useMemo(() => ({ search: search || undefined, university_id: universityId || undefined, per_page: 50 }), [search, universityId]);
-  const facultiesQuery = useQuery({ queryKey: campusAdminQueryKeys.faculties(query), queryFn: () => getCampusFaculties(query) });
-  const universitiesQuery = useQuery({ queryKey: campusAdminQueryKeys.universities({ per_page: 50 }), queryFn: () => getCampusUniversities({ per_page: 50 }) });
+  const filtersActive = search !== "" || universityId !== "";
+
+  const resetFilters = () => {
+    setSearch("");
+    setUniversityId("");
+    setPage(1);
+  };
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, universityId, pageSize]);
+
+  const query = useMemo(
+    () => ({ search: search || undefined, university_id: universityId || undefined, per_page: pageSize, page }),
+    [search, universityId, pageSize, page],
+  );
+  const facultiesQuery = useQuery({
+    queryKey: campusAdminQueryKeys.faculties(query),
+    queryFn: () => getCampusFaculties(query),
+    placeholderData: keepPreviousData,
+  });
+  // Universities listing here is a picker source; using a generous per_page is intentional.
+  const universitiesQuery = useQuery({
+    queryKey: campusAdminQueryKeys.universities({ per_page: 50 }),
+    queryFn: () => getCampusUniversities({ per_page: 50 }),
+  });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["campus-admin", "faculties"] });
   const toggleMutation = useMutation({
     mutationFn: toggleCampusFaculty,
@@ -49,7 +79,7 @@ function FacultiesPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Input className="max-w-sm" placeholder={t("dashboard:masterData.searchFaculties")} value={search} onChange={(event) => setSearch(event.target.value)} />
         <SelectInput
           value={universityId}
@@ -60,47 +90,70 @@ function FacultiesPage() {
             ...(universitiesQuery.data?.data ?? []).map((item) => ({ value: String(item.id), label: item.name })),
           ]}
         />
-        <Button onClick={() => setCreating(true)}>{t("dashboard:masterData.createFaculty")}</Button>
+        <FilterResetButton active={filtersActive} onReset={resetFilters} />
+        <div className="ml-auto">
+          <Button onClick={() => setCreating(true)}>{t("dashboard:masterData.createFaculty")}</Button>
+        </div>
       </div>
       <Card>
-        <CardContent className="overflow-x-auto p-0">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left">
-              <tr>
-                <th className="p-3">{t("dashboard:masterData.code")}</th>
-                <th className="p-3">{t("dashboard:masterData.name")}</th>
-                <th className="p-3">{t("dashboard:masterData.university")}</th>
-                <th className="p-3">{t("dashboard:masterData.programs")}</th>
-                <th className="p-3">{t("dashboard:masterData.status")}</th>
-                <th className="p-3 text-right">{t("dashboard:masterData.actions")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(facultiesQuery.data?.data ?? []).map((item) => (
-                <tr key={item.id} className="border-t">
-                  <td className="p-3 font-mono text-xs">{item.code}</td>
-                  <td className="p-3 font-medium">{item.name}</td>
-                  <td className="p-3">{item.university?.name ?? "-"}</td>
-                  <td className="p-3">{item.study_programs_count ?? 0}</td>
-                  <td className="p-3"><Badge variant={item.is_active ? "default" : "outline"}>{item.is_active ? t("dashboard:masterData.active") : t("dashboard:masterData.inactive")}</Badge></td>
-                  <td className="p-3 text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setEditing(item)}>{t("dashboard:common.edit")}</Button>
-                      <Button size="sm" variant="outline" onClick={() => toggleMutation.mutate(item.id)}>
-                        {item.is_active ? t("dashboard:masterData.deactivate") : t("dashboard:masterData.activate")}
-                      </Button>
-                    </div>
-                  </td>
+        <CardContent className="space-y-3 p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-left">
+                <tr>
+                  <th className="p-3">{t("dashboard:masterData.code")}</th>
+                  <th className="p-3">{t("dashboard:masterData.name")}</th>
+                  <th className="p-3">{t("dashboard:masterData.university")}</th>
+                  <th className="p-3">{t("dashboard:masterData.programs")}</th>
+                  <th className="p-3">{t("dashboard:masterData.status")}</th>
+                  <th className="p-3 text-right">{t("dashboard:masterData.actions")}</th>
                 </tr>
-              ))}
-              {facultiesQuery.isSuccess && facultiesQuery.data.data.length === 0 && (
-                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t("dashboard:masterData.noFaculties")}</td></tr>
-              )}
-              {facultiesQuery.isLoading && (
-                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t("dashboard:masterData.loadingFaculties")}</td></tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(facultiesQuery.data?.data ?? []).map((item) => (
+                  <tr key={item.id} className="border-t">
+                    <td className="p-3 font-mono text-xs">{item.code}</td>
+                    <td className="p-3 font-medium">{item.name}</td>
+                    <td className="p-3">{item.university?.name ?? "-"}</td>
+                    <td className="p-3">{item.study_programs_count ?? 0}</td>
+                    <td className="p-3"><Badge variant={item.is_active ? "default" : "outline"}>{item.is_active ? t("dashboard:masterData.active") : t("dashboard:masterData.inactive")}</Badge></td>
+                    <td className="p-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setEditing(item)}>{t("dashboard:common.edit")}</Button>
+                        <Button size="sm" variant="outline" onClick={() => toggleMutation.mutate(item.id)}>
+                          {item.is_active ? t("dashboard:masterData.deactivate") : t("dashboard:masterData.activate")}
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {facultiesQuery.isSuccess && facultiesQuery.data.data.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="p-0">
+                      {filtersActive ? (
+                        <EmptyState icon={SearchX} title={t("dashboard:masterData.filteredEmptyTitle")} description={t("dashboard:masterData.filteredEmptyDesc")} />
+                      ) : (
+                        <EmptyState icon={Inbox} title={t("dashboard:masterData.emptyTitle")} description={t("dashboard:masterData.emptyDesc")} />
+                      )}
+                    </td>
+                  </tr>
+                )}
+                {facultiesQuery.isLoading && (
+                  <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{t("dashboard:masterData.loadingFaculties")}</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4 pb-4">
+            <ListPagination
+              meta={facultiesQuery.data?.meta}
+              page={page}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              isFetching={facultiesQuery.isFetching}
+            />
+          </div>
         </CardContent>
       </Card>
       <FacultyDialog

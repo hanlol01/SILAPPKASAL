@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { Inbox, SearchX } from "lucide-react";
 
 import {
   campusAdminQueryKeys,
@@ -24,6 +25,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectInput } from "@/components/form-fields";
 import { formatDegreeLevel } from "@/lib/format-labels";
+import { EmptyState } from "@/components/empty-state";
+import { FilterResetButton } from "@/components/filter-reset-button";
+import { ListPagination } from "@/components/list-pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/list-controls";
 
 export const Route = createFileRoute("/dashboard/master-data/study-programs")({
   component: StudyProgramsPage,
@@ -37,14 +42,43 @@ function StudyProgramsPage() {
   const [search, setSearch] = useState("");
   const [universityId, setUniversityId] = useState("");
   const [facultyId, setFacultyId] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [editing, setEditing] = useState<CampusStudyProgram | null>(null);
   const [creating, setCreating] = useState(false);
+  const filtersActive = search !== "" || universityId !== "" || facultyId !== "";
+
+  const resetFilters = () => {
+    setSearch("");
+    setUniversityId("");
+    setFacultyId("");
+    setPage(1);
+  };
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, universityId, facultyId, pageSize]);
+
   const query = useMemo(
-    () => ({ search: search || undefined, university_id: universityId || undefined, faculty_id: facultyId || undefined, per_page: 50 }),
-    [search, universityId, facultyId],
+    () => ({
+      search: search || undefined,
+      university_id: universityId || undefined,
+      faculty_id: facultyId || undefined,
+      per_page: pageSize,
+      page,
+    }),
+    [search, universityId, facultyId, pageSize, page],
   );
-  const programsQuery = useQuery({ queryKey: campusAdminQueryKeys.studyPrograms(query), queryFn: () => getCampusStudyPrograms(query) });
-  const universitiesQuery = useQuery({ queryKey: campusAdminQueryKeys.universities({ per_page: 50 }), queryFn: () => getCampusUniversities({ per_page: 50 }) });
+  const programsQuery = useQuery({
+    queryKey: campusAdminQueryKeys.studyPrograms(query),
+    queryFn: () => getCampusStudyPrograms(query),
+    placeholderData: keepPreviousData,
+  });
+  // Universities/faculties below are picker sources, not paged lists.
+  const universitiesQuery = useQuery({
+    queryKey: campusAdminQueryKeys.universities({ per_page: 50 }),
+    queryFn: () => getCampusUniversities({ per_page: 50 }),
+  });
   const facultiesQuery = useQuery({
     queryKey: campusAdminQueryKeys.faculties({ university_id: universityId || undefined, per_page: 50 }),
     queryFn: () => getCampusFaculties({ university_id: universityId || undefined, per_page: 50 }),
@@ -61,7 +95,7 @@ function StudyProgramsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Input className="max-w-sm" placeholder={t("dashboard:masterData.searchStudyPrograms")} value={search} onChange={(event) => setSearch(event.target.value)} />
         <SelectInput
           value={universityId}
@@ -85,49 +119,72 @@ function StudyProgramsPage() {
             ...(facultiesQuery.data?.data ?? []).map((item) => ({ value: String(item.id), label: item.name })),
           ]}
         />
-        <Button onClick={() => setCreating(true)}>{t("dashboard:masterData.createStudyProgram")}</Button>
+        <FilterResetButton active={filtersActive} onReset={resetFilters} />
+        <div className="ml-auto">
+          <Button onClick={() => setCreating(true)}>{t("dashboard:masterData.createStudyProgram")}</Button>
+        </div>
       </div>
       <Card>
-        <CardContent className="overflow-x-auto p-0">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left">
-              <tr>
-                <th className="p-3">{t("dashboard:masterData.code")}</th>
-                <th className="p-3">{t("dashboard:masterData.name")}</th>
-                <th className="p-3">{t("dashboard:masterData.degree")}</th>
-                <th className="p-3">{t("dashboard:masterData.faculty")}</th>
-                <th className="p-3">{t("dashboard:masterData.university")}</th>
-                <th className="p-3">{t("dashboard:masterData.status")}</th>
-                <th className="p-3 text-right">{t("dashboard:masterData.actions")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(programsQuery.data?.data ?? []).map((item) => (
-                <tr key={item.id} className="border-t">
-                  <td className="p-3 font-mono text-xs">{item.code}</td>
-                  <td className="p-3 font-medium">{item.name}</td>
-                  <td className="p-3">{formatDegreeLevel(t, item.degree_level)}</td>
-                  <td className="p-3">{item.faculty?.name ?? "-"}</td>
-                  <td className="p-3">{item.university?.name ?? "-"}</td>
-                  <td className="p-3"><Badge variant={item.is_active ? "default" : "outline"}>{item.is_active ? t("dashboard:masterData.active") : t("dashboard:masterData.inactive")}</Badge></td>
-                  <td className="p-3 text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setEditing(item)}>{t("dashboard:common.edit")}</Button>
-                      <Button variant="outline" size="sm" onClick={() => toggleMutation.mutate(item.id)}>
-                        {item.is_active ? t("dashboard:masterData.deactivate") : t("dashboard:masterData.activate")}
-                      </Button>
-                    </div>
-                  </td>
+        <CardContent className="space-y-3 p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-left">
+                <tr>
+                  <th className="p-3">{t("dashboard:masterData.code")}</th>
+                  <th className="p-3">{t("dashboard:masterData.name")}</th>
+                  <th className="p-3">{t("dashboard:masterData.degree")}</th>
+                  <th className="p-3">{t("dashboard:masterData.faculty")}</th>
+                  <th className="p-3">{t("dashboard:masterData.university")}</th>
+                  <th className="p-3">{t("dashboard:masterData.status")}</th>
+                  <th className="p-3 text-right">{t("dashboard:masterData.actions")}</th>
                 </tr>
-              ))}
-              {programsQuery.isSuccess && programsQuery.data.data.length === 0 && (
-                <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">{t("dashboard:masterData.noStudyPrograms")}</td></tr>
-              )}
-              {programsQuery.isLoading && (
-                <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">{t("dashboard:masterData.loadingStudyPrograms")}</td></tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(programsQuery.data?.data ?? []).map((item) => (
+                  <tr key={item.id} className="border-t">
+                    <td className="p-3 font-mono text-xs">{item.code}</td>
+                    <td className="p-3 font-medium">{item.name}</td>
+                    <td className="p-3">{formatDegreeLevel(t, item.degree_level)}</td>
+                    <td className="p-3">{item.faculty?.name ?? "-"}</td>
+                    <td className="p-3">{item.university?.name ?? "-"}</td>
+                    <td className="p-3"><Badge variant={item.is_active ? "default" : "outline"}>{item.is_active ? t("dashboard:masterData.active") : t("dashboard:masterData.inactive")}</Badge></td>
+                    <td className="p-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setEditing(item)}>{t("dashboard:common.edit")}</Button>
+                        <Button variant="outline" size="sm" onClick={() => toggleMutation.mutate(item.id)}>
+                          {item.is_active ? t("dashboard:masterData.deactivate") : t("dashboard:masterData.activate")}
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {programsQuery.isSuccess && programsQuery.data.data.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="p-0">
+                      {filtersActive ? (
+                        <EmptyState icon={SearchX} title={t("dashboard:masterData.filteredEmptyTitle")} description={t("dashboard:masterData.filteredEmptyDesc")} />
+                      ) : (
+                        <EmptyState icon={Inbox} title={t("dashboard:masterData.emptyTitle")} description={t("dashboard:masterData.emptyDesc")} />
+                      )}
+                    </td>
+                  </tr>
+                )}
+                {programsQuery.isLoading && (
+                  <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">{t("dashboard:masterData.loadingStudyPrograms")}</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4 pb-4">
+            <ListPagination
+              meta={programsQuery.data?.meta}
+              page={page}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              isFetching={programsQuery.isFetching}
+            />
+          </div>
         </CardContent>
       </Card>
       <StudyProgramDialog
