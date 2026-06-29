@@ -233,7 +233,12 @@ function NewPortalReportPage() {
                         <FormControl>
                           <Textarea {...field} value={field.value ?? ""} minLength={50} maxLength={10000} disabled={mutation.isPending} />
                         </FormControl>
-                        <FormDescription>{chronology.length}/10000</FormDescription>
+                        <FormDescription>{t("portal:reportWizard.chronologyMinHint")}</FormDescription>
+                        <FormDescription
+                          className={cn(chronology.length < 50 ? "text-warning" : "text-muted-foreground")}
+                        >
+                          {chronology.length}/10000
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

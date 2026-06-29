@@ -14,7 +14,7 @@ export const Route = createFileRoute("/portal/notifications")({
   component: PortalNotificationsPage,
   head: () => ({
     meta: [
-      { title: "Notifications â€” SILAPPKASAL Portal" },
+      { title: "Notifikasi - SILAPPKASAL" },
       {
         name: "description",
         content: "View notifications about your report status updates.",
