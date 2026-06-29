@@ -58,6 +58,7 @@ function RegistrationsPage() {
 
   return (
     <div className="space-y-6">
+      <PageBreadcrumb crumbs={[{ label: t("dashboard:registrations.title") }]} />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard:registrations.title")}</h1>
         <p className="text-sm text-muted-foreground">{t("dashboard:registrations.subtitle")}</p>

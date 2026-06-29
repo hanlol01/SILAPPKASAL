@@ -39,6 +39,7 @@ import { Badge } from "@/components/ui/badge";
 import { Form } from "@/components/ui/form";
 import { PasswordField, SelectFormField, SelectInput, TextInputField } from "@/components/form-fields";
 import { EmptyState } from "@/components/empty-state";
+import { PageBreadcrumb } from "@/components/page-breadcrumb";
 
 export const Route = createFileRoute("/dashboard/users")({
   component: DashboardUsersPage,
@@ -106,6 +107,7 @@ function DashboardUsersPage() {
 
   return (
     <div className="space-y-6">
+      <PageBreadcrumb crumbs={[{ label: t("dashboard:users.reporterManagement") }]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard:users.reporterManagement")}</h1>

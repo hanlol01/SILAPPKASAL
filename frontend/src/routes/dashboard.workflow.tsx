@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { QueryErrorState } from "@/components/query-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageBreadcrumb } from "@/components/page-breadcrumb";
 import { dashboardQueryKeys, getDashboardWorkflow } from "@/lib/dashboard-api";
 import { formatDate } from "@/lib/format";
 import {
@@ -61,6 +62,7 @@ function WorkflowPage() {
   if (workflowQuery.isLoading) {
     return (
       <div className="space-y-6">
+        <PageBreadcrumb crumbs={[{ label: t("dashboard:nav.workflow") }]} />
         <PageHeader
           title={t("dashboard:workflow.pipeline.title")}
           description={t("dashboard:workflow.pipeline.loadingDescription")}
@@ -91,6 +93,7 @@ function WorkflowPage() {
   if (workflowQuery.isError || !workflowQuery.data) {
     return (
       <div className="space-y-6">
+        <PageBreadcrumb crumbs={[{ label: t("dashboard:nav.workflow") }]} />
         <PageHeader
           title={t("dashboard:workflow.pipeline.title")}
           description={t("dashboard:workflow.pipeline.description")}
@@ -114,6 +117,7 @@ function WorkflowPage() {
 
   return (
     <div className="space-y-6">
+      <PageBreadcrumb crumbs={[{ label: t("dashboard:nav.workflow") }]} />
       <PageHeader
         title={t("dashboard:workflow.pipeline.title")}
         description={t("dashboard:workflow.pipeline.description")}
@@ -150,6 +154,9 @@ function WorkflowPage() {
               );
             })}
           </ol>
+          <p className="mt-4 text-xs text-muted-foreground">
+            {t("dashboard:workflow.pipeline.relativeBarHint")}
+          </p>
         </CardContent>
       </Card>
 

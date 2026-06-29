@@ -32,6 +32,7 @@ import {
   formatEvidenceClassification,
   formatReportCategory,
 } from "@/lib/format-labels";
+import { PageBreadcrumb } from "@/components/page-breadcrumb";
 
 export const Route = createFileRoute("/dashboard/analytics")({
   component: AnalyticsPage,
@@ -85,6 +86,7 @@ function AnalyticsPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
+        <PageBreadcrumb crumbs={[{ label: t("dashboard:nav.analytics") }]} />
         <PageHeader
           title={t("dashboard:analytics.title")}
           description={t("dashboard:analytics.subtitle")}
@@ -103,6 +105,7 @@ function AnalyticsPage() {
   ) {
     return (
       <div className="space-y-6">
+        <PageBreadcrumb crumbs={[{ label: t("dashboard:nav.analytics") }]} />
         <PageHeader
           title={t("dashboard:analytics.title")}
           description={t("dashboard:analytics.subtitle")}
