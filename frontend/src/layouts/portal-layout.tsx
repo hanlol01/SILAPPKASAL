@@ -5,7 +5,6 @@ import {
   PlusCircle,
   Bell,
   UserCog,
-  ShieldCheck,
   LogOut,
   Moon,
   Sun,
@@ -85,10 +84,10 @@ function PortalTopbar() {
       <div className="flex h-14 items-center gap-3 px-4">
         {/* Brand */}
         <Link to="/portal" className="flex shrink-0 items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <ShieldCheck className="h-4 w-4" />
+          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-primary/10">
+            <img src="/Logo.ico" alt="" aria-hidden="true" className="h-6 w-6 object-contain" />
           </div>
-          <span className="hidden text-sm font-semibold md:inline">
+          <span className="text-sm font-semibold">
             SILAPPKASAL
           </span>
         </Link>
