@@ -209,8 +209,7 @@ export function WorkflowStatusBadge({
 }) {
   const { t } = useTranslation(["dashboard"]);
   const config = workflowFamilies[family];
-  const visual =
-    (status && config.byStatus[status]) ?? config.fallback;
+  const visual = status ? (config.byStatus[status] ?? config.fallback) : config.fallback;
   const Icon = visual.icon;
   const label = status ? config.format(t, status) : t("dashboard:common.notAvailable");
 
