@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Lock } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -21,9 +20,9 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryErrorState } from "@/components/query-state";
 import { PortalStatusBadge } from "@/components/portal/portal-status-badge";
+import { PortalReportTypeBadge } from "@/components/portal/portal-report-type-badge";
 import { portalQueryKeys, getPortalReport } from "@/lib/portal-api";
 import { formatDate } from "@/lib/format";
-import { portalReportTypeLabel } from "@/lib/portal-labels";
 import { useAuth } from "@/hooks/use-auth";
 import { hasPortalAccess } from "@/lib/auth-roles";
 import { useTranslation } from "react-i18next";
@@ -32,7 +31,7 @@ export const Route = createFileRoute("/portal/reports/$registrationNumber")({
   component: PortalReportDetailPage,
   head: () => ({
     meta: [
-      { title: "Report Detail â€” SILAPPKASAL Portal" },
+      { title: "Report Detail — SILAPPKASAL Portal" },
       {
         name: "description",
         content: "View the current status and details of your report.",
@@ -86,12 +85,13 @@ export function PortalReportDetailContent({
       </Breadcrumb>
       {/* Back navigation */}
       <Button
-        variant="ghost"
+        variant="outline"
         size="sm"
+        className="gap-1.5"
         asChild
       >
         <Link to="/portal/reports">
-          <ArrowLeft className="mr-2 h-4 w-4" /> {t("common:back")}
+          <ArrowLeft className="h-3.5 w-3.5" /> {t("common:back")}
         </Link>
       </Button>
 
@@ -113,7 +113,7 @@ export function PortalReportDetailContent({
 }
 
 // ---------------------------------------------------------------------------
-// Report detail content â€” renders only PortalReportDetail safe fields
+// Report detail content — renders only PortalReportDetail safe fields
 // ---------------------------------------------------------------------------
 
 interface ReportDetailProps {
@@ -138,12 +138,7 @@ function ReportDetail({ report }: ReportDetailProps) {
         <PortalStatusBadge
           portalStatus={report.portal_status}
         />
-        {report.report_type === "anonymous" && (
-          <Badge variant="outline" className="gap-1 text-muted-foreground">
-            <Lock className="h-3 w-3" />
-            {t("anonymousReport")}
-          </Badge>
-        )}
+        <PortalReportTypeBadge reportType={report.report_type} />
       </div>
 
       {/* Detail card */}
@@ -159,10 +154,10 @@ function ReportDetail({ report }: ReportDetailProps) {
             {report.registration_number}
           </Field>
           <Field label={t("reportType")}>
-            {portalReportTypeLabel(report.report_type, i18n.language)}
+            <PortalReportTypeBadge reportType={report.report_type} />
           </Field>
           <Field label={t("category")}>
-            {categoryLabel ? categoryLabel : "â€”"}
+            {categoryLabel ? categoryLabel : "—"}
           </Field>
           <Field label={t("status")}>
             <PortalStatusBadge
@@ -177,7 +172,7 @@ function ReportDetail({ report }: ReportDetailProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Field component â€” matches admin detail page pattern
+// Field component — matches admin detail page pattern
 // ---------------------------------------------------------------------------
 
 function Field({
@@ -198,7 +193,7 @@ function Field({
 }
 
 // ---------------------------------------------------------------------------
-// Loading skeleton â€” matches the detail card layout shape
+// Loading skeleton — matches the detail card layout shape
 // ---------------------------------------------------------------------------
 
 function DetailSkeleton() {

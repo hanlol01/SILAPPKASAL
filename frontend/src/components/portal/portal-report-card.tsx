@@ -1,11 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { FileText, Lock } from "lucide-react";
+import { ExternalLink, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { PortalStatusBadge } from "@/components/portal/portal-status-badge";
+import { PortalReportTypeBadge } from "@/components/portal/portal-report-type-badge";
 import { formatDate } from "@/lib/format";
-import { portalReportTypeLabel } from "@/lib/portal-labels";
 import type { PortalReport } from "@/lib/portal-types";
 import { useTranslation } from "react-i18next";
 
@@ -42,30 +41,25 @@ export function PortalReportCard({ report }: PortalReportCardProps) {
             <PortalStatusBadge
               portalStatus={report.portal_status}
             />
-            {report.report_type === "anonymous" && (
-              <Badge variant="outline" className="gap-1 text-muted-foreground">
-                <Lock className="h-3 w-3" />
-                {t("portal:anonymousReport")}
-              </Badge>
-            )}
+            <PortalReportTypeBadge reportType={report.report_type} />
           </div>
           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-            <span>{portalReportTypeLabel(report.report_type, i18n.language)}</span>
             {categoryLabel && <span>{categoryLabel}</span>}
             <span>{t("portal:submittedDate", { date: formatDate(report.submitted_at, i18n.language) })}</span>
           </div>
         </div>
 
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
-          className="shrink-0"
+          className="shrink-0 gap-1.5"
           asChild
         >
           <Link
             to="/portal/reports/$registrationNumber"
             params={{ registrationNumber: report.registration_number }}
           >
+            <ExternalLink className="h-3.5 w-3.5" />
             {t("common:view")}
           </Link>
         </Button>

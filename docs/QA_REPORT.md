@@ -834,3 +834,64 @@ No new UX-09A bugs were found during QA.
 - QA did not execute an authenticated browser walkthrough or screenshot comparison; responsive behavior, runtime safety, and visual consistency were verified through static inspection and build tooling.
 - Backend invalid-transition and data-contract behavior were not revalidated in this UX-09A pass because UX-09A scope is UX remediation/regression review and no backend changes were expected.
 - Unknown future backend enum/status values may still fall back to raw labels where no locale key exists; current reviewed UX-09A labels are covered.
+
+# RC-03
+
+## Executive Summary
+
+QA reviewed RC-03 for PB-07 Badge System and PB-11 Portal UI Polish. The review focused on portal report status badges, the new report type badge, portal action button clarity, reporter-facing privacy minimization, RC-01 report wizard regression, RC-02 localization cleanup regression, and backend/API/routing scope.
+
+RC-03 passes QA. Portal status badges remain color-coded, localized, and icon-backed. Report type now renders through `PortalReportTypeBadge` in both portal report cards and report detail, including `Terbuka`, `Rahasia`, and `Anonim`; these values are no longer plain text where badge treatment is expected. Portal action buttons use clearer outline styling and directional/external-link icons. No backend, API client, API type, or route path changes were found in the inspected scope, and the report wizard implementation was not modified.
+
+## QA Score
+
+96
+
+## PASS / FAIL
+
+PASS
+
+## Findings
+
+| ID | Area | Result | Evidence |
+|---|---|---|---|
+| QA-RC03-001 | Portal status badge color/localization/icon | PASS | `PortalStatusBadge` keeps semantic tone mapping for Submitted, Under Review, In Process, and Completed; labels use `t(\`portal:${portalStatus}\`, { defaultValue: portalStatus })`; icons are Clock, Eye, Loader2, CheckCircle2, with HelpCircle fallback. |
+| QA-RC03-002 | Report type badge component | PASS | New `PortalReportTypeBadge` maps `open`, `confidential`, and `anonymous` to semantic tones and privacy-themed icons: Eye, ShieldCheck, and Lock. Labels use `portal:reportTypes.*` localization keys. |
+| QA-RC03-003 | Report type badge in portal list | PASS | `PortalReportCard` imports and renders `<PortalReportTypeBadge reportType={report.report_type} />` next to registration number and portal status badge. |
+| QA-RC03-004 | Report type badge in portal detail | PASS | `portal.reports.$registrationNumber.tsx` renders `PortalReportTypeBadge` in the detail header and inside the `Jenis Laporan` / `Report Type` field. |
+| QA-RC03-005 | Terbuka/Rahasia/Anonim badge treatment | PASS | Portal report type display uses the badge component for all report types, not only anonymous reports; the badge text is localized through `portal:reportTypes.open/confidential/anonymous`. |
+| QA-RC03-006 | No raw backend codes visible to portal users | PASS with fallback risk | Known report type values normalize before lookup and render localized labels. Unknown future report types fall back to the supplied value by design, which is acceptable as a safe fallback but should be monitored with backend master-data additions. |
+| QA-RC03-007 | Portal action button clarity | PASS | Portal card `Lihat` uses `variant="outline"` plus `ExternalLink`; portal overview `Lihat semua laporan` uses `outline` plus `ExternalLink`; portal detail `Kembali` uses `outline` plus `ArrowLeft`; `Mulai laporan` includes `ArrowRight`. |
+| QA-RC03-008 | Privacy-minimized portal detail | PASS | Portal detail continues to render only reporter-safe fields: registration number, report type badge, category, portal status badge, and submitted date. It does not render internal case IDs, workflow internals, respondent details, investigator names, or backend status codes. |
+| QA-RC03-009 | RC-01 wizard regression | PASS | `frontend/src/routes/portal.reports.new.tsx` was not listed in RC-03 modified files and route path remains unchanged. Build/TypeScript confirm no integration break. |
+| QA-RC03-010 | RC-02 localization cleanup regression | PASS | RC-03 did not modify dashboard locale files or Satgas assignment localization; portal badge labels use existing `portal:reportTypes.*` keys. |
+| QA-RC03-011 | Backend/API/routing scope | PASS | Current modified implementation files are portal UI only: `portal-report-card.tsx`, `portal.index.tsx`, `portal.reports.$registrationNumber.tsx`, and new `portal-report-type-badge.tsx`. `createFileRoute` paths for portal home, report index, report detail, and report wizard remain unchanged. No backend files, API client files, or API type files were modified for RC-03. |
+| QA-RC03-012 | Tooling | PASS | `npx.cmd tsc --noEmit`, `npm.cmd run build`, and `npm.cmd run lint` all exited `0`; lint retained 6 existing Fast Refresh warnings in shared shadcn UI files. |
+
+## Recommendations
+
+1. Product Owner should manually verify all three report types (`Terbuka`, `Rahasia`, `Anonim`) in both report list cards and report detail in Bahasa Indonesia and English.
+2. Add a small manual data case for an unknown/future report type to ensure the fallback remains acceptable and does not expose a raw backend code to reporters.
+3. Keep portal report detail privacy-minimized in future polish work; avoid adding internal workflow, case, or investigator fields to the reporter-facing view.
+
+## Verification Results
+
+| Check | Command | Result |
+|---|---|---|
+| RC-03 scope/status inspection | `git status --short` | PASS; modified implementation scope limited to portal UI files and new report type badge component |
+| Badge/button implementation inspection | Direct read of `portal-report-type-badge.tsx`, `portal-report-card.tsx`, `portal.reports.$registrationNumber.tsx`, `portal.index.tsx`, and `portal-status-badge.tsx` | PASS |
+| Route path inspection | `rg -n "createFileRoute\\(" frontend/src/routes/portal.index.tsx 'frontend/src/routes/portal.reports.$registrationNumber.tsx' frontend/src/routes/portal.reports.index.tsx frontend/src/routes/portal.reports.new.tsx` | PASS; route paths unchanged |
+| Privacy surface inspection | Targeted grep/read of portal card/detail and `portal-types.ts` | PASS; portal detail remains limited to reporter-safe fields |
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | PASS |
+| Build | `npm.cmd run build` from `frontend/` | PASS with non-blocking Vite/TanStack chunk-size and unused-import warnings |
+| Lint | `npm.cmd run lint` from `frontend/` | PASS with 0 errors and 6 existing Fast Refresh warnings in shared shadcn UI files |
+
+## Bugs Found
+
+No new RC-03 bugs were found during QA.
+
+## Remaining Risks
+
+- QA did not run an authenticated browser walkthrough, so visual confirmation of badge color contrast and button affordance in real portal data remains a Product Owner manual smoke item.
+- Unknown future `report_type` values currently fall back to the raw supplied value. This avoids a blank label, but future backend/master-data additions should get matching `portal:reportTypes.*` keys.
+- Some comments/head metadata in existing portal files still contain non-ASCII mojibake in source text. This is not introduced by RC-03 visible UI copy and did not affect TypeScript/build/lint, but can be cleaned in a separate documentation/source hygiene pass.

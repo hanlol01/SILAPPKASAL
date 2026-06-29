@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Info, PlusCircle } from "lucide-react";
+import { ArrowRight, ExternalLink, Info, PlusCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   PortalSummaryCards,
@@ -80,8 +80,10 @@ function PortalOverview() {
               <p className="mt-1 text-sm text-muted-foreground">{t("overviewCtaSubtitle")}</p>
             </div>
           </div>
-          <Button asChild className="sm:ml-4">
-            <Link to="/portal/reports/new">{t("overviewCtaAction")}</Link>
+          <Button asChild className="gap-1.5 sm:ml-4">
+            <Link to="/portal/reports/new">
+              {t("overviewCtaAction")} <ArrowRight className="h-4 w-4" />
+            </Link>
           </Button>
         </CardContent>
       </Card>
@@ -93,8 +95,11 @@ function PortalOverview() {
             <CardDescription>{t("recentReportsSubtitle")}</CardDescription>
           </div>
           {reportsQuery.isSuccess && recentReports.length > 0 && (
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/portal/reports">{t("viewAllReports")}</Link>
+            <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <Link to="/portal/reports">
+                <ExternalLink className="h-3.5 w-3.5" />
+                {t("viewAllReports")}
+              </Link>
             </Button>
           )}
         </CardHeader>
