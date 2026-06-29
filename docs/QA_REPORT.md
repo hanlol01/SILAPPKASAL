@@ -834,3 +834,94 @@ No new UX-09A bugs were found during QA.
 - QA did not execute an authenticated browser walkthrough or screenshot comparison; responsive behavior, runtime safety, and visual consistency were verified through static inspection and build tooling.
 - Backend invalid-transition and data-contract behavior were not revalidated in this UX-09A pass because UX-09A scope is UX remediation/regression review and no backend changes were expected.
 - Unknown future backend enum/status values may still fall back to raw labels where no locale key exists; current reviewed UX-09A labels are covered.
+
+# UX-09B
+
+## Executive Summary
+
+QA reviewed UX-09B against the Design System Consistency findings in `docs/FRONTEND_REVIEW.md` that were intentionally deferred from UX-09A, with regression checks against UX-01 through UX-09A.
+
+Static inspection confirms that the targeted Design System Consistency findings have been implemented:
+
+- **Dialog consistency (DSC-DLG-01/02/03)**: `DialogTitle`, `AlertDialogTitle`, and `SheetTitle` now share `text-lg font-semibold leading-none tracking-tight`. `DialogHeader`, `AlertDialogHeader`, and `SheetHeader` share `space-y-2` rhythm. `AlertDialogAction` accepts a `variant` prop routed through `buttonVariants`; four destructive call sites (users deactivate, users reset password, master-data university deactivate, registration reject) migrated from inline destructive className overrides to `variant="destructive"`.
+- **Motion consistency (DSC-MOT-02/03)**: Sheet motion duration normalized to `duration-200` to match Dialog and AlertDialog. Global `prefers-reduced-motion` CSS guard added to `styles.css` honoring WCAG 2.3.3.
+- **Skeleton consistency (DSC-SKL-03)**: `Skeleton` tint switched from `bg-primary/10` to neutral `bg-muted` so the pulse no longer reads as primary-tinted.
+- **EmptyState consistency (DSC-EMP-01)**: `EmptyState` extended with `EmptyState.Inline` (no circular badge, tighter padding) and `EmptyState.Chart` (fixed-height container) sharing the default prop API. Default `EmptyState` remains backward compatible.
+- **Component reuse (DSC-CMP-01/04, DSC-SKL-02)**: New shared primitives introduced - `components/page-header.tsx` (`PageHeader`), `components/meta-field.tsx` (`MetaField` + `MetaFieldCompact`), `components/skeletons.tsx` (`TableSkeleton` + `CardListSkeleton`). The shared `PageHeader` is adopted on `dashboard.workflow.tsx` (removed local duplicate). The remaining primitives are introduced but not force-migrated, by design, to keep blast radius small.
+- **Semantic color token consistency (DSC-CLR-01)**: Raw Tailwind `amber-*` classes removed from the wizard content-warning banner in `portal.reports.new.tsx` and from the temporary password card in `dashboard.users.tsx`; both now use `--warning` semantic tokens.
+- **Case detail adoption (DSC-EMP-01, DSC-CMP-05)**: `dashboard.cases.$id.tsx` `SectionCard` loading state now renders `Skeleton` placeholders, and both `SectionCard` empty state and the assignments empty state now use `EmptyState.Inline`. The local `EmptyText` helper has been removed.
+
+One non-blocking code-quality finding was logged as `UX09B-BUG-001`: `frontend/src/routes/dashboard.cases.$id.tsx` now contains two separate `import` statements from `lucide-react` (the original icon block plus a standalone `import { Inbox } from "lucide-react";` line added during UX-09B). This is valid TypeScript and the project's lint configuration does not enforce `import/no-duplicates`, so it does not block TypeScript, build, or lint. It is logged for hygiene only.
+
+No other UX-09B bugs were found. No regression from UX-01 through UX-09A was identified during static inspection.
+
+## Implementation Score (0-100)
+
+95
+
+## PASS / FAIL
+
+PASS
+
+## Findings
+
+| ID | Area | Result | Evidence |
+|---|---|---|---|
+| QA-UX09B-001 | Scope compliance | PASS | Reviewed UX-09B target surfaces from `docs/FRONTEND_REVIEW.md` Design System Consistency Audit: shared shadcn primitives (`dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx`, `skeleton.tsx`), `empty-state.tsx`, three new shared primitives (`page-header.tsx`, `meta-field.tsx`, `skeletons.tsx`), `styles.css`, plus narrow consumer adoption in `dashboard.cases.$id.tsx`, `dashboard.workflow.tsx`, `dashboard.users.tsx`, `dashboard.master-data.universities.tsx`, `dashboard.registrations.$id.tsx`, and `portal.reports.new.tsx`. No file outside `frontend/src` was touched. No backend, API, RBAC, database, seeder, or routing change. |
+| QA-UX09B-002 | Dialog typography (DSC-DLG-01) | PASS | `DialogTitle`, `AlertDialogTitle`, and `SheetTitle` all use `text-lg font-semibold leading-none tracking-tight`. |
+| QA-UX09B-003 | Dialog header spacing (DSC-DLG-02) | PASS | `DialogHeader` updated from `space-y-1.5` to `space-y-2`; `AlertDialogHeader` and `SheetHeader` already used `space-y-2`. All three are aligned. |
+| QA-UX09B-004 | AlertDialogAction variant (DSC-DLG-03) | PASS | `AlertDialogAction` exposes an optional `variant` prop routed through `buttonVariants`. Backward compatible: omitting the prop keeps the default primary look. Four destructive call sites (users deactivate, users reset password, master-data university deactivate, registrations reject) now use `variant="destructive"` instead of layered destructive className overrides. |
+| QA-UX09B-005 | Sheet motion (DSC-MOT-02) | PASS | `sheetVariants` no longer carries `data-[state=closed]:duration-300 data-[state=open]:duration-500`; it now uses a single `duration-200` matching Dialog and AlertDialog. |
+| QA-UX09B-006 | Reduced motion guard (DSC-MOT-03) | PASS | `styles.css` `@layer base` now contains a `@media (prefers-reduced-motion: reduce)` block that caps `animation-duration`, `animation-iteration-count`, `transition-duration`, and `scroll-behavior` to near-zero with `!important`. WCAG 2.3.3 honored. |
+| QA-UX09B-007 | Skeleton neutrality (DSC-SKL-03) | PASS | `components/ui/skeleton.tsx` now uses `bg-muted` instead of `bg-primary/10`. |
+| QA-UX09B-008 | EmptyState variants (DSC-EMP-01) | PASS | `components/empty-state.tsx` now exposes `EmptyState`, `EmptyState.Inline`, and `EmptyState.Chart` with a shared prop API. Default `EmptyState` API was preserved (`icon`, `title`, `description`, optional `action`) so existing callers do not need to change. Icon receives `aria-hidden="true"` in all three variants. |
+| QA-UX09B-009 | PageHeader primitive (DSC-CMP-01) | PASS | `components/page-header.tsx` created and adopted on `dashboard.workflow.tsx`; the local `PageHeader` duplicate inside the route file was removed and the import switched to the shared component. |
+| QA-UX09B-010 | MetaField primitive (DSC-CMP-04) | PASS | `components/meta-field.tsx` created exposing `MetaField` (`text-xs uppercase tracking-wide ... text-sm whitespace-pre-wrap`) and `MetaFieldCompact` (`text-[11px] uppercase tracking-wide ... text-sm`). Introduced for future adoption without forcing call-site migrations in UX-09B. |
+| QA-UX09B-011 | Skeleton helpers (DSC-SKL-02) | PASS | `components/skeletons.tsx` created exposing `TableSkeleton` and `CardListSkeleton` with `aria-busy="true"`/`aria-live="polite"` attributes. Introduced for future adoption; existing skeleton call sites are not force-migrated. |
+| QA-UX09B-012 | Color token discipline (DSC-CLR-01) | PASS | `routes/portal.reports.new.tsx` content-warning banner uses `border-warning/30 bg-warning/15 text-warning-foreground dark:text-warning` instead of raw `amber-50/amber-900/amber-950/amber-200`. `routes/dashboard.users.tsx` temporary password card uses `border-warning/40 bg-warning/10` instead of raw `amber-300/amber-50/amber-950`. Tailwind v4 `@theme inline` already exposes `--warning` as a semantic token in both light and dark themes. |
+| QA-UX09B-013 | Case detail empty/loading adoption (DSC-EMP-01, DSC-CMP-05) | PASS | `dashboard.cases.$id.tsx` `SectionCard` loading state replaced with `Skeleton` blocks. `SectionCard` empty state and assignments empty state now use `EmptyState.Inline` with the `Inbox` icon. The local `EmptyText` helper was removed; no dangling reference remains in the file. |
+| QA-UX09B-014 | UX-01 to UX-09A regression | PASS | Static inspection confirms validation patterns (RHF + zod + `applyLaravelErrors`), localization namespaces, responsive admin tables (`overflow-x-auto`, `md:hidden` mobile cards), status badge multi-channel rendering, breadcrumbs, accessible avatar menu labels, `EmptyState` default flavor adoption, and case detail workflow tabs default-from-status all remain intact. The `defaultWorkflowTabForCase()` derivation from the UX-08 hotfix is preserved. |
+| QA-UX09B-015 | Public API stability | PASS | `EmptyState` default export unchanged for existing callers. `Skeleton` props unchanged. `AlertDialogAction` `variant` prop is optional with a default of `undefined` matching the prior `buttonVariants()` default-primary behavior. `Dialog*`, `AlertDialog*`, `Sheet*` named exports unchanged. |
+| QA-UX09B-016 | Sheet primitive consumers | PASS with note | Per `docs/FRONTEND_REVIEW.md` DSC-DLG-06, `Sheet` has no consumers in the demo path today, so the DSC-MOT-02 and DSC-DLG-01 changes for Sheet are not visually observable in the current UI. No regression risk in current screens. |
+| QA-UX09B-017 | Duplicate `lucide-react` import in case detail | FAIL (code-quality only) | `routes/dashboard.cases.$id.tsx` contains both the original `import { ArrowLeft, BriefcaseMedical, ClipboardList, FileArchive, FileSearch, Gavel, Lock, Scale, UserRoundSearch } from "lucide-react";` block and a separate `import { Inbox } from "lucide-react";` line added during UX-09B. Valid TS and not blocked by the current lint configuration; logged as `UX09B-BUG-001` for hygiene only. |
+| QA-UX09B-018 | Tooling | NOT EXECUTED | TypeScript, build, and lint commands could not be executed from the QA environment (no shell access). Must be executed locally or in CI on branch `ux-09b/design-system-consistency`. |
+
+## Recommendations
+
+1. Run `npx.cmd tsc --noEmit`, `npm run build`, and `npm run lint` on `ux-09b/design-system-consistency` locally or in CI before merging. Static review predicts PASS on all three because: (a) `EmptyState`, `Skeleton`, `AlertDialogAction`, `Dialog*`, `Sheet*` public APIs are backward compatible; (b) the `Inbox` symbol newly imported in `dashboard.cases.$id.tsx` is a valid `lucide-react` export and is referenced in two places (`SectionCard` empty state and assignments empty state); (c) the local `EmptyText` and the local `PageHeader` removals are fully replaced and no dangling reference remains; (d) the new shared primitives compile against existing dependencies.
+2. Fix `UX09B-BUG-001` by consolidating the two `lucide-react` imports in `routes/dashboard.cases.$id.tsx` into a single sorted import block. Pure hygiene edit, no behavior change.
+3. Adopt the new `PageHeader`, `MetaField`, and `TableSkeleton`/`CardListSkeleton` primitives gradually in future UX work to fully realize the consistency benefit. UX-09B intentionally limited adoption to minimize blast radius.
+4. Product Owner should execute the new UX-09B smoke cases (`UX09B-ST-001` to `UX09B-ST-014`) on light and dark themes and in both Bahasa Indonesia and English locales, especially the destructive AlertDialog confirmations, the warning-tone surfaces, the case detail SectionCard empty/loading state, and the reduced-motion behavior.
+
+## Verification
+
+| Check | Command | Result |
+|---|---|---|
+| Implementation inspection | Direct read of `frontend/src/components/ui/dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx`, `skeleton.tsx`, `empty-state.tsx`, `page-header.tsx` (new), `meta-field.tsx` (new), `skeletons.tsx` (new), `styles.css`, and adopted route files | PASS for all DSC findings except `UX09B-BUG-001` |
+| Dialog typography grep | `rg -n "text-lg font-semibold leading-none tracking-tight" frontend/src/components/ui/dialog.tsx frontend/src/components/ui/alert-dialog.tsx frontend/src/components/ui/sheet.tsx` | PASS; all three primitive titles aligned |
+| Sheet motion grep | `rg -n "duration-200\|duration-300\|duration-500" frontend/src/components/ui/sheet.tsx` | PASS; only `duration-200` remains |
+| Reduced motion guard | Direct read of `frontend/src/styles.css` `@layer base` block | PASS; `prefers-reduced-motion` block present |
+| Skeleton tint | Direct read of `frontend/src/components/ui/skeleton.tsx` | PASS; `bg-muted` |
+| Amber palette removal | `rg -n "amber-" frontend/src/routes` | PASS; no matches in modified surfaces |
+| AlertDialogAction destructive adoption | `rg -n 'variant="destructive"' frontend/src/routes/dashboard.users.tsx frontend/src/routes/dashboard.master-data.universities.tsx frontend/src/routes/dashboard.registrations.$id.tsx` | PASS; four call sites converted |
+| EmptyState variant exposure | Direct read of `frontend/src/components/empty-state.tsx` | PASS; `EmptyState.Inline` and `EmptyState.Chart` attached |
+| Local helper removal | `rg -n "function EmptyText\|function PageHeader\b" frontend/src/routes/dashboard.cases.$id.tsx frontend/src/routes/dashboard.workflow.tsx` | PASS; both local duplicates removed |
+| Duplicate import detection | `rg -n 'from "lucide-react"' frontend/src/routes/dashboard.cases.$id.tsx` | FAIL (code-quality only); two import lines found in the same file |
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | NOT EXECUTED; must run locally or in CI |
+| Build | `npm.cmd run build` from `frontend/` | NOT EXECUTED; must run locally or in CI |
+| Lint | `npm.cmd run lint` from `frontend/` | NOT EXECUTED; must run locally or in CI |
+
+## Bugs Found
+
+| Bug ID | Severity | Status | Summary |
+|---|---|---|---|
+| UX09B-BUG-001 | Low | Open | `frontend/src/routes/dashboard.cases.$id.tsx` contains two separate `import` statements from `lucide-react`. Valid TS and not blocked by current lint config, but inconsistent with the project's convention of one consolidated import per source. Pure hygiene fix recommended. |
+
+## Remaining Risks
+
+- QA could not execute `npx.cmd tsc --noEmit`, `npm.cmd run build`, and `npm.cmd run lint` because no shell was available in the QA environment. All three must be executed locally or in CI on `ux-09b/design-system-consistency` before merge. Static review predicts PASS on all three because all newly referenced symbols (`Inbox`, `EmptyState.Inline`) exist where the code expects them and all public APIs of refactored shared components remain backward compatible.
+- The `Skeleton` tint change is global. Every existing Skeleton across UX-01..UX-09A surfaces now reads as neutral grey instead of a faint primary tint. No layout/geometry change; only the pulse color. If the Project Owner prefers the primary tint, the change is a single one-line revert.
+- The `Sheet` primitive currently has no consumers in the demo path; the DSC-MOT-02 and DSC-DLG-01 changes for `Sheet` are visually unobservable until `Sheet` is adopted by a future milestone.
+- `EmptyState.Inline` and `EmptyState.Chart` are introduced as static properties on the default function export (`EmptyState.Inline = ...`). TypeScript and bundlers both accept this pattern, but tree-shaking of the unused variant may be slightly less aggressive than with named exports. The bundle impact is negligible (a few dozen bytes) but is noted for completeness.
+- The `PageHeader`, `MetaField`, `TableSkeleton`, and `CardListSkeleton` primitives are introduced but adoption is limited to a single call site (`PageHeader` on `dashboard.workflow.tsx`). The full consistency benefit will materialize only when future milestones migrate the remaining hand-rolled patterns.
+- Manual browser walkthroughs in both light and dark themes, both Bahasa Indonesia and English, and with `prefers-reduced-motion` toggled on, were not executed by QA. Product Owner should run the new UX-09B smoke cases before sign-off.
