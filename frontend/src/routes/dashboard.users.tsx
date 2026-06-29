@@ -452,7 +452,7 @@ function CreateReporterCard({ onCreated }: { onCreated: (temporaryPassword: stri
               label={t("dashboard:users.temporaryPasswordPlaceholder")}
             />
             <Button type="submit" disabled={mutation.isPending || !canSubmit} className="md:col-span-2">
-              {mutation.isPending ? t("dashboard:common.saving") : t("dashboard:common.createReporter")}
+              {mutation.isPending ? t("dashboard:common.saving") : t("dashboard:users.createReporter")}
             </Button>
           </form>
         </Form>
