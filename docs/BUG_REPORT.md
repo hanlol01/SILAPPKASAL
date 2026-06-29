@@ -80,3 +80,12 @@ No new RC-03 bugs were found during QA.
 ## Bugs Found During QA
 
 No new RC-04 bugs were found during QA.
+
+# RC-05
+
+## Bugs Found During QA
+
+| Bug ID | Severity | Status | Affected Page | Expected Behavior | Actual Behavior | Possible Root Cause | Recommended Fix |
+|---|---|---|---|---|---|---|---|
+| RC05-BUG-001 | High | Verified | Dashboard Satgas assignment dialogs, including Forward Report / Assign Satgas flows | Satgas dialogs should be fully localized in both Bahasa Indonesia and English, and should not expose backend/API terminology to users. | Verified fixed in RC-05 hotfix QA recheck: `satgas-assignment-action.tsx` now uses `dashboard:workflow.assignment.*` i18n keys for loading, error, empty, labels, validation, success, and submit copy. The previous hardcoded English and "lookup API" wording are no longer present in the component. | Previous root cause was that RC-05 reintroduced or retained static Satgas dialog fallback copy outside i18n. Hotfix restored localized i18n usage. | No further fix required. Product Owner should execute RC05-ST-011 manually in Bahasa Indonesia and English. |
+| RC05-BUG-002 | Medium | Verified | Dashboard pages using `frontend/src/locales/{id,en}/dashboard.json` | Dashboard user-facing copy should preserve RC-02 cleanup: no backend wording, no RBAC wording, no endpoint wording, no API wording, and no metadata wording where users can see it. | Verified fixed in RC-05 hotfix QA recheck: parsed dashboard locale values in both `id` and `en` contain no visible `backend`, `RBAC`, `endpoint`, `API`, or `metadata` wording. Remaining technical key names are not visible UI copy. | Previous root cause was incomplete or regressed dashboard locale value cleanup. Hotfix rewrote visible values to natural user-facing wording. | No further fix required. Keep RC05-ST-011 as manual regression coverage for visible dashboard copy. |

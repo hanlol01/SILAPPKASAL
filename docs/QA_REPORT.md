@@ -966,3 +966,107 @@ No new RC-04 bugs were found during QA.
 - Backend pagination semantics: this PR assumes every list endpoint honors Laravel's standard `page` query parameter. If a specific endpoint silently ignored `page` previously, paging UX will appear stuck on page 1. Manual smoke on each list page with > 15 records is recommended.
 - `placeholderData: keepPreviousData` keeps the previous page visible during transitions. Open destructive-action dialogs in `dashboard.users` are still keyed by `user.id` so dialog state remains correct, but Product Owner should still verify reset-password / deactivate flows during page transitions.
 - RC-04 deliberately does not sync filter state to URL search params; the spec asked that URL/query state remain consistent with project default, which currently means in-component state. This is documented as expected behavior, not a defect.
+
+# RC-05
+
+## Executive Summary
+
+QA reviewed RC-05 for visual consistency across shared UI primitives and regression safety against RC-01 through RC-04. The review focused on card spacing, dialog spacing, empty states, form rhythm, typography hierarchy, button hierarchy, skeleton/loading states, icon sizing, and border radius consistency.
+
+The visual consistency layer is mostly healthy. Shared primitives continue to provide consistent spacing and hierarchy: cards use the existing `p-6` / `space-y-1.5` pattern, dialogs and alert dialogs use `gap-4` and `p-6`, empty states use a shared rounded dashed layout, buttons keep the shadcn variant/size hierarchy, and skeletons remain standardized through the shared `Skeleton` component.
+
+However, RC-05 fails QA because regression verification found RC-02 localization cleanup is not preserved in the current implementation state. `satgas-assignment-action.tsx` contains hardcoded English error/empty states and exposes "lookup API" wording in a Satgas dialog. Dashboard locale files also still contain user-facing technical wording such as backend, RBAC, endpoint, API, and metadata. This violates the RC-02 acceptance baseline and must be hotfixed before RC-05 can pass.
+
+## QA Score
+
+82
+
+## PASS / FAIL
+
+FAIL
+
+## Findings
+
+| ID | Area | Result | Evidence |
+|---|---|---|---|
+| QA-RC05-001 | Card spacing | PASS | `frontend/src/components/ui/card.tsx` keeps the existing card system: `rounded-xl border bg-card`, `CardHeader` uses `space-y-1.5 p-6`, and `CardContent` / `CardFooter` use `p-6 pt-0`. |
+| QA-RC05-002 | Dialog spacing | PASS | `frontend/src/components/ui/dialog.tsx` and `frontend/src/components/ui/alert-dialog.tsx` use `gap-4 p-6`, title/description hierarchy, and footer `gap-2` behavior for responsive button layout. |
+| QA-RC05-003 | Empty state spacing | PASS | `frontend/src/components/empty-state.tsx` provides a shared empty state with `gap-3`, dashed border, `px-4 py-16`, rounded icon container, and clear title/description/action hierarchy. |
+| QA-RC05-004 | Form spacing | PASS | Shared form controls and reviewed route patterns preserve established `space-y-*` / `grid gap-*` rhythm. No form API or validation implementation was modified during QA. |
+| QA-RC05-005 | Typography hierarchy | PASS | Shared card/dialog titles continue to use `font-semibold`, `leading-none`, and `tracking-tight`; descriptions remain `text-sm text-muted-foreground`. |
+| QA-RC05-006 | Button hierarchy | PASS | `frontend/src/components/ui/button.tsx` keeps semantic variants (`default`, `outline`, `secondary`, `ghost`, `destructive`, `link`) and consistent sizes (`h-8`, `h-9`, `h-10`, icon size). |
+| QA-RC05-007 | Skeleton and loading consistency | PASS | `frontend/src/components/ui/skeleton.tsx` remains the single shared skeleton primitive with `animate-pulse rounded-md`. No runtime/build issue was detected by TypeScript or build. |
+| QA-RC05-008 | Icon consistency | PASS | Button SVG sizing remains centralized through the button class (`[&_svg]:size-4`). RC-03 portal badge components remain present and icon-backed. |
+| QA-RC05-009 | Border radius consistency | PASS | Cards (`rounded-xl`), dialogs (`sm:rounded-lg`), controls (`rounded-md`), and empty states (`rounded-lg`) remain consistent with the existing design system. |
+| QA-RC05-010 | RC-01 wizard regression | PASS | `frontend/src/routes/portal.reports.new.tsx` still contains wizard schema, per-step validation, `WizardProgress`, `DatePicker`, `TimePicker`, and payload mapping. TypeScript/build/lint all pass. |
+| QA-RC05-011 | RC-02 localization regression | FAIL | `frontend/src/components/workflow-actions/satgas-assignment-action.tsx` includes hardcoded English strings: "Satgas lookup could not be loaded. Please try again." and "No active Satgas users were returned by the lookup API." Locale grep also found backend/RBAC/endpoint/API/metadata wording in `frontend/src/locales/{id,en}/dashboard.json`. |
+| QA-RC05-012 | RC-03 badge system regression | PASS | `PortalReportTypeBadge` and `PortalStatusBadge` remain imported and used in `frontend/src/components/portal/portal-report-card.tsx`; report type badge implementation still exists. |
+| QA-RC05-013 | RC-04 pagination regression | PASS | `ListPagination`, `FilterResetButton`, `DEFAULT_PAGE_SIZE`, `PAGE_SIZE_OPTIONS`, and `keepPreviousData` usage remain present across dashboard list routes. |
+| QA-RC05-014 | TypeScript | PASS | `npx.cmd tsc --noEmit` from `frontend/` completed with exit code 0. |
+| QA-RC05-015 | Build | PASS | `npm.cmd run build` from `frontend/` completed with exit code 0. Non-blocking Vite/TanStack chunk-size and unused-import warnings were observed. |
+| QA-RC05-016 | Lint | PASS | `npm.cmd run lint` from `frontend/` completed with 0 errors and 6 existing Fast Refresh warnings in shared UI files. |
+
+## Recommendations
+
+1. Hotfix RC05-BUG-001 by restoring RC-02 localization behavior in `SatgasAssignmentAction`: all dialog error/empty/loading/validation/toast strings should come from i18n keys in both `id` and `en`.
+2. Hotfix RC05-BUG-002 by removing or replacing user-facing backend/RBAC/endpoint/API/metadata wording in dashboard locale strings with natural product language.
+3. After hotfix, rerun `npx.cmd tsc --noEmit`, `npm.cmd run build`, and `npm.cmd run lint`, then perform a targeted RC-05 recheck for RC-02 regression only.
+4. Product Owner should still run visual smoke tests for light/dark mode and mobile widths because QA did not execute a browser walkthrough.
+
+## Verification Results
+
+| Check | Command / Method | Result |
+|---|---|---|
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | PASS |
+| Build | `npm.cmd run build` from `frontend/` | PASS; non-blocking Vite/TanStack warnings only |
+| Lint | `npm.cmd run lint` from `frontend/` | PASS; 0 errors, 6 existing Fast Refresh warnings |
+| Visual primitive inspection | Direct read of card, dialog, alert dialog, button, skeleton, empty state, pagination, and reset button components | PASS |
+| RC-01 regression inspection | Static inspection of `portal.reports.new.tsx` wizard constructs | PASS |
+| RC-02 regression inspection | Static grep of Satgas assignment action and dashboard locale files | FAIL |
+| RC-03 regression inspection | Static inspection of portal badge imports/components | PASS |
+| RC-04 regression inspection | Static grep of shared pagination components and consumers | PASS |
+
+## Bugs Found
+
+- RC05-BUG-001: Hardcoded English and "lookup API" wording returned in Satgas assignment dialog.
+- RC05-BUG-002: Dashboard locale files still expose technical backend/RBAC/endpoint/API/metadata wording in user-facing copy.
+
+## Remaining Risks
+
+- QA did not execute an authenticated browser walkthrough, so final visual confirmation for spacing, responsive behavior, dark/light mode, and live dialog states remains a Product Owner manual smoke responsibility.
+- Git diff comparison could not be used because the repository is marked as dubious ownership for the sandbox user. QA relied on static file inspection and required tooling commands instead.
+- Build passes but Vite reported non-blocking chunk-size warnings; this is not an RC-05 regression finding but should remain visible to the frontend owner.
+
+# RC-05 Hotfix QA Recheck
+
+## Summary
+
+QA rechecked the RC-05 hotfix for the two previously opened RC-05 bugs. The reviewed files were limited to the reported hotfix scope: `frontend/src/locales/id/dashboard.json`, `frontend/src/locales/en/dashboard.json`, and workflow action components under `frontend/src/components/workflow-actions/`.
+
+The hotfix resolves the RC-02 localization regression found during RC-05 QA. Satgas assignment dialog strings now render through `useTranslation()` and matching `dashboard:workflow.assignment.*` keys. The previous hardcoded English strings and "lookup API" wording are no longer present in `satgas-assignment-action.tsx`. A parsed JSON scan of dashboard locale values found no visible `backend`, `RBAC`, `endpoint`, `API`, or `metadata` wording in either Bahasa Indonesia or English locale values.
+
+## Score
+
+96
+
+## PASS / FAIL
+
+PASS
+
+## Regression Findings
+
+| ID | Area | Result | Evidence |
+|---|---|---|---|
+| RC05-HF-001 | RC05-BUG-001 Satgas dialog localization | PASS | `satgas-assignment-action.tsx` now uses `t("dashboard:workflow.assignment.lookupError")`, `t("dashboard:workflow.assignment.noActiveSatgas")`, and related assignment keys. The old hardcoded strings "Satgas lookup could not be loaded. Please try again." and "No active Satgas users were returned by the lookup API." are no longer present in the component. |
+| RC05-HF-002 | RC05-BUG-002 dashboard wording cleanup | PASS | JSON value scan across `frontend/src/locales/id/dashboard.json` and `frontend/src/locales/en/dashboard.json` returned no visible values containing `backend`, `RBAC`, `endpoint`, `API`, or `metadata`. Technical key names remain in some places but their visible values now use user-facing wording such as "sistem" and "summary/ringkasan". |
+| RC05-HF-003 | Locale key parity | PASS | Assignment keys including `loadingSatgas`, `lookupError`, `noActiveSatgas`, validation messages, trigger/title/description/submit labels, and success/error toasts exist in both `id` and `en` dashboard locale files. |
+| RC05-HF-004 | Named workflow action files | PASS | The hotfix-touched workflow action files no longer contain the previously flagged hardcoded Satgas English strings or API wording. Workflow status/create actions continue to use i18n calls for visible copy. |
+| RC05-HF-005 | TypeScript | PASS | `npx.cmd tsc --noEmit` from `frontend/` completed with exit code 0. |
+| RC05-HF-006 | Build | PASS | `npm.cmd run build` from `frontend/` completed with exit code 0. Non-blocking Vite/TanStack chunk-size and unused-import warnings remain. |
+| RC05-HF-007 | Lint | PASS | `npm.cmd run lint` from `frontend/` completed with 0 errors and 6 existing Fast Refresh warnings in shared UI files. |
+
+## Remaining Risks
+
+- QA did not run an authenticated browser walkthrough, so Product Owner should still manually confirm the Satgas dialog in Bahasa Indonesia and English using RC05-ST-011.
+- English locale intentionally contains English user-facing copy. The recheck verified removal of backend/API/RBAC/endpoint/metadata wording from visible locale values, not removal of English copy from the English locale.
+- Build still reports non-blocking bundle-size/TanStack warnings; these are not introduced by the hotfix and do not block RC-05 acceptance.
