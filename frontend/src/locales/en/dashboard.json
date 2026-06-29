@@ -24,6 +24,17 @@
     "toggleTheme": "Toggle theme",
     "toggleLanguage": "Toggle language"
   },
+  "pagination": {
+    "perPage": "Per page",
+    "previous": "Previous",
+    "next": "Next",
+    "pageOf": "Page {{current}} of {{last}}",
+    "rangeOf": "Showing {{from}}\u2013{{to}} of {{total}}",
+    "totalOnly": "Total {{total}}"
+  },
+  "filters": {
+    "reset": "Reset filters"
+  },
   "common": {
     "actions": "Action",
     "allStatuses": "All statuses",

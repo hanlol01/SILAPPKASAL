@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Eye, Inbox, Search, SearchX, SlidersHorizontal } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { QueryErrorState } from "@/components/query-state";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,9 @@ import { formatCaseStatus } from "@/lib/format-labels";
 import { getCases, operationsQueryKeys } from "@/lib/operations-api";
 import { EmptyState } from "@/components/empty-state";
 import { PageBreadcrumb } from "@/components/page-breadcrumb";
+import { FilterResetButton } from "@/components/filter-reset-button";
+import { ListPagination } from "@/components/list-pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/list-controls";
 
 export const Route = createFileRoute("/dashboard/cases/")({
   component: CasesPage,
@@ -44,16 +47,32 @@ function CasesPage() {
   const { t, i18n } = useTranslation(["dashboard"]);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const filtersActive = q !== "" || status !== "all";
+
+  const resetFilters = () => {
+    setQ("");
+    setStatus("all");
+    setPage(1);
+  };
+
+  useEffect(() => {
+    setPage(1);
+  }, [status, pageSize]);
+
   const query = useMemo(
     () => ({
       status: status === "all" ? undefined : status,
-      per_page: 50,
+      per_page: pageSize,
+      page,
     }),
-    [status],
+    [status, pageSize, page],
   );
   const casesQuery = useQuery({
     queryKey: operationsQueryKeys.cases(query),
     queryFn: () => getCases(query),
+    placeholderData: keepPreviousData,
   });
   const filtered =
     casesQuery.data?.data.filter((item) => {
@@ -96,6 +115,7 @@ function CasesPage() {
                 ))}
               </SelectContent>
             </Select>
+            <FilterResetButton active={filtersActive} onReset={resetFilters} />
           </div>
 
           {casesQuery.isLoading && (
@@ -183,11 +203,14 @@ function CasesPage() {
               </div>
             </>
           )}
-          {casesQuery.data?.meta && (
-            <div className="text-sm text-muted-foreground">
-              {t("dashboard:cases.showing", { shown: filtered.length, total: casesQuery.data.meta.total })}
-            </div>
-          )}
+          <ListPagination
+            meta={casesQuery.data?.meta}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            isFetching={casesQuery.isFetching}
+          />
         </CardContent>
       </Card>
     </div>

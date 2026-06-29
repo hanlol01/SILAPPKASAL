@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { FileText, Inbox, Lock, Search, SearchX, SlidersHorizontal } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AccessDenied } from "@/components/access-denied";
 import { QueryErrorState } from "@/components/query-state";
@@ -23,6 +23,9 @@ import { getReports, operationsQueryKeys } from "@/lib/operations-api";
 import type { ReportReporter } from "@/lib/operations-types";
 import { EmptyState } from "@/components/empty-state";
 import { PageBreadcrumb } from "@/components/page-breadcrumb";
+import { FilterResetButton } from "@/components/filter-reset-button";
+import { ListPagination } from "@/components/list-pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/list-controls";
 
 export const Route = createFileRoute("/dashboard/reports/")({
   component: ReportsPage,
@@ -38,24 +41,44 @@ function ReportsPage() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
   const [reportType, setReportType] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const filtersActive = q !== "" || status !== "all" || reportType !== "all";
+
+  const resetFilters = () => {
+    setQ("");
+    setStatus("all");
+    setReportType("all");
+    setPage(1);
+  };
+
+  // Any filter change must return to page 1 to preserve URL/query consistency.
+  useEffect(() => {
+    setPage(1);
+  }, [status, reportType, pageSize]);
+
   const query = useMemo(
     () => ({
       status: status === "all" ? undefined : status,
       report_type: reportType === "all" ? undefined : reportType,
-      per_page: 50,
+      per_page: pageSize,
+      page,
     }),
-    [status, reportType],
+    [status, reportType, pageSize, page],
   );
   const reportsQuery = useQuery({
     queryKey: operationsQueryKeys.reports(query),
     queryFn: () => getReports(query),
     enabled: roleCode === "super_admin" || roleCode === "admin",
+    placeholderData: keepPreviousData,
   });
 
   if (roleCode !== "super_admin" && roleCode !== "admin") {
     return <AccessDenied />;
   }
 
+  // Client-side text search complements the server-side filter selects;
+  // pagination remains server-driven.
   const filtered =
     reportsQuery.data?.data.filter((report) => {
       const haystack = `${report.registration_number} ${report.status} ${report.report_type} ${report.category?.name ?? ""}`.toLowerCase();
@@ -106,6 +129,7 @@ function ReportsPage() {
                 ))}
               </SelectContent>
             </Select>
+            <FilterResetButton active={filtersActive} onReset={resetFilters} />
           </div>
 
           {reportsQuery.isLoading && (
@@ -210,11 +234,14 @@ function ReportsPage() {
               </div>
             </>
           )}
-          {reportsQuery.data?.meta && (
-            <div className="text-sm text-muted-foreground">
-              {t("dashboard:reports.showing", { shown: filtered.length, total: reportsQuery.data.meta.total })}
-            </div>
-          )}
+          <ListPagination
+            meta={reportsQuery.data?.meta}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            isFetching={reportsQuery.isFetching}
+          />
         </CardContent>
       </Card>
     </div>

@@ -24,6 +24,17 @@
     "toggleTheme": "Ubah tema",
     "toggleLanguage": "Ubah bahasa"
   },
+  "pagination": {
+    "perPage": "Per halaman",
+    "previous": "Sebelumnya",
+    "next": "Berikutnya",
+    "pageOf": "Halaman {{current}} dari {{last}}",
+    "rangeOf": "Menampilkan {{from}}\u2013{{to}} dari {{total}}",
+    "totalOnly": "Total {{total}}"
+  },
+  "filters": {
+    "reset": "Atur ulang filter"
+  },
   "common": {
     "actions": "Aksi",
     "allStatuses": "Semua status",
