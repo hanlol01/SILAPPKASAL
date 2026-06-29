@@ -26,7 +26,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -39,6 +38,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { FilterResetButton } from "@/components/filter-reset-button";
 import { ListPagination } from "@/components/list-pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/list-controls";
+import { ActiveStateBadge } from "@/components/status-badge";
 
 export const Route = createFileRoute("/dashboard/master-data/universities")({
   component: UniversitiesPage,
@@ -117,7 +117,13 @@ function UniversitiesPage() {
                     </td>
                     <td className="p-3">{formatCampusType(t, item.type)}</td>
                     <td className="p-3">{item.has_faculties ? t("dashboard:masterData.yes") : t("dashboard:masterData.no")}</td>
-                    <td className="p-3"><StatusBadge active={item.is_active} /></td>
+                    <td className="p-3">
+                      <ActiveStateBadge
+                        active={item.is_active}
+                        activeLabel={t("dashboard:masterData.active")}
+                        inactiveLabel={t("dashboard:masterData.inactive")}
+                      />
+                    </td>
                     <td className="p-3 text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="outline" size="sm" onClick={() => setEditing(item)}>{t("dashboard:common.edit")}</Button>
@@ -301,11 +307,6 @@ function toPayload(university: CampusUniversity | null): UniversityPayload {
     has_faculties: university?.has_faculties ?? true,
     sort_order: university?.sort_order ?? 0,
   };
-}
-
-function StatusBadge({ active }: { active: boolean }) {
-  const { t } = useTranslation(["dashboard"]);
-  return <Badge variant={active ? "default" : "outline"}>{active ? t("dashboard:masterData.active") : t("dashboard:masterData.inactive")}</Badge>;
 }
 
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {

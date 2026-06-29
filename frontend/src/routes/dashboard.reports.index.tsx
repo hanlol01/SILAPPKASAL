@@ -1,11 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { FileText, Inbox, Lock, Search, SearchX, SlidersHorizontal } from "lucide-react";
+import { Eye, Inbox, Lock, Search, SearchX, SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AccessDenied } from "@/components/access-denied";
 import { QueryErrorState } from "@/components/query-state";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,6 +25,7 @@ import { PageBreadcrumb } from "@/components/page-breadcrumb";
 import { FilterResetButton } from "@/components/filter-reset-button";
 import { ListPagination } from "@/components/list-pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/list-controls";
+import { ReportStatusBadge } from "@/components/status-badge";
 
 export const Route = createFileRoute("/dashboard/reports/")({
   component: ReportsPage,
@@ -93,10 +93,6 @@ function ReportsPage() {
           <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard:reports.title")}</h1>
           <p className="text-sm text-muted-foreground">{t("dashboard:reports.subtitle")}</p>
         </div>
-        <Button disabled variant="outline" title={t("dashboard:reports.forwardUnavailableTitle")}>
-          <FileText />
-          {t("dashboard:reports.forwardUnavailable")}
-        </Button>
       </div>
 
       <Card>
@@ -148,17 +144,20 @@ function ReportsPage() {
                       <div className="min-w-0">
                         <div className="truncate font-mono text-xs font-medium">{report.registration_number}</div>
                         <div className="mt-1 flex flex-wrap items-center gap-2">
-                          <Badge variant="outline">{formatReportStatus(t, report.status)}</Badge>
+                          <ReportStatusBadge status={report.status} />
                           {(report.is_anonymous || report.report_type === "anonymous") && (
-                            <Badge variant="outline" className="gap-1 text-muted-foreground">
+                            <ReportTypeChip>
                               <Lock className="h-3 w-3" />
                               {t("dashboard:reports.anonymous")}
-                            </Badge>
+                            </ReportTypeChip>
                           )}
                         </div>
                       </div>
                       <Button asChild size="sm" variant="outline" className="shrink-0">
-                        <Link to="/dashboard/reports/$id" params={{ id: String(report.id) }}>{t("dashboard:common.detail")}</Link>
+                        <Link to="/dashboard/reports/$id" params={{ id: String(report.id) }}>
+                          <Eye className="h-4 w-4" />
+                          {t("dashboard:common.detail")}
+                        </Link>
                       </Button>
                     </div>
                     <div className="mt-3 grid gap-2 text-xs">
@@ -200,21 +199,24 @@ function ReportsPage() {
                           <div className="flex flex-wrap items-center gap-2">
                             <span>{formatReportType(t, report.report_type)}</span>
                             {(report.is_anonymous || report.report_type === "anonymous") && (
-                              <Badge variant="outline" className="gap-1 text-muted-foreground">
+                              <ReportTypeChip>
                                 <Lock className="h-3 w-3" />
                                 {t("dashboard:reports.anonymous")}
-                              </Badge>
+                              </ReportTypeChip>
                             )}
                           </div>
                         </td>
                         <td className="px-3 py-2">{reporterDisplay(report.reporter, t)}</td>
                         <td className="px-3 py-2">{report.category?.name ?? t("dashboard:common.metadataUnavailable")}</td>
                         <td className="px-3 py-2">{report.priority?.name ?? "-"}</td>
-                        <td className="px-3 py-2"><Badge variant="outline">{formatReportStatus(t, report.status)}</Badge></td>
+                        <td className="px-3 py-2"><ReportStatusBadge status={report.status} /></td>
                         <td className="px-3 py-2 text-muted-foreground">{formatDateTime(report.submitted_at, i18n.language)}</td>
                         <td className="px-3 py-2 text-right">
                           <Button asChild size="sm" variant="ghost">
-                            <Link to="/dashboard/reports/$id" params={{ id: String(report.id) }}>{t("dashboard:common.detail")}</Link>
+                            <Link to="/dashboard/reports/$id" params={{ id: String(report.id) }}>
+                              <Eye className="h-4 w-4" />
+                              {t("dashboard:common.detail")}
+                            </Link>
                           </Button>
                         </td>
                       </tr>
@@ -246,6 +248,14 @@ function ReportsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function ReportTypeChip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-muted-foreground/30 bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+      {children}
+    </span>
   );
 }
 

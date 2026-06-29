@@ -6,9 +6,11 @@ import {
   Bell,
   UserCog,
   LogOut,
+  Menu,
   Moon,
   Sun,
 } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -19,6 +21,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "react-i18next";
@@ -67,6 +76,60 @@ function PortalNav() {
   );
 }
 
+function PortalMobileNav() {
+  const { t } = useTranslation(["portal"]);
+  const path = useRouterState({ select: (s) => s.location.pathname });
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          aria-label={t("portal:openNavigation")}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-[82vw] max-w-xs p-0">
+        <SheetHeader className="border-b p-4 text-left">
+          <SheetTitle className="flex items-center gap-2 text-base">
+            <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-primary/10">
+              <img src="/Logo.ico" alt="" aria-hidden="true" className="h-6 w-6 object-contain" />
+            </span>
+            SILAPPKASAL
+          </SheetTitle>
+        </SheetHeader>
+        <nav className="grid gap-1 p-3">
+          {nav.map((item) => {
+            const active =
+              item.url === "/portal"
+                ? path === "/portal"
+                : path.startsWith(item.url);
+            return (
+              <Button
+                key={item.url}
+                asChild
+                variant={active ? "secondary" : "ghost"}
+                className="h-11 justify-start gap-3 px-3"
+                aria-label={t(item.titleKey)}
+                onClick={() => setOpen(false)}
+              >
+                <Link to={item.url}>
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  <span>{t(item.titleKey)}</span>
+                </Link>
+              </Button>
+            );
+          })}
+        </nav>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 function PortalTopbar() {
   const { t } = useTranslation(["common", "portal"]);
   const { user, logout } = useAuth();
@@ -82,18 +145,21 @@ function PortalTopbar() {
   return (
     <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
       <div className="flex h-14 items-center gap-3 px-4">
+        <PortalMobileNav />
+
         {/* Brand */}
-        <Link to="/portal" className="flex shrink-0 items-center gap-2">
+        <Link to="/portal" className="flex min-w-0 shrink-0 items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-primary/10">
             <img src="/Logo.ico" alt="" aria-hidden="true" className="h-6 w-6 object-contain" />
           </div>
-          <span className="text-sm font-semibold">
+          <span className="truncate text-sm font-semibold">
             SILAPPKASAL
           </span>
         </Link>
 
-        {/* Horizontal nav */}
-        <PortalNav />
+        <div className="hidden min-w-0 md:block">
+          <PortalNav />
+        </div>
 
         {/* Right side */}
         <div className="ml-auto flex items-center gap-2">

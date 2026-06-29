@@ -16,7 +16,6 @@ import {
   type FacultyPayload,
 } from "@/lib/campus-admin-api";
 import { ApiError } from "@/lib/api-client";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -27,6 +26,7 @@ import { EmptyState } from "@/components/empty-state";
 import { FilterResetButton } from "@/components/filter-reset-button";
 import { ListPagination } from "@/components/list-pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/list-controls";
+import { ActiveStateBadge } from "@/components/status-badge";
 
 export const Route = createFileRoute("/dashboard/master-data/faculties")({
   component: FacultiesPage,
@@ -116,7 +116,13 @@ function FacultiesPage() {
                     <td className="p-3 font-medium">{item.name}</td>
                     <td className="p-3">{item.university?.name ?? "-"}</td>
                     <td className="p-3">{item.study_programs_count ?? 0}</td>
-                    <td className="p-3"><Badge variant={item.is_active ? "default" : "outline"}>{item.is_active ? t("dashboard:masterData.active") : t("dashboard:masterData.inactive")}</Badge></td>
+                    <td className="p-3">
+                      <ActiveStateBadge
+                        active={item.is_active}
+                        activeLabel={t("dashboard:masterData.active")}
+                        inactiveLabel={t("dashboard:masterData.inactive")}
+                      />
+                    </td>
                     <td className="p-3 text-right">
                       <div className="flex justify-end gap-2">
                         <Button size="sm" variant="outline" onClick={() => setEditing(item)}>{t("dashboard:common.edit")}</Button>

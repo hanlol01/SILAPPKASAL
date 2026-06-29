@@ -112,16 +112,16 @@
     "filteredEmptyTitle": "No matching reports",
     "filteredEmptyDesc": "Try adjusting filters or search terms.",
     "showing": "Showing {{shown}} of {{total}} reports.",
-    "forwardUnavailable": "Forward action unavailable",
-    "forwardUnavailableTitle": "Requires an approved Satgas user lookup",
+    "forwardUnavailable": "Open report detail to forward",
+    "forwardUnavailableTitle": "Forwarding is available from the report detail",
     "registration": "Registration",
     "reporter": "Reporter",
     "anonymous": "Anonymous",
     "identityHidden": "Reporter identity hidden",
     "detailTitle": "Report summary",
     "detailDesc": "Only a summary is shown for operational report detail.",
-    "actionsDesc": "Forwarding uses the approved Satgas user lookup.",
-    "satgasHint": "Select one or more Satgas users and choose a lead from the selected users. System access rules remain authoritative.",
+    "actionsDesc": "Choose the Satgas members who will handle this report.",
+    "satgasHint": "Select one or more Satgas users and choose a lead from the selected users.",
     "allReports": "All reports",
     "couldNotLoad": "Report could not be loaded."
   },
@@ -149,7 +149,7 @@
     "noAssignments": "No active assignments shown.",
     "leadSatgas": "Lead Satgas",
     "assignedSatgas": "Assigned Satgas",
-    "actionsDesc": "Safe workflow actions use approved internal services.",
+    "actionsDesc": "Workflow actions are available according to case status and assignment.",
     "assignSatgas": "Assign Satgas",
     "sensitiveReport": "Sensitive report detail",
     "sensitiveMetadataOnly": "Only a summary of this case is available for the user.",
@@ -210,7 +210,7 @@
   "registrations": {
     "title": "Reporter Registrations",
     "subtitle": "Review pending and rejected reporter account requests.",
-    "search": "Search name, email, NIM",
+    "search": "Search registration number, name, email, NIM",
     "name": "Name",
     "nim": "NIM",
     "university": "University",
@@ -434,7 +434,7 @@
     "pipeline": {
       "title": "Investigation workflow",
       "loadingDescription": "Loading workflow analytics.",
-      "description": "Workflow counts scoped to the authenticated user's role and assignments.",
+      "description": "Workflow counts scoped to the user's access and assignments.",
       "loading": "Loading workflow...",
       "unavailable": "Workflow analytics are unavailable.",
       "conversionTitle": "Pipeline conversion counts",
@@ -466,6 +466,7 @@
     "faculties": "Faculties",
     "studyPrograms": "Study Programs",
     "allFaculties": "All faculties",
+    "optional": "Optional",
     "searchUniversities": "Search universities",
     "searchFaculties": "Search faculties",
     "searchStudyPrograms": "Search study programs",
@@ -616,11 +617,6 @@
       "revealed": "Identity revealed",
       "expired": "Expired"
     }
-  },
-  "pagination": {
-    "pageOf": "Page {{page}} of {{lastPage}}",
-    "previous": "Previous",
-    "next": "Next"
   },
   "analytics": {
     "title": "Analytics",

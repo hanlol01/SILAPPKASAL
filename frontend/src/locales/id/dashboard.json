@@ -112,16 +112,16 @@
     "filteredEmptyTitle": "Tidak ada laporan cocok",
     "filteredEmptyDesc": "Coba ubah filter atau kata kunci pencarian.",
     "showing": "Menampilkan {{shown}} dari {{total}} laporan.",
-    "forwardUnavailable": "Aksi penerusan belum tersedia",
-    "forwardUnavailableTitle": "Memerlukan pencarian pengguna Satgas yang disetujui",
+    "forwardUnavailable": "Buka detail laporan untuk meneruskan",
+    "forwardUnavailableTitle": "Penerusan dilakukan dari detail laporan",
     "registration": "Registrasi",
     "reporter": "Pelapor",
     "anonymous": "Anonim",
     "identityHidden": "Identitas pelapor disembunyikan",
     "detailTitle": "Ringkasan laporan",
     "detailDesc": "Hanya ringkasan yang ditampilkan untuk detail laporan operasional.",
-    "actionsDesc": "Penerusan menggunakan pencarian pengguna Satgas yang disetujui.",
-    "satgasHint": "Pilih satu atau lebih Satgas dan tentukan ketua dari pengguna terpilih. Aturan akses sistem tetap menjadi acuan.",
+    "actionsDesc": "Pilih Satgas yang menangani laporan ini.",
+    "satgasHint": "Pilih satu atau lebih Satgas dan tentukan ketua dari pengguna terpilih.",
     "allReports": "Semua laporan",
     "couldNotLoad": "Laporan tidak dapat dimuat."
   },
@@ -149,7 +149,7 @@
     "noAssignments": "Tidak ada penugasan aktif yang ditampilkan.",
     "leadSatgas": "Ketua Satgas",
     "assignedSatgas": "Satgas ditugaskan",
-    "actionsDesc": "Aksi alur kerja aman menggunakan layanan internal yang disetujui.",
+    "actionsDesc": "Aksi alur kerja tersedia sesuai status dan penugasan kasus.",
     "assignSatgas": "Tugaskan Satgas",
     "sensitiveReport": "Detail laporan sensitif",
     "sensitiveMetadataOnly": "Hanya ringkasan kasus ini yang tersedia untuk pengguna.",
@@ -210,7 +210,7 @@
   "registrations": {
     "title": "Pendaftaran Pelapor",
     "subtitle": "Tinjau permintaan akun pelapor yang tertunda dan ditolak.",
-    "search": "Cari nama, email, NIM",
+    "search": "Cari nomor registrasi, nama, email, NIM",
     "name": "Nama",
     "nim": "NIM",
     "university": "Universitas",
@@ -434,7 +434,7 @@
     "pipeline": {
       "title": "Alur investigasi",
       "loadingDescription": "Memuat analitik alur kerja.",
-      "description": "Hitungan alur kerja sesuai role dan penugasan pengguna.",
+      "description": "Hitungan alur kerja sesuai hak akses dan penugasan pengguna.",
       "loading": "Memuat alur kerja...",
       "unavailable": "Analitik alur kerja tidak tersedia.",
       "conversionTitle": "Hitungan konversi alur",
@@ -466,6 +466,7 @@
     "faculties": "Fakultas",
     "studyPrograms": "Program Studi",
     "allFaculties": "Semua fakultas",
+    "optional": "Opsional",
     "searchUniversities": "Cari universitas",
     "searchFaculties": "Cari fakultas",
     "searchStudyPrograms": "Cari program studi",
@@ -617,11 +618,6 @@
       "revealed": "Identitas diungkap",
       "expired": "Kedaluwarsa"
     }
-  },
-  "pagination": {
-    "pageOf": "Halaman {{page}} dari {{lastPage}}",
-    "previous": "Sebelumnya",
-    "next": "Berikutnya"
   },
   "analytics": {
     "title": "Analitik",

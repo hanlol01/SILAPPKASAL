@@ -35,7 +35,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Form } from "@/components/ui/form";
 import { PasswordField, SelectFormField, SelectInput, TextInputField } from "@/components/form-fields";
 import { EmptyState } from "@/components/empty-state";
@@ -43,6 +42,7 @@ import { PageBreadcrumb } from "@/components/page-breadcrumb";
 import { FilterResetButton } from "@/components/filter-reset-button";
 import { ListPagination } from "@/components/list-pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/list-controls";
+import { ActiveStateBadge } from "@/components/status-badge";
 
 export const Route = createFileRoute("/dashboard/users")({
   component: DashboardUsersPage,
@@ -235,7 +235,13 @@ function DashboardUsersPage() {
                     </td>
                     <td className="p-3">{user.university?.name ?? "-"}</td>
                     <td className="p-3">{user.study_program?.name ?? "-"}</td>
-                    <td className="p-3"><Badge variant={user.is_active ? "default" : "outline"}>{user.is_active ? t("dashboard:users.active") : t("dashboard:users.inactive")}</Badge></td>
+                    <td className="p-3">
+                      <ActiveStateBadge
+                        active={user.is_active}
+                        activeLabel={t("dashboard:users.active")}
+                        inactiveLabel={t("dashboard:users.inactive")}
+                      />
+                    </td>
                     <td className="p-3 text-right">
                       <div className="flex flex-wrap justify-end gap-2">
                         {user.is_active ? (

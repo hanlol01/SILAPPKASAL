@@ -14,17 +14,18 @@ type DatePickerProps = Omit<ButtonProps, "value" | "onChange"> & {
   onChange: (value: string) => void;
   disableFuture?: boolean;
   placeholder?: string;
+  quickPicks?: { label: string; value: string }[];
 };
 
 const DatePicker = React.forwardRef<HTMLButtonElement, DatePickerProps>(
-  ({ value, onChange, disableFuture, placeholder, disabled, className, ...props }, ref) => {
+  ({ value, onChange, disableFuture, placeholder, disabled, className, quickPicks = [], ...props }, ref) => {
     const { i18n } = useTranslation();
     const [open, setOpen] = React.useState(false);
     const selectedDate = parseDateValue(value);
     const locale = i18n.language === "en" ? enUS : idLocale;
     const today = startOfToday();
 
-    return (
+    const picker = (
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -54,6 +55,29 @@ const DatePicker = React.forwardRef<HTMLButtonElement, DatePickerProps>(
         </PopoverContent>
       </Popover>
     );
+
+    if (quickPicks.length === 0) return picker;
+
+    return (
+      <div className="space-y-2">
+        {picker}
+        <div className="flex flex-wrap gap-2">
+          {quickPicks.map((item) => (
+            <Button
+              key={item.value}
+              type="button"
+              variant={value === item.value ? "secondary" : "outline"}
+              size="sm"
+              disabled={disabled || isDisabledQuickPick(item.value, disableFuture)}
+              onClick={() => onChange(item.value)}
+              className="h-9"
+            >
+              {item.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+    );
   },
 );
 DatePicker.displayName = "DatePicker";
@@ -82,6 +106,13 @@ function startOfToday() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return today;
+}
+
+function isDisabledQuickPick(value: string, disableFuture?: boolean) {
+  if (!disableFuture) return false;
+  const date = parseDateValue(value);
+  if (!date) return false;
+  return date > startOfToday();
 }
 
 export { DatePicker };

@@ -4,7 +4,6 @@ import { Eye, Inbox, Search, SearchX, SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { QueryErrorState } from "@/components/query-state";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,13 +15,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDateTime } from "@/lib/format";
-import { formatCaseStatus } from "@/lib/format-labels";
+import { formatCaseStatus, formatPriorityLevel, formatRiskLevel } from "@/lib/format-labels";
 import { getCases, operationsQueryKeys } from "@/lib/operations-api";
 import { EmptyState } from "@/components/empty-state";
 import { PageBreadcrumb } from "@/components/page-breadcrumb";
 import { FilterResetButton } from "@/components/filter-reset-button";
 import { ListPagination } from "@/components/list-pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/list-controls";
+import { StatusBadge } from "@/components/status-badge";
 
 export const Route = createFileRoute("/dashboard/cases/")({
   component: CasesPage,
@@ -134,11 +134,11 @@ function CasesPage() {
                         <div className="truncate font-mono text-xs font-medium">{item.case_number}</div>
                         <div className="mt-1 font-mono text-xs text-muted-foreground">{item.registration_number}</div>
                       </div>
-                      <Badge variant="outline" className="shrink-0">{formatCaseStatus(t, item.status_code)}</Badge>
+                      <StatusBadge status={item.status_code} className="shrink-0" />
                     </div>
                     <div className="mt-3 grid gap-2 text-xs">
-                      <MobileField label={t("dashboard:common.risk")}>{item.risk_level ?? item.risk_level_code ?? "-"}</MobileField>
-                      <MobileField label={t("dashboard:common.priority")}>{item.priority ?? "-"}</MobileField>
+                      <MobileField label={t("dashboard:common.risk")}>{formatRiskValue(t, item.risk_level ?? item.risk_level_code)}</MobileField>
+                      <MobileField label={t("dashboard:common.priority")}>{formatPriorityValue(t, item.priority)}</MobileField>
                       <MobileField label={t("dashboard:common.forwarded")}>{formatDateTime(item.forwarded_at, i18n.language)}</MobileField>
                     </div>
                     <Button asChild size="sm" variant="outline" className="mt-3 w-full">
@@ -175,9 +175,9 @@ function CasesPage() {
                       <tr key={item.id} className="border-t hover:bg-muted/40">
                         <td className="px-3 py-2 font-mono text-xs">{item.case_number}</td>
                         <td className="px-3 py-2 font-mono text-xs">{item.registration_number}</td>
-                        <td className="px-3 py-2"><Badge variant="outline">{formatCaseStatus(t, item.status_code)}</Badge></td>
-                        <td className="px-3 py-2">{item.risk_level ?? item.risk_level_code ?? "-"}</td>
-                        <td className="px-3 py-2">{item.priority ?? "-"}</td>
+                        <td className="px-3 py-2"><StatusBadge status={item.status_code} /></td>
+                        <td className="px-3 py-2">{formatRiskValue(t, item.risk_level ?? item.risk_level_code)}</td>
+                        <td className="px-3 py-2">{formatPriorityValue(t, item.priority)}</td>
                         <td className="px-3 py-2 text-muted-foreground">{formatDateTime(item.forwarded_at, i18n.language)}</td>
                         <td className="px-3 py-2 text-right">
                           <Button asChild size="sm" variant="ghost">
@@ -226,4 +226,14 @@ function MobileField({ label, children }: { label: string; children: React.React
       <div className="mt-0.5 text-sm">{children}</div>
     </div>
   );
+}
+
+function formatRiskValue(t: ReturnType<typeof useTranslation>["t"], value: unknown) {
+  if (!value) return "-";
+  return formatRiskLevel(t, value);
+}
+
+function formatPriorityValue(t: ReturnType<typeof useTranslation>["t"], value: unknown) {
+  if (!value) return "-";
+  return formatPriorityLevel(t, value);
 }

@@ -53,6 +53,8 @@ import {
   formatCaseStatus,
   formatDecisionOutcome,
   formatEvidenceClassification,
+  formatPriorityLevel,
+  formatRiskLevel,
 } from "@/lib/format-labels";
 import {
   getCase,
@@ -251,10 +253,10 @@ function CaseDetail() {
             <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
               <Field label={t("dashboard:cases.caseNumber")}>{c.case_number}</Field>
               <Field label={t("dashboard:reports.registration")}>{c.registration_number}</Field>
-              <Field label={t("dashboard:common.status")}>{c.status ?? formatCaseStatus(t, c.status_code)}</Field>
+              <Field label={t("dashboard:common.status")}>{formatCaseStatus(t, c.status ?? c.status_code)}</Field>
               <Field label={t("dashboard:common.stage")}>{c.current_stage_label ?? formatCaseStatus(t, c.current_stage ?? "-")}</Field>
-              <Field label={t("dashboard:common.risk")}>{c.risk_level ?? c.risk_level_code ?? "-"}</Field>
-              <Field label={t("dashboard:common.priority")}>{c.priority ?? "-"}</Field>
+              <Field label={t("dashboard:common.risk")}>{formatRiskValue(t, c.risk_level ?? c.risk_level_code)}</Field>
+              <Field label={t("dashboard:common.priority")}>{formatPriorityValue(t, c.priority)}</Field>
               <Field label={t("dashboard:common.forwarded")}>{formatDate(c.forwarded_at, i18n.language)}</Field>
               <Field label={t("dashboard:common.closed")}>{formatDate(c.closed_at, i18n.language)}</Field>
             </CardContent>
@@ -377,7 +379,7 @@ function CaseDetail() {
               ) : (
                 <DisabledWorkflowAction
                   title={t("dashboard:workflow.caseStatusUpdate")}
-                  description={t("dashboard:common.backendRules")}
+                  description={t("dashboard:cases.actionsDesc")}
                 />
               )}
               {canCreateInvestigation && (
@@ -939,6 +941,16 @@ function recoveryCreateDisabledReason(
 
 function formatDate(value: string | null | undefined, language: string) {
   return formatDateTime(value, language);
+}
+
+function formatRiskValue(t: TFunction, value: unknown) {
+  if (!value) return "-";
+  return formatRiskLevel(t, value);
+}
+
+function formatPriorityValue(t: TFunction, value: unknown) {
+  if (!value) return "-";
+  return formatPriorityLevel(t, value);
 }
 
 function CaseDetailSkeleton() {

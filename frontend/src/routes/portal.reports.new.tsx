@@ -10,7 +10,7 @@ import { z } from "zod";
 
 import { ApiError } from "@/lib/api-client";
 import { hasPortalAccess } from "@/lib/auth-roles";
-import { formatLocationType } from "@/lib/format-labels";
+import { formatLocationType, formatRespondentCampusStatus, formatRespondentRelation } from "@/lib/format-labels";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import { getMasterData, masterDataQueryKeys } from "@/lib/master-data-api";
 import { submitReport } from "@/lib/portal-api";
@@ -78,6 +78,8 @@ function NewPortalReportPage() {
     timeInvalid: t("portal:reportWizard.invalidTimeFormat"),
     chronologyMin: t("portal:reportWizard.chronologyMin"),
     chronologyMax: t("portal:reportWizard.chronologyMax"),
+    respondentRequired: t("portal:reportWizard.respondentRequired"),
+    respondentIncomplete: t("portal:reportWizard.respondentIncomplete"),
   });
   const form = useForm<WizardValues>({
     resolver: zodResolver(wizardSchema),
@@ -133,13 +135,17 @@ function NewPortalReportPage() {
     : [];
   const categoryOptions = toMasterDataOptions(categoriesQuery.data);
   const locationTypeOptions = withOptionalOption(toLocationTypeOptions(locationTypesQuery.data, t), t("portal:optional"));
-  const campusStatusOptions = withOptionalOption(toMasterDataOptions(campusStatusesQuery.data), t("portal:optional"));
-  const relationOptions = withOptionalOption(toMasterDataOptions(relationsQuery.data), t("portal:optional"));
+  const campusStatusOptions = withOptionalOption(toRespondentCampusStatusOptions(campusStatusesQuery.data, t), t("portal:optional"));
+  const relationOptions = withOptionalOption(toRespondentRelationOptions(relationsQuery.data, t), t("portal:optional"));
   const timeQuickPicks = [
     { label: t("portal:reportWizard.timeMorning"), value: "08:00" },
     { label: t("portal:reportWizard.timeAfternoon"), value: "13:00" },
     { label: t("portal:reportWizard.timeEvening"), value: "17:00" },
     { label: t("portal:reportWizard.timeNight"), value: "20:00" },
+  ];
+  const dateQuickPicks = [
+    { label: t("portal:reportWizard.dateYesterday"), value: formatDateValue(addDays(new Date(), -1)) },
+    { label: t("portal:reportWizard.dateToday"), value: formatDateValue(new Date()) },
   ];
 
   async function goNext() {
@@ -257,6 +263,7 @@ function NewPortalReportPage() {
                               onBlur={field.onBlur}
                               name={field.name}
                               placeholder={t("portal:reportWizard.selectIncidentDate")}
+                              quickPicks={dateQuickPicks}
                               disableFuture
                               disabled={mutation.isPending}
                             />
@@ -316,7 +323,7 @@ function NewPortalReportPage() {
                     label={t("portal:respondentName")}
                     disabled={mutation.isPending}
                   />
-                  <div className="grid gap-4 md:grid-cols-2">k.
+                  <div className="grid gap-4 md:grid-cols-2">
                     <SelectFormField
                       control={form.control}
                       name="respondent_campus_status"
@@ -387,6 +394,8 @@ function createWizardSchema(messages: {
   timeInvalid: string;
   chronologyMin: string;
   chronologyMax: string;
+  respondentRequired: string;
+  respondentIncomplete: string;
 }) {
   const today = formatDateValue(new Date());
 
@@ -435,6 +444,40 @@ function createWizardSchema(messages: {
           path: ["incident_time"],
         });
       }
+    })
+    .superRefine((values, context) => {
+      const respondentFields = {
+        respondent_name: values.respondent_name,
+        respondent_campus_status: values.respondent_campus_status,
+        respondent_relation: values.respondent_relation,
+        respondent_details: values.respondent_details,
+      };
+      const hasRespondentContext = Object.values(respondentFields).some((value) => typeof value === "string" && value.trim().length > 0);
+      const hasWitnessContext = typeof values.witness_info === "string" && values.witness_info.trim().length > 0;
+
+      if (!hasRespondentContext && !hasWitnessContext) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: messages.respondentRequired,
+          path: ["respondent_name"],
+        });
+
+        return;
+      }
+
+      if (!hasRespondentContext) {
+        return;
+      }
+
+      Object.entries(respondentFields).forEach(([field, value]) => {
+        if (typeof value !== "string" || value.trim().length === 0) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: messages.respondentIncomplete,
+            path: [field],
+          });
+        }
+      });
     });
 }
 
@@ -544,6 +587,20 @@ function toLocationTypeOptions(items: Array<{ code: string; name: string }> | un
   return (items ?? []).map((item) => ({ value: item.code, label: formatLocationType(t, item.name) }));
 }
 
+function toRespondentCampusStatusOptions(
+  items: Array<{ code: string; name: string }> | undefined,
+  t: Parameters<typeof formatRespondentCampusStatus>[0],
+): SelectOption[] {
+  return (items ?? []).map((item) => ({ value: item.code, label: formatRespondentCampusStatus(t, item.name) }));
+}
+
+function toRespondentRelationOptions(
+  items: Array<{ code: string; name: string }> | undefined,
+  t: Parameters<typeof formatRespondentRelation>[0],
+): SelectOption[] {
+  return (items ?? []).map((item) => ({ value: item.code, label: formatRespondentRelation(t, item.name) }));
+}
+
 function withOptionalOption(options: SelectOption[], label: string) {
   return [{ value: "", label }, ...options];
 }
@@ -553,6 +610,12 @@ function formatDateValue(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function addDays(date: Date, days: number) {
+  const copy = new Date(date);
+  copy.setDate(copy.getDate() + days);
+  return copy;
 }
 
 function formatTimeValue(date: Date) {

@@ -315,6 +315,7 @@ class ReporterRegistrationService
 
         return $query->where(function (Builder $query) use ($needle): void {
             $query->whereRaw('LOWER(name) LIKE ?', ["%{$needle}%"])
+                ->orWhereRaw('LOWER(registration_number) LIKE ?', ["%{$needle}%"])
                 ->orWhereRaw('LOWER(email) LIKE ?', ["%{$needle}%"])
                 ->orWhereRaw('LOWER(nim) LIKE ?', ["%{$needle}%"]);
         });

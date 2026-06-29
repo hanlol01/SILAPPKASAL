@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
   formatCaseStatus,
+  formatRegistrationStatus,
+  formatReportStatus,
   formatDecisionStatus,
   formatEvidenceStatus,
   formatInvestigationStatus,
@@ -24,8 +26,12 @@ import {
   HeartHandshake,
   Inbox,
   Lock,
+  PauseCircle,
   Scale,
   Search,
+  Send,
+  UserCheck,
+  UserX,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -68,6 +74,10 @@ const legacyCaseStatus: Record<CaseStatus, StatusVisual> = {
  * Codes match `dashboard.enum.caseStatus.*` in the locale files.
  */
 const caseStatusVisuals: Record<string, StatusVisual> = {
+  submitted: { tone: "info", icon: Send },
+  under_review: { tone: "warning", icon: Search },
+  need_info: { tone: "warning", icon: AlertTriangle },
+  rejected: { tone: "destructive", icon: AlertTriangle },
   forwarded: { tone: "info", icon: Inbox },
   assessment: { tone: "warning", icon: Search },
   investigation: { tone: "primary", icon: FileSearch },
@@ -83,9 +93,28 @@ const caseStatusVisuals: Record<string, StatusVisual> = {
 
 const defaultCaseVisual: StatusVisual = { tone: "muted", icon: FileText };
 
+const caseStatusAliases: Record<string, string> = {
+  "CSTS-01": "submitted",
+  "CSTS-02": "under_review",
+  "CSTS-03": "need_info",
+  "CSTS-04": "rejected",
+  "CSTS-05": "forwarded",
+  "CSTS-06": "assessment",
+  "CSTS-07": "investigation",
+  "CSTS-08": "mediation",
+  "CSTS-09": "recommendation",
+  "CSTS-10": "decision",
+  "CSTS-11": "decided",
+  "CSTS-12": "recovery",
+  "CSTS-13": "monitoring",
+  "CSTS-14": "closed",
+  "CSTS-15": "escalated",
+};
+
 function resolveCaseVisual(status: string | null | undefined): StatusVisual {
   if (!status) return defaultCaseVisual;
-  if (status in caseStatusVisuals) return caseStatusVisuals[status];
+  const normalizedStatus = caseStatusAliases[status] ?? status;
+  if (normalizedStatus in caseStatusVisuals) return caseStatusVisuals[normalizedStatus];
   if (status in legacyCaseStatus) return legacyCaseStatus[status as CaseStatus];
   return defaultCaseVisual;
 }
@@ -111,6 +140,84 @@ export function StatusBadge({
     <Badge variant="outline" className={cn("gap-1 font-medium", toneClass[visual.tone], className)}>
       <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
       {label}
+    </Badge>
+  );
+}
+
+const reportStatusVisuals: Record<string, StatusVisual> = {
+  submitted: { tone: "info", icon: Send },
+  under_review: { tone: "warning", icon: Search },
+  need_info: { tone: "warning", icon: AlertTriangle },
+  rejected: { tone: "destructive", icon: AlertTriangle },
+  forwarded: { tone: "success", icon: ArrowUpRight },
+};
+
+export function ReportStatusBadge({
+  status,
+  className,
+}: {
+  status: string | null | undefined;
+  className?: string;
+}) {
+  const { t } = useTranslation(["dashboard"]);
+  const visual = status ? (reportStatusVisuals[status] ?? defaultCaseVisual) : defaultCaseVisual;
+  const Icon = visual.icon;
+  const label = status ? formatReportStatus(t, status) : t("dashboard:common.notAvailable");
+
+  return (
+    <Badge variant="outline" className={cn("gap-1 font-medium", toneClass[visual.tone], className)}>
+      <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+      {label}
+    </Badge>
+  );
+}
+
+const registrationStatusVisuals: Record<string, StatusVisual> = {
+  pending: { tone: "warning", icon: PauseCircle },
+  approved: { tone: "success", icon: UserCheck },
+  rejected: { tone: "destructive", icon: UserX },
+};
+
+export function RegistrationStatusBadge({
+  status,
+  className,
+}: {
+  status: string | null | undefined;
+  className?: string;
+}) {
+  const { t } = useTranslation(["dashboard"]);
+  const visual = status ? (registrationStatusVisuals[status] ?? defaultCaseVisual) : defaultCaseVisual;
+  const Icon = visual.icon;
+  const label = status ? formatRegistrationStatus(t, status) : t("dashboard:common.notAvailable");
+
+  return (
+    <Badge variant="outline" className={cn("gap-1 font-medium", toneClass[visual.tone], className)}>
+      <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+      {label}
+    </Badge>
+  );
+}
+
+export function ActiveStateBadge({
+  active,
+  activeLabel,
+  inactiveLabel,
+  className,
+}: {
+  active: boolean;
+  activeLabel: string;
+  inactiveLabel: string;
+  className?: string;
+}) {
+  const visual: StatusVisual = active
+    ? { tone: "success", icon: CheckCircle2 }
+    : { tone: "muted", icon: Lock };
+  const Icon = visual.icon;
+
+  return (
+    <Badge variant="outline" className={cn("gap-1 font-medium", toneClass[visual.tone], className)}>
+      <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+      {active ? activeLabel : inactiveLabel}
     </Badge>
   );
 }

@@ -222,6 +222,39 @@ class ReportIntakeTest extends TestCase
             ->assertJsonPath('success', false);
     }
 
+    public function test_partial_respondent_information_requires_complete_respondent_context(): void
+    {
+        $reporter = $this->makeUser('reporter');
+        Sanctum::actingAs($reporter, ['*']);
+
+        $this->postJson('/api/v1/reports', $this->payload([
+            'respondent_name' => 'Nama Terlapor',
+            'respondent_campus_status' => null,
+            'respondent_relation' => null,
+            'respondent_details' => null,
+            'witness_info' => null,
+        ]))->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'respondent_campus_status',
+                'respondent_relation',
+                'respondent_details',
+            ]);
+    }
+
+    public function test_witness_information_without_respondent_context_is_allowed(): void
+    {
+        $reporter = $this->makeUser('reporter');
+        Sanctum::actingAs($reporter, ['*']);
+
+        $this->postJson('/api/v1/reports', $this->payload([
+            'respondent_name' => null,
+            'respondent_campus_status' => null,
+            'respondent_relation' => null,
+            'respondent_details' => null,
+            'witness_info' => 'Saksi mengetahui kejadian dan dapat dihubungi oleh petugas.',
+        ]))->assertCreated();
+    }
+
     /**
      * @param array<string, mixed> $overrides
      * @return array<string, mixed>

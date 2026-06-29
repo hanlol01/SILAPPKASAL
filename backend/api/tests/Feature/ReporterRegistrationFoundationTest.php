@@ -186,6 +186,20 @@ class ReporterRegistrationFoundationTest extends TestCase
             ->assertJsonMissingPath('data.0.password_hash');
     }
 
+    public function test_admin_can_search_registrations_by_registration_number(): void
+    {
+        $admin = $this->makeUser('admin', 'admin@example.test');
+        $registration = $this->submitRegistration();
+
+        Sanctum::actingAs($admin, ['*']);
+
+        $this->getJson('/api/v1/reporter-registrations?search='.$registration->registration_number)
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $registration->id)
+            ->assertJsonPath('data.0.registration_number', $registration->registration_number);
+    }
+
     public function test_approval_duplicate_conflict_keeps_registration_pending(): void
     {
         $admin = $this->makeUser('admin', 'admin@example.test');

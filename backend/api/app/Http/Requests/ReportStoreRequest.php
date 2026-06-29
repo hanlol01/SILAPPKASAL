@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class ReportStoreRequest extends FormRequest
 {
@@ -85,5 +86,37 @@ class ReportStoreRequest extends FormRequest
                 Rule::prohibitedIf(fn (): bool => $this->input('report_type') !== 'confidential'),
             ],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $respondentFields = [
+                'respondent_name',
+                'respondent_campus_status',
+                'respondent_relation',
+                'respondent_details',
+            ];
+
+            $hasRespondentContext = collect($respondentFields)
+                ->contains(fn (string $field): bool => filled($this->input($field)));
+            $hasWitnessContext = filled($this->input('witness_info'));
+
+            if (! $hasRespondentContext && ! $hasWitnessContext) {
+                $validator->errors()->add('respondent_name', 'Provide respondent or witness information.');
+
+                return;
+            }
+
+            if (! $hasRespondentContext) {
+                return;
+            }
+
+            foreach ($respondentFields as $field) {
+                if (! filled($this->input($field))) {
+                    $validator->errors()->add($field, 'Complete respondent name, campus status, relationship, and details when respondent information is provided.');
+                }
+            }
+        });
     }
 }

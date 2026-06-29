@@ -1,5 +1,6 @@
 {
   "overview": "Overview",
+  "openNavigation": "Open navigation",
   "loadingPortal": "Loading portal...",
   "overviewSubtitle": "Your reports at a glance.",
   "summaryLoadError": "Summary data could not be loaded.",
@@ -41,12 +42,16 @@
     "stepIncident": "Incident details",
     "stepRespondent": "Respondent details",
     "selectIncidentDate": "Select incident date",
+    "dateYesterday": "Yesterday",
+    "dateToday": "Today",
     "incidentDateFuture": "Incident date cannot be in the future.",
     "incidentTimeFuture": "Incident time cannot be later than the current time.",
     "invalidTimeFormat": "Invalid time format.",
     "chronologyMin": "Chronology must be at least 50 characters.",
     "chronologyMax": "Chronology must be at most 10000 characters.",
     "chronologyMinHint": "Minimum 50 characters so the Satgas PPKS team can follow up on your report.",
+    "respondentRequired": "Provide at least one respondent or witness detail.",
+    "respondentIncomplete": "Complete the respondent name, campus status, relationship, and details when respondent information is provided.",
     "timeUnknown": "I don't remember the time",
     "timeHour": "Hour",
     "timeMinute": "Minute",
@@ -60,6 +65,23 @@
     "luar_kampus_terkait": "Off campus related to campus activities",
     "luar_kampus_tidak_terkait": "Off campus not related to campus activities",
     "online": "Online"
+  },
+  "respondentCampusStatuses": {
+    "mahasiswa": "Student",
+    "dosen": "Lecturer / teaching staff",
+    "tendik": "Education staff",
+    "alumni": "Alumni",
+    "pihak_luar": "External party related to campus"
+  },
+  "respondentRelations": {
+    "dosen_mahasiswa": "Lecturer and student",
+    "sesama_mahasiswa": "Fellow student",
+    "atasan_bawahan": "Supervisor and subordinate",
+    "sesama_pegawai": "Fellow employee / staff",
+    "pembimbing": "Academic / thesis advisor",
+    "organisasi": "Campus organization",
+    "tidak_dikenal": "Unknown person",
+    "lainnya": "Other"
   },
   "reportTypes": {
     "open": "Open",

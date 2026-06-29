@@ -14,7 +14,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { SelectInput } from "@/components/form-fields";
 import { formatRegistrationStatus } from "@/lib/format-labels";
 import { EmptyState } from "@/components/empty-state";
@@ -22,6 +21,7 @@ import { PageBreadcrumb } from "@/components/page-breadcrumb";
 import { FilterResetButton } from "@/components/filter-reset-button";
 import { ListPagination } from "@/components/list-pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/list-controls";
+import { RegistrationStatusBadge } from "@/components/status-badge";
 
 export const Route = createFileRoute("/dashboard/registrations")({
   component: RegistrationsPage,
@@ -122,6 +122,7 @@ function RegistrationsPage() {
               <thead className="bg-muted/50 text-left">
                 <tr>
                   <th className="p-3">{t("dashboard:registrations.name")}</th>
+                  <th className="p-3">{t("dashboard:registrations.registrationNumber")}</th>
                   <th className="p-3">{t("dashboard:registrations.nim")}</th>
                   <th className="p-3">{t("dashboard:registrations.university")}</th>
                   <th className="p-3">{t("dashboard:registrations.studyProgram")}</th>
@@ -136,10 +137,11 @@ function RegistrationsPage() {
                       <div className="font-medium">{item.name}</div>
                       <div className="text-xs text-muted-foreground">{item.email}</div>
                     </td>
+                    <td className="p-3 font-mono text-xs">{item.registration_number}</td>
                     <td className="p-3">{item.nim}</td>
                     <td className="p-3">{item.university?.name ?? "-"}</td>
                     <td className="p-3">{item.study_program?.name ?? "-"}</td>
-                    <td className="p-3"><Badge variant="outline">{formatRegistrationStatus(t, item.status)}</Badge></td>
+                    <td className="p-3"><RegistrationStatusBadge status={item.status} /></td>
                     <td className="p-3 text-right">
                       <Button asChild size="sm" variant="outline">
                         <Link to="/dashboard/registrations/$id" params={{ id: String(item.id) }}>{t("dashboard:common.review")}</Link>
@@ -149,7 +151,7 @@ function RegistrationsPage() {
                 ))}
                 {registrationsQuery.isSuccess && registrationsQuery.data.data.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="p-0">
+                    <td colSpan={7} className="p-0">
                       {filtersActive ? (
                         <EmptyState icon={SearchX} title={t("dashboard:registrations.filteredEmptyTitle")} description={t("dashboard:registrations.filteredEmptyDesc")} />
                       ) : (

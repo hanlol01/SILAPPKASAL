@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Eye, Loader2 } from "lucide-react";
+import { CheckCircle2, Clock, Eye, Loader2, ShieldAlert, XCircle } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -137,7 +137,7 @@ export function BreakGlassPendingList({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline">{translateStatus(t, request.status)}</Badge>
+                  <BreakGlassStatusBadge status={request.status} t={t} />
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {formatDateTime(request.requested_at, i18n.language)}
@@ -252,6 +252,25 @@ function translateStatus(t: TFunction, value: string) {
   return t(`dashboard:breakGlass.status.${value}`, {
     defaultValue: prettifyToken(value),
   });
+}
+
+function BreakGlassStatusBadge({ status, t }: { status: string; t: TFunction }) {
+  const visual =
+    status === "approved" || status === "revealed"
+      ? { Icon: CheckCircle2, className: "bg-success/15 text-success border-success/30" }
+      : status === "denied" || status === "expired"
+        ? { Icon: XCircle, className: "bg-destructive/15 text-destructive border-destructive/30" }
+        : status === "pending"
+          ? { Icon: Clock, className: "bg-warning/15 text-warning-foreground border-warning/30 dark:text-warning" }
+          : { Icon: ShieldAlert, className: "bg-muted text-muted-foreground border-border" };
+  const { Icon } = visual;
+
+  return (
+    <Badge variant="outline" className={`gap-1 font-medium ${visual.className}`}>
+      <Icon className="h-3 w-3" aria-hidden="true" />
+      {translateStatus(t, status)}
+    </Badge>
+  );
 }
 
 function prettifyToken(value: string) {

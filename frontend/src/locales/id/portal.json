@@ -1,5 +1,6 @@
 {
   "overview": "Ringkasan",
+  "openNavigation": "Buka navigasi",
   "loadingPortal": "Memuat portal...",
   "overviewSubtitle": "Sekilas tentang laporan Anda.",
   "summaryLoadError": "Data ringkasan tidak dapat dimuat.",
@@ -41,12 +42,16 @@
     "stepIncident": "Detail kejadian",
     "stepRespondent": "Pihak terlapor",
     "selectIncidentDate": "Pilih tanggal kejadian",
+    "dateYesterday": "Kemarin",
+    "dateToday": "Hari ini",
     "incidentDateFuture": "Tanggal kejadian tidak boleh di masa depan.",
     "incidentTimeFuture": "Waktu kejadian tidak boleh melebihi waktu saat ini.",
     "invalidTimeFormat": "Format waktu tidak valid.",
     "chronologyMin": "Kronologi minimal 50 karakter.",
     "chronologyMax": "Kronologi maksimal 10000 karakter.",
     "chronologyMinHint": "Minimal 50 karakter agar tim Satgas PPKS dapat menindaklanjuti laporan Anda.",
+    "respondentRequired": "Isi setidaknya satu informasi tentang pihak terlapor atau saksi.",
+    "respondentIncomplete": "Lengkapi nama, status kampus, relasi, dan detail terlapor jika mengisi data terlapor.",
     "timeUnknown": "Saya tidak ingat waktunya",
     "timeHour": "Jam",
     "timeMinute": "Menit",
@@ -60,6 +65,23 @@
     "luar_kampus_terkait": "Luar kampus terkait kegiatan kampus",
     "luar_kampus_tidak_terkait": "Luar kampus tidak terkait kegiatan kampus",
     "online": "Online / daring"
+  },
+  "respondentCampusStatuses": {
+    "mahasiswa": "Mahasiswa",
+    "dosen": "Dosen / tenaga pengajar",
+    "tendik": "Tenaga kependidikan",
+    "alumni": "Alumni",
+    "pihak_luar": "Pihak luar terkait kampus"
+  },
+  "respondentRelations": {
+    "dosen_mahasiswa": "Dosen dan mahasiswa",
+    "sesama_mahasiswa": "Sesama mahasiswa",
+    "atasan_bawahan": "Atasan dan bawahan",
+    "sesama_pegawai": "Sesama pegawai / tendik",
+    "pembimbing": "Pembimbing akademik / skripsi",
+    "organisasi": "Organisasi kampus",
+    "tidak_dikenal": "Tidak dikenal",
+    "lainnya": "Lainnya"
   },
   "reportTypes": {
     "open": "Terbuka",

@@ -34,9 +34,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatRegistrationStatus } from "@/lib/format-labels";
+import { RegistrationStatusBadge } from "@/components/status-badge";
 
 export const Route = createFileRoute("/dashboard/registrations/$id")({
   component: RegistrationDetailPage,
@@ -122,7 +121,7 @@ function RegistrationDetailPage() {
             <>
               <div className="grid gap-3 md:grid-cols-2">
                 <Info label={t("dashboard:registrations.registrationNumber")} value={item.registration_number} />
-                <Info label={t("dashboard:common.status")} value={<Badge variant="outline">{formatRegistrationStatus(t, item.status)}</Badge>} />
+                <Info label={t("dashboard:common.status")} value={<RegistrationStatusBadge status={item.status} />} />
                 <Info label={t("dashboard:registrations.name")} value={item.name} />
                 <Info label={t("dashboard:registrations.email")} value={item.email} />
                 <Info label={t("dashboard:registrations.nim")} value={item.nim} />

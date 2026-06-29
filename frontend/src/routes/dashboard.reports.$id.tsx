@@ -6,6 +6,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { BreakGlassRequestDialog } from "@/components/admin/break-glass-request-dialog";
 import { QueryErrorState } from "@/components/query-state";
 import { Badge } from "@/components/ui/badge";
+import { ReportStatusBadge } from "@/components/status-badge";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -19,7 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { SatgasAssignmentAction } from "@/components/workflow-actions/satgas-assignment-action";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDateTime } from "@/lib/format";
-import { formatReportStatus, formatReportType } from "@/lib/format-labels";
+import { formatReportType } from "@/lib/format-labels";
 import { getReport, operationsQueryKeys } from "@/lib/operations-api";
 import type { ReportReporter } from "@/lib/operations-types";
 
@@ -83,7 +84,7 @@ function ReportDetailPage() {
         </Button>
         <div className="flex items-center gap-2">
           <h1 className="font-mono text-lg font-semibold">{report.registration_number}</h1>
-          <Badge variant="outline">{formatReportStatus(t, report.status)}</Badge>
+          <ReportStatusBadge status={report.status} />
           {isAnonymousReport && (
             <Badge variant="outline" className="gap-1 text-muted-foreground">
               <Lock className="h-3 w-3" /> {t("dashboard:reports.anonymous")}
