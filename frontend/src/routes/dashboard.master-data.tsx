@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import { PageBreadcrumb } from "@/components/page-breadcrumb";
 
 export const Route = createFileRoute("/dashboard/master-data")({
   component: MasterDataLayout,
@@ -29,6 +30,7 @@ function MasterDataLayout() {
 
   return (
     <div className="space-y-6">
+      <PageBreadcrumb crumbs={[{ label: t("dashboard:masterData.title") }]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard:masterData.title")}</h1>

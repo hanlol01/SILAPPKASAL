@@ -14,7 +14,8 @@ import {
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { QueryErrorState } from "@/components/query-state";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge, WorkflowStatusBadge } from "@/components/status-badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -51,12 +52,7 @@ import { formatDateTime } from "@/lib/format";
 import {
   formatCaseStatus,
   formatDecisionOutcome,
-  formatDecisionStatus,
   formatEvidenceClassification,
-  formatEvidenceStatus,
-  formatInvestigationStatus,
-  formatRecommendationStatus,
-  formatRecoveryStatus,
 } from "@/lib/format-labels";
 import {
   getCase,
@@ -162,7 +158,7 @@ function CaseDetail() {
   const evidences = evidenceQueries.flatMap((query) => query.data ?? []);
 
   if (caseQuery.isLoading) {
-    return <div className="py-12 text-center text-sm text-muted-foreground">{t("dashboard:cases.loading")}</div>;
+    return <CaseDetailSkeleton />;
   }
 
   if (caseQuery.isError || !caseQuery.data) {
@@ -241,7 +237,7 @@ function CaseDetail() {
         </Button>
         <div className="flex items-center gap-2">
           <h1 className="font-mono text-lg font-semibold">{c.case_number}</h1>
-          <Badge variant="outline">{formatCaseStatus(t, c.status_code)}</Badge>
+          <StatusBadge status={c.status ?? c.status_code} />
         </div>
       </div>
 
@@ -511,7 +507,7 @@ function InvestigationsSection({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="font-medium">{t("dashboard:sections.investigationNumber", { id: item.id })}</div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{formatInvestigationStatus(t, item.status)}</Badge>
+              <WorkflowStatusBadge family="investigation" status={item.status} />
               {canAddActivity && <InvestigationActivityAction investigation={item} caseId={caseId} />}
               {canTransitionStatus && item.status !== "completed" && (
                 <InvestigationStatusAction investigation={item} caseId={caseId} />
@@ -559,7 +555,7 @@ function RecommendationsSection({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="font-medium">{t("dashboard:sections.recommendationNumber", { id: item.id })}</div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{formatRecommendationStatus(t, item.status)}</Badge>
+              <WorkflowStatusBadge family="recommendation" status={item.status} />
               {canUpdate && canEditRecommendation(item) && hasRecommendationDetail(item) && (
                 <RecommendationUpdateAction recommendation={item} caseId={caseId} />
               )}
@@ -608,7 +604,7 @@ function DecisionsSection({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="font-medium">{t("dashboard:sections.decisionNumber", { id: item.id })}</div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{formatDecisionStatus(t, item.status)}</Badge>
+              <WorkflowStatusBadge family="decision" status={item.status} />
               {canUpdate && canEditDecision(item) && <DecisionUpdateAction decision={item} />}
               {canTransitionStatus && item.status !== "finalized" && (
                 <DecisionStatusAction decision={item} caseId={caseId} />
@@ -655,7 +651,7 @@ function RecoveriesSection({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="font-medium">{item.recovery_type?.name ?? t("dashboard:sections.recoveryNumber", { id: item.id })}</div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{formatRecoveryStatus(t, item.status)}</Badge>
+              <WorkflowStatusBadge family="recovery" status={item.status} />
               {canAddMonitoring && <RecoveryMonitoringAction recovery={item} />}
               {canTransitionStatus && !isTerminalRecovery(item) && (
                 <RecoveryStatusAction recovery={item} caseId={caseId} />
@@ -697,7 +693,7 @@ function EvidenceSection({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="font-medium">{item.title}</div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{formatEvidenceStatus(t, item.status)}</Badge>
+              <WorkflowStatusBadge family="evidence" status={item.status} />
               {canUpdate && (
                 <>
                   <EvidenceMetadataAction evidence={item} />
@@ -943,4 +939,57 @@ function recoveryCreateDisabledReason(
 
 function formatDate(value: string | null | undefined, language: string) {
   return formatDateTime(value, language);
+}
+
+function CaseDetailSkeleton() {
+  return (
+    <div className="space-y-6" aria-busy="true" aria-live="polite">
+      <Skeleton className="h-4 w-64" />
+      <div className="flex flex-wrap items-center gap-3">
+        <Skeleton className="h-8 w-24" />
+        <Skeleton className="h-6 w-32" />
+        <Skeleton className="h-6 w-24" />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
+          <div className="rounded-lg border p-5 space-y-3">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-3 w-64" />
+            <div className="grid gap-3 sm:grid-cols-2 pt-2">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <div key={index} className="space-y-2">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-4 w-40" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <Skeleton key={index} className="h-9 w-28" />
+            ))}
+          </div>
+          <div className="rounded-lg border p-5 space-y-3">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-3 w-56" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div className="rounded-lg border p-5 space-y-3">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+          <div className="rounded-lg border p-5 space-y-3">
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

@@ -19,6 +19,7 @@ import { formatDateTime } from "@/lib/format";
 import { formatCaseStatus } from "@/lib/format-labels";
 import { getCases, operationsQueryKeys } from "@/lib/operations-api";
 import { EmptyState } from "@/components/empty-state";
+import { PageBreadcrumb } from "@/components/page-breadcrumb";
 
 export const Route = createFileRoute("/dashboard/cases/")({
   component: CasesPage,
@@ -62,6 +63,7 @@ function CasesPage() {
 
   return (
     <div className="space-y-6">
+      <PageBreadcrumb crumbs={[{ label: t("dashboard:cases.title") }]} />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard:cases.title")}</h1>

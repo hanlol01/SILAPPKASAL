@@ -1,11 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { BreakGlassPendingList } from "@/components/admin/break-glass-pending-list";
 import { AccessDenied } from "@/components/access-denied";
+import { PageBreadcrumb } from "@/components/page-breadcrumb";
 import { QueryErrorState } from "@/components/query-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   breakGlassQueryKeys,
   getBreakGlassHistory,
@@ -15,11 +18,12 @@ import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/dashboard/break-glass")({
   component: BreakGlassPage,
-  head: () => ({ meta: [{ title: "Break-glass - SILAPPKASAL Admin" }] }),
+  head: () => ({ meta: [{ title: "Akses Darurat Identitas - SILAPPKASAL" }] }),
 });
 
 function BreakGlassPage() {
   const { roleCode, user } = useAuth();
+  const { t } = useTranslation(["dashboard", "common"]);
   const [pendingPage, setPendingPage] = useState(1);
   const [historyPage, setHistoryPage] = useState(1);
   const canApprove = roleCode === "super_admin"
@@ -45,25 +49,22 @@ function BreakGlassPage() {
 
   return (
     <div className="space-y-6">
+      <PageBreadcrumb crumbs={[{ label: t("dashboard:breakGlass.title") }]} />
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Break-glass</h1>
-        <p className="text-sm text-muted-foreground">
-          Review exceptional access requests for anonymous report identities.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard:breakGlass.title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("dashboard:breakGlass.subtitle")}</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Pending requests</CardTitle>
-          <CardDescription>Approve, deny, or reveal only approved requests.</CardDescription>
+          <CardTitle className="text-base">{t("dashboard:breakGlass.pending.title")}</CardTitle>
+          <CardDescription>{t("dashboard:breakGlass.pending.description")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {pendingQuery.isLoading && (
-            <div className="py-10 text-center text-sm text-muted-foreground">Loading pending requests...</div>
-          )}
+          {pendingQuery.isLoading && <BreakGlassListSkeleton rows={3} />}
           {pendingQuery.isError && (
             <QueryErrorState
-              message="Pending break-glass requests could not be loaded."
+              message={t("dashboard:breakGlass.errors.pendingLoad")}
               onRetry={() => pendingQuery.refetch()}
             />
           )}
@@ -71,7 +72,7 @@ function BreakGlassPage() {
             <>
               <BreakGlassPendingList
                 requests={pendingQuery.data.data}
-                emptyMessage="No pending break-glass requests."
+                emptyMessage={t("dashboard:breakGlass.pending.empty")}
               />
               <PaginationControls
                 page={pendingQuery.data.meta.current_page}
@@ -85,16 +86,14 @@ function BreakGlassPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">History</CardTitle>
-          <CardDescription>Simple historical list of break-glass requests.</CardDescription>
+          <CardTitle className="text-base">{t("dashboard:breakGlass.history.title")}</CardTitle>
+          <CardDescription>{t("dashboard:breakGlass.history.description")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {historyQuery.isLoading && (
-            <div className="py-10 text-center text-sm text-muted-foreground">Loading history...</div>
-          )}
+          {historyQuery.isLoading && <BreakGlassListSkeleton rows={3} />}
           {historyQuery.isError && (
             <QueryErrorState
-              message="Break-glass history could not be loaded."
+              message={t("dashboard:breakGlass.errors.historyLoad")}
               onRetry={() => historyQuery.refetch()}
             />
           )}
@@ -103,7 +102,7 @@ function BreakGlassPage() {
               <BreakGlassPendingList
                 requests={historyQuery.data.data}
                 showActions={false}
-                emptyMessage="No break-glass history yet."
+                emptyMessage={t("dashboard:breakGlass.history.empty")}
               />
               <PaginationControls
                 page={historyQuery.data.meta.current_page}
@@ -118,6 +117,23 @@ function BreakGlassPage() {
   );
 }
 
+function BreakGlassListSkeleton({ rows }: { rows: number }) {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: rows }).map((_, index) => (
+        <div key={index} className="flex items-center gap-3 rounded-lg border p-3">
+          <Skeleton className="h-9 w-9 rounded-md" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-3 w-64" />
+          </div>
+          <Skeleton className="h-8 w-20" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PaginationControls({
   page,
   lastPage,
@@ -127,12 +143,13 @@ function PaginationControls({
   lastPage: number;
   onPageChange: (page: number) => void;
 }) {
+  const { t } = useTranslation(["dashboard"]);
   if (lastPage <= 1) return null;
 
   return (
     <div className="flex items-center justify-end gap-2 text-sm">
       <span className="text-muted-foreground">
-        Page {page} of {lastPage}
+        {t("dashboard:pagination.pageOf", { page, lastPage })}
       </span>
       <Button
         variant="outline"
@@ -140,7 +157,7 @@ function PaginationControls({
         disabled={page <= 1}
         onClick={() => onPageChange(page - 1)}
       >
-        Previous
+        {t("dashboard:pagination.previous")}
       </Button>
       <Button
         variant="outline"
@@ -148,7 +165,7 @@ function PaginationControls({
         disabled={page >= lastPage}
         onClick={() => onPageChange(page + 1)}
       >
-        Next
+        {t("dashboard:pagination.next")}
       </Button>
     </div>
   );

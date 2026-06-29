@@ -6,7 +6,6 @@ import {
   GitBranch,
   BarChart3,
   Settings,
-  ShieldCheck,
   ShieldAlert,
   Users,
   ClipboardList,
@@ -125,8 +124,8 @@ function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-2 px-2 py-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-            <ShieldCheck className="h-5 w-5" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-sidebar-primary/10">
+            <img src="/Logo.ico" alt="" aria-hidden="true" className="h-7 w-7 object-contain" />
           </div>
           <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
             <span className="text-sm font-semibold text-sidebar-foreground">{t("dashboard:brand.name")}</span>

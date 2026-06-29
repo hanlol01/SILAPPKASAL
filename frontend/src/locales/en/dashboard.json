@@ -2,7 +2,7 @@
   "brand": {
     "name": "SILAPPKASAL",
     "console": "Admin Console",
-    "prototype": "v0.1 - Local prototype"
+    "prototype": "Sexual Violence Reporting & Handling System"
   },
   "nav": {
     "workspace": "Workspace",
@@ -391,6 +391,7 @@
       "unavailable": "Workflow analytics are unavailable.",
       "conversionTitle": "Pipeline conversion counts",
       "metricSemantics": "These are descriptive counts for operational monitoring. They are not KPI, SLA, success-rate, or performance scoring metrics.",
+      "relativeBarHint": "Progress bars are scaled relative to the largest stage. Not an absolute conversion percentage.",
       "step": "Step {{number}}",
       "steps": {
         "forwardedReports": "Forwarded reports",
@@ -483,11 +484,95 @@
   },
   "settings": {
     "title": "Settings",
-    "subtitle": "Account settings and dashboard preferences."
+    "subtitle": "Account settings and dashboard preferences.",
+    "campusProfile": {
+      "title": "Institution Profile",
+      "description": "How your institution is presented across the platform.",
+      "name": "Institution name",
+      "namePlaceholder": "Example: Universitas Indonesia",
+      "tagline": "Tagline / motto",
+      "taglinePlaceholder": "Short institution tagline (optional)",
+      "brandLogo": "Institution logo",
+      "brandLogoHint": "Logo upload will be available in a future update."
+    },
+    "appearance": {
+      "title": "Appearance",
+      "description": "Theme preferences.",
+      "darkMode": "Dark mode",
+      "darkModeDesc": "Easier on the eyes for late-night reviews."
+    },
+    "notifications": {
+      "title": "Notifications",
+      "description": "Choose how you want to be alerted.",
+      "email": "Email alerts",
+      "emailDesc": "New reports and status changes",
+      "inApp": "In-app",
+      "inAppDesc": "Realtime banner and inbox",
+      "weeklyDigest": "Weekly digest",
+      "weeklyDigestDesc": "Summary every Monday"
+    },
+    "saveChanges": "Save changes",
+    "saveSuccess": "Settings saved"
   },
   "breakGlass": {
-    "title": "Break-glass",
-    "subtitle": "Review anonymous identity access requests under privacy policy."
+    "title": "Reporter Identity Emergency Access",
+    "subtitle": "Review exceptional access requests for anonymous reporter identities under privacy policy.",
+    "pending": {
+      "title": "Pending requests",
+      "description": "Approve, deny, or reveal only approved requests.",
+      "empty": "No pending access requests."
+    },
+    "history": {
+      "title": "History",
+      "description": "Historical list of identity access requests.",
+      "empty": "No identity access history yet."
+    },
+    "errors": {
+      "pendingLoad": "Pending access requests could not be loaded.",
+      "historyLoad": "Access history could not be loaded.",
+      "approvalFailed": "Approval failed",
+      "denialFailed": "Denial failed",
+      "revealFailed": "Identity reveal failed",
+      "denialReasonMin": "Denial reason must be at least 10 characters."
+    },
+    "success": {
+      "approved": "Access request approved",
+      "denied": "Access request denied"
+    },
+    "actions": {
+      "approve": "Approve",
+      "deny": "Deny",
+      "reveal": "Reveal identity"
+    },
+    "deny": {
+      "title": "Deny identity access request",
+      "description": "Provide a short reason. The reporter is not notified when a request is denied.",
+      "reasonLabel": "Denial reason",
+      "submit": "Deny request"
+    },
+    "table": {
+      "report": "Report",
+      "requestor": "Requestor",
+      "reason": "Reason",
+      "status": "Status",
+      "requested": "Requested",
+      "actions": "Actions",
+      "unknownReport": "Unknown report",
+      "unknownRequestor": "Unknown requestor",
+      "metadataUnavailable": "metadata unavailable"
+    },
+    "status": {
+      "pending": "Pending review",
+      "approved": "Approved",
+      "denied": "Denied",
+      "revealed": "Identity revealed",
+      "expired": "Expired"
+    }
+  },
+  "pagination": {
+    "pageOf": "Page {{page}} of {{lastPage}}",
+    "previous": "Previous",
+    "next": "Next"
   },
   "analytics": {
     "title": "Analytics",

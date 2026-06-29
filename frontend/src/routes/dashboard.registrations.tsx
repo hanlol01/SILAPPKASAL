@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { SelectInput } from "@/components/form-fields";
 import { formatRegistrationStatus } from "@/lib/format-labels";
 import { EmptyState } from "@/components/empty-state";
+import { PageBreadcrumb } from "@/components/page-breadcrumb";
 
 export const Route = createFileRoute("/dashboard/registrations")({
   component: RegistrationsPage,
@@ -57,6 +58,7 @@ function RegistrationsPage() {
 
   return (
     <div className="space-y-6">
+      <PageBreadcrumb crumbs={[{ label: t("dashboard:registrations.title") }]} />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard:registrations.title")}</h1>
         <p className="text-sm text-muted-foreground">{t("dashboard:registrations.subtitle")}</p>

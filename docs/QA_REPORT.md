@@ -767,3 +767,70 @@ Verification evidence:
 - QA did not execute an authenticated browser session with real case records for every workflow status; verification was based on static inspection, backend/resource shape checks, and build tooling.
 - The Evidence tab is not selected by default from case status because evidence is a supporting workflow section rather than a case status/stage token in the current backend model.
 - Unknown future status codes still fall back to Investigation by design; future backend statuses should be added to `WORKFLOW_TAB_BY_TOKEN` when introduced.
+
+# UX-09A
+
+## Executive Summary
+
+QA reviewed UX-09A against the Critical and High findings in `docs/REPORT_UX_AUDIT.md`, the milestone grouping in `docs/UX_IMPROVEMENT_PLAN.md`, and regression expectations from UX-01 through UX-08.
+
+Static inspection confirms that the Critical wizard issue and the High UX findings are addressed in the inspected implementation surfaces: per-step wizard validation, progress indicator, localized report type/status labels, shadcn Select migration, DatePicker/TimePicker adoption, RHF + zod form handling, removal of the dead forgot-password affordance, responsive admin lists, localized Master Data/Workflow pages, and AlertDialog confirmation for destructive admin actions.
+
+No new UX-09A bugs were found. TypeScript, production build, and lint all passed.
+
+## Implementation Score
+
+96
+
+## PASS / FAIL
+
+PASS
+
+## Findings
+
+| Area | Result | Evidence |
+|---|---|---|
+| Critical F-01 wizard step validation | PASS | `/portal/reports/new` uses RHF + zod and `form.trigger(stepFields[step], { shouldFocus: true })` before advancing wizard steps. |
+| High F-02 wizard progress | PASS | `WizardProgress` is rendered above the report wizard and labels the current step. |
+| High F-03 report type localization | PASS | Report type options are gated by `reportTypesQuery.isSuccess` and mapped from backend/master-data labels instead of hardcoded English fallbacks. |
+| High F-04 portal status badge localization | PASS | `PortalStatusBadge` resolves labels through `t(\`portal:${portalStatus}\`, { defaultValue: portalStatus })` and keeps status icons from UX-07. |
+| High F-05 native select migration | PASS | `rg` found no native `<select>` in `frontend/src/routes` or `frontend/src/components`; affected forms use shadcn Select wrappers. |
+| High F-06 date picker constraints | PASS | Native `type="date"` is no longer found in searched routes/components; portal and workflow date fields use shared `DatePicker` with future-date disabling where applicable. |
+| High F-08 RHF + zod migration | PASS | Portal wizard, registration, correction, and Create Reporter use `useForm`, `zodResolver`, field components, and `applyLaravelErrors`. |
+| High F-11 dead forgot-password link | PASS | Login route no longer renders a forgot-password link or self-link to `/login`. |
+| High F-13 responsive admin tables | PASS | Registrations/users/universities use local horizontal wrappers, while reports/cases keep mobile card layouts from UX-06. |
+| High F-15 Master Data localization | PASS | Master Data route uses `dashboard:masterData.*` keys and locale files contain corresponding `id` and `en` entries. |
+| High F-16 Workflow localization | PASS | Workflow page renders translated pipeline labels, descriptions, empty states, and locale-aware date formatting. |
+| High F-25 destructive confirmations | PASS | Registration rejection, user deactivation/reset password, and university deactivation use AlertDialog confirmations. |
+| Regression UX-01 through UX-08 | PASS | Validation, localization, responsive layouts, breadcrumbs, status badges, accessibility labels, empty states, and UX-08 workflow tab default remain present in static inspection. |
+| Settings / branding / break-glass / portal | PASS | Settings uses `silappkasal.settings.v1` branding namespace and translated settings copy; Break Glass and Portal surfaces continue using i18n-backed labels and existing routes. |
+
+## Recommendations
+
+1. Product Owner should execute the UX-09A smoke tests on real seeded data, especially wizard validation, destructive confirmations, and responsive admin lists.
+2. Keep the existing lint Fast Refresh warnings tracked as technical debt; they are non-blocking but still appear on every lint run.
+3. Add manual browser checks for Bahasa Indonesia and English on portal, workflow, settings, and break-glass pages because this QA pass used static inspection plus build tooling, not an authenticated visual walkthrough.
+
+## Verification Results
+
+| Check | Command | Result |
+|---|---|---|
+| Critical/High scope confirmation | `rg -n "F-0[1-9]|F-1[0-9]|F-2[0-9]|Critical|High" docs/REPORT_UX_AUDIT.md docs/UX_IMPROVEMENT_PLAN.md` | PASS; Critical and High findings confirmed for review scope |
+| Select/date migration search | `rg -n '<select|type="date"|input type="date"|DatePicker|TimePicker|Calendar' frontend/src/routes frontend/src/components` | PASS; no native select/date inputs found, shared DatePicker/TimePicker usage confirmed |
+| Create Reporter form review | `rg -n "useForm|zodResolver|CreateReporterCard|applyLaravelErrors|SelectFormField|TextInputField|PasswordField|form\\.handleSubmit" frontend/src/routes/dashboard.users.tsx` | PASS; Create Reporter uses RHF, zod resolver, field components, and Laravel error mapping |
+| Forgot-password review | `rg -n "Forgot|forgot|Lupa|password|reset" frontend/src/routes/login.tsx` | PASS; no dead forgot-password affordance found |
+| Destructive action review | `rg -n "AlertDialog|reject|reason|confirmation|Reject" ...` | PASS; destructive admin actions use AlertDialog confirmation patterns |
+| Localization/settings/break-glass review | Targeted grep/read of dashboard locale-backed routes and locale files | PASS; inspected surfaces use i18n keys and product branding namespace |
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | PASS |
+| Build | `npm.cmd run build` from `frontend/` | PASS with non-blocking Vite/TanStack chunk-size and unused-import warnings |
+| Lint | `npm.cmd run lint` from `frontend/` | PASS with 0 errors and 6 existing Fast Refresh warnings in shared UI files |
+
+## Bugs Found
+
+No new UX-09A bugs were found during QA.
+
+## Remaining Risks
+
+- QA did not execute an authenticated browser walkthrough or screenshot comparison; responsive behavior, runtime safety, and visual consistency were verified through static inspection and build tooling.
+- Backend invalid-transition and data-contract behavior were not revalidated in this UX-09A pass because UX-09A scope is UX remediation/regression review and no backend changes were expected.
+- Unknown future backend enum/status values may still fall back to raw labels where no locale key exists; current reviewed UX-09A labels are covered.

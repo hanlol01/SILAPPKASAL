@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,14 +10,20 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/hooks/use-theme";
 import { getLocalStorageItem, setLocalStorageItem } from "@/lib/auth-storage";
-import { toast } from "sonner";
+import { PageBreadcrumb } from "@/components/page-breadcrumb";
 
 export const Route = createFileRoute("/dashboard/settings")({
   component: SettingsPage,
-  head: () => ({ meta: [{ title: "Settings â€” SILAPPKASAL Admin" }] }),
+  head: () => ({ meta: [{ title: "Pengaturan - SILAPPKASAL" }] }),
 });
 
-const KEY = "safecampus_settings";
+/**
+ * Current storage key for institution-level settings.
+ * Renamed from "safecampus_settings" to make the namespace match the product.
+ * A one-time migration on load preserves any previously saved values.
+ */
+const STORAGE_KEY = "silappkasal.settings.v1";
+const LEGACY_STORAGE_KEY = "safecampus_settings";
 
 interface Settings {
   campusName: string;
@@ -26,53 +34,106 @@ interface Settings {
 }
 
 const DEFAULTS: Settings = {
-  campusName: "Universitas Indonesia",
-  campusTagline: "Veritas, Probitas, Justitia",
+  campusName: "",
+  campusTagline: "",
   notifyEmail: true,
   notifyInApp: true,
   notifyDigest: false,
 };
 
+function readStoredSettings(): Partial<Settings> | null {
+  const current = getLocalStorageItem(STORAGE_KEY);
+  if (current) {
+    try {
+      return JSON.parse(current) as Partial<Settings>;
+    } catch {
+      return null;
+    }
+  }
+  const legacy = getLocalStorageItem(LEGACY_STORAGE_KEY);
+  if (legacy) {
+    try {
+      return JSON.parse(legacy) as Partial<Settings>;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 function SettingsPage() {
+  const { t } = useTranslation(["dashboard", "common"]);
   const { theme, toggle } = useTheme();
-  const [s, setS] = useState<Settings>(DEFAULTS);
+  const [settings, setSettings] = useState<Settings>(DEFAULTS);
 
   useEffect(() => {
-    const raw = getLocalStorageItem(KEY);
-    if (raw) setS({ ...DEFAULTS, ...JSON.parse(raw) });
+    const stored = readStoredSettings();
+    if (stored) {
+      setSettings({ ...DEFAULTS, ...stored });
+    }
   }, []);
 
   const save = () => {
-    setLocalStorageItem(KEY, JSON.stringify(s));
-    toast.success("Settings saved");
+    setLocalStorageItem(STORAGE_KEY, JSON.stringify(settings));
+    toast.success(t("dashboard:settings.saveSuccess"));
   };
+
+  const notificationRows: { key: keyof Pick<Settings, "notifyEmail" | "notifyInApp" | "notifyDigest">; label: string; description: string }[] = [
+    {
+      key: "notifyEmail",
+      label: t("dashboard:settings.notifications.email"),
+      description: t("dashboard:settings.notifications.emailDesc"),
+    },
+    {
+      key: "notifyInApp",
+      label: t("dashboard:settings.notifications.inApp"),
+      description: t("dashboard:settings.notifications.inAppDesc"),
+    },
+    {
+      key: "notifyDigest",
+      label: t("dashboard:settings.notifications.weeklyDigest"),
+      description: t("dashboard:settings.notifications.weeklyDigestDesc"),
+    },
+  ];
 
   return (
     <div className="space-y-6">
+      <PageBreadcrumb crumbs={[{ label: t("dashboard:nav.settings") }]} />
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">Customize your campus profile, theme, and notifications.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard:settings.title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("dashboard:settings.subtitle")}</p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Campus profile</CardTitle>
-            <CardDescription>How your institution is presented across the platform.</CardDescription>
+            <CardTitle>{t("dashboard:settings.campusProfile.title")}</CardTitle>
+            <CardDescription>{t("dashboard:settings.campusProfile.description")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-2">
-              <Label>Campus name</Label>
-              <Input value={s.campusName} onChange={(e) => setS({ ...s, campusName: e.target.value })} />
+              <Label htmlFor="settings-campus-name">{t("dashboard:settings.campusProfile.name")}</Label>
+              <Input
+                id="settings-campus-name"
+                value={settings.campusName}
+                placeholder={t("dashboard:settings.campusProfile.namePlaceholder")}
+                onChange={(event) => setSettings({ ...settings, campusName: event.target.value })}
+              />
             </div>
             <div className="grid gap-2">
-              <Label>Tagline / motto</Label>
-              <Textarea rows={2} value={s.campusTagline} onChange={(e) => setS({ ...s, campusTagline: e.target.value })} />
+              <Label htmlFor="settings-campus-tagline">{t("dashboard:settings.campusProfile.tagline")}</Label>
+              <Textarea
+                id="settings-campus-tagline"
+                rows={2}
+                value={settings.campusTagline}
+                placeholder={t("dashboard:settings.campusProfile.taglinePlaceholder")}
+                onChange={(event) => setSettings({ ...settings, campusTagline: event.target.value })}
+              />
             </div>
             <div className="grid gap-2">
-              <Label>Brand logo</Label>
+              <Label>{t("dashboard:settings.campusProfile.brandLogo")}</Label>
               <div className="flex items-center gap-3 rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                Drop an SVG or PNG here (UI-only)
+                {t("dashboard:settings.campusProfile.brandLogoHint")}
               </div>
             </div>
           </CardContent>
@@ -80,44 +141,37 @@ function SettingsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Appearance</CardTitle>
-            <CardDescription>Theme and density preferences.</CardDescription>
+            <CardTitle>{t("dashboard:settings.appearance.title")}</CardTitle>
+            <CardDescription>{t("dashboard:settings.appearance.description")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div>
-                <div className="font-medium">Dark mode</div>
-                <div className="text-xs text-muted-foreground">Easier on the eyes for late-night reviews.</div>
+                <div className="font-medium">{t("dashboard:settings.appearance.darkMode")}</div>
+                <div className="text-xs text-muted-foreground">{t("dashboard:settings.appearance.darkModeDesc")}</div>
               </div>
-              <Switch checked={theme === "dark"} onCheckedChange={toggle} />
-            </div>
-            <div className="flex items-center justify-between rounded-lg border p-4">
-              <div>
-                <div className="font-medium">High-contrast tables</div>
-                <div className="text-xs text-muted-foreground">Improves readability on dense data views.</div>
-              </div>
-              <Switch defaultChecked />
+              <Switch checked={theme === "dark"} onCheckedChange={toggle} aria-label={t("dashboard:settings.appearance.darkMode")} />
             </div>
           </CardContent>
         </Card>
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Notifications</CardTitle>
-            <CardDescription>Choose how you want to be alerted.</CardDescription>
+            <CardTitle>{t("dashboard:settings.notifications.title")}</CardTitle>
+            <CardDescription>{t("dashboard:settings.notifications.description")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-3">
-            {[
-              { k: "notifyEmail" as const, label: "Email alerts", desc: "New reports and status changes" },
-              { k: "notifyInApp" as const, label: "In-app", desc: "Realtime banner & inbox" },
-              { k: "notifyDigest" as const, label: "Weekly digest", desc: "Summary every Monday" },
-            ].map((row) => (
-              <div key={row.k} className="flex items-center justify-between rounded-lg border p-4">
+            {notificationRows.map((row) => (
+              <div key={row.key} className="flex items-center justify-between rounded-lg border p-4">
                 <div>
                   <div className="font-medium">{row.label}</div>
-                  <div className="text-xs text-muted-foreground">{row.desc}</div>
+                  <div className="text-xs text-muted-foreground">{row.description}</div>
                 </div>
-                <Switch checked={s[row.k]} onCheckedChange={(v) => setS({ ...s, [row.k]: Boolean(v) })} />
+                <Switch
+                  checked={settings[row.key]}
+                  onCheckedChange={(value) => setSettings({ ...settings, [row.key]: Boolean(value) })}
+                  aria-label={row.label}
+                />
               </div>
             ))}
           </CardContent>
@@ -125,7 +179,7 @@ function SettingsPage() {
       </div>
 
       <div className="flex justify-end">
-        <Button onClick={save}>Save changes</Button>
+        <Button onClick={save}>{t("dashboard:settings.saveChanges")}</Button>
       </div>
     </div>
   );

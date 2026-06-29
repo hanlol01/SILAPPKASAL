@@ -69,7 +69,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { t } = useTranslation(["auth"]);
+  const { t } = useTranslation(["auth", "common"]);
   const { login, user } = useAuth();
   const navigate = useNavigate();
   const { redirect } = Route.useSearch();
@@ -121,7 +121,7 @@ function LoginPage() {
           </p>
         </div>
         <div className="text-xs text-sidebar-foreground/60">
-          2026 SILAPPKASAL - Prototipe rahasia
+          {t("common:copyright", { defaultValue: "2026 SILAPPKASAL. Hak akses terbatas untuk Satgas PPKS." })}
         </div>
       </div>
       <div className="flex items-center justify-center p-6">

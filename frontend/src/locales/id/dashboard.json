@@ -2,7 +2,7 @@
   "brand": {
     "name": "SILAPPKASAL",
     "console": "Konsol Admin",
-    "prototype": "v0.1 - Prototipe lokal"
+    "prototype": "Sistem Pelaporan & Penanganan Kekerasan Seksual"
   },
   "nav": {
     "workspace": "Ruang Kerja",
@@ -391,6 +391,7 @@
       "unavailable": "Analitik alur kerja tidak tersedia.",
       "conversionTitle": "Hitungan konversi alur",
       "metricSemantics": "Hitungan ini bersifat deskriptif untuk pemantauan operasional. Data ini bukan KPI, SLA, tingkat keberhasilan, atau skor kinerja.",
+      "relativeBarHint": "Skala progres relatif terhadap tahap dengan jumlah terbanyak. Bukan persentase konversi mutlak.",
       "step": "Langkah {{number}}",
       "steps": {
         "forwardedReports": "Laporan diteruskan",
@@ -481,13 +482,98 @@
     "loadingFaculties": "Memuat fakultas...",
     "loadingStudyPrograms": "Memuat program studi..."
   },
+
   "settings": {
     "title": "Pengaturan",
-    "subtitle": "Pengaturan akun dan preferensi dashboard."
+    "subtitle": "Pengaturan akun dan preferensi dashboard.",
+    "campusProfile": {
+      "title": "Profil Institusi",
+      "description": "Identitas institusi yang ditampilkan di seluruh aplikasi.",
+      "name": "Nama Institusi",
+      "namePlaceholder": "Contoh: Universitas Indonesia",
+      "tagline": "Slogan / Moto",
+      "taglinePlaceholder": "Slogan singkat institusi (opsional)",
+      "brandLogo": "Lambang Institusi",
+      "brandLogoHint": "Unggahan lambang akan tersedia pada pembaruan berikutnya."
+    },
+    "appearance": {
+      "title": "Tampilan",
+      "description": "Preferensi tema antarmuka.",
+      "darkMode": "Mode gelap",
+      "darkModeDesc": "Lebih nyaman untuk peninjauan pada malam hari."
+    },
+    "notifications": {
+      "title": "Notifikasi",
+      "description": "Pilih saluran pemberitahuan yang ingin Anda terima.",
+      "email": "Email",
+      "emailDesc": "Laporan baru dan perubahan status",
+      "inApp": "Dalam aplikasi",
+      "inAppDesc": "Banner waktu nyata dan kotak masuk",
+      "weeklyDigest": "Ringkasan mingguan",
+      "weeklyDigestDesc": "Ringkasan setiap Senin"
+    },
+    "saveChanges": "Simpan perubahan",
+    "saveSuccess": "Pengaturan tersimpan"
   },
   "breakGlass": {
-    "title": "Break-glass",
-    "subtitle": "Tinjau permintaan akses identitas anonim sesuai kebijakan privasi."
+    "title": "Akses Darurat Identitas Pelapor",
+    "subtitle": "Tinjau permintaan akses identitas pelapor anonim sesuai kebijakan privasi.",
+    "pending": {
+      "title": "Permintaan tertunda",
+      "description": "Setujui, tolak, atau buka identitas yang sudah disetujui.",
+      "empty": "Tidak ada permintaan akses tertunda."
+    },
+    "history": {
+      "title": "Riwayat",
+      "description": "Daftar historis permintaan akses identitas.",
+      "empty": "Belum ada riwayat akses identitas."
+    },
+    "errors": {
+      "pendingLoad": "Permintaan akses tertunda tidak dapat dimuat.",
+      "historyLoad": "Riwayat akses tidak dapat dimuat.",
+      "approvalFailed": "Persetujuan gagal",
+      "denialFailed": "Penolakan gagal",
+      "revealFailed": "Pengungkapan identitas gagal",
+      "denialReasonMin": "Alasan penolakan minimal 10 karakter."
+    },
+    "success": {
+      "approved": "Permintaan akses disetujui",
+      "denied": "Permintaan akses ditolak"
+    },
+    "actions": {
+      "approve": "Setujui",
+      "deny": "Tolak",
+      "reveal": "Buka identitas"
+    },
+    "deny": {
+      "title": "Tolak permintaan akses identitas",
+      "description": "Berikan alasan singkat. Pelapor tidak akan diberitahu saat permintaan ditolak.",
+      "reasonLabel": "Alasan penolakan",
+      "submit": "Tolak permintaan"
+    },
+    "table": {
+      "report": "Laporan",
+      "requestor": "Pemohon",
+      "reason": "Alasan",
+      "status": "Status",
+      "requested": "Diminta",
+      "actions": "Aksi",
+      "unknownReport": "Laporan tidak diketahui",
+      "unknownRequestor": "Pemohon tidak diketahui",
+      "metadataUnavailable": "metadata tidak tersedia"
+    },
+    "status": {
+      "pending": "Menunggu peninjauan",
+      "approved": "Disetujui",
+      "denied": "Ditolak",
+      "revealed": "Identitas diungkap",
+      "expired": "Kedaluwarsa"
+    }
+  },
+  "pagination": {
+    "pageOf": "Halaman {{page}} dari {{lastPage}}",
+    "previous": "Sebelumnya",
+    "next": "Berikutnya"
   },
   "analytics": {
     "title": "Analitik",
