@@ -159,6 +159,7 @@ function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
+      <PageBreadcrumb crumbs={[{ label: t("dashboard:nav.analytics") }]} />
       <PageHeader
         title={t("dashboard:analytics.title")}
         description={t("dashboard:analytics.subtitle")}
