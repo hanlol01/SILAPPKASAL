@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ClipboardList, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useForm, type FieldValues, type Path, type UseFormReturn } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ export function RecommendationCreateAction({
   caseId: number | string;
   investigation: Investigation;
 }) {
+  const { t, i18n } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const form = useForm<RecommendationCreateValues>({
@@ -68,7 +70,7 @@ export function RecommendationCreateAction({
         ...nullifyEmpty(values),
       }),
     onSuccess: () => {
-      toast.success("Recommendation created");
+      toast.success(t("dashboard:workflow.recommendationCreated"));
       setOpen(false);
       form.reset();
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.case(caseId) });
@@ -79,42 +81,50 @@ export function RecommendationCreateAction({
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
-      toast.error(apiErrorMessage(error, "Recommendation could not be created"));
+      toast.error(apiErrorMessage(error, t("dashboard:workflow.recommendationCreateError")));
     },
   });
+
+  const usingInvestigationCopy = investigation.completed_at
+    ? t("dashboard:workflow.recommendationCreateUsingInvestigationCompleted", {
+        id: investigation.id,
+        completedAt: formatDateTime(investigation.completed_at, i18n.language),
+      })
+    : t("dashboard:workflow.recommendationCreateUsingInvestigation", {
+        id: investigation.id,
+      });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="w-full" variant="outline">
-          <ClipboardList className="mr-2 h-4 w-4" /> Create recommendation
+          <ClipboardList className="mr-2 h-4 w-4" /> {t("dashboard:workflow.createRecommendation")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create recommendation</DialogTitle>
+          <DialogTitle>{t("dashboard:workflow.createRecommendation")}</DialogTitle>
           <DialogDescription>
-            The latest completed investigation is selected automatically. No investigation picker is exposed.
+            {t("dashboard:workflow.recommendationCreateDesc")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
-          Using completed investigation #{investigation.id}
-          {investigation.completed_at ? `, completed ${formatDateTime(investigation.completed_at)}` : ""}.
+          {usingInvestigationCopy}
         </div>
 
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
-            <TextareaField form={form} name="conclusion" label="Conclusion" />
-            <TextareaField form={form} name="recommended_actions" label="Recommended actions" />
-            <TextareaField form={form} name="sanction_recommendation" label="Sanction recommendation" />
-            <TextareaField form={form} name="recovery_recommendation" label="Recovery recommendation" />
-            <TextareaField form={form} name="prevention_recommendation" label="Prevention recommendation" />
+            <TextareaField form={form} name="conclusion" label={t("dashboard:sections.conclusion")} />
+            <TextareaField form={form} name="recommended_actions" label={t("dashboard:sections.recommendedActions")} />
+            <TextareaField form={form} name="sanction_recommendation" label={t("dashboard:workflow.sanctionRecommendation")} />
+            <TextareaField form={form} name="recovery_recommendation" label={t("dashboard:workflow.recoveryRecommendation")} />
+            <TextareaField form={form} name="prevention_recommendation" label={t("dashboard:workflow.preventionRecommendation")} />
 
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
                 {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create recommendation
+                {t("dashboard:workflow.createRecommendation")}
               </Button>
             </DialogFooter>
           </form>
@@ -156,8 +166,9 @@ function nullifyEmpty<T extends Record<string, unknown>>(values: T): T {
   ) as T;
 }
 
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("en", {
+function formatDateTime(value: string, language: string) {
+  const locale = language?.startsWith("id") ? "id-ID" : "en";
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BriefcaseMedical, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useForm, type FieldValues, type Path, type UseFormReturn } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,7 @@ export function RecoveryCreateAction({
   decision: Decision;
   caseId: number | string;
 }) {
+  const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const recoveryTypesQuery = useQuery({
@@ -75,7 +77,7 @@ export function RecoveryCreateAction({
   const mutation = useMutation({
     mutationFn: (values: RecoveryCreateValues) => createRecovery(decision.id, nullifyEmpty(values)),
     onSuccess: () => {
-      toast.success("Recovery created");
+      toast.success(t("dashboard:workflow.recoveryCreated"));
       setOpen(false);
       form.reset();
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.case(caseId) });
@@ -86,7 +88,7 @@ export function RecoveryCreateAction({
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
-      toast.error(apiErrorMessage(error, "Recovery could not be created"));
+      toast.error(apiErrorMessage(error, t("dashboard:workflow.recoveryCreateError")));
     },
   });
 
@@ -94,14 +96,14 @@ export function RecoveryCreateAction({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="w-full" variant="outline">
-          <BriefcaseMedical className="mr-2 h-4 w-4" /> Create recovery
+          <BriefcaseMedical className="mr-2 h-4 w-4" /> {t("dashboard:workflow.createRecovery")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create recovery</DialogTitle>
+          <DialogTitle>{t("dashboard:workflow.createRecovery")}</DialogTitle>
           <DialogDescription>
-            Create a recovery plan for the finalized decision. Recovery completion does not close the case.
+            {t("dashboard:workflow.recoveryCreateDesc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -112,11 +114,17 @@ export function RecoveryCreateAction({
               name="recovery_type_code"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Recovery type</FormLabel>
+                  <FormLabel>{t("dashboard:workflow.recoveryType")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value} disabled={recoveryTypesQuery.isLoading}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder={recoveryTypesQuery.isLoading ? "Loading types..." : "Select type"} />
+                        <SelectValue
+                          placeholder={
+                            recoveryTypesQuery.isLoading
+                              ? t("dashboard:workflow.loadingRecoveryTypes")
+                              : t("dashboard:workflow.selectRecoveryType")
+                          }
+                        />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -131,14 +139,14 @@ export function RecoveryCreateAction({
                 </FormItem>
               )}
             />
-            <TextareaField form={form} name="recovery_plan" label="Recovery plan" />
-            <TextareaField form={form} name="support_needs" label="Support needs" />
-            <TextareaField form={form} name="notes" label="Notes" />
+            <TextareaField form={form} name="recovery_plan" label={t("dashboard:workflow.recoveryPlan")} />
+            <TextareaField form={form} name="support_needs" label={t("dashboard:workflow.supportNeeds")} />
+            <TextareaField form={form} name="notes" label={t("dashboard:workflow.notes")} />
 
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
                 {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create recovery
+                {t("dashboard:workflow.createRecovery")}
               </Button>
             </DialogFooter>
           </form>
