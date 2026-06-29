@@ -74,3 +74,9 @@ No new UX-09A bugs were found during QA.
 ## Bugs Found During QA
 
 No new RC-03 bugs were found during QA.
+
+# RC-04
+
+## Bugs Found During QA
+
+No new RC-04 bugs were found during QA.

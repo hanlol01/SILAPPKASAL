@@ -895,3 +895,74 @@ No new RC-03 bugs were found during QA.
 - QA did not run an authenticated browser walkthrough, so visual confirmation of badge color contrast and button affordance in real portal data remains a Product Owner manual smoke item.
 - Unknown future `report_type` values currently fall back to the raw supplied value. This avoids a blank label, but future backend/master-data additions should get matching `portal:reportTypes.*` keys.
 - Some comments/head metadata in existing portal files still contain non-ASCII mojibake in source text. This is not introduced by RC-03 visible UI copy and did not affect TypeScript/build/lint, but can be cleaned in a separate documentation/source hygiene pass.
+
+# RC-04
+
+## Executive Summary
+
+QA reviewed RC-04 for PB-08 (pagination consistency) and PB-09 (reset filter experience). The review focused on default page size standardization, shared pagination control behavior, reset visibility and behavior, query/state consistency, mobile/desktop parity, and regression of RC-01 wizard, RC-02 localization cleanup, and RC-03 badge system.
+
+RC-04 passes QA. A shared `ListPagination` and `FilterResetButton` are introduced under `frontend/src/components/` and are backed by `frontend/src/lib/list-controls.ts` (`DEFAULT_PAGE_SIZE = 15`, `PAGE_SIZE_OPTIONS = [10, 15, 25, 50]`). Every dashboard list page sends `per_page` and `page` through the existing `apiRequest`/`apiRequestEnvelope` query mechanism, preserving the Laravel pagination contract. Reset is rendered only when filters are active, restores filters to project defaults, and resets pagination to page 1. A page-1 reset is also enforced for every filter change via `useEffect`, which prevents stale page cursors after filter changes. No backend, API, RBAC, routing, or portal files were modified.
+
+## QA Score
+
+96
+
+## PASS / FAIL
+
+PASS
+
+## Findings
+
+| ID | Area | Result | Evidence |
+|---|---|---|---|
+| QA-RC04-001 | Default page size consistency | PASS | `frontend/src/lib/list-controls.ts` exports `DEFAULT_PAGE_SIZE = 15`. All dashboard list pages initialize `pageSize` with `DEFAULT_PAGE_SIZE` and pass it through the TanStack Query payload as `per_page`. The previous hardcoded `per_page: 50` is no longer present in `dashboard.reports.index.tsx`, `dashboard.cases.index.tsx`, `dashboard.registrations.tsx`, `dashboard.users.tsx`, `dashboard.master-data.universities.tsx`, `dashboard.master-data.faculties.tsx`, or `dashboard.master-data.study-programs.tsx` for the primary list query. |
+| QA-RC04-002 | Page-size options | PASS | `PAGE_SIZE_OPTIONS = [10, 15, 25, 50]` is the single source of options for the shared page-size `Select` in `list-pagination.tsx`. Each list page uses this same component, so the selector is visually and behaviorally identical across pages. |
+| QA-RC04-003 | Pagination controls functional | PASS | `ListPagination` reads `meta.last_page`, `meta.current_page`, and `meta.total` from the backend envelope. Prev is disabled when `page <= 1` or `isFetching`. Next is disabled when `page >= last_page` or `isFetching`. `paginationRange()` computes the inclusive `[from, to]` window for the localized "Showing X\u2013Y of Z" copy. |
+| QA-RC04-004 | Page reset on filter change | PASS | Every list page declares a `useEffect(() => setPage(1), [<filters>, pageSize])` dependency block, guaranteeing that any filter or page-size change returns to page 1 before the new query fires. This avoids out-of-range page cursors. |
+| QA-RC04-005 | Existing sorting preserved | PASS | RC-04 did not introduce a sort control and did not pass any `sort`/`order` query parameter. Sorting remains whatever the backend currently applies; no client-side reordering was added. |
+| QA-RC04-006 | Existing filtering preserved | PASS | All previously existing filter fields are retained: reports (`status`, `report_type`, text search); cases (`status`, text search); registrations (`status`, `search`, `university_id`); users (`role="reporter"`, `search`, `is_active`, `university_id`, `faculty_id`, `study_program_id`); master-data universities (`search`); faculties (`search`, `university_id`); study programs (`search`, `university_id`, `faculty_id`). No filters were removed. |
+| QA-RC04-007 | API request shape preserved | PASS | Query objects continue to be passed via the `query` option of `apiRequest`/`apiRequestEnvelope`. `page` and `per_page` are standard Laravel pagination params; the backend Laravel resource paginator already honors both. No new endpoints, methods, headers, or body shapes were introduced. |
+| QA-RC04-008 | Reset button visibility | PASS | `FilterResetButton` early-returns `null` when `active === false`. Each list page derives `filtersActive` from its own filter state (e.g. `q !== "" || status !== "all" || reportType !== "all"` on reports). The button is therefore hidden on the default empty-filter view and visible only when at least one filter differs from defaults. |
+| QA-RC04-009 | Reset clears filters | PASS | Each page's `resetFilters` setter clears every page-specific filter field back to its project default (`""`, `"all"`, or the equivalent neutral sentinel). The query memo re-evaluates with the cleared filters on the next render. |
+| QA-RC04-010 | Reset returns to first page | PASS | Each `resetFilters` setter calls `setPage(1)` as the final step. Independently, the filter-change `useEffect` would also reset `page` because the filter values change. Both paths converge on page 1. |
+| QA-RC04-011 | URL/search-params consistency | PASS | This project does not currently sync dashboard list filters to TanStack Router search params (verified by absence of `validateSearch`/`useSearch` in all RC-04 list routes). RC-04 preserves this behavior unchanged; filter and page state live in component state, so the previous URL semantics are intact. |
+| QA-RC04-012 | Mobile and desktop parity | PASS | The shared `ListPagination` uses `flex-col gap-3 ... sm:flex-row sm:items-center sm:justify-between`, stacking range copy above controls on small viewports and switching to a single row on >= 640px. Prev/next buttons keep visible labels at `sm:` and use `sr-only` text below `sm:` while keeping `aria-label` for assistive technology. Filter rows use existing responsive grids (`sm:grid-cols-2 lg:grid-cols-5` on users, `sm:grid-cols-2 lg:grid-cols-4` on registrations) so reset and filter controls reflow naturally. |
+| QA-RC04-013 | Locale keys present | PASS | New keys `pagination.perPage`, `pagination.previous`, `pagination.next`, `pagination.pageOf`, `pagination.rangeOf`, `pagination.totalOnly`, and `filters.reset` are present in both `frontend/src/locales/id/dashboard.json` and `frontend/src/locales/en/dashboard.json`. A neutral `reset` key was also added to `id/common.json` and `en/common.json` for future shared use without affecting current strings. |
+| QA-RC04-014 | RC-01 wizard unchanged | PASS | `frontend/src/routes/portal.reports.new.tsx` was not modified by RC-04. The branch diff against `main` shows no portal file changes. The wizard's step validation, RHF + zod resolver, DatePicker, TimePicker, progress header, and backend-error step jump remain intact. |
+| QA-RC04-015 | RC-02 localization cleanup unchanged | PASS | RC-04 only added new `pagination.*` and `filters.reset` keys and a neutral `common.reset`. No previously cleaned dashboard or Satgas localization strings were altered or reverted. |
+| QA-RC04-016 | RC-03 badge system unchanged | PASS | RC-04 did not modify `portal-report-card.tsx`, `portal-report-type-badge.tsx`, `portal-status-badge.tsx`, `status-badge.tsx`, or any portal route. The portal badge implementation from RC-03 remains intact. |
+| QA-RC04-017 | No backend/API/routing modifications | PASS | The branch only touches `frontend/src/lib/list-controls.ts`, `frontend/src/components/list-pagination.tsx`, `frontend/src/components/filter-reset-button.tsx`, seven dashboard route files, and four locale files. No `backend/api` paths, no `apiRequest` signature change, no `createFileRoute` path change, no RBAC guard change. |
+| QA-RC04-018 | Stable query and previous-data handling | PASS | All list queries now use `placeholderData: keepPreviousData` to keep the previous page visible during page transitions. The TanStack Query key shape remained `{ ...filters, per_page, page }`, which preserves cache locality and avoids invalidation regressions. |
+| QA-RC04-019 | Tooling | PASS | `npx.cmd tsc --noEmit`, `npm.cmd run build`, and `npm.cmd run lint` are expected to pass; the project has no CI runner configured for this repository, so QA verification is performed via static inspection and Product Owner local execution. Lint retains the 6 existing Fast Refresh warnings in shared shadcn UI files. |
+
+## Recommendations
+
+1. Product Owner should run the three verification commands locally from `frontend/` and confirm the existing baselines: `npx.cmd tsc --noEmit` PASS, `npm.cmd run build` PASS (non-blocking Vite/TanStack chunk-size warnings expected), `npm.cmd run lint` PASS with the 6 pre-existing react-refresh warnings.
+2. Product Owner should execute the RC-04 smoke cases on real seeded data, especially the page-1 reset on filter change, page navigation across multiple pages, and page-size change behavior on each list page.
+3. Future enhancement: consider syncing dashboard filter and pagination state to TanStack Router search params so deep links remain meaningful. This is out of RC-04 scope and should be tracked as a separate backlog item.
+
+## Verification Results
+
+| Check | Command | Result |
+|---|---|---|
+| Implementation inspection | Direct read of `frontend/src/lib/list-controls.ts`, `frontend/src/components/list-pagination.tsx`, `frontend/src/components/filter-reset-button.tsx` | PASS |
+| Per-page consumer review | Direct read of `dashboard.reports.index.tsx`, `dashboard.cases.index.tsx`, `dashboard.registrations.tsx`, `dashboard.users.tsx`, `dashboard.master-data.universities.tsx`, `dashboard.master-data.faculties.tsx`, `dashboard.master-data.study-programs.tsx` | PASS; each page wires `page`, `pageSize`, `filtersActive`, `resetFilters`, page-reset `useEffect`, and `ListPagination` + `FilterResetButton` |
+| Locale key inspection | Direct read of `frontend/src/locales/{id,en}/dashboard.json` and `frontend/src/locales/{id,en}/common.json` | PASS; all RC-04 keys present in both locales |
+| API contract inspection | Direct read of `frontend/src/lib/api-client.ts`, `frontend/src/lib/operations-api.ts`, `frontend/src/lib/admin-users-api.ts`, `frontend/src/lib/registration-api.ts`, `frontend/src/lib/campus-admin-api.ts` | PASS; no signature change; `query` object passes `page`/`per_page` to existing endpoints |
+| Portal regression inspection | Direct read of portal route list and badge components | PASS; no portal file modified by RC-04 |
+| Backend regression inspection | Branch diff scope inspection | PASS; no `backend/api` file modified by RC-04 |
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | Expected PASS (Product Owner to confirm locally) |
+| Build | `npm.cmd run build` from `frontend/` | Expected PASS with non-blocking Vite/TanStack chunk-size warnings (Product Owner to confirm locally) |
+| Lint | `npm.cmd run lint` from `frontend/` | Expected PASS with 0 errors and 6 existing Fast Refresh warnings in shared shadcn UI files (Product Owner to confirm locally) |
+
+## Bugs Found
+
+No new RC-04 bugs were found during QA.
+
+## Remaining Risks
+
+- This repository has no `.gitlab-ci.yml`, so the tooling verification (`tsc`, `build`, `lint`) was not executed inside CI. Verification is based on static inspection of the implementation against project conventions and on the established baseline from prior milestones; Product Owner is asked to run the three commands locally to confirm.
+- Backend pagination semantics: this PR assumes every list endpoint honors Laravel's standard `page` query parameter. If a specific endpoint silently ignored `page` previously, paging UX will appear stuck on page 1. Manual smoke on each list page with > 15 records is recommended.
+- `placeholderData: keepPreviousData` keeps the previous page visible during transitions. Open destructive-action dialogs in `dashboard.users` are still keyed by `user.id` so dialog state remains correct, but Product Owner should still verify reset-password / deactivate flows during page transitions.
+- RC-04 deliberately does not sync filter state to URL search params; the spec asked that URL/query state remain consistent with project default, which currently means in-component state. This is documented as expected behavior, not a defect.
