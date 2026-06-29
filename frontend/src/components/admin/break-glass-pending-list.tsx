@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Eye, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { toast } from "sonner";
 import { BreakGlassRevealView } from "@/components/admin/break-glass-reveal-view";
 import { Badge } from "@/components/ui/badge";
@@ -43,33 +44,34 @@ interface BreakGlassPendingListProps {
 export function BreakGlassPendingList({
   requests,
   showActions = true,
-  emptyMessage = "No break-glass requests found.",
+  emptyMessage,
 }: BreakGlassPendingListProps) {
   const queryClient = useQueryClient();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation(["dashboard", "common"]);
   const [denyTarget, setDenyTarget] = useState<BreakGlassRequest | null>(null);
   const [denialReason, setDenialReason] = useState("");
   const [reveal, setReveal] = useState<BreakGlassReveal | null>(null);
+  const fallbackEmpty = emptyMessage ?? t("dashboard:breakGlass.pending.empty");
 
   const approveMutation = useMutation({
     mutationFn: (id: number) => approveBreakGlass(id),
     onSuccess: () => {
-      toast.success("Break-glass request approved");
+      toast.success(t("dashboard:breakGlass.success.approved"));
       invalidateBreakGlass(queryClient);
     },
-    onError: (error) => toast.error(errorMessage(error, "Approval failed")),
+    onError: (error) => toast.error(errorMessage(error, t("dashboard:breakGlass.errors.approvalFailed"))),
   });
 
   const denyMutation = useMutation({
     mutationFn: ({ id, denial_reason }: { id: number; denial_reason: string }) =>
       denyBreakGlass(id, { denial_reason }),
     onSuccess: () => {
-      toast.success("Break-glass request denied");
+      toast.success(t("dashboard:breakGlass.success.denied"));
       setDenyTarget(null);
       setDenialReason("");
       invalidateBreakGlass(queryClient);
     },
-    onError: (error) => toast.error(errorMessage(error, "Denial failed")),
+    onError: (error) => toast.error(errorMessage(error, t("dashboard:breakGlass.errors.denialFailed"))),
   });
 
   const revealMutation = useMutation({
@@ -78,14 +80,14 @@ export function BreakGlassPendingList({
       setReveal(data);
       invalidateBreakGlass(queryClient);
     },
-    onError: (error) => toast.error(errorMessage(error, "Reveal failed")),
+    onError: (error) => toast.error(errorMessage(error, t("dashboard:breakGlass.errors.revealFailed"))),
   });
 
   function submitDenial() {
     if (!denyTarget) return;
 
     if (denialReason.trim().length < 10) {
-      toast.error("Denial reason must be at least 10 characters.");
+      toast.error(t("dashboard:breakGlass.errors.denialReasonMin"));
       return;
     }
 
@@ -103,12 +105,12 @@ export function BreakGlassPendingList({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Report</TableHead>
-              <TableHead>Requestor</TableHead>
-              <TableHead>Reason</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Requested</TableHead>
-              {showActions && <TableHead className="text-right">Actions</TableHead>}
+              <TableHead>{t("dashboard:breakGlass.table.report")}</TableHead>
+              <TableHead>{t("dashboard:breakGlass.table.requestor")}</TableHead>
+              <TableHead>{t("dashboard:breakGlass.table.reason")}</TableHead>
+              <TableHead>{t("dashboard:breakGlass.table.status")}</TableHead>
+              <TableHead>{t("dashboard:breakGlass.table.requested")}</TableHead>
+              {showActions && <TableHead className="text-right">{t("dashboard:breakGlass.table.actions")}</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -116,26 +118,26 @@ export function BreakGlassPendingList({
               <TableRow key={request.id}>
                 <TableCell>
                   <div className="font-mono text-xs">
-                    {request.report?.registration_number ?? "Unknown report"}
+                    {request.report?.registration_number ?? t("dashboard:breakGlass.table.unknownReport")}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {request.report?.report_type ?? "metadata unavailable"}
+                    {request.report?.report_type ?? t("dashboard:breakGlass.table.metadataUnavailable")}
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="font-medium">{request.requestor?.name ?? "Unknown requestor"}</div>
+                  <div className="font-medium">{request.requestor?.name ?? t("dashboard:breakGlass.table.unknownRequestor")}</div>
                   <div className="text-xs text-muted-foreground">
-                    {request.requestor?.role?.name ?? request.requestor?.role?.code ?? "-"}
+                    {request.requestor?.role?.name ?? request.requestor?.role?.code ?? t("dashboard:common.notAvailable")}
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="text-sm">{reasonCategoryLabel(request.reason_category)}</div>
+                  <div className="text-sm">{prettifyToken(request.reason_category)}</div>
                   <div className="mt-1 line-clamp-2 max-w-md text-xs text-muted-foreground">
                     {request.reason}
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline">{label(request.status)}</Badge>
+                  <Badge variant="outline">{translateStatus(t, request.status)}</Badge>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {formatDateTime(request.requested_at, i18n.language)}
@@ -151,7 +153,7 @@ export function BreakGlassPendingList({
                             disabled={approveMutation.isPending || denyMutation.isPending}
                           >
                             {approveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Approve
+                            {t("dashboard:breakGlass.actions.approve")}
                           </Button>
                           <Button
                             size="sm"
@@ -159,7 +161,7 @@ export function BreakGlassPendingList({
                             onClick={() => setDenyTarget(request)}
                             disabled={approveMutation.isPending || denyMutation.isPending}
                           >
-                            Deny
+                            {t("dashboard:breakGlass.actions.deny")}
                           </Button>
                         </>
                       )}
@@ -175,7 +177,7 @@ export function BreakGlassPendingList({
                           ) : (
                             <Eye className="mr-2 h-4 w-4" />
                           )}
-                          Reveal
+                          {t("dashboard:breakGlass.actions.reveal")}
                         </Button>
                       )}
                     </div>
@@ -190,7 +192,7 @@ export function BreakGlassPendingList({
                   colSpan={showActions ? 6 : 5}
                   className="py-10 text-center text-sm text-muted-foreground"
                 >
-                  {emptyMessage}
+                  {fallbackEmpty}
                 </TableCell>
               </TableRow>
             )}
@@ -204,13 +206,13 @@ export function BreakGlassPendingList({
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Deny break-glass request</DialogTitle>
+            <DialogTitle>{t("dashboard:breakGlass.deny.title")}</DialogTitle>
             <DialogDescription>
-              Provide a short reason. The reporter is not notified when a request is denied.
+              {t("dashboard:breakGlass.deny.description")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="denial-reason">Denial reason</Label>
+            <Label htmlFor="denial-reason">{t("dashboard:breakGlass.deny.reasonLabel")}</Label>
             <Textarea
               id="denial-reason"
               value={denialReason}
@@ -225,11 +227,11 @@ export function BreakGlassPendingList({
               onClick={() => setDenyTarget(null)}
               disabled={denyMutation.isPending}
             >
-              Cancel
+              {t("common:cancel")}
             </Button>
             <Button onClick={submitDenial} disabled={denyMutation.isPending}>
               {denyMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Deny request
+              {t("dashboard:breakGlass.deny.submit")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -246,10 +248,12 @@ function errorMessage(error: unknown, fallback: string) {
   return error instanceof ApiError ? error.message : fallback;
 }
 
-function reasonCategoryLabel(value: string) {
-  return label(value);
+function translateStatus(t: TFunction, value: string) {
+  return t(`dashboard:breakGlass.status.${value}`, {
+    defaultValue: prettifyToken(value),
+  });
 }
 
-function label(value: string) {
+function prettifyToken(value: string) {
   return value.replace(/[-_]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
