@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, UserRoundSearch } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -43,6 +44,7 @@ export function SatgasAssignmentAction({
   currentSatgasIds = [],
   currentLeadSatgasId = null,
 }: SatgasAssignmentActionProps) {
+  const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>(currentSatgasIds);
   const [leadId, setLeadId] = useState<number | null>(currentLeadSatgasId);
@@ -68,7 +70,11 @@ export function SatgasAssignmentAction({
         ? forwardReportToCase(targetId, payload)
         : assignCaseSatgas(targetId, payload),
     onSuccess: () => {
-      toast.success(mode === "forward-report" ? "Report forwarded to case" : "Case assignment updated");
+      toast.success(
+        mode === "forward-report"
+          ? t("dashboard:workflow.assignment.forwardSuccess")
+          : t("dashboard:workflow.assignment.assignSuccess"),
+      );
       setOpen(false);
       setFieldErrors({});
       invalidateAfterSuccess(queryClient, mode, targetId);
@@ -76,7 +82,11 @@ export function SatgasAssignmentAction({
     onError: (error) => {
       const errors = laravelErrors(error);
       setFieldErrors(errors);
-      toast.error(error instanceof ApiError ? error.message : "Workflow action failed");
+      toast.error(
+        error instanceof ApiError
+          ? error.message
+          : t("dashboard:workflow.assignment.actionError"),
+      );
     },
   });
 
@@ -96,7 +106,7 @@ export function SatgasAssignmentAction({
   }
 
   function submit() {
-    const errors = validateSelection(selectedIds, leadId);
+    const errors = validateSelection(selectedIds, leadId, t);
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0 || leadId === null) return;
 
@@ -106,7 +116,7 @@ export function SatgasAssignmentAction({
     });
   }
 
-  const copy = actionCopy(mode);
+  const copy = actionCopy(mode, t);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -124,26 +134,26 @@ export function SatgasAssignmentAction({
         <div className="space-y-4">
           {usersQuery.isLoading && (
             <div className="flex items-center gap-2 rounded-lg border p-4 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading Satgas users...
+              <Loader2 className="h-4 w-4 animate-spin" /> {t("dashboard:workflow.assignment.loadingSatgas")}
             </div>
           )}
 
           {usersQuery.isError && (
             <div className="rounded-lg border border-destructive/40 p-4 text-sm text-destructive">
-              Satgas lookup could not be loaded. Please try again.
+              {t("dashboard:workflow.assignment.lookupError")}
             </div>
           )}
 
           {usersQuery.isSuccess && satgasUsers.length === 0 && (
             <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-              No active Satgas users were returned by the lookup API.
+              {t("dashboard:workflow.assignment.noActiveSatgas")}
             </div>
           )}
 
           {satgasUsers.length > 0 && (
             <>
               <div className="space-y-2">
-                <Label>Satgas members</Label>
+                <Label>{t("dashboard:workflow.assignment.satgasMembers")}</Label>
                 <div className="max-h-60 space-y-2 overflow-y-auto rounded-lg border p-3">
                   {satgasUsers.map((user) => (
                     <label key={user.id} className="flex items-center gap-3 rounded-md p-2 text-sm hover:bg-muted">
@@ -162,7 +172,7 @@ export function SatgasAssignmentAction({
               </div>
 
               <div className="space-y-2">
-                <Label>Lead Satgas</Label>
+                <Label>{t("dashboard:workflow.assignment.leadSatgas")}</Label>
                 <Select
                   value={leadId === null ? "" : String(leadId)}
                   onValueChange={(value) => {
@@ -172,7 +182,7 @@ export function SatgasAssignmentAction({
                   disabled={selectedUsers.length === 0 || mutation.isPending}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select lead from chosen Satgas" />
+                    <SelectValue placeholder={t("dashboard:workflow.assignment.leadPlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
                     {selectedUsers.map((user) => (
@@ -205,35 +215,42 @@ export function SatgasAssignmentAction({
   );
 }
 
-function actionCopy(mode: SatgasAssignmentActionProps["mode"]) {
+function actionCopy(
+  mode: SatgasAssignmentActionProps["mode"],
+  t: (key: string) => string,
+) {
   if (mode === "forward-report") {
     return {
-      trigger: "Forward to case",
-      title: "Forward report to case",
-      description: "Select Satgas members and choose one lead Satgas before forwarding.",
-      submit: "Forward report",
+      trigger: t("dashboard:workflow.assignment.forwardTrigger"),
+      title: t("dashboard:workflow.assignment.forwardTitle"),
+      description: t("dashboard:workflow.assignment.forwardDescription"),
+      submit: t("dashboard:workflow.assignment.forwardSubmit"),
     };
   }
 
   return {
-    trigger: "Assign Satgas",
-    title: "Assign Satgas",
-    description: "Update the active Satgas assignment for this case.",
-    submit: "Save assignment",
+    trigger: t("dashboard:workflow.assignment.assignTrigger"),
+    title: t("dashboard:workflow.assignment.assignTitle"),
+    description: t("dashboard:workflow.assignment.assignDescription"),
+    submit: t("dashboard:workflow.assignment.assignSubmit"),
   };
 }
 
-function validateSelection(selectedIds: number[], leadId: number | null) {
+function validateSelection(
+  selectedIds: number[],
+  leadId: number | null,
+  t: (key: string) => string,
+) {
   const errors: Record<string, string> = {};
 
   if (selectedIds.length === 0) {
-    errors.satgas_ids = "Select at least one Satgas user.";
+    errors.satgas_ids = t("dashboard:workflow.assignment.selectAtLeastOne");
   }
 
   if (leadId === null) {
-    errors.lead_satgas_id = "Select a lead Satgas.";
+    errors.lead_satgas_id = t("dashboard:workflow.assignment.selectLead");
   } else if (!selectedIds.includes(leadId)) {
-    errors.lead_satgas_id = "Lead Satgas must be selected from chosen Satgas users.";
+    errors.lead_satgas_id = t("dashboard:workflow.assignment.leadFromSelected");
   }
 
   return errors;
