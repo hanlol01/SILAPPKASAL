@@ -22,6 +22,7 @@ import { formatReportStatus, formatReportType } from "@/lib/format-labels";
 import { getReports, operationsQueryKeys } from "@/lib/operations-api";
 import type { ReportReporter } from "@/lib/operations-types";
 import { EmptyState } from "@/components/empty-state";
+import { PageBreadcrumb } from "@/components/page-breadcrumb";
 
 export const Route = createFileRoute("/dashboard/reports/")({
   component: ReportsPage,
@@ -63,6 +64,7 @@ function ReportsPage() {
 
   return (
     <div className="space-y-6">
+      <PageBreadcrumb crumbs={[{ label: t("dashboard:reports.title") }]} />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard:reports.title")}</h1>

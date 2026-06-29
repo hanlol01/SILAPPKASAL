@@ -19,6 +19,7 @@ import { formatDateTime } from "@/lib/format";
 import { formatCaseStatus } from "@/lib/format-labels";
 import { getCases, operationsQueryKeys } from "@/lib/operations-api";
 import { EmptyState } from "@/components/empty-state";
+import { PageBreadcrumb } from "@/components/page-breadcrumb";
 
 export const Route = createFileRoute("/dashboard/cases/")({
   component: CasesPage,

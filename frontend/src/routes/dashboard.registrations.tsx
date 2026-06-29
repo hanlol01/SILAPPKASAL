@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { SelectInput } from "@/components/form-fields";
 import { formatRegistrationStatus } from "@/lib/format-labels";
 import { EmptyState } from "@/components/empty-state";
+import { PageBreadcrumb } from "@/components/page-breadcrumb";
 
 export const Route = createFileRoute("/dashboard/registrations")({
   component: RegistrationsPage,
