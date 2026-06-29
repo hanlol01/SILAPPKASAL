@@ -68,3 +68,11 @@ No new UX-07 bugs were found during QA.
 ## Bugs Found During QA
 
 No new UX-09A bugs were found during QA.
+
+# UX-09B
+
+## Bugs Found During QA
+
+| Bug ID | Severity | Status | Affected Page | Expected Behavior | Actual Behavior | Possible Root Cause | Recommended Fix |
+|---|---|---|---|---|---|---|---|
+| UX09B-BUG-001 | Low | Open | `frontend/src/routes/dashboard.cases.$id.tsx` | The route file should have a single consolidated `import { ... } from "lucide-react";` block, matching the project's convention of one import per module per source. | After UX-09B's case-detail adoption changes, the file contains the original icon import block (`ArrowLeft, BriefcaseMedical, ClipboardList, FileArchive, FileSearch, Gavel, Lock, Scale, UserRoundSearch`) plus a separate `import { Inbox } from "lucide-react";` line. Both imports succeed at runtime and the project's lint configuration does not enforce `import/no-duplicates`, so TypeScript, build, and lint remain green. The duplicate is purely a hygiene inconsistency. | The UX-09B edit added the `Inbox` icon next to the new `EmptyState` import instead of merging it into the existing `lucide-react` icon block. | Consolidate the two `lucide-react` imports into a single sorted block in `frontend/src/routes/dashboard.cases.$id.tsx`. Pure hygiene edit; no behavior change. |
