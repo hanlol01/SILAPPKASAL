@@ -143,7 +143,8 @@ function CasesPage() {
                     </div>
                     <Button asChild size="sm" variant="outline" className="mt-3 w-full">
                       <Link to="/dashboard/cases/$id" params={{ id: String(item.id) }}>
-                        <Eye className="mr-1 h-3.5 w-3.5" /> {t("dashboard:common.detail")}
+                        <Eye />
+                        {t("dashboard:common.detail")}
                       </Link>
                     </Button>
                   </div>
@@ -181,7 +182,8 @@ function CasesPage() {
                         <td className="px-3 py-2 text-right">
                           <Button asChild size="sm" variant="ghost">
                             <Link to="/dashboard/cases/$id" params={{ id: String(item.id) }}>
-                              <Eye className="mr-1 h-3.5 w-3.5" /> {t("dashboard:common.detail")}
+                              <Eye />
+                              {t("dashboard:common.detail")}
                             </Link>
                           </Button>
                         </td>

@@ -94,7 +94,8 @@ function ReportsPage() {
           <p className="text-sm text-muted-foreground">{t("dashboard:reports.subtitle")}</p>
         </div>
         <Button disabled variant="outline" title={t("dashboard:reports.forwardUnavailableTitle")}>
-          <FileText className="mr-2 h-4 w-4" /> {t("dashboard:reports.forwardUnavailable")}
+          <FileText />
+          {t("dashboard:reports.forwardUnavailable")}
         </Button>
       </div>
 
