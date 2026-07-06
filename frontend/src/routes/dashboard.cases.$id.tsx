@@ -402,6 +402,14 @@ function CaseDetail() {
             </CardHeader>
             <CardContent className="space-y-2">
               <StatusBadge status={c.status ?? c.status_code} />
+              {((c.risk_level ?? c.risk_level_code) || c.priority) && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {(c.risk_level ?? c.risk_level_code) && (
+                    <RiskLevelBadge value={c.risk_level ?? c.risk_level_code} />
+                  )}
+                  {c.priority && <PriorityLevelBadge value={c.priority} />}
+                </div>
+              )}
               <div className="text-xs text-muted-foreground">
                 {t("dashboard:common.stage")}: {c.current_stage_label ?? formatCaseStatus(t, c.current_stage ?? c.status ?? c.status_code)}
               </div>
