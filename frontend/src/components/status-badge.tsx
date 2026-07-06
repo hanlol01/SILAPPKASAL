@@ -24,6 +24,7 @@ import {
   ClipboardList,
   FileSearch,
   FileText,
+  Flag,
   Gavel,
   HeartHandshake,
   Inbox,
@@ -32,6 +33,9 @@ import {
   Scale,
   Search,
   Send,
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
   UserCheck,
   UserX,
 } from "lucide-react";

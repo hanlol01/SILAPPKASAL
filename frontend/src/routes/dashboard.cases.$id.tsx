@@ -18,7 +18,7 @@ import {
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { QueryErrorState } from "@/components/query-state";
-import { StatusBadge, WorkflowStatusBadge } from "@/components/status-badge";
+import { PriorityLevelBadge, RiskLevelBadge, StatusBadge, WorkflowStatusBadge } from "@/components/status-badge";
 import {
   ProgressTimeline,
   ProgressTimelineSkeleton,
