@@ -131,6 +131,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/{case}/recommendations', [RecommendationController::class, 'indexForCase']);
         Route::get('/{case}', [CaseController::class, 'show']);
         Route::patch('/{case}/status', [CaseController::class, 'updateStatus']);
+        Route::patch('/{case}/assessment', [CaseController::class, 'updateAssessment']);
         Route::patch('/{case}/assign', [CaseController::class, 'assign']);
     });
 

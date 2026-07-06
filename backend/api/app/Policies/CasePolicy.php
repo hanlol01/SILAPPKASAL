@@ -37,6 +37,13 @@ class CasePolicy extends BasePolicy
             && $this->isAssignedTo($case, $user);
     }
 
+    public function recordAssessment(User $user, CaseRecord $case): bool
+    {
+        return ! $this->isClosed($case)
+            && $this->canReadAssigned($user)
+            && $this->isAssignedTo($case, $user);
+    }
+
     public function canReadMetadata(User $user): bool
     {
         return ($this->allowPermission($user, 'cases.read.metadata') && $this->allowRole($user, 'admin', 'super_admin'))

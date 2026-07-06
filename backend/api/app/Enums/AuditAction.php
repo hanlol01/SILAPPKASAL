@@ -41,6 +41,7 @@ enum AuditAction: string
     case CaseCreated = 'case.created';
     case CaseAssigned = 'case.assigned';
     case CaseStatusChanged = 'case.status_changed';
+    case CaseAssessmentRecorded = 'case.assessment_recorded';
 
     case InvestigationCreated = 'investigation.created';
     case InvestigationActivityCreated = 'investigation.activity_created';

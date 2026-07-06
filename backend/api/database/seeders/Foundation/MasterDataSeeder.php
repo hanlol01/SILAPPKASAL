@@ -346,6 +346,7 @@ class MasterDataSeeder extends Seeder
             ['NOTIF-19', 'Status keputusan berubah untuk Satgas', 'Satgas', 'in_app', 'decision.status_changed.internal', 'mvp_extended'],
             ['NOTIF-20', 'Rencana pemulihan dibuat untuk Satgas', 'Satgas', 'in_app', 'recovery.created.internal', 'mvp_extended'],
             ['NOTIF-21', 'Status pemulihan berubah untuk Satgas', 'Satgas', 'in_app', 'recovery.status_changed.internal', 'mvp_extended'],
+            ['NOTIF-22', 'Asesmen risiko dan prioritas dicatat untuk Satgas', 'Satgas', 'in_app', 'case.assessment_recorded.internal', 'mvp_extended'],
         ];
 
         foreach ($rows as $index => [$code, $name, $recipient, $channel, $template, $classification]) {

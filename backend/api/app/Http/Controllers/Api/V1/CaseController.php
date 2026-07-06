@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\CaseAssessmentRequest;
 use App\Http\Requests\CaseAssignRequest;
 use App\Http\Requests\CaseIndexRequest;
 use App\Http\Requests\CaseStatusUpdateRequest;
@@ -69,6 +70,19 @@ class CaseController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Case status updated successfully',
+            'data' => new CaseResource($case),
+        ]);
+    }
+
+    public function updateAssessment(CaseAssessmentRequest $request, CaseRecord $case): JsonResponse
+    {
+        Gate::authorize('recordAssessment', $case);
+
+        $case = $this->caseService->recordAssessment($case, $request->user(), $request->validated());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Case assessment recorded successfully',
             'data' => new CaseResource($case),
         ]);
     }
