@@ -124,6 +124,36 @@
   "submittedDate": "Submitted {{date}}",
   "anonymousReport": "Anonymous Report",
   "reporterIdentityHidden": "Reporter identity hidden",
+  "timeline": {
+    "title": "Report Progress",
+    "desc": "A brief, safe overview of how your report is being handled.",
+    "error": "Report progress cannot be displayed right now.",
+    "empty": "Report progress will appear here once your report is being processed.",
+    "stages": {
+      "laporan_dikirim": {
+        "title": "Report submitted",
+        "desc": "We have safely received your report."
+      },
+      "laporan_ditinjau": {
+        "title": "Report under review",
+        "desc": "Your report is being reviewed by the authorized team."
+      },
+      "proses_penanganan": {
+        "title": "Being handled",
+        "desc": "Your report is being handled according to the applicable procedure."
+      },
+      "selesai": {
+        "title": "Completed",
+        "desc": "The handling of your report has been completed."
+      },
+      "unknown": {
+        "title": "Status update",
+        "desc": ""
+      }
+    }
+  },
+  "completionTitle": "Your case has been completed.",
+  "completionMessage": "For further information, please contact the official Satgas PPKS channel.",
   
   "notifications": "Notifications",
   "unreadNotifications_one": "{{count}} unread notification",

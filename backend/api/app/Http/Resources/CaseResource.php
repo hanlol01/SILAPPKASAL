@@ -24,6 +24,7 @@ class CaseResource extends JsonResource
             'priority' => $this->priority_code,
             'current_stage' => $this->current_stage,
             'current_stage_label' => $this->whenLoaded('status', fn () => $this->status?->stage_name),
+            'report_submitted_at' => $this->reportSubmittedAt(),
             'forwarded_at' => $this->forwarded_at?->toJSON(),
             'assessment_at' => $this->assessment_at?->toJSON(),
             'investigation_started_at' => $this->investigation_started_at?->toJSON(),
@@ -49,5 +50,23 @@ class CaseResource extends JsonResource
         }
 
         return $data;
+    }
+
+    /**
+     * Safe metadata-only timestamp of the originating report submission.
+     * Uses already-loaded relations only; never triggers extra queries and
+     * never exposes report narrative content.
+     */
+    private function reportSubmittedAt(): ?string
+    {
+        if ($this->resource->relationLoaded('reportSensitive')) {
+            return $this->reportSensitive?->submitted_at?->toJSON();
+        }
+
+        if ($this->resource->relationLoaded('report')) {
+            return $this->report?->submitted_at?->toJSON();
+        }
+
+        return null;
     }
 }

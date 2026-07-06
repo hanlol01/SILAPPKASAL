@@ -228,7 +228,30 @@
     "tabRecommendation": "Recommendation",
     "tabDecision": "Decision",
     "tabRecovery": "Recovery",
-    "tabEvidence": "Evidence"
+    "tabEvidence": "Evidence",
+    "progress": {
+      "title": "Case Progress",
+      "desc": "History of case handling stages based on available data.",
+      "empty": "No progress history can be shown yet.",
+      "events": {
+        "reportSubmitted": "Report submitted",
+        "reportSubmittedDesc": "The report was received by the system.",
+        "forwarded": "Forwarded to Satgas",
+        "forwardedDesc": "The report was forwarded into a case.",
+        "satgasAssigned": "Satgas assigned",
+        "satgasAssignedDesc": "Case handling assignment has started.",
+        "investigationCreated": "Investigation created",
+        "investigationCreatedDesc": "The case investigation has started.",
+        "recommendationSubmitted": "Recommendation submitted",
+        "recommendationSubmittedDesc": "The recommendation was submitted to the leadership.",
+        "decisionFinalized": "Final decision",
+        "decisionFinalizedDesc": "The institutional decision has been finalized.",
+        "recoveryCompleted": "Recovery completed",
+        "recoveryCompletedDesc": "The recovery stage has been completed.",
+        "caseClosed": "Case closed",
+        "caseClosedDesc": "The case has been completed and closed."
+      }
+    }
   },
   "sections": {
     "investigations": "Investigations",

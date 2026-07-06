@@ -209,6 +209,7 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware('auth:sanctum')->prefix('portal')->group(function (): void {
         Route::get('/summary', [PortalController::class, 'summary']);
         Route::get('/reports', [PortalController::class, 'reports']);
+        Route::get('/reports/{registrationNumber}/timeline', [PortalController::class, 'reportTimeline']);
         Route::get('/reports/{registrationNumber}', [PortalController::class, 'report']);
         Route::get('/notifications', [PortalController::class, 'notifications']);
     });

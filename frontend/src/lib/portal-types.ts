@@ -47,6 +47,29 @@ export interface PortalReportDetail {
 }
 
 // ---------------------------------------------------------------------------
+// Portal Report Timeline
+// (GET /api/v1/portal/reports/{registrationNumber}/timeline)
+// ---------------------------------------------------------------------------
+
+/**
+ * Reporter-safe progress timeline. The backend maps internal workflow states
+ * to safe stage codes — the frontend must never reconstruct progress from
+ * internal case data.
+ */
+export interface PortalTimelineEvent {
+  /** Safe stage code (e.g. "laporan_dikirim"). Never a raw internal status. */
+  stage: string;
+  occurred_at: string | null;
+}
+
+export interface PortalReportTimeline {
+  registration_number: string;
+  portal_status: string;
+  is_completed: boolean;
+  events: PortalTimelineEvent[];
+}
+
+// ---------------------------------------------------------------------------
 // Portal Notifications (GET /api/v1/portal/notifications)
 // ---------------------------------------------------------------------------
 

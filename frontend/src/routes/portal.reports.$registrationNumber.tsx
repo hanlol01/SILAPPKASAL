@@ -1,6 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Eye,
+  HelpCircle,
+  Send,
+  ShieldCheck,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import type { TFunction } from "i18next";
 import { Button } from "@/components/ui/button";
 import {
   Breadcrumb,
@@ -21,7 +30,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { QueryErrorState } from "@/components/query-state";
 import { PortalStatusBadge } from "@/components/portal/portal-status-badge";
 import { PortalReportTypeBadge } from "@/components/portal/portal-report-type-badge";
-import { portalQueryKeys, getPortalReport } from "@/lib/portal-api";
+import {
+  ProgressTimeline,
+  ProgressTimelineSkeleton,
+  type ProgressTimelineEvent,
+} from "@/components/progress-timeline";
+import { portalQueryKeys, getPortalReport, getPortalReportTimeline } from "@/lib/portal-api";
+import type { PortalTimelineEvent } from "@/lib/portal-types";
 import { formatDate } from "@/lib/format";
 import { useAuth } from "@/hooks/use-auth";
 import { hasPortalAccess } from "@/lib/auth-roles";
@@ -107,7 +122,15 @@ export function PortalReportDetailContent({
       )}
 
       {/* Success */}
-      {reportQuery.isSuccess && reportQuery.data && <ReportDetail report={reportQuery.data} />}
+      {reportQuery.isSuccess && reportQuery.data && (
+        <>
+          <ReportDetail report={reportQuery.data} />
+          <ReportProgressSection
+            registrationNumber={registrationNumber}
+            enabled={hasPortalAccess(roleCode)}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -127,6 +150,7 @@ function ReportDetail({ report }: ReportDetailProps) {
     typeof report.category === "object" && report.category !== null
       ? (report.category as { name?: string }).name
       : report.category;
+  const isCompleted = report.portal_status.toLowerCase() === "completed";
 
   return (
     <>
@@ -140,6 +164,19 @@ function ReportDetail({ report }: ReportDetailProps) {
         />
         <PortalReportTypeBadge reportType={report.report_type} />
       </div>
+
+      {/* Safe final completion message — shown only for the reporter-safe Completed status */}
+      {isCompleted && (
+        <Card className="border-success/30 bg-success/10">
+          <CardContent className="flex items-start gap-3 p-4">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-medium">{t("completionTitle")}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{t("completionMessage")}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Detail card */}
       <Card>
@@ -219,4 +256,74 @@ function DetailSkeleton() {
       </Card>
     </>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Report progress section — consumes ONLY the reporter-safe timeline payload.
+// The frontend never reconstructs progress from internal case data.
+// ---------------------------------------------------------------------------
+
+const TIMELINE_STAGE_ICONS: Record<string, LucideIcon> = {
+  laporan_dikirim: Send,
+  laporan_ditinjau: Eye,
+  proses_penanganan: ShieldCheck,
+  selesai: CheckCircle2,
+};
+
+function ReportProgressSection({
+  registrationNumber,
+  enabled,
+}: {
+  registrationNumber: string;
+  enabled: boolean;
+}) {
+  const { t, i18n } = useTranslation(["portal"]);
+
+  const timelineQuery = useQuery({
+    queryKey: portalQueryKeys.reportTimeline(registrationNumber),
+    queryFn: () => getPortalReportTimeline(registrationNumber),
+    enabled,
+    retry: false,
+  });
+
+  const events = (timelineQuery.data?.events ?? []).map((event) =>
+    safeStageEvent(t, i18n.language, event),
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">{t("timeline.title")}</CardTitle>
+        <CardDescription>{t("timeline.desc")}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {timelineQuery.isPending && <ProgressTimelineSkeleton rows={3} />}
+        {timelineQuery.isError && (
+          <p className="text-sm text-muted-foreground">{t("timeline.error")}</p>
+        )}
+        {timelineQuery.isSuccess && events.length === 0 && (
+          <p className="text-sm text-muted-foreground">{t("timeline.empty")}</p>
+        )}
+        {timelineQuery.isSuccess && events.length > 0 && <ProgressTimeline events={events} />}
+      </CardContent>
+    </Card>
+  );
+}
+
+function safeStageEvent(
+  t: TFunction,
+  language: string,
+  event: PortalTimelineEvent,
+): ProgressTimelineEvent {
+  const known = Object.prototype.hasOwnProperty.call(TIMELINE_STAGE_ICONS, event.stage);
+  const key = known ? event.stage : "unknown";
+  const description = t(`timeline.stages.${key}.desc`, { defaultValue: "" });
+
+  return {
+    id: `${event.stage}-${event.occurred_at ?? ""}`,
+    title: t(`timeline.stages.${key}.title`),
+    timestamp: event.occurred_at ? formatDate(event.occurred_at, language) : null,
+    description: description || null,
+    icon: TIMELINE_STAGE_ICONS[event.stage] ?? HelpCircle,
+  };
 }

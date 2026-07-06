@@ -124,6 +124,36 @@
   "submittedDate": "Dikirim pada {{date}}",
   "anonymousReport": "Laporan Anonim",
   "reporterIdentityHidden": "Identitas pelapor disembunyikan",
+  "timeline": {
+    "title": "Perkembangan Laporan",
+    "desc": "Tahapan penanganan laporan Anda secara ringkas dan aman.",
+    "error": "Perkembangan laporan belum dapat ditampilkan saat ini.",
+    "empty": "Perkembangan laporan akan muncul di sini setelah laporan Anda diproses.",
+    "stages": {
+      "laporan_dikirim": {
+        "title": "Laporan dikirim",
+        "desc": "Laporan Anda telah kami terima dengan aman."
+      },
+      "laporan_ditinjau": {
+        "title": "Laporan ditinjau",
+        "desc": "Laporan Anda sedang ditinjau oleh tim yang berwenang."
+      },
+      "proses_penanganan": {
+        "title": "Proses penanganan",
+        "desc": "Laporan Anda sedang ditangani sesuai prosedur yang berlaku."
+      },
+      "selesai": {
+        "title": "Selesai",
+        "desc": "Penanganan laporan Anda telah selesai."
+      },
+      "unknown": {
+        "title": "Pembaruan status",
+        "desc": ""
+      }
+    }
+  },
+  "completionTitle": "Kasus Anda telah selesai ditangani.",
+  "completionMessage": "Untuk informasi lanjutan silakan hubungi kanal resmi Satgas PPKS.",
   
   "notifications": "Notifikasi",
   "unreadNotifications_one": "{{count}} notifikasi belum dibaca",

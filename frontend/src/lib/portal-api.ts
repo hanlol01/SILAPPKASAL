@@ -13,6 +13,7 @@ import type {
   PortalSummary,
   PortalReport,
   PortalReportDetail,
+  PortalReportTimeline,
   PortalNotification,
   PortalProfile,
   PortalProfileUpdatePayload,
@@ -34,6 +35,7 @@ export const portalQueryKeys = {
   summary:       ()                          => ["portal", "summary"] as const,
   reports:       (q?: Record<string, QueryValue>) => ["portal", "reports", q] as const,
   report:        (regNum: string)            => ["portal", "report", regNum] as const,
+  reportTimeline: (regNum: string)           => ["portal", "report", regNum, "timeline"] as const,
   notifications: ()                          => ["portal", "notifications"] as const,
   profile:       ()                          => ["portal", "profile"] as const,
   accountStatus: ()                          => ["portal", "account-status"] as const,
@@ -68,6 +70,13 @@ export async function getPortalReports(
 /** GET /api/v1/portal/reports/{registrationNumber} */
 export function getPortalReport(registrationNumber: string) {
   return apiRequest<PortalReportDetail>(`/portal/reports/${encodeURIComponent(registrationNumber)}`);
+}
+
+/** GET /api/v1/portal/reports/{registrationNumber}/timeline — reporter-safe stages only. */
+export function getPortalReportTimeline(registrationNumber: string) {
+  return apiRequest<PortalReportTimeline>(
+    `/portal/reports/${encodeURIComponent(registrationNumber)}/timeline`,
+  );
 }
 
 /** GET /api/v1/portal/notifications */

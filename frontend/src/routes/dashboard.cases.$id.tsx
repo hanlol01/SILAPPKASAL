@@ -3,17 +3,27 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   BriefcaseMedical,
+  CheckCircle2,
   ClipboardList,
   FileArchive,
   FileSearch,
   Gavel,
+  History,
   Lock,
   Scale,
+  Send,
+  Share2,
+  Users,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { QueryErrorState } from "@/components/query-state";
 import { StatusBadge, WorkflowStatusBadge } from "@/components/status-badge";
+import {
+  ProgressTimeline,
+  ProgressTimelineSkeleton,
+  type ProgressTimelineEvent,
+} from "@/components/progress-timeline";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Breadcrumb,
@@ -226,6 +236,17 @@ function CaseDetail() {
   const defaultWorkflowTab = defaultWorkflowTabForCase(c);
   const restrictedLabel = restrictedRoleLabel(t, roleCode);
   const nextStepText = nextStepMessage(t, c, isAssignedSatgas, roleCode);
+  const timelineLoading =
+    investigationsQuery.isLoading ||
+    recommendationsQuery.isLoading ||
+    decisionQueries.some((query) => query.isLoading) ||
+    recoveryQueries.some((query) => query.isLoading);
+  const timelineEvents = caseProgressEvents(t, i18n.language, c, {
+    investigations: investigationsQuery.data ?? [],
+    recommendations: recommendationsQuery.data ?? [],
+    decisions,
+    recoveries,
+  });
 
   return (
     <div className="space-y-6">
@@ -276,6 +297,24 @@ function CaseDetail() {
               <Field label={t("dashboard:common.priority")}>{formatPriorityValue(t, c.priority)}</Field>
               <Field label={t("dashboard:common.forwarded")}>{formatDate(c.forwarded_at, i18n.language)}</Field>
               <Field label={t("dashboard:common.closed")}>{formatDate(c.closed_at, i18n.language)}</Field>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <History className="h-4 w-4" /> {t("dashboard:cases.progress.title")}
+              </CardTitle>
+              <CardDescription>{t("dashboard:cases.progress.desc")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {timelineLoading ? (
+                <ProgressTimelineSkeleton rows={4} />
+              ) : timelineEvents.length === 0 ? (
+                <EmptyText>{t("dashboard:cases.progress.empty")}</EmptyText>
+              ) : (
+                <ProgressTimeline events={timelineEvents} />
+              )}
             </CardContent>
           </Card>
 
@@ -1034,6 +1073,95 @@ function recoveryCreateDisabledReason(
   }
 
   return t("dashboard:workflow.createRecoveryUnavailable");
+}
+
+/**
+ * Derives the internal case progress timeline from data already returned by
+ * approved read endpoints. Events without a real timestamp are omitted —
+ * never fabricated. Result is ordered chronologically (oldest first) so the
+ * shared ProgressTimeline can emphasize the most recent event.
+ */
+function caseProgressEvents(
+  t: TFunction,
+  language: string,
+  caseRecord: CaseRecord,
+  data: {
+    investigations: Investigation[];
+    recommendations: Recommendation[];
+    decisions: Decision[];
+    recoveries: Recovery[];
+  },
+): ProgressTimelineEvent[] {
+  const earliest = (values: Array<string | null | undefined>): string | null => {
+    const sorted = values
+      .filter((value): value is string => Boolean(value))
+      .filter((value) => !Number.isNaN(new Date(value).getTime()))
+      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+    return sorted[0] ?? null;
+  };
+
+  const candidates = [
+    {
+      id: "report-submitted",
+      key: "reportSubmitted",
+      icon: Send,
+      at: caseRecord.report_submitted_at ?? null,
+    },
+    {
+      id: "forwarded",
+      key: "forwarded",
+      icon: Share2,
+      at: caseRecord.forwarded_at,
+    },
+    {
+      id: "satgas-assigned",
+      key: "satgasAssigned",
+      icon: Users,
+      at: earliest((caseRecord.assignments ?? []).map((assignment) => assignment.assigned_at)),
+    },
+    {
+      id: "investigation-created",
+      key: "investigationCreated",
+      icon: FileSearch,
+      at: earliest(data.investigations.map((item) => item.created_at ?? item.started_at)),
+    },
+    {
+      id: "recommendation-submitted",
+      key: "recommendationSubmitted",
+      icon: ClipboardList,
+      at: earliest(data.recommendations.map((item) => item.submitted_at)),
+    },
+    {
+      id: "decision-finalized",
+      key: "decisionFinalized",
+      icon: Gavel,
+      at: earliest(data.decisions.map((item) => item.finalized_at)),
+    },
+    {
+      id: "recovery-completed",
+      key: "recoveryCompleted",
+      icon: BriefcaseMedical,
+      at: earliest(data.recoveries.map((item) => item.completed_at)),
+    },
+    {
+      id: "case-closed",
+      key: "caseClosed",
+      icon: CheckCircle2,
+      at: caseRecord.closed_at ?? null,
+    },
+  ];
+
+  return candidates
+    .flatMap((candidate) => (candidate.at ? [{ ...candidate, at: candidate.at }] : []))
+    .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
+    .map((candidate) => ({
+      id: candidate.id,
+      title: t(`dashboard:cases.progress.events.${candidate.key}`),
+      timestamp: formatDate(candidate.at, language),
+      description: t(`dashboard:cases.progress.events.${candidate.key}Desc`),
+      icon: candidate.icon,
+    }));
 }
 
 function formatDate(value: string | null | undefined, language: string) {

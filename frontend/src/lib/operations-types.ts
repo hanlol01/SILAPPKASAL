@@ -75,6 +75,7 @@ export interface CaseRecord {
   priority?: string | null;
   current_stage?: string | null;
   current_stage_label?: string | null;
+  report_submitted_at?: string | null;
   forwarded_at: string | null;
   assessment_at?: string | null;
   investigation_started_at?: string | null;

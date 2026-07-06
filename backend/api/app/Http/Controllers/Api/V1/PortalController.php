@@ -7,6 +7,7 @@ use App\Http\Requests\NotificationIndexRequest;
 use App\Http\Requests\PortalReportIndexRequest;
 use App\Http\Resources\NotificationResource;
 use App\Http\Resources\PortalReportResource;
+use App\Http\Resources\PortalReportTimelineResource;
 use App\Http\Resources\PortalSummaryResource;
 use App\Services\ReporterPortalService;
 use Illuminate\Http\JsonResponse;
@@ -69,6 +70,27 @@ class PortalController extends Controller
             'success' => true,
             'message' => 'Portal report retrieved successfully',
             'data' => new PortalReportResource($report),
+        ]);
+    }
+
+    public function reportTimeline(NotificationIndexRequest $request, string $registrationNumber): JsonResponse
+    {
+        Gate::authorize('accessReporterPortal');
+
+        $timeline = $this->portalService->reportTimeline($request->user(), $registrationNumber);
+
+        if (! $timeline) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Portal report not found',
+                'errors' => null,
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Portal report timeline retrieved successfully',
+            'data' => new PortalReportTimelineResource($timeline),
         ]);
     }
 

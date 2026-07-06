@@ -228,7 +228,30 @@
     "tabRecommendation": "Rekomendasi",
     "tabDecision": "Putusan",
     "tabRecovery": "Pemulihan",
-    "tabEvidence": "Bukti"
+    "tabEvidence": "Bukti",
+    "progress": {
+      "title": "Progress Kasus",
+      "desc": "Riwayat tahapan penanganan kasus berdasarkan data yang tersedia.",
+      "empty": "Belum ada riwayat progres yang dapat ditampilkan.",
+      "events": {
+        "reportSubmitted": "Laporan dikirim",
+        "reportSubmittedDesc": "Laporan diterima oleh sistem.",
+        "forwarded": "Diteruskan ke Satgas",
+        "forwardedDesc": "Laporan diteruskan menjadi kasus.",
+        "satgasAssigned": "Satgas ditugaskan",
+        "satgasAssignedDesc": "Penanganan kasus mulai ditugaskan.",
+        "investigationCreated": "Investigasi dibuat",
+        "investigationCreatedDesc": "Investigasi kasus dimulai.",
+        "recommendationSubmitted": "Rekomendasi dikirim",
+        "recommendationSubmittedDesc": "Rekomendasi dikirim ke pimpinan.",
+        "decisionFinalized": "Putusan final",
+        "decisionFinalizedDesc": "Putusan institusi telah ditetapkan.",
+        "recoveryCompleted": "Pemulihan selesai",
+        "recoveryCompletedDesc": "Tahap pemulihan dinyatakan selesai.",
+        "caseClosed": "Kasus ditutup",
+        "caseClosedDesc": "Kasus dinyatakan selesai dan ditutup."
+      }
+    }
   },
   "sections": {
     "investigations": "Investigasi",
