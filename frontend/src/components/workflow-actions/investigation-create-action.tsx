@@ -36,12 +36,24 @@ import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import { createInvestigation, operationsQueryKeys } from "@/lib/operations-api";
 import type { CaseAssignment } from "@/lib/operations-types";
 
-const investigationCreateSchema = z.object({
-  lead_investigator_id: z.string().min(1, "Required"),
-  plan_summary: z.string().trim().min(50, "Minimum 50 characters").max(5000, "Maximum 5000 characters"),
-});
+function createInvestigationCreateSchema(messages: {
+  required: string;
+  planSummaryRequired: string;
+  planSummaryMin: string;
+  planSummaryMax: string;
+}) {
+  return z.object({
+    lead_investigator_id: z.string().min(1, messages.required),
+    plan_summary: z
+      .string()
+      .trim()
+      .min(1, messages.planSummaryRequired)
+      .min(50, messages.planSummaryMin)
+      .max(5000, messages.planSummaryMax),
+  });
+}
 
-type InvestigationCreateValues = z.infer<typeof investigationCreateSchema>;
+type InvestigationCreateValues = z.infer<ReturnType<typeof createInvestigationCreateSchema>>;
 
 export function InvestigationCreateAction({
   caseId,
@@ -53,6 +65,16 @@ export function InvestigationCreateAction({
   const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
+  const investigationCreateSchema = useMemo(
+    () =>
+      createInvestigationCreateSchema({
+        required: t("dashboard:workflow.required"),
+        planSummaryRequired: t("dashboard:workflow.planSummaryRequired"),
+        planSummaryMin: t("dashboard:workflow.planSummaryMin"),
+        planSummaryMax: t("dashboard:workflow.planSummaryMax"),
+      }),
+    [t],
+  );
   const activeAssignments = useMemo(
     () => assignments.filter((assignment) => assignment.is_active),
     [assignments],
