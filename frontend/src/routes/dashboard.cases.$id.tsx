@@ -483,6 +483,24 @@ function CaseDetail() {
                   description={t("dashboard:cases.actionsDesc")}
                 />
               )}
+              {canUseSatgasActions && c.status === "assessment" ? (
+                <CaseAssessmentAction
+                  caseId={c.id}
+                  currentRiskCode={c.risk_level_code}
+                  currentPriorityCode={c.priority}
+                />
+              ) : (
+                <DisabledWorkflowAction
+                  title={t("dashboard:workflow.assessment.title")}
+                  description={
+                    c.closed_at
+                      ? t("dashboard:workflow.assessment.disabledClosed")
+                      : isAssignedSatgas
+                        ? t("dashboard:workflow.assessment.disabledNeedsStatus")
+                        : t("dashboard:workflow.assessment.disabledNotAssigned")
+                  }
+                />
+              )}
               {canCreateInvestigation && (
                 <InvestigationCreateAction caseId={c.id} assignments={activeAssignments} />
               )}
