@@ -9,7 +9,6 @@ import {
   Gavel,
   Lock,
   Scale,
-  UserRoundSearch,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -113,6 +112,22 @@ const WORKFLOW_TAB_BY_TOKEN: Record<string, WorkflowTab> = {
   recoveries: "recovery",
 };
 
+const NEXT_STEP_STATUSES = [
+  "forwarded",
+  "assessment",
+  "investigation",
+  "mediation",
+  "recommendation",
+  "decision",
+  "decided",
+  "recovery",
+  "monitoring",
+  "closed",
+  "escalated",
+] as const;
+
+const RESTRICTED_ROLE_CODES = ["super_admin", "admin", "satgas_ppks", "reporter"] as const;
+
 export const Route = createFileRoute("/dashboard/cases/$id")({
   component: CaseDetail,
   head: () => ({ meta: [{ title: "Case detail - SILAPPKASAL Admin" }] }),
@@ -209,6 +224,8 @@ function CaseDetail() {
     finalizedDecisionForRecovery !== null &&
     !c.closed_at;
   const defaultWorkflowTab = defaultWorkflowTabForCase(c);
+  const restrictedLabel = restrictedRoleLabel(t, roleCode);
+  const nextStepText = nextStepMessage(t, c, isAssignedSatgas, roleCode);
 
   return (
     <div className="space-y-6">
@@ -262,7 +279,7 @@ function CaseDetail() {
             </CardContent>
           </Card>
 
-          <SensitiveReportSection report={c.report} t={t} />
+          <SensitiveReportSection report={c.report} roleLabel={restrictedLabel} t={t} />
           <Tabs defaultValue={defaultWorkflowTab} className="w-full">
             <TabsList className="w-full flex-wrap justify-start">
               <TabsTrigger value="investigation">{t("dashboard:cases.tabInvestigation")}</TabsTrigger>
@@ -279,6 +296,7 @@ function CaseDetail() {
                 canTransitionStatus={canInvestigate}
                 caseId={c.id}
                 language={i18n.language}
+                roleLabel={restrictedLabel}
                 t={t}
               />
             </TabsContent>
@@ -289,6 +307,7 @@ function CaseDetail() {
                 canUpdate={canRecommend}
                 canTransitionStatus={canRecommend}
                 caseId={c.id}
+                roleLabel={restrictedLabel}
                 t={t}
               />
             </TabsContent>
@@ -300,6 +319,7 @@ function CaseDetail() {
                 canTransitionStatus={canManageDecisionActions}
                 caseId={c.id}
                 language={i18n.language}
+                roleLabel={restrictedLabel}
                 t={t}
               />
             </TabsContent>
@@ -310,6 +330,7 @@ function CaseDetail() {
                 canAddMonitoring={canAddRecoveryMonitoring}
                 canTransitionStatus={canManageRecoveryActions}
                 caseId={c.id}
+                roleLabel={restrictedLabel}
                 t={t}
               />
             </TabsContent>
@@ -326,6 +347,29 @@ function CaseDetail() {
         </div>
 
         <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t("dashboard:cases.currentStatusTitle")}</CardTitle>
+              <CardDescription>{t("dashboard:cases.currentStatusDesc")}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <StatusBadge status={c.status ?? c.status_code} />
+              <div className="text-xs text-muted-foreground">
+                {t("dashboard:common.stage")}: {c.current_stage_label ?? formatCaseStatus(t, c.current_stage ?? c.status ?? c.status_code)}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t("dashboard:cases.nextStep.title")}</CardTitle>
+              <CardDescription>{t("dashboard:cases.nextStep.desc")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm">{nextStepText}</p>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">{t("dashboard:cases.assignments")}</CardTitle>
@@ -370,9 +414,10 @@ function CaseDetail() {
                   </p>
                 </>
               ) : (
-                <Button disabled className="w-full" variant="outline">
-                  <UserRoundSearch className="mr-2 h-4 w-4" /> {t("dashboard:cases.assignSatgas")}
-                </Button>
+                <DisabledWorkflowAction
+                  title={t("dashboard:cases.assignSatgas")}
+                  description={t("dashboard:cases.assignmentManagedBy")}
+                />
               )}
               {canUseSatgasActions ? (
                 <CaseStatusAction caseId={c.id} currentStatus={c.status_code} />
@@ -444,7 +489,7 @@ function CaseDetail() {
   );
 }
 
-function SensitiveReportSection({ report, t }: { report: unknown; t: TFunction }) {
+function SensitiveReportSection({ report, roleLabel, t }: { report: unknown; roleLabel: string; t: TFunction }) {
   if (!report || typeof report !== "object") {
     return (
       <Card>
@@ -452,7 +497,7 @@ function SensitiveReportSection({ report, t }: { report: unknown; t: TFunction }
           <CardTitle className="flex items-center gap-2 text-base">
             <Lock className="h-4 w-4" /> {t("dashboard:cases.sensitiveReport")}
           </CardTitle>
-          <CardDescription>{t("dashboard:cases.sensitiveMetadataOnly")}</CardDescription>
+          <CardDescription>{t("dashboard:cases.restrictedDetail", { roleLabel })}</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -492,6 +537,7 @@ function InvestigationsSection({
   canTransitionStatus,
   caseId,
   language,
+  roleLabel,
   t,
 }: {
   investigations: Investigation[];
@@ -500,6 +546,7 @@ function InvestigationsSection({
   canTransitionStatus: boolean;
   caseId: number | string;
   language: string;
+  roleLabel: string;
   t: TFunction;
 }) {
   return (
@@ -527,7 +574,7 @@ function InvestigationsSection({
               {item.conclusion && <Field label={t("dashboard:sections.conclusion")}>{item.conclusion}</Field>}
             </div>
           ) : (
-            <MetadataOnlyText t={t} />
+            <MetadataOnlyText roleLabel={roleLabel} t={t} />
           )}
         </div>
       ))}
@@ -541,6 +588,7 @@ function RecommendationsSection({
   canUpdate,
   canTransitionStatus,
   caseId,
+  roleLabel,
   t,
 }: {
   recommendations: Recommendation[];
@@ -548,6 +596,7 @@ function RecommendationsSection({
   canUpdate: boolean;
   canTransitionStatus: boolean;
   caseId: number | string;
+  roleLabel: string;
   t: TFunction;
 }) {
   return (
@@ -574,7 +623,7 @@ function RecommendationsSection({
               {item.prevention_recommendation && <Field label={t("dashboard:sections.prevention")}>{item.prevention_recommendation}</Field>}
             </div>
           ) : (
-            <MetadataOnlyText t={t} />
+            <MetadataOnlyText roleLabel={roleLabel} t={t} />
           )}
         </div>
       ))}
@@ -589,6 +638,7 @@ function DecisionsSection({
   canTransitionStatus,
   caseId,
   language,
+  roleLabel,
   t,
 }: {
   decisions: Decision[];
@@ -597,6 +647,7 @@ function DecisionsSection({
   canTransitionStatus: boolean;
   caseId: number | string;
   language: string;
+  roleLabel: string;
   t: TFunction;
 }) {
   return (
@@ -623,7 +674,7 @@ function DecisionsSection({
               {item.decision_content && <Field label={t("dashboard:sections.content")}>{item.decision_content}</Field>}
             </div>
           ) : (
-            <MetadataOnlyText t={t} />
+            <MetadataOnlyText roleLabel={roleLabel} t={t} />
           )}
         </div>
       ))}
@@ -637,6 +688,7 @@ function RecoveriesSection({
   canAddMonitoring,
   canTransitionStatus,
   caseId,
+  roleLabel,
   t,
 }: {
   recoveries: Recovery[];
@@ -644,6 +696,7 @@ function RecoveriesSection({
   canAddMonitoring: boolean;
   canTransitionStatus: boolean;
   caseId: number | string;
+  roleLabel: string;
   t: TFunction;
 }) {
   return (
@@ -654,7 +707,7 @@ function RecoveriesSection({
             <div className="font-medium">{item.recovery_type?.name ?? t("dashboard:sections.recoveryNumber", { id: item.id })}</div>
             <div className="flex flex-wrap items-center gap-2">
               <WorkflowStatusBadge family="recovery" status={item.status} />
-              {canAddMonitoring && <RecoveryMonitoringAction recovery={item} />}
+              {canAddMonitoring && item.status === "ongoing" && <RecoveryMonitoringAction recovery={item} />}
               {canTransitionStatus && !isTerminalRecovery(item) && (
                 <RecoveryStatusAction recovery={item} caseId={caseId} />
               )}
@@ -667,7 +720,7 @@ function RecoveriesSection({
               {item.notes && <Field label={t("dashboard:sections.notes")}>{item.notes}</Field>}
             </div>
           ) : (
-            <MetadataOnlyText t={t} />
+            <MetadataOnlyText roleLabel={roleLabel} t={t} />
           )}
         </div>
       ))}
@@ -777,8 +830,12 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function MetadataOnlyText({ t }: { t: TFunction }) {
-  return <div className="mt-3 text-xs text-muted-foreground">{t("dashboard:common.metadataOnly")}</div>;
+function MetadataOnlyText({ roleLabel, t }: { roleLabel: string; t: TFunction }) {
+  return (
+    <div className="mt-3 text-xs text-muted-foreground">
+      {t("dashboard:cases.restrictedDetail", { roleLabel })}
+    </div>
+  );
 }
 
 function EmptyText({ children }: { children: React.ReactNode }) {
@@ -803,6 +860,46 @@ function defaultWorkflowTabForCase(caseRecord: CaseRecord): WorkflowTab {
   }
 
   return WORKFLOW_TAB_FALLBACK;
+}
+
+function restrictedRoleLabel(t: TFunction, roleCode: string | null | undefined) {
+  const code = roleCode ?? "";
+
+  return (RESTRICTED_ROLE_CODES as readonly string[]).includes(code)
+    ? t(`dashboard:cases.restrictedRoles.${code}`)
+    : t("dashboard:cases.restrictedRoles.unknown");
+}
+
+function nextStepMessage(
+  t: TFunction,
+  caseRecord: CaseRecord,
+  isAssignedSatgas: boolean,
+  roleCode: string | null | undefined,
+) {
+  const token = normalizeWorkflowToken(caseRecord.status ?? caseRecord.status_code);
+  const fallback = t("dashboard:cases.nextStep.fallback");
+
+  if (!(NEXT_STEP_STATUSES as readonly string[]).includes(token)) {
+    return fallback;
+  }
+
+  const audiences = isAssignedSatgas
+    ? ["satgas", "all"]
+    : roleCode === "super_admin"
+      ? ["superAdmin", "admin", "all"]
+      : roleCode === "admin"
+        ? ["admin", "all"]
+        : ["all"];
+
+  for (const audience of audiences) {
+    const text = t(`dashboard:cases.nextStep.${token}.${audience}`, { defaultValue: "" });
+
+    if (text) {
+      return text;
+    }
+  }
+
+  return fallback;
 }
 
 function normalizeWorkflowToken(value: unknown) {
@@ -989,6 +1086,11 @@ function CaseDetailSkeleton() {
           </div>
         </div>
         <div className="space-y-4">
+          <div className="rounded-lg border p-5 space-y-3">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-6 w-28" />
+            <Skeleton className="h-3 w-40" />
+          </div>
           <div className="rounded-lg border p-5 space-y-3">
             <Skeleton className="h-5 w-32" />
             <Skeleton className="h-16 w-full" />
