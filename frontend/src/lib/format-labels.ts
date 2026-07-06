@@ -12,6 +12,7 @@ type LabelNamespace =
   | "recoveryStatus"
   | "evidenceStatus"
   | "evidenceClassification"
+  | "evidenceCustodyEvent"
   | "campusType"
   | "degreeLevel"
   | "registrationStatus"

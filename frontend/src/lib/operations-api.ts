@@ -7,6 +7,7 @@ import type {
   DecisionStatusOptions,
   DecisionStatusPayload,
   DecisionUpdatePayload,
+  EvidenceCreatePayload,
   EvidenceCustodyEvent,
   EvidenceMetadata,
   EvidenceStatusPayload,

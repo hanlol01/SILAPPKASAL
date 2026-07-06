@@ -282,7 +282,16 @@ export interface EvidenceCustodyEvent {
   event_type: string;
   actor?: PersonRef | null;
   event_at: string | null;
-  details?: string | null;
+  details?: Record<string, unknown> | string | null;
+}
+
+export interface EvidenceCreatePayload {
+  evidence_type_code: string;
+  title: string;
+  description?: string | null;
+  source?: string | null;
+  collected_at?: string | null;
+  classification?: string | null;
 }
 
 export interface CaseStatusPayload {
