@@ -117,6 +117,7 @@ class PortalReportTimelineTest extends TestCase
     public function test_timeline_response_contains_no_sensitive_fields_or_internal_codes(): void
     {
         $reporter = $this->makeUser('reporter', 'reporter@example.test');
+        $admin = $this->makeUser('admin', 'admin-handler@example.test', 'Admin Handler Name');
         $satgas = $this->makeUser('satgas_ppks', 'satgas-handler@example.test', 'Satgas Handler Name');
         $report = $this->makeReport($reporter, 'SLP-20260706-0005', ReportStatus::Forwarded, [
             'submitted_at' => now()->subDays(6),
@@ -126,7 +127,7 @@ class PortalReportTimelineTest extends TestCase
         $case = $this->makeCase($report, CaseStatusEnum::Closed, now()->subDay());
         $case->assignments()->create([
             'satgas_id' => $satgas->id,
-            'assigned_by' => null,
+            'assigned_by' => $admin->id,
             'is_lead' => true,
             'is_active' => true,
             'assigned_at' => now()->subDays(4),
@@ -154,6 +155,7 @@ class PortalReportTimelineTest extends TestCase
 
         $raw = $response->getContent();
         $this->assertStringNotContainsString('Satgas Handler Name', $raw);
+        $this->assertStringNotContainsString('Admin Handler Name', $raw);
         $this->assertStringNotContainsString('Sensitive', $raw);
         $this->assertStringNotContainsString('Internal admin notes', $raw);
     }

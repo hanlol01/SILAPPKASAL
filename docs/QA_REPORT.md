@@ -1070,3 +1070,366 @@ PASS
 - QA did not run an authenticated browser walkthrough, so Product Owner should still manually confirm the Satgas dialog in Bahasa Indonesia and English using RC05-ST-011.
 - English locale intentionally contains English user-facing copy. The recheck verified removal of backend/API/RBAC/endpoint/metadata wording from visible locale values, not removal of English copy from the English locale.
 - Build still reports non-blocking bundle-size/TanStack warnings; these are not introduced by the hotfix and do not block RC-05 acceptance.
+
+# REV-01
+
+## Executive Summary
+
+QA reviewed the available workspace for REV-01 Workflow & Detail Polish against `docs/Revisi.md` and `docs/REVISION_PLAN.md`. The requested REV-01 scope was frontend-only and limited to forwarded-report confirmation, role-aware Satgas assignment affordances, case status invalidation, investigation plan helper/counter, current status and next-step guidance, recovery monitoring gating, assignment placeholder cleanup, role-aware restricted-copy, localization, and regression from RC-03 through RC-05.
+
+The implementation in the current workspace does not satisfy REV-01 acceptance criteria and therefore fails QA. TypeScript, production build, and lint all pass at the expected baseline, but several required UX behaviors are missing or incomplete:
+
+- The report detail page does not show the persistent "Kasus sudah diteruskan ke Satgas terpilih" confirmation for forwarded reports.
+- `/dashboard/cases` still renders the global disabled "Aksi penugasan belum tersedia" placeholder.
+- Satgas users still see a disabled "Tugaskan Satgas" button on case detail instead of the required management notice.
+- The case detail action rail does not include the required "Status Kasus Terkini" block or "Langkah Berikutnya" card.
+- The investigation plan field has only a static helper and hardcoded English zod validation strings; no live min-50 counter is present.
+- Completed recoveries still render `RecoveryMonitoringAction`, so "Tambah Monitoring" remains available for terminal recovery rows.
+- Restricted-detail copy has not been replaced with the human-role-label copy required by item 14.
+- Case status mutation refreshes case detail, case list, and dashboard queries, but does not invalidate `["my-work"]` while other workflow mutations do.
+
+Important environment note: `git -c safe.directory='D:/PROJECT CODING/SILAPPKASAL' branch --show-current` returned `main`, not `feature/rev-01-workflow-detail-polish`, and `git status --short` was clean. QA therefore reflects the implementation currently present in this workspace.
+
+## QA Score
+
+58
+
+## PASS / FAIL
+
+FAIL
+
+## Findings
+
+| ID | Area | Result | Evidence |
+|---|---|---|---|
+| QA-REV01-001 | Forwarded-to-Satgas confirmation text | FAIL | `frontend/src/routes/dashboard.reports.$id.tsx` renders status badge, report fields, and action card, but no forwarded-state inline alert/status line. No locale key for `forwardedToSatgasNotice` / equivalent exists in `id` or `en`. |
+| QA-REV01-002 | Role-aware assign action | PARTIAL | Admin/Super Admin still get `SatgasAssignmentAction` on case detail, which preserves the per-case flow. Satgas/non-admin path renders a disabled outline `Button` with `dashboard:cases.assignSatgas`, not the required informational notice. |
+| QA-REV01-003 | Case list assignment placeholder cleanup | FAIL | `frontend/src/routes/dashboard.cases.index.tsx:91-93` still renders disabled global placeholder button using `dashboard:cases.assignmentUnavailable`. This directly violates REV-01 item 12. |
+| QA-REV01-004 | Case status query invalidation | PARTIAL | `CaseStatusAction` invalidates `operationsQueryKeys.case(caseId)`, `["operations", "cases"]`, and `["dashboard"]`, so detail/list/dashboard refresh are covered. It does not invalidate `["my-work"]`, unlike investigation/recommendation/decision/recovery workflow mutations. |
+| QA-REV01-005 | Investigation plan min-50 helper and live counter | FAIL | `investigation-create-action.tsx` uses static helper `dashboard:workflow.planSummaryHelp` only. No watched character count or warning-to-muted color transition exists. Zod messages remain hardcoded English: `"Required"`, `"Minimum 50 characters"`, `"Maximum 5000 characters"`. |
+| QA-REV01-006 | Current Case Status indicator | FAIL | Case header has `StatusBadge`, but the action rail does not include the required compact "Status Kasus Terkini" block at the top of the rail. No matching locale keys exist. |
+| QA-REV01-007 | Next Step card | FAIL | No `Langkah Berikutnya` card or status x role guidance map is present in `dashboard.cases.$id.tsx`. No matching locale keys exist. |
+| QA-REV01-008 | Tambah Monitoring gating | FAIL | `RecoveriesSection` renders `{canAddMonitoring && <RecoveryMonitoringAction recovery={item} />}` without checking `isTerminalRecovery(item)`. Completed/discontinued recovery rows can still show the monitoring action. |
+| QA-REV01-009 | Satgas assignment notice | FAIL | Required copy "Penugasan Satgas dikelola oleh Admin/Pimpinan PPKS." is absent from `dashboard.json` and components. Satgas path gets a disabled button without explanation. |
+| QA-REV01-010 | Sensitive-detail restriction copy | FAIL | Existing sensitive/metadata-only copy remains generic (`sensitiveMetadataOnly`, `sensitiveDesc`, `common.metadataOnly`). The required copy with `{{roleLabel}}` and human role labels is not implemented. |
+| QA-REV01-011 | Frontend design QA | PARTIAL | Existing Card/Button/Dialog primitives remain visually consistent, and case detail skeleton/status badges are intact. Missing REV-01 cards/notices cannot be assessed visually because they are not implemented. The global disabled assignment button still creates an awkward dead affordance on `/dashboard/cases`. |
+| QA-REV01-012 | Localization QA | FAIL | JSON value scan found no visible technical words (`backend`, `API`, `endpoint`, `RBAC`, `payload`, `metadata`, `contract`) in dashboard locale values, which is good. However required new REV-01 keys are absent, and investigation zod validation still has hardcoded English user-facing messages. |
+| QA-REV01-013 | Raw role code exposure | PASS with residual risk | Existing locale maps include human labels for `super_admin`, `admin`, and `satgas_ppks`. Static search did not find these role codes rendered directly in REV-01 user-facing copy, but item 14 copy is still missing. |
+| QA-REV01-014 | RC-03 badge regression | PASS | `StatusBadge` and `ReportStatusBadge` remain used on dashboard case/report surfaces. Portal badge components were not modified in the current workspace. |
+| QA-REV01-015 | RC-04 pagination regression | PASS | `ListPagination`, `FilterResetButton`, `DEFAULT_PAGE_SIZE`, and `keepPreviousData` remain present on list pages. |
+| QA-REV01-016 | RC-05 visual consistency regression | PASS | Shared Card/Dialog/Button/Skeleton primitives remain intact; no implementation file changes were detected in git status. |
+| QA-REV01-017 | Backend/API/routing/RBAC regression | PASS with environment caveat | Current workspace has no uncommitted backend changes and no route diff. Because the workspace is on `main`, QA could not confirm the requested feature branch diff. |
+| QA-REV01-018 | Out-of-scope REV-02/03/04/05 leakage | PASS | No evidence of new timeline, assessment, evidence upload, evidence metadata activation, or reporter evidence flow was found in the REV-01 inspected surfaces. Existing evidence metadata display remains from prior milestones. |
+| QA-REV01-019 | TypeScript | PASS | `npx.cmd tsc --noEmit` from `frontend/` completed with exit code 0. |
+| QA-REV01-020 | Build | PASS | `npm.cmd run build` from `frontend/` completed with exit code 0. Only non-blocking Vite/TanStack chunk-size and unused-import warnings were observed. |
+| QA-REV01-021 | Lint | PASS | `npm.cmd run lint` from `frontend/` completed with 0 errors and 6 known Fast Refresh warnings in shared UI files. |
+
+## Bugs Found
+
+- REV01-BUG-001: Forwarded-to-Satgas confirmation text is missing on report detail.
+- REV01-BUG-002: Global assignment placeholder still appears on `/dashboard/cases`.
+- REV01-BUG-003: Satgas assignment UI still renders a disabled assign button instead of the required management notice.
+- REV01-BUG-004: Current Case Status indicator and Next Step card are missing from case detail action rail.
+- REV01-BUG-005: Investigation plan summary lacks live min-50 counter and still has hardcoded English validation messages.
+- REV01-BUG-006: "Tambah Monitoring" is still offered for completed/discontinued recoveries.
+- REV01-BUG-007: Sensitive-detail restriction copy with human role labels is not implemented.
+- REV01-BUG-008: Case status mutation does not invalidate My Work queries.
+
+## Recommendations
+
+1. Confirm the correct branch is checked out in the workspace before hotfix recheck. Current workspace reports `main`, not `feature/rev-01-workflow-detail-polish`.
+2. Implement only the missing REV-01 frontend scope; do not add REV-02 timelines, REV-03 assessment, or evidence work while fixing REV-01.
+3. Use `user.role.code` for role-aware UI, but never render raw role codes; use the existing `dashboard:enum.role.*` labels or a dedicated role-label map.
+4. Add i18n keys in both `id` and `en`, then run a JSON value scan for forbidden technical words.
+5. Re-run `npx.cmd tsc --noEmit`, `npm.cmd run build`, and `npm.cmd run lint`, then request a focused REV-01 hotfix QA recheck.
+
+## Verification Results
+
+| Check | Command / Method | Result |
+|---|---|---|
+| Branch check | `git -c safe.directory='D:/PROJECT CODING/SILAPPKASAL' branch --show-current` | `main` |
+| Worktree check | `git -c safe.directory='D:/PROJECT CODING/SILAPPKASAL' status --short` | Clean output |
+| REV-01 static inspection | `rg` + direct reads of reports detail, cases list/detail, workflow action dialogs, investigation create action, Satgas assignment action, dashboard locales | FAIL; multiple required REV-01 items missing |
+| Locale visible-value scan | Parsed `id/en dashboard.json` values for forbidden technical words | PASS; no visible forbidden technical words found in locale values |
+| TypeScript | `npx.cmd tsc --noEmit` | PASS |
+| Build | `npm.cmd run build` | PASS; non-blocking Vite/TanStack warnings only |
+| Lint | `npm.cmd run lint` | PASS; 0 errors, 6 known Fast Refresh warnings |
+
+## Remaining Risks
+
+- QA was static/tooling-only and did not run an authenticated browser walkthrough.
+- Because the local workspace is on `main`, this review may not reflect the intended `feature/rev-01-workflow-detail-polish` branch if that branch was not checked out locally.
+- Some existing route `head()` titles remain hardcoded English, but they were not treated as REV-01 bugs unless tied to touched REV-01 scope.
+
+# REV-01 QA Recheck - Correct Branch
+
+## Summary
+
+QA rechecked REV-01 on the correct branch, `feature/rev-01-workflow-detail-polish`. The previous REV-01 QA result is invalid for judging REV-01 implementation because it was executed on `main`.
+
+The correct branch substantially satisfies the REV-01 implementation scope. The forwarded-report confirmation, case-list assignment placeholder removal, Satgas role-aware notice, Current Case Status card, Next Step card, recovery monitoring gating, sensitive-detail role-label copy, case status invalidation, and report-forward invalidation are present.
+
+The recheck still fails because one localization issue remains reproducible: the Create Investigation schema still contains hardcoded English zod validation messages. The helper and live counter are implemented, but the validation copy can still surface English text in the Bahasa Indonesia experience.
+
+## Score
+
+92
+
+## PASS / FAIL
+
+FAIL
+
+## Branch Verified
+
+| Check | Result |
+|---|---|
+| Current branch | `feature/rev-01-workflow-detail-polish` |
+| Worktree scope | Only living QA docs are modified: `docs/QA_REPORT.md`, `docs/BUG_REPORT.md`, `docs/SMOKE_TEST.md` |
+| Previous QA validity | Previous REV-01 QA on `main` is invalid for judging the REV-01 branch |
+
+## Bug Recheck Status
+
+| Bug ID | Status | Recheck Result | Evidence |
+|---|---|---|---|
+| REV01-BUG-001 | Invalid / Not Reproducible on correct branch | PASS | `dashboard.reports.$id.tsx` renders a forwarded `Alert` with `dashboard:reports.forwardedNoticeTitle` and `forwardedNotice`; matching id/en keys exist. |
+| REV01-BUG-002 | Invalid / Not Reproducible on correct branch | PASS | `/dashboard/cases` no longer renders the global disabled assignment placeholder; list page exposes detail navigation only. |
+| REV01-BUG-003 | Invalid / Not Reproducible on correct branch | PASS | Satgas/non-admin branch renders `DisabledWorkflowAction` with `dashboard:cases.assignmentManagedBy`; Admin/Super Admin assignment action remains available. |
+| REV01-BUG-004 | Invalid / Not Reproducible on correct branch | PASS | Case detail action rail renders `dashboard:cases.currentStatusTitle` and `dashboard:cases.nextStep.*` through `nextStepMessage()`. |
+| REV01-BUG-005 | Open | FAIL | Min-50 helper and live counter exist, but `investigation-create-action.tsx` still has hardcoded English zod messages: `"Required"`, `"Minimum 50 characters"`, and `"Maximum 5000 characters"`. |
+| REV01-BUG-006 | Invalid / Not Reproducible on correct branch | PASS | `RecoveriesSection` renders `RecoveryMonitoringAction` only when `canAddMonitoring && item.status === "ongoing"`. |
+| REV01-BUG-007 | Invalid / Not Reproducible on correct branch | PASS | Restricted sections render `dashboard:cases.restrictedDetail` with `roleLabel`; `restrictedRoleLabel()` maps raw role codes to human labels. |
+| REV01-BUG-008 | Invalid / Not Reproducible on correct branch | PASS | `CaseStatusAction` invalidates `["operations", "case"]`, `["operations", "cases"]`, `["dashboard"]`, and `["my-work"]`; no optimistic update was found. |
+
+## REV-01 Acceptance Recheck
+
+| Area | Result | Evidence |
+|---|---|---|
+| Forwarded-to-Satgas confirmation text | PASS | Forwarded report detail shows an info alert using localized forwarded notice keys. |
+| Global assignment placeholder removed | PASS | The case list toolbar contains search, status filter, reset, list, and pagination controls; no global disabled assignment action remains. |
+| Satgas role does not see Admin-only assign affordance | PASS | Non-admin path uses a disabled informational workflow alert instead of the assignment dialog/button. |
+| Current Case Status card exists | PASS | Case detail action rail includes a current status card with `StatusBadge` and current stage text. |
+| Next Step card exists | PASS | Case detail action rail includes role/status-aware next-step copy with fallback. |
+| Investigation min-50 helper and live counter | PARTIAL | Live counter and helper exist; validation messages remain hardcoded English. |
+| Tambah Monitoring hidden/disabled for terminal recovery | PASS | Monitoring action is gated to `item.status === "ongoing"`. |
+| Sensitive-detail restriction copy with human labels | PASS | Restricted copy uses `{{roleLabel}}` and locale-backed labels for Admin, Pimpinan PPKS, Satgas PPKS, Pelapor, and fallback user. |
+| Case status mutation invalidates relevant queries | PASS | Case status mutation invalidates case detail prefix, case list prefix, dashboard, and my-work queries. |
+| Report forward mutation invalidates report detail | PASS | Forward-report success invalidates `["operations", "report"]`, `["operations", "reports"]`, `["operations", "cases"]`, and dashboard queries. |
+
+## Localization QA
+
+| Check | Result | Evidence |
+|---|---|---|
+| id/en REV-01 keys exist | PASS | Forwarded notice, current status, assignment-managed notice, restricted detail, restricted role labels, next-step keys, and plan-summary helper keys exist in both locale files. |
+| Forbidden technical wording in visible locale values | PASS | Parsed dashboard locale value scan found no visible `backend`, `API`, `endpoint`, `RBAC`, `payload`, `metadata`, or `contract` wording. Technical key names remain internal only. |
+| Raw role code exposure | PASS | User-facing restricted copy maps role codes through locale labels. |
+| Hardcoded English in REV-01 touched flow | FAIL | Create Investigation zod schema still contains English validation strings in `investigation-create-action.tsx`. |
+
+## Regression QA
+
+| Area | Result | Evidence |
+|---|---|---|
+| RC-03 badges | PASS | Status/report badge components remain in use; no badge regression found in inspected surfaces. |
+| RC-04 pagination | PASS | Case list retains `ListPagination`, `DEFAULT_PAGE_SIZE`, `keepPreviousData`, page size, and reset behavior. |
+| RC-05 visual consistency | PASS | REV-01 additions reuse existing Card, Alert, StatusBadge, Button, Dialog, and text hierarchy patterns. |
+| Backend/API/routing/RBAC changes | PASS | Static diff check for backend/API/routing/RBAC surfaces returned no implementation file changes in the current worktree. |
+| Out-of-scope REV-02/03/04/05 leakage | PASS | No new timeline, assessment flow, evidence upload, reporter evidence timeline, or final-status portal flow was found in inspected REV-01 surfaces. |
+
+## Verification Results
+
+| Check | Command / Method | Result |
+|---|---|---|
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | PASS |
+| Build | `npm.cmd run build` from `frontend/` | PASS; only non-blocking Vite/TanStack/chunk-size warnings |
+| Lint | `npm.cmd run lint` from `frontend/` | PASS; 0 errors, 6 known Fast Refresh warnings |
+| Locale forbidden value scan | Parsed `frontend/src/locales/id/dashboard.json` and `frontend/src/locales/en/dashboard.json` values | PASS |
+| Manual smoke scope | Reviewed `docs/SMOKE_TEST.md` REV-01 cases | No change needed; existing REV-01 manual cases still cover this recheck scope |
+
+## Remaining Risks
+
+- QA recheck was static/tooling-based and did not include authenticated browser execution as Admin, Super Admin, or Satgas.
+- `REV01-BUG-005` remains Open until Create Investigation validation messages are localized.
+- Existing route `head()` titles and older workflow dialog schemas still contain English literals, but only the Create Investigation schema was counted as a REV-01 blocking issue because it is directly in the requested REV-01 touched flow.
+
+# REV-01 Hotfix QA Recheck - REV01-BUG-005
+
+## Summary
+
+QA rechecked only `REV01-BUG-005` on `feature/rev-01-workflow-detail-polish`. The hotfix resolves the remaining Create Investigation localization issue.
+
+`frontend/src/components/workflow-actions/investigation-create-action.tsx` now builds its zod schema from localized messages passed through `t("dashboard:workflow.*")`. The old hardcoded English validation strings `"Required"`, `"Minimum 50 characters"`, and `"Maximum 5000 characters"` are no longer present in this component. The min-50 helper text and live counter remain intact.
+
+## Score
+
+100
+
+## PASS / FAIL
+
+PASS
+
+## REV01-BUG-005 Status
+
+Verified
+
+## Findings
+
+| ID | Area | Result | Evidence |
+|---|---|---|---|
+| REV01-HF-005-001 | Localized zod validation | PASS | `createInvestigationCreateSchema()` accepts localized messages and uses them for `lead_investigator_id` and `plan_summary` validation. |
+| REV01-HF-005-002 | Indonesian validation copy | PASS | `id/dashboard.json` includes natural copy: `Wajib diisi`, `Ringkasan rencana wajib diisi.`, `Ringkasan rencana minimal 50 karakter.`, and `Ringkasan rencana maksimal 5000 karakter.` |
+| REV01-HF-005-003 | English validation copy | PASS | `en/dashboard.json` includes natural copy: `Required`, `Plan summary is required.`, `Plan summary must be at least 50 characters.`, and `Plan summary must be at most 5000 characters.` |
+| REV01-HF-005-004 | Helper and live counter | PASS | `planSummaryHelp`, `length < 50`, `aria-live="polite"`, and `50/5000` counter behavior remain in `investigation-create-action.tsx`. |
+| REV01-HF-005-005 | Hardcoded English validation in component | PASS | Static search found no `"Required"`, `"Minimum 50 characters"`, or `"Maximum 5000 characters"` string in `investigation-create-action.tsx`. |
+| REV01-HF-005-006 | Unrelated REV-01 behavior | PASS | Recheck scope changed only the Create Investigation validation/localization surface; no unrelated REV-01 behavior was modified by QA. |
+
+## Verification Results
+
+| Check | Command / Method | Result |
+|---|---|---|
+| Branch | `git branch --show-current` | `feature/rev-01-workflow-detail-polish` |
+| TypeScript | `npx.cmd tsc --noEmit` from `frontend/` | PASS |
+| Build | `npm.cmd run build` from `frontend/` | PASS; only known non-blocking Vite/TanStack/chunk-size warnings |
+| Lint | `npm.cmd run lint` from `frontend/` | PASS; 0 errors, 6 existing Fast Refresh warnings |
+
+## Remaining Risks
+
+- QA did not execute an authenticated browser walkthrough, so Product Owner should still manually confirm `REV01-ST-006` in Bahasa Indonesia and English.
+- Other existing workflow dialog schemas outside this requested hotfix scope still contain English literals, but they were not part of `REV01-BUG-005` and were not counted as new bugs in this recheck.
+
+# REV-02
+
+## Executive Summary
+
+QA reviewed REV-02 Case Progress Timelines & Safe Completion Messaging on `feature/rev-02-case-progress-timelines`. The implementation covers the requested scope: internal case detail now has a localized "Progress Kasus" timeline, reporter portal detail consumes a dedicated privacy-filtered timeline endpoint, and completed portal reports render a calm safe completion message.
+
+Frontend implementation and privacy design are generally aligned with `docs/REVISION_PLAN.md`: internal timeline events are derived from real timestamps and omit missing stages; reporter timeline uses only `GET /api/v1/portal/reports/{registrationNumber}/timeline`; the backend resource exposes only safe stage codes, timestamps, portal status, completion state, and registration number.
+
+REV-02 fails QA because backend verification is not green. `php artisan test` fails in the new `PortalReportTimelineTest` privacy test due to an invalid test fixture inserting `case_assignments.assigned_by = null` into a non-nullable column.
+
+## QA Score
+
+88
+
+## PASS / FAIL
+
+FAIL
+
+## Findings
+
+| ID | Area | Result | Evidence |
+|---|---|---|---|
+| QA-REV02-001 | Internal "Progress Kasus" timeline | PASS | `dashboard.cases.$id.tsx` renders a full-width Card with `dashboard:cases.progress.title`, skeleton, empty state, and `ProgressTimeline` events. |
+| QA-REV02-002 | Internal event ordering and omission | PASS | `caseProgressEvents()` filters missing timestamps, sorts chronologically, and maps only existing events. No future events are fabricated. |
+| QA-REV02-003 | Internal operational safety | PASS | Internal timeline labels are operational and localized: report submitted, forwarded, Satgas assigned, investigation created, recommendation submitted, final decision, recovery completed, case closed. No narrative/recommendation/decision/evidence detail is placed in timeline rows. |
+| QA-REV02-004 | Most recent event emphasis | PASS | Shared `ProgressTimeline` emphasizes the last event with primary tone and earlier events with success tone. |
+| QA-REV02-005 | Reporter-safe timeline endpoint | PASS | Route exists: `GET /api/v1/portal/reports/{registrationNumber}/timeline`, under `auth:sanctum` portal routes and guarded by `Gate::authorize('accessReporterPortal')`. |
+| QA-REV02-006 | Reporter ownership scoping | PASS | `ReporterPortalService::reportTimeline()` uses `ownedReportsQuery($user)` and tests assert another reporter's report returns 404, guests return 401, and non-reporters return 403. |
+| QA-REV02-007 | Reporter-safe response shape | PASS | `PortalReportTimelineResource` returns only `registration_number`, `portal_status`, `is_completed`, and `events`; events contain only `stage` and `occurred_at`. |
+| QA-REV02-008 | Reporter frontend data source | PASS | `portal.reports.$registrationNumber.tsx` uses `getPortalReportTimeline()` and maps only safe `PortalTimelineEvent` stages. It does not reconstruct progress from internal case data. |
+| QA-REV02-009 | Sensitive data exposure | PASS | Static inspection found no Satgas names, Admin names, recommendations, decisions, evidence details, sanctions, recovery notes, staff identities, raw internal status codes, or internal narratives in reporter timeline payload/resource. |
+| QA-REV02-010 | Completion message | PASS | Portal detail renders completion card only when `report.portal_status.toLowerCase() === "completed"` and uses localized `completionTitle` / `completionMessage`. |
+| QA-REV02-011 | Frontend design | PASS | Shared vertical timeline uses one event per row, aligned icon circles and connector lines, skeleton rows, empty state, and mobile-safe flex layout with no forced horizontal width. |
+| QA-REV02-012 | Localization | PASS | New `dashboard` and `portal` strings exist in id/en. Locale value scan found no visible `backend`, `API`, `endpoint`, `RBAC`, `payload`, `metadata`, or `contract` wording. |
+| QA-REV02-013 | Regression REV-01 | PASS | Case detail right rail and workflow actions remain present; REV-01 status/next-step/assignment/recovery-monitoring patterns are unchanged in inspected file. |
+| QA-REV02-014 | Regression RC-03 / RC-04 / RC-05 | PASS | Portal status/type badges remain used; case list pagination files were not modified by REV-02; timeline UI reuses existing Card/Skeleton/Typography primitives. |
+| QA-REV02-015 | Out-of-scope REV-03/04/05 leakage | PASS | No assessment form, evidence upload, evidence custody UI expansion, or reporter evidence attachment flow was introduced in REV-02 inspected scope. |
+| QA-REV02-016 | Backend route list | PASS | `php artisan route:list --path=api/v1` completed and showed the new portal timeline route. |
+| QA-REV02-017 | Backend tests | FAIL | `php artisan test` failed: `PortalReportTimelineTest > timeline response contains no sensitive fields or internal codes` with non-null `case_assignments.assigned_by` constraint violation. |
+
+## Bugs Found
+
+- REV02-BUG-001: Backend test suite fails in the new reporter-safe timeline privacy test because the fixture inserts `case_assignments.assigned_by = null`.
+
+## Frontend Verification Results
+
+| Command | Result |
+|---|---|
+| `npx.cmd tsc --noEmit` | PASS |
+| `npm.cmd run build` | PASS; only known non-blocking Vite/TanStack/chunk-size warnings |
+| `npm.cmd run lint` | PASS; 0 errors, 6 existing Fast Refresh warnings |
+
+## Backend Verification Results
+
+| Command | Result |
+|---|---|
+| `php artisan route:list --path=api/v1` | PASS; `GET api/v1/portal/reports/{registrationNumber}/timeline` is registered |
+| `php artisan test` | FAIL; 1 failed, 180 passed, 1585 assertions |
+
+## Privacy Verification
+
+| Check | Result |
+|---|---|
+| Reporter timeline consumes safe portal API only | PASS |
+| Frontend avoids internal case reconstruction | PASS |
+| Own-report scoping | PASS by service implementation and feature tests |
+| Unauthorized access blocked | PASS by route middleware/gate and feature tests |
+| Response excludes sensitive fields | PASS by resource shape and feature test intent; full suite currently blocked by fixture bug |
+| No Satgas/Admin names or staff identities in reporter timeline | PASS |
+| No recommendation, decision, evidence, sanction, recovery notes, or internal narratives in reporter timeline | PASS |
+| No raw internal status codes in reporter timeline UI | PASS |
+
+## Localization Verification
+
+New id/en strings are present for internal progress, portal progress, safe stages, empty/error states, and completion message. Bahasa Indonesia copy is calm and readable, and reporter-facing copy avoids sensitive details. Parsed locale values across REV-02 dashboard/portal files did not expose forbidden technical wording.
+
+## Regression Result
+
+REV-01 workflow detail polish, RC-03 badges, RC-04 pagination, and RC-05 visual consistency remain intact by static inspection. No REV-03, REV-04, or REV-05 work was found in the inspected REV-02 scope.
+
+## Recommended Human Smoke Test
+
+Product Owner should execute the `REV02-ST-*` cases added to `docs/SMOKE_TEST.md`, especially Admin/Satgas internal timeline, Reporter own-report safe timeline, unauthorized reporter access, completed report message, Bahasa Indonesia/English localization, and mobile 360px timeline layout.
+
+## Remaining Risks
+
+- QA did not run an authenticated browser walkthrough, so visual/mobile behavior is static-review only.
+- Backend full test suite must be green before REV-02 can be accepted.
+- The failing backend test appears to be a fixture issue rather than a timeline privacy leak, but it still blocks QA PASS because the required backend verification does not pass.
+
+# REV-02 Hotfix QA Recheck - REV02-BUG-001
+
+## Summary
+
+QA rechecked only `REV02-BUG-001` on `feature/rev-02-case-progress-timelines`. The hotfix resolves the backend test failure without weakening the database constraint or privacy assertions.
+
+`PortalReportTimelineTest` now creates a valid Admin user and uses that user ID for `case_assignments.assigned_by`. The `case_assignments.assigned_by` migration remains non-nullable, and the test adds an assertion that the Admin handler name is not present in the reporter-safe timeline response.
+
+## Score
+
+100
+
+## PASS / FAIL
+
+PASS
+
+## REV02-BUG-001 Status
+
+Verified
+
+## Findings
+
+| ID | Area | Result | Evidence |
+|---|---|---|---|
+| REV02-HF-001-001 | Valid `assigned_by` fixture | PASS | `PortalReportTimelineTest` creates `$admin = $this->makeUser('admin', ...)` and sets `'assigned_by' => $admin->id`. |
+| REV02-HF-001-002 | Database constraint preserved | PASS | Migration still defines `$table->foreignId('assigned_by')->constrained('users')->cascadeOnDelete();`; it was not made nullable. |
+| REV02-HF-001-003 | Portal timeline behavior unchanged | PASS | Route/service/resource code was not modified by the hotfix; only the backend test fixture changed. |
+| REV02-HF-001-004 | Privacy assertions preserved | PASS | Existing `assertJsonMissing*` and safe-stage assertions remain, and the hotfix adds `assertStringNotContainsString('Admin Handler Name', $raw)`. |
+| REV02-HF-001-005 | No skipped/removed assertions | PASS | Static inspection found no `markTestSkipped`, skip call, or removed privacy assertion in the hotfix diff. |
+
+## Backend Test Result
+
+| Command | Result |
+|---|---|
+| `php artisan test --filter=PortalReportTimelineTest` | PASS; 6 tests, 50 assertions |
+| `php artisan test` | PASS; 181 tests, 1608 assertions |
+
+## Frontend Verification Result
+
+Not applicable. Hotfix diff contains no frontend implementation files; only `backend/api/tests/Feature/PortalReportTimelineTest.php` changed outside living QA docs.
+
+## Privacy Regression Result
+
+PASS. Reporter timeline privacy coverage is unchanged or stronger: the test still checks safe stages, absence of internal status codes and sensitive fields, absence of Satgas handler name, and now also absence of Admin handler name.
+
+## Remaining Risks
+
+- QA did not perform an authenticated browser walkthrough. Product Owner should still run the existing `REV02-ST-*` manual smoke tests for visual/mobile confirmation.
