@@ -123,14 +123,77 @@
     "actionsDesc": "Pilih Satgas yang menangani laporan ini.",
     "satgasHint": "Pilih satu atau lebih Satgas dan tentukan ketua dari pengguna terpilih.",
     "allReports": "Semua laporan",
-    "couldNotLoad": "Laporan tidak dapat dimuat."
+    "couldNotLoad": "Laporan tidak dapat dimuat.",
+    "forwardedNoticeTitle": "Laporan sudah diteruskan",
+    "forwardedNotice": "Kasus sudah diteruskan ke Satgas terpilih."
   },
   "cases": {
     "title": "Kasus",
     "subtitle": "Telusuri kasus sesuai cakupan akses dan penugasan pengguna.",
     "search": "Cari nomor kasus, registrasi, status...",
-    "assignmentUnavailable": "Aksi penugasan belum tersedia",
-    "assignmentUnavailableTitle": "Memerlukan pencarian pengguna Satgas yang disetujui",
+    "currentStatusTitle": "Status Kasus Terkini",
+    "currentStatusDesc": "Status terbaru kasus ini.",
+    "assignmentManagedBy": "Penugasan Satgas dikelola oleh Admin/Pimpinan PPKS.",
+    "restrictedDetail": "Akses detail dibatasi untuk menjaga kerahasiaan laporan. Pengguna dengan peran {{roleLabel}} hanya dapat melihat ringkasan operasional.",
+    "restrictedRoles": {
+      "super_admin": "Pimpinan PPKS",
+      "admin": "Admin",
+      "satgas_ppks": "Satgas PPKS",
+      "reporter": "Pelapor",
+      "unknown": "Pengguna"
+    },
+    "nextStep": {
+      "title": "Langkah Berikutnya",
+      "desc": "Arahan singkat sesuai status kasus dan peran Anda.",
+      "fallback": "Ikuti aksi alur kerja yang tersedia pada panel aksi.",
+      "forwarded": {
+        "all": "Kasus menunggu tahap asesmen dimulai.",
+        "satgas": "Mulai penanganan dengan mengubah status kasus ke tahap asesmen.",
+        "admin": "Pastikan Satgas yang menangani sudah ditugaskan melalui panel aksi."
+      },
+      "assessment": {
+        "all": "Asesmen risiko sedang berlangsung.",
+        "satgas": "Selesaikan asesmen, lalu lanjutkan status kasus ke tahap investigasi.",
+        "admin": "Satgas sedang melakukan asesmen risiko atas kasus ini."
+      },
+      "investigation": {
+        "all": "Tahap investigasi sedang berjalan.",
+        "satgas": "Buat investigasi dan catat aktivitas melalui tab Investigasi.",
+        "admin": "Investigasi sedang dilakukan oleh Satgas yang ditugaskan."
+      },
+      "mediation": {
+        "all": "Proses mediasi sedang berjalan.",
+        "satgas": "Lanjutkan proses mediasi dan perbarui status kasus setelah selesai."
+      },
+      "recommendation": {
+        "all": "Menunggu rekomendasi disusun.",
+        "satgas": "Susun rekomendasi melalui tab Rekomendasi, lalu kirim ke pimpinan.",
+        "admin": "Menunggu rekomendasi dari Satgas yang ditugaskan."
+      },
+      "decision": {
+        "all": "Menunggu putusan dari Pimpinan PPKS.",
+        "superAdmin": "Buat putusan melalui tab Putusan berdasarkan rekomendasi yang dikirim."
+      },
+      "decided": {
+        "all": "Putusan telah dikeluarkan. Tahap pemulihan dapat disiapkan.",
+        "admin": "Siapkan rencana pemulihan melalui tab Pemulihan."
+      },
+      "recovery": {
+        "all": "Tahap pemulihan sedang berjalan.",
+        "satgas": "Tambahkan monitoring pemulihan untuk kasus yang Anda tangani.",
+        "admin": "Pantau pemulihan dan perbarui statusnya bila diperlukan."
+      },
+      "monitoring": {
+        "all": "Monitoring pasca kasus sedang berjalan.",
+        "satgas": "Lanjutkan monitoring berkala hingga pemulihan dinyatakan selesai."
+      },
+      "closed": {
+        "all": "Kasus telah ditutup. Tidak ada tindakan lanjutan yang diperlukan."
+      },
+      "escalated": {
+        "all": "Kasus dieskalasi. Koordinasikan tindak lanjut melalui kanal resmi."
+      }
+    },
     "loading": "Memuat kasus...",
     "error": "Kasus tidak dapat dimuat.",
     "empty": "Tidak ada kasus yang cocok dengan filter.",
@@ -316,6 +379,9 @@
     "planSummary": "Ringkasan rencana",
     "planSummaryPlaceholder": "Jelaskan rencana investigasi, ruang lingkup, dan langkah penanganan awal.",
     "planSummaryHelp": "Wajib, minimal 50 karakter.",
+    "planSummaryRequired": "Ringkasan rencana wajib diisi.",
+    "planSummaryMin": "Ringkasan rencana minimal 50 karakter.",
+    "planSummaryMax": "Ringkasan rencana maksimal 5000 karakter.",
     "required": "Wajib diisi",
     "min50": "Minimal 50 karakter",
     "max5000": "Maksimal 5000 karakter",

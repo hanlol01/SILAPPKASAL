@@ -123,14 +123,77 @@
     "actionsDesc": "Choose the Satgas members who will handle this report.",
     "satgasHint": "Select one or more Satgas users and choose a lead from the selected users.",
     "allReports": "All reports",
-    "couldNotLoad": "Report could not be loaded."
+    "couldNotLoad": "Report could not be loaded.",
+    "forwardedNoticeTitle": "Report forwarded",
+    "forwardedNotice": "The case has been forwarded to the selected Satgas."
   },
   "cases": {
     "title": "Cases",
     "subtitle": "Browse cases according to your access and assignment scope.",
     "search": "Search case number, registration, status...",
-    "assignmentUnavailable": "Assignment action unavailable",
-    "assignmentUnavailableTitle": "Requires an approved Satgas user lookup",
+    "currentStatusTitle": "Current Case Status",
+    "currentStatusDesc": "The latest status of this case.",
+    "assignmentManagedBy": "Satgas assignment is managed by the Admin/PPKS Leadership.",
+    "restrictedDetail": "Detail access is limited to protect report confidentiality. Users with the {{roleLabel}} role can only view an operational summary.",
+    "restrictedRoles": {
+      "super_admin": "PPKS Leadership",
+      "admin": "Admin",
+      "satgas_ppks": "Satgas PPKS",
+      "reporter": "Reporter",
+      "unknown": "User"
+    },
+    "nextStep": {
+      "title": "Next Step",
+      "desc": "Short guidance based on the case status and your role.",
+      "fallback": "Follow the workflow actions available in the action panel.",
+      "forwarded": {
+        "all": "The case is waiting for the assessment stage to begin.",
+        "satgas": "Start handling by moving the case status to the assessment stage.",
+        "admin": "Make sure the handling Satgas has been assigned from the action panel."
+      },
+      "assessment": {
+        "all": "Risk assessment is in progress.",
+        "satgas": "Complete the assessment, then move the case status to the investigation stage.",
+        "admin": "The Satgas is conducting a risk assessment for this case."
+      },
+      "investigation": {
+        "all": "The investigation stage is in progress.",
+        "satgas": "Create the investigation and record activities in the Investigation tab.",
+        "admin": "The investigation is being carried out by the assigned Satgas."
+      },
+      "mediation": {
+        "all": "The mediation process is in progress.",
+        "satgas": "Continue the mediation process and update the case status once finished."
+      },
+      "recommendation": {
+        "all": "Waiting for the recommendation to be prepared.",
+        "satgas": "Prepare the recommendation in the Recommendation tab, then submit it to the leadership.",
+        "admin": "Waiting for the recommendation from the assigned Satgas."
+      },
+      "decision": {
+        "all": "Waiting for the decision from the PPKS Leadership.",
+        "superAdmin": "Create the decision in the Decision tab based on the submitted recommendation."
+      },
+      "decided": {
+        "all": "The decision has been issued. The recovery stage can be prepared.",
+        "admin": "Prepare the recovery plan in the Recovery tab."
+      },
+      "recovery": {
+        "all": "The recovery stage is in progress.",
+        "satgas": "Add recovery monitoring for the case you are handling.",
+        "admin": "Monitor the recovery and update its status when needed."
+      },
+      "monitoring": {
+        "all": "Post-case monitoring is in progress.",
+        "satgas": "Continue periodic monitoring until recovery is completed."
+      },
+      "closed": {
+        "all": "The case has been closed. No further action is required."
+      },
+      "escalated": {
+        "all": "The case has been escalated. Coordinate follow-up through official channels."
+      }
+    },
     "loading": "Loading cases...",
     "error": "Cases could not be loaded.",
     "empty": "No cases match your filters.",
@@ -316,6 +379,9 @@
     "planSummary": "Plan summary",
     "planSummaryPlaceholder": "Describe the investigation plan, scope, and initial handling steps.",
     "planSummaryHelp": "Required, minimum 50 characters.",
+    "planSummaryRequired": "Plan summary is required.",
+    "planSummaryMin": "Plan summary must be at least 50 characters.",
+    "planSummaryMax": "Plan summary must be at most 5000 characters.",
     "required": "Required",
     "min50": "Minimum 50 characters",
     "max5000": "Maximum 5000 characters",

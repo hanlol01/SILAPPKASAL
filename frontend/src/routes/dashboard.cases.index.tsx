@@ -83,14 +83,9 @@ function CasesPage() {
   return (
     <div className="space-y-6">
       <PageBreadcrumb crumbs={[{ label: t("dashboard:cases.title") }]} />
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard:cases.title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("dashboard:cases.subtitle")}</p>
-        </div>
-        <Button disabled variant="outline" title={t("dashboard:cases.assignmentUnavailableTitle")}>
-          {t("dashboard:cases.assignmentUnavailable")}
-        </Button>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard:cases.title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("dashboard:cases.subtitle")}</p>
       </div>
 
       <Card>

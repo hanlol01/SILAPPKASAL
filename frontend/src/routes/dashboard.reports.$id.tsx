@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Lock } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Lock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AccessDenied } from "@/components/access-denied";
 import { BreakGlassRequestDialog } from "@/components/admin/break-glass-request-dialog";
 import { QueryErrorState } from "@/components/query-state";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { ReportStatusBadge } from "@/components/status-badge";
 import {
@@ -92,6 +93,14 @@ function ReportDetailPage() {
           )}
         </div>
       </div>
+
+      {report.status === "forwarded" && (
+        <Alert className="border-info/30 bg-info/10 [&>svg]:text-info">
+          <CheckCircle2 className="h-4 w-4" />
+          <AlertTitle>{t("dashboard:reports.forwardedNoticeTitle")}</AlertTitle>
+          <AlertDescription>{t("dashboard:reports.forwardedNotice")}</AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
