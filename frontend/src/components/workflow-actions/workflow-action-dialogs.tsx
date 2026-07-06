@@ -64,7 +64,7 @@ import type {
 import {
   DECISION_OUTCOMES,
   EVIDENCE_CLASSIFICATIONS,
-  EVIDENCE_STATUSES,
+  EVIDENCE_STATUS_TRANSITIONS,
   INVESTIGATION_ACTIVITY_TYPES,
   labelOption,
 } from "@/lib/workflow-action-options";
