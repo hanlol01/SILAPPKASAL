@@ -112,3 +112,9 @@ No new RC-04 bugs were found during QA.
 | Bug ID | Severity | Status | Affected Page | Expected Behavior | Actual Behavior | Possible Root Cause | Recommended Fix |
 |---|---|---|---|---|---|---|---|
 | REV02-BUG-001 | High | Verified | Backend test suite / reporter-safe timeline privacy test | REV-02 backend verification should pass, including feature tests for reporter-safe timeline privacy and access control. | Verified fixed in REV-02 hotfix QA recheck: `PortalReportTimelineTest` now creates a valid Admin user and uses that ID for `case_assignments.assigned_by`; the test also asserts the Admin name is not leaked. `php artisan test --filter=PortalReportTimelineTest` passed 6 tests / 50 assertions, and full `php artisan test` passed 181 tests / 1608 assertions. | Previous root cause was a test fixture inserting `assigned_by => null` into a non-nullable `case_assignments.assigned_by` column. Hotfix corrected the fixture without weakening privacy assertions. | No further fix required. Keep REV-02 smoke tests for manual portal timeline and privacy validation. |
+
+# REV-03
+
+## Bugs Found During QA
+
+No new REV-03 bugs were found during QA.

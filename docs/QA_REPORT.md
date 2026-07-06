@@ -1433,3 +1433,94 @@ PASS. Reporter timeline privacy coverage is unchanged or stronger: the test stil
 ## Remaining Risks
 
 - QA did not perform an authenticated browser walkthrough. Product Owner should still run the existing `REV02-ST-*` manual smoke tests for visual/mobile confirmation.
+
+# REV-03
+
+## Executive Summary
+
+QA reviewed REV-03 Risk & Priority Assessment Flow on `feature/rev-03-risk-priority-assessment`. The implementation is focused on the requested REV-03 scope: assigned Satgas PPKS can record case risk and handling priority during the assessment stage; non-assigned Satgas, Admin, Super Admin, and Reporter are rejected for write; recorded values are shown as readable localized badges in internal case detail.
+
+Backend, frontend, localization, privacy, and regression checks passed. No REV-03 bugs were found.
+
+## QA Score
+
+96
+
+## PASS / FAIL
+
+PASS
+
+## Findings
+
+| ID | Area | Result | Evidence |
+|---|---|---|---|
+| QA-REV03-001 | Assessment route | PASS | `PATCH api/v1/cases/{case}/assessment` is registered under authenticated `api/v1/cases` routes and maps to `CaseController@updateAssessment`. |
+| QA-REV03-002 | Request validation | PASS | `CaseAssessmentRequest` requires `risk_level_code` and `priority_level_code`, limits both to strings max 10 chars, and validates active codes against `risk_levels` and `priority_levels`. |
+| QA-REV03-003 | Backend authorization | PASS | `CasePolicy::recordAssessment()` allows only non-closed cases readable by assigned Satgas PPKS; feature tests reject non-assigned Satgas, Admin, Super Admin, and Reporter. |
+| QA-REV03-004 | Status guard | PASS | `CaseService::recordAssessment()` locks the case row and rejects assessment recording unless current status is `assessment`; closed cases are also rejected. |
+| QA-REV03-005 | Persistence and audit | PASS | Service writes `risk_level_code` and `priority_code`, records `case.assessment_recorded` audit log, and dispatches assessment notification. |
+| QA-REV03-006 | Response envelope and privacy | PASS | Controller returns `success`, `message`, and `data`; feature test asserts reporter-sensitive chronology/respondent/witness content is absent from assessment response. |
+| QA-REV03-007 | Schema/migration scope | PASS | No new migration or broad schema change was introduced; existing nullable `cases.risk_level_code` and `cases.priority_code` foreign keys are preserved. |
+| QA-REV03-008 | Frontend action visibility | PASS | Case detail renders `CaseAssessmentAction` only when `canUseSatgasActions && c.status === "assessment"`; otherwise it renders localized `DisabledWorkflowAction` messaging. |
+| QA-REV03-009 | Form architecture | PASS | Dialog uses React Hook Form, zod resolver, shadcn form/select components, localized validation messages, and `applyLaravelErrors()` for Laravel 422 field errors. |
+| QA-REV03-010 | Master data source | PASS | Risk options load from `master/risk-levels`; priority options load from `master/priority-levels`; options are formatted through locale-aware helpers. |
+| QA-REV03-011 | Query invalidation | PASS | On success, case detail, case list, dashboard, and my-work query groups are invalidated; no optimistic update was introduced. |
+| QA-REV03-012 | Readable badges | PASS | `RiskLevelBadge` and `PriorityLevelBadge` render icon-backed, tone-coded badges using localized labels for both master names and codes. |
+| QA-REV03-013 | Reporter privacy | PASS | Reporter portal files are not modified by REV-03; static search found no portal exposure of risk/priority assessment details. REV-02 portal timeline privacy tests remain passing. |
+| QA-REV03-014 | Localization | PASS | New `dashboard:workflow.assessment.*`, `dashboard:enum.riskLevel.*`, and `dashboard:enum.priorityLevel.*` keys exist in id/en. No new hardcoded English user-facing strings were found in the assessment component. |
+| QA-REV03-015 | Technical wording | PASS | New visible locale values avoid `backend`, `API`, `endpoint`, `RBAC`, `payload`, `metadata`, and `contract` jargon. Existing technical-looking key names are not user-facing copy. |
+| QA-REV03-016 | Design and responsive review | PASS | Dialog spacing, action button hierarchy, helper text, badges, and wrapping containers follow existing Card/Dialog/Button patterns and are mobile-safe by static layout review. |
+| QA-REV03-017 | Regression | PASS | REV-01 workflow detail polish, REV-02 timelines, RC-03 badges, RC-04 pagination, and RC-05 visual consistency remain intact by diff/static inspection and full verification commands. No REV-04/REV-05 evidence work was introduced. |
+
+## Backend Verification Results
+
+| Command | Result |
+|---|---|
+| `php artisan migrate` | PASS; nothing to migrate |
+| `php artisan route:list --path=api/v1` | PASS; assessment route is present |
+| `php artisan test` | PASS; 188 tests, 1646 assertions |
+
+## Frontend Verification Results
+
+| Command | Result |
+|---|---|
+| `npx.cmd tsc --noEmit` | PASS |
+| `npm.cmd run build` | PASS; only known non-blocking Lovable/Vite/TanStack/chunk-size warnings |
+| `npm.cmd run lint` | PASS; 0 errors, 6 existing Fast Refresh warnings |
+
+## Authorization Verification
+
+| Scenario | Result |
+|---|---|
+| Assigned Satgas PPKS records assessment while case is in assessment | PASS |
+| Non-assigned Satgas PPKS writes assessment | PASS; rejected |
+| Admin writes assessment | PASS; rejected |
+| Super Admin writes assessment | PASS; rejected |
+| Reporter writes assessment | PASS; rejected |
+| Closed case receives assessment | PASS; rejected |
+| Non-assessment case receives assessment | PASS; rejected |
+
+## Validation Verification
+
+Risk and priority codes are required, string-limited, and validated against active master data. Invalid `RISK-*` and `PRIO-*` codes are covered by `CaseAssessmentTest` and return Laravel validation errors that the frontend maps back to fields.
+
+## Privacy Verification
+
+Assessment response is case metadata only and excludes reporter chronology, respondent details, witness info, and other sensitive narrative content. Reporter portal remains untouched and does not expose risk, priority, or assessment detail.
+
+## Localization Verification
+
+Bahasa Indonesia copy is natural (`Asesmen Risiko & Prioritas`, `Tingkat risiko wajib dipilih.`, `Prioritas penanganan wajib dipilih.`), English copy is natural, and risk/priority enum labels support both backend code values and master-data names.
+
+## Regression Result
+
+PASS. Required backend/frontend commands passed, and static inspection found no backend API contract drift outside the new assessment endpoint, no routing/RBAC regression, no portal privacy regression, and no accidental REV-04/REV-05 evidence implementation.
+
+## Recommended Human Smoke Test
+
+Product Owner should execute the `REV03-ST-*` cases added to `docs/SMOKE_TEST.md`, especially assigned Satgas success, role rejection, non-assessment status rejection, 422 field mapping, badge display, portal privacy, mobile 360px dialog, and id/en localization checks.
+
+## Remaining Risks
+
+- QA did not perform an authenticated browser walkthrough, so visual/mobile behavior is static-review only.
+- The assessment write path is covered by feature tests, but Product Owner should still confirm real seeded master-data options and field-level 422 behavior manually in the browser.
