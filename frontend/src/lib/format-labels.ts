@@ -180,6 +180,10 @@ export function formatEvidenceClassification(t: TFunction, value: LabelValue) {
   return translatedLabel(t, "evidenceClassification", value);
 }
 
+export function formatEvidenceCustodyEvent(t: TFunction, value: LabelValue) {
+  return translatedLabel(t, "evidenceCustodyEvent", value);
+}
+
 export function formatCampusType(t: TFunction, value: LabelValue) {
   return translatedLabel(t, "campusType", value);
 }

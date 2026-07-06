@@ -274,6 +274,13 @@ export function createRecoveryMonitoring(id: string | number, payload: RecoveryM
   });
 }
 
+export function createEvidence(investigationId: string | number, payload: EvidenceCreatePayload) {
+  return apiRequest<EvidenceMetadata>(`/investigations/${investigationId}/evidences`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function updateEvidenceMetadata(id: string | number, payload: EvidenceUpdatePayload) {
   return apiRequest<EvidenceMetadata>(`/evidences/${id}`, {
     method: "PATCH",
