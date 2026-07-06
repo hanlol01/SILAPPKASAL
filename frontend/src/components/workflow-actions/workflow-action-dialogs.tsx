@@ -110,7 +110,7 @@ const evidenceMetadataSchema = z.object({
   collected_at: z.string().optional().refine((value) => !value || value <= today, "Date cannot be in the future"),
   classification: z.enum(EVIDENCE_CLASSIFICATIONS).optional(),
 });
-const evidenceStatusSchema = z.object({ status: z.enum(EVIDENCE_STATUSES) });
+const evidenceStatusSchema = z.object({ status: z.string().min(1, "Required") });
 
 type CaseStatusValues = z.infer<typeof caseStatusSchema>;
 type ActivityValues = z.infer<typeof activitySchema>;
