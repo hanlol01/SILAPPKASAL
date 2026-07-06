@@ -294,8 +294,16 @@ function CaseDetail() {
               <Field label={t("dashboard:reports.registration")}>{c.registration_number}</Field>
               <Field label={t("dashboard:common.status")}>{formatCaseStatus(t, c.status ?? c.status_code)}</Field>
               <Field label={t("dashboard:common.stage")}>{c.current_stage_label ?? formatCaseStatus(t, c.current_stage ?? "-")}</Field>
-              <Field label={t("dashboard:common.risk")}>{formatRiskValue(t, c.risk_level ?? c.risk_level_code)}</Field>
-              <Field label={t("dashboard:common.priority")}>{formatPriorityValue(t, c.priority)}</Field>
+              <Field label={t("dashboard:common.risk")}>
+                {(c.risk_level ?? c.risk_level_code) ? (
+                  <RiskLevelBadge value={c.risk_level ?? c.risk_level_code} />
+                ) : (
+                  formatRiskValue(t, c.risk_level ?? c.risk_level_code)
+                )}
+              </Field>
+              <Field label={t("dashboard:common.priority")}>
+                {c.priority ? <PriorityLevelBadge value={c.priority} /> : formatPriorityValue(t, c.priority)}
+              </Field>
               <Field label={t("dashboard:common.forwarded")}>{formatDate(c.forwarded_at, i18n.language)}</Field>
               <Field label={t("dashboard:common.closed")}>{formatDate(c.closed_at, i18n.language)}</Field>
             </CardContent>
