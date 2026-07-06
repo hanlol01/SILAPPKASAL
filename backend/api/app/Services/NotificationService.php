@@ -26,6 +26,23 @@ class NotificationService
     public const TYPE_DECISION_STATUS_CHANGED = 'NOTIF-19';
     public const TYPE_RECOVERY_CREATED = 'NOTIF-20';
     public const TYPE_RECOVERY_STATUS_CHANGED = 'NOTIF-21';
+    public const TYPE_CASE_ASSESSMENT_RECORDED = 'NOTIF-22';
+
+    public function caseAssessmentRecorded(CaseRecord $case): void
+    {
+        $case->loadMissing('activeAssignments.satgas');
+
+        $this->send($this->activeAssignedSatgas($case), [
+            'notification_type_code' => self::TYPE_CASE_ASSESSMENT_RECORDED,
+            'event' => 'case_assessment_recorded',
+            'title' => 'Case assessment recorded',
+            'body' => 'A risk and priority assessment has been recorded for an assigned case.',
+            'subject_type' => 'case',
+            'subject_id' => $case->id,
+            'case_id' => $case->id,
+            'status_code' => $case->status_code,
+        ]);
+    }
 
     /**
      * @param list<int> $satgasIds

@@ -16,8 +16,67 @@ use Illuminate\Support\Facades\DB;
 
 class CaseService
 {
-    public function __construct(private readonly NotificationService $notificationService)
+    public function __construct(
+        private readonly NotificationService $notificationService,
+        private readonly AuditLogService $auditLogService,
+    ) {
+    }
+
+    /**
+     * Records the risk and priority assessment for a case that is currently
+     * in the assessment status. Master data validity is enforced by the form
+     * request; this method enforces the case-status invariant transactionally.
+     *
+     * @param array<string, mixed> $data
+     */
+    public function recordAssessment(CaseRecord $case, User $actor, array $data): CaseRecord
     {
+        return DB::transaction(function () use ($case, $actor, $data): CaseRecord {
+            $case = CaseRecord::query()->with('status')->whereKey($case->id)->lockForUpdate()->firstOrFail();
+
+            if ($case->status?->name === CaseStatusEnum::Closed->value) {
+                throw $this->unprocessable('Closed cases cannot receive an assessment');
+            }
+
+            if ($case->status?->name !== CaseStatusEnum::Assessment->value) {
+                throw $this->unprocessable('Case must be in assessment status to record an assessment');
+            }
+
+            $beforeRiskLevelCode = $case->risk_level_code;
+            $beforePriorityCode = $case->priority_code;
+
+            $case->forceFill([
+                'risk_level_code' => $data['risk_level_code'],
+                'priority_code' => $data['priority_level_code'],
+            ])->save();
+
+            $this->auditLogService->record(
+                action: \App\Enums\AuditAction::CaseAssessmentRecorded,
+                category: \App\Enums\AuditCategory::Case,
+                severity: \App\Enums\AuditSeverity::Info,
+                actor: $actor,
+                subject: $case,
+                metadata: [
+                    'case_id' => $case->id,
+                    'case_number' => $case->case_number,
+                    'status_code' => $case->status_code,
+                    'risk_level_code' => $case->risk_level_code,
+                    'priority_code' => $case->priority_code,
+                ],
+                beforeChanges: [
+                    'risk_level_code' => $beforeRiskLevelCode,
+                    'priority_code' => $beforePriorityCode,
+                ],
+                afterChanges: [
+                    'risk_level_code' => $case->risk_level_code,
+                    'priority_code' => $case->priority_code,
+                ],
+            );
+
+            $this->notificationService->caseAssessmentRecorded($case);
+
+            return $case->load(['status', 'riskLevel', 'priorityLevel', 'activeAssignments.satgas']);
+        });
     }
 
     /**
