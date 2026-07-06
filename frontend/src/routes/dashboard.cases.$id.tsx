@@ -43,6 +43,7 @@ import { InvestigationCreateAction } from "@/components/workflow-actions/investi
 import { InvestigationStatusAction } from "@/components/workflow-actions/investigation-status-action";
 import { RecommendationCreateAction } from "@/components/workflow-actions/recommendation-create-action";
 import { RecommendationStatusAction } from "@/components/workflow-actions/recommendation-status-action";
+import { CaseAssessmentAction } from "@/components/workflow-actions/case-assessment-action";
 import { RecoveryCreateAction } from "@/components/workflow-actions/recovery-create-action";
 import { RecoveryStatusAction } from "@/components/workflow-actions/recovery-status-action";
 import { SatgasAssignmentAction } from "@/components/workflow-actions/satgas-assignment-action";

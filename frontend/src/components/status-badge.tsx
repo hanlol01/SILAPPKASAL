@@ -333,3 +333,80 @@ export function WorkflowStatusBadge({
     </Badge>
   );
 }
+
+const riskLevelAliases: Record<string, string> = {
+  "RISK-01": "low",
+  "RISK-02": "medium",
+  "RISK-03": "high",
+};
+
+const riskLevelVisuals: Record<string, StatusVisual> = {
+  low: { tone: "success", icon: ShieldCheck },
+  medium: { tone: "warning", icon: Shield },
+  high: { tone: "destructive", icon: ShieldAlert },
+};
+
+/**
+ * Multi-channel badge for the case risk level recorded during assessment.
+ * Accepts either master-data codes (RISK-xx) or level names and falls back
+ * to a neutral chip for unknown values.
+ */
+export function RiskLevelBadge({
+  value,
+  className,
+}: {
+  value: string | null | undefined;
+  className?: string;
+}) {
+  const { t } = useTranslation(["dashboard"]);
+  const normalized = value ? (riskLevelAliases[value] ?? value) : "";
+  const visual = normalized in riskLevelVisuals ? riskLevelVisuals[normalized] : defaultCaseVisual;
+  const Icon = visual.icon;
+  const label = value ? formatRiskLevel(t, value) : t("dashboard:common.notAvailable");
+
+  return (
+    <Badge variant="outline" className={cn("gap-1 font-medium", toneClass[visual.tone], className)}>
+      <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+      {label}
+    </Badge>
+  );
+}
+
+const priorityLevelAliases: Record<string, string> = {
+  "PRIO-01": "urgent",
+  "PRIO-02": "high",
+  "PRIO-03": "normal",
+  "PRIO-04": "low",
+};
+
+const priorityLevelVisuals: Record<string, StatusVisual> = {
+  urgent: { tone: "destructive", icon: AlertTriangle },
+  high: { tone: "warning", icon: ArrowUpRight },
+  normal: { tone: "info", icon: Flag },
+  low: { tone: "muted", icon: Flag },
+};
+
+/**
+ * Multi-channel badge for the case handling priority recorded during
+ * assessment. Accepts either master-data codes (PRIO-xx) or level names.
+ */
+export function PriorityLevelBadge({
+  value,
+  className,
+}: {
+  value: string | null | undefined;
+  className?: string;
+}) {
+  const { t } = useTranslation(["dashboard"]);
+  const normalized = value ? (priorityLevelAliases[value] ?? value) : "";
+  const visual = normalized in priorityLevelVisuals ? priorityLevelVisuals[normalized] : defaultCaseVisual;
+  const Icon = visual.icon;
+  const label = value ? formatPriorityLevel(t, value) : t("dashboard:common.notAvailable");
+
+  return (
+    <Badge variant="outline" className={cn("gap-1 font-medium", toneClass[visual.tone], className)}>
+      <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+      {label}
+    </Badge>
+  );
+}
