@@ -270,11 +270,11 @@ function invalidateAfterSuccess(
   targetId: string | number,
 ) {
   if (mode === "forward-report") {
-    queryClient.invalidateQueries({ queryKey: operationsQueryKeys.report(targetId) });
+    queryClient.invalidateQueries({ queryKey: ["operations", "report"] });
     queryClient.invalidateQueries({ queryKey: ["operations", "reports"] });
     queryClient.invalidateQueries({ queryKey: ["operations", "cases"] });
   } else {
-    queryClient.invalidateQueries({ queryKey: operationsQueryKeys.case(targetId) });
+    queryClient.invalidateQueries({ queryKey: ["operations", "case"] });
     queryClient.invalidateQueries({ queryKey: ["operations", "cases"] });
   }
 

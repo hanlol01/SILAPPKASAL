@@ -154,9 +154,10 @@ export function CaseStatusAction({
       toast.success(t("dashboard:workflow.caseStatusUpdated"));
       setOpen(false);
       form.reset({ status: "" });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.case(caseId) });
+      queryClient.invalidateQueries({ queryKey: ["operations", "case"] });
       queryClient.invalidateQueries({ queryKey: ["operations", "cases"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["my-work"] });
     },
     onError: (error) => {
       applyLaravelErrors(form, error);

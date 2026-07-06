@@ -135,20 +135,35 @@ export function InvestigationCreateAction({
             <FormField
               control={form.control}
               name="plan_summary"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("dashboard:workflow.planSummary")}</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      {...field}
-                      className="min-h-32"
-                      placeholder={t("dashboard:workflow.planSummaryPlaceholder")}
-                    />
-                  </FormControl>
-                  <p className="text-xs text-muted-foreground">{t("dashboard:workflow.planSummaryHelp")}</p>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const length = (field.value ?? "").length;
+                const belowMinimum = length < 50;
+
+                return (
+                  <FormItem>
+                    <FormLabel>{t("dashboard:workflow.planSummary")}</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        className="min-h-32"
+                        placeholder={t("dashboard:workflow.planSummaryPlaceholder")}
+                      />
+                    </FormControl>
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <p className={belowMinimum ? "text-warning" : "text-muted-foreground"}>
+                        {t("dashboard:workflow.planSummaryHelp")}
+                      </p>
+                      <span
+                        aria-live="polite"
+                        className={belowMinimum ? "tabular-nums text-warning" : "tabular-nums text-muted-foreground"}
+                      >
+                        {belowMinimum ? `${length}/50` : `${length}/5000`}
+                      </span>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
 
             <DialogFooter>
