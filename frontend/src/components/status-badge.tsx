@@ -8,8 +8,10 @@ import {
   formatDecisionStatus,
   formatEvidenceStatus,
   formatInvestigationStatus,
+  formatPriorityLevel,
   formatRecommendationStatus,
   formatRecoveryStatus,
+  formatRiskLevel,
 } from "@/lib/format-labels";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";

@@ -176,6 +176,16 @@ export function updateCaseStatus(id: string | number, payload: CaseStatusPayload
   });
 }
 
+export function recordCaseAssessment(
+  id: string | number,
+  payload: { risk_level_code: string; priority_level_code: string },
+) {
+  return apiRequest<CaseRecord>(`/cases/${id}/assessment`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function createInvestigation(caseId: string | number, payload: InvestigationCreatePayload) {
   return apiRequest<Investigation>(`/cases/${caseId}/investigations`, {
     method: "POST",
