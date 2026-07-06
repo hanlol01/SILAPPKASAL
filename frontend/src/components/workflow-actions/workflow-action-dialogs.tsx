@@ -562,17 +562,20 @@ export function EvidenceStatusAction({ evidence }: { evidence: EvidenceMetadata 
   const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
+  const transitions = EVIDENCE_STATUS_TRANSITIONS[evidence.status] ?? [];
   const form = useForm<EvidenceStatusValues>({
     resolver: zodResolver(evidenceStatusSchema),
-    defaultValues: { status: asEvidenceStatus(evidence.status) },
+    defaultValues: { status: "" },
   });
   const mutation = useMutation({
     mutationFn: (values: EvidenceStatusValues) => updateEvidenceStatus(evidence.id, values),
     onSuccess: () => {
       toast.success(t("dashboard:workflow.evidenceStatusUpdated"));
       setOpen(false);
+      form.reset({ status: "" });
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.evidences(evidence.investigation_id) });
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.evidence(evidence.id) });
+      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.evidenceCustody(evidence.id) });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
     onError: (error) => {
@@ -584,18 +587,18 @@ export function EvidenceStatusAction({ evidence }: { evidence: EvidenceMetadata 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
+        <Button size="sm" variant="outline" disabled={transitions.length === 0}>
           <History className="mr-2 h-4 w-4" /> {t("dashboard:workflow.status")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("dashboard:workflow.updateEvidenceStatus")}</DialogTitle>
-          <DialogDescription>{t("dashboard:workflow.backendAuthoritative")}</DialogDescription>
+          <DialogDescription>{t("dashboard:workflow.validTransitionsOnly")}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
-            <SelectField form={form} name="status" label={t("dashboard:workflow.status")} options={EVIDENCE_STATUSES} formatter={(value) => formatEvidenceStatus(t, value)} />
+            <SelectField form={form} name="status" label={t("dashboard:workflow.status")} options={transitions} formatter={(value) => formatEvidenceStatus(t, value)} />
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
                 {mutation.isPending ? t("dashboard:common.saving") : t("dashboard:workflow.saveStatus")}
