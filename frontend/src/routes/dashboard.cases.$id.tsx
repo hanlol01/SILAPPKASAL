@@ -421,37 +421,6 @@ function CaseDetail() {
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">{t("dashboard:cases.currentStatusTitle")}</CardTitle>
-              <CardDescription>{t("dashboard:cases.currentStatusDesc")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <StatusBadge status={c.status ?? c.status_code} />
-              {((c.risk_level ?? c.risk_level_code) || c.priority) && (
-                <div className="flex flex-wrap items-center gap-2">
-                  {(c.risk_level ?? c.risk_level_code) && (
-                    <RiskLevelBadge value={c.risk_level ?? c.risk_level_code} />
-                  )}
-                  {c.priority && <PriorityLevelBadge value={c.priority} />}
-                </div>
-              )}
-              <div className="text-xs text-muted-foreground">
-                {t("dashboard:common.stage")}: {c.current_stage_label ?? formatCaseStatus(t, c.current_stage ?? c.status ?? c.status_code)}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{t("dashboard:cases.nextStep.title")}</CardTitle>
-              <CardDescription>{t("dashboard:cases.nextStep.desc")}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm">{nextStepText}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
               <CardTitle className="text-base">{t("dashboard:cases.assignments")}</CardTitle>
               <CardDescription>{t("dashboard:cases.assignmentsDesc")}</CardDescription>
             </CardHeader>
@@ -476,24 +445,22 @@ function CaseDetail() {
               <CardDescription>{t("dashboard:cases.actionsDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {isAdminRole ? (
+              {isAdminRole && !c.closed_at && (
                 <>
                   <SatgasAssignmentAction
                     mode="assign-case"
                     targetId={c.id}
-                    currentSatgasIds={(c.assignments ?? [])
-                      .filter((assignment) => assignment.is_active)
-                      .map((assignment) => assignment.satgas_id)}
+                    currentSatgasIds={activeAssignments.map((assignment) => assignment.satgas_id)}
                     currentLeadSatgasId={
-                      (c.assignments ?? []).find((assignment) => assignment.is_active && assignment.is_lead)
-                        ?.satgas_id ?? null
+                      activeAssignments.find((assignment) => assignment.is_lead)?.satgas_id ?? null
                     }
                   />
                   <p className="text-xs text-muted-foreground">
                     {t("dashboard:reports.satgasHint")}
                   </p>
                 </>
-              ) : (
+              )}
+              {!isAdminRole && (
                 <DisabledWorkflowAction
                   title={t("dashboard:cases.assignSatgas")}
                   description={t("dashboard:cases.assignmentManagedBy")}
@@ -581,6 +548,38 @@ function CaseDetail() {
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t("dashboard:cases.currentStatusTitle")}</CardTitle>
+              <CardDescription>{t("dashboard:cases.currentStatusDesc")}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <StatusBadge status={c.status ?? c.status_code} />
+              {((c.risk_level ?? c.risk_level_code) || c.priority) && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {(c.risk_level ?? c.risk_level_code) && (
+                    <RiskLevelBadge value={c.risk_level ?? c.risk_level_code} />
+                  )}
+                  {c.priority && <PriorityLevelBadge value={c.priority} />}
+                </div>
+              )}
+              <div className="text-xs text-muted-foreground">
+                {t("dashboard:common.stage")}: {c.current_stage_label ?? formatCaseStatus(t, c.current_stage ?? c.status ?? c.status_code)}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t("dashboard:cases.nextStep.title")}</CardTitle>
+              <CardDescription>{t("dashboard:cases.nextStep.desc")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm">{nextStepText}</p>
+            </CardContent>
+          </Card>
+
         </div>
       </div>
     </div>

@@ -116,7 +116,7 @@ export function SatgasAssignmentAction({
     });
   }
 
-  const copy = actionCopy(mode, t);
+  const copy = actionCopy(mode, currentSatgasIds.length > 0, t);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -217,6 +217,7 @@ export function SatgasAssignmentAction({
 
 function actionCopy(
   mode: SatgasAssignmentActionProps["mode"],
+  hasCurrentAssignments: boolean,
   t: (key: string) => string,
 ) {
   if (mode === "forward-report") {
@@ -229,8 +230,16 @@ function actionCopy(
   }
 
   return {
-    trigger: t("dashboard:workflow.assignment.assignTrigger"),
-    title: t("dashboard:workflow.assignment.assignTitle"),
+    trigger: t(
+      hasCurrentAssignments
+        ? "dashboard:workflow.assignment.changeTrigger"
+        : "dashboard:workflow.assignment.assignTrigger",
+    ),
+    title: t(
+      hasCurrentAssignments
+        ? "dashboard:workflow.assignment.changeTitle"
+        : "dashboard:workflow.assignment.assignTitle",
+    ),
     description: t("dashboard:workflow.assignment.assignDescription"),
     submit: t("dashboard:workflow.assignment.assignSubmit"),
   };

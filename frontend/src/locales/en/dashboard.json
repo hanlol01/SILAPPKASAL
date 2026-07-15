@@ -543,6 +543,8 @@
       "forwardSubmit": "Forward report",
       "assignTrigger": "Assign Satgas",
       "assignTitle": "Assign Satgas",
+      "changeTrigger": "Change Satgas",
+      "changeTitle": "Change Satgas",
       "assignDescription": "Update the active Satgas assignment for this case.",
       "assignSubmit": "Save assignment",
       "loadingSatgas": "Loading Satgas users...",

@@ -543,6 +543,8 @@
       "forwardSubmit": "Teruskan laporan",
       "assignTrigger": "Tugaskan Satgas",
       "assignTitle": "Tugaskan Satgas",
+      "changeTrigger": "Ubah Satgas",
+      "changeTitle": "Ubah Satgas",
       "assignDescription": "Perbarui penugasan Satgas yang aktif untuk kasus ini.",
       "assignSubmit": "Simpan penugasan",
       "loadingSatgas": "Memuat pengguna Satgas...",
