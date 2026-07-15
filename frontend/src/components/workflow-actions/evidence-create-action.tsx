@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
-import { formatEvidenceClassification } from "@/lib/format-labels";
+import { formatEvidenceClassification, formatEvidenceType } from "@/lib/format-labels";
 import { getMasterData, masterDataQueryKeys } from "@/lib/master-data-api";
 import { createEvidence, operationsQueryKeys } from "@/lib/operations-api";
 import type { EvidenceCreatePayload, Investigation } from "@/lib/operations-types";
@@ -143,7 +143,7 @@ export function EvidenceCreateAction({ investigation }: { investigation: Investi
                     <SelectContent>
                       {(evidenceTypesQuery.data ?? []).map((item) => (
                         <SelectItem key={item.code} value={item.code}>
-                          {item.name}
+                          {formatEvidenceType(t, item.code ?? item.name)}
                         </SelectItem>
                       ))}
                     </SelectContent>

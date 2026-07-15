@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import {
+  AlertCircle,
   ArrowLeft,
   BriefcaseMedical,
   CheckCircle2,
@@ -10,6 +11,7 @@ import {
   Gavel,
   History,
   Lock,
+  RefreshCw,
   Scale,
   Send,
   Share2,
@@ -18,6 +20,8 @@ import {
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { QueryErrorState } from "@/components/query-state";
+import { EmptyState } from "@/components/empty-state";
+import { EvidenceCustodyDisclosure } from "@/components/evidence-custody-disclosure";
 import { PriorityLevelBadge, RiskLevelBadge, StatusBadge, WorkflowStatusBadge } from "@/components/status-badge";
 import {
   ProgressTimeline,
@@ -44,6 +48,7 @@ import { InvestigationStatusAction } from "@/components/workflow-actions/investi
 import { RecommendationCreateAction } from "@/components/workflow-actions/recommendation-create-action";
 import { RecommendationStatusAction } from "@/components/workflow-actions/recommendation-status-action";
 import { CaseAssessmentAction } from "@/components/workflow-actions/case-assessment-action";
+import { EvidenceCreateAction } from "@/components/workflow-actions/evidence-create-action";
 import { RecoveryCreateAction } from "@/components/workflow-actions/recovery-create-action";
 import { RecoveryStatusAction } from "@/components/workflow-actions/recovery-status-action";
 import { SatgasAssignmentAction } from "@/components/workflow-actions/satgas-assignment-action";
@@ -63,6 +68,7 @@ import {
   formatCaseStatus,
   formatDecisionOutcome,
   formatEvidenceClassification,
+  formatEvidenceType,
   formatPriorityLevel,
   formatRiskLevel,
 } from "@/lib/format-labels";
@@ -152,6 +158,13 @@ function CaseDetail() {
     queryKey: operationsQueryKeys.case(id),
     queryFn: () => getCase(id),
   });
+  const isAssignedSatgas =
+    roleCode === "satgas_ppks" &&
+    (caseQuery.data?.assignments ?? []).some(
+      (assignment) => assignment.is_active && assignment.satgas_id === user?.id,
+    );
+  const canViewEvidence =
+    isAssignedSatgas && Boolean(user?.permissions?.includes("evidence.view.case"));
   const investigationsQuery = useQuery({
     queryKey: operationsQueryKeys.investigations(id),
     queryFn: () => getCaseInvestigations(id),
@@ -177,11 +190,13 @@ function CaseDetail() {
   });
   const recoveries = recoveryQueries.flatMap((query) => query.data ?? []);
   const evidenceQueries = useQueries({
-    queries: (investigationsQuery.data ?? []).map((investigation) => ({
-      queryKey: operationsQueryKeys.evidences(investigation.id),
-      queryFn: () => getInvestigationEvidences(investigation.id),
-      enabled: investigationsQuery.isSuccess,
-    })),
+    queries: canViewEvidence
+      ? (investigationsQuery.data ?? []).map((investigation) => ({
+          queryKey: operationsQueryKeys.evidences(investigation.id),
+          queryFn: () => getInvestigationEvidences(investigation.id),
+          enabled: investigationsQuery.isSuccess,
+        }))
+      : [],
   });
   const evidences = evidenceQueries.flatMap((query) => query.data ?? []);
 
@@ -195,9 +210,6 @@ function CaseDetail() {
 
   const c = caseQuery.data;
   const isAdminRole = roleCode === "super_admin" || roleCode === "admin";
-  const isAssignedSatgas =
-    roleCode === "satgas_ppks" &&
-    (c.assignments ?? []).some((assignment) => assignment.is_active && assignment.satgas_id === user?.id);
   const canUseSatgasActions = isAssignedSatgas && !c.closed_at;
   const canInvestigate = canUseSatgasActions && Boolean(user?.permissions?.includes("cases.investigate"));
   const canRecommend = canUseSatgasActions && Boolean(user?.permissions?.includes("cases.recommend"));
@@ -206,6 +218,13 @@ function CaseDetail() {
   const canManageRecoveryActions = isAdminRole && Boolean(user?.permissions?.includes("cases.monitor"));
   const canAddRecoveryMonitoring = canManageRecoveryActions || canUseSatgasActions;
   const activeAssignments = (c.assignments ?? []).filter((assignment) => assignment.is_active);
+  const evidenceInvestigation = selectEvidenceInvestigation(investigationsQuery.data ?? []);
+  const canUpdateEvidence =
+    canViewEvidence &&
+    Boolean(user?.permissions?.includes("evidence.upload")) &&
+    !c.closed_at;
+  const canCreateEvidence =
+    canUpdateEvidence && evidenceInvestigation !== null;
   const latestCompletedInvestigation = mostRecentCompletedInvestigation(investigationsQuery.data ?? []);
   const submittedDecisionRecommendation = submittedRecommendationForDecision(recommendationsQuery.data ?? []);
   const decisionsLoaded = recommendationsQuery.isSuccess && decisionQueries.every((query) => query.isSuccess);
@@ -386,8 +405,13 @@ function CaseDetail() {
               <EvidenceSection
                 evidences={evidences}
                 loading={evidenceQueries.some((query) => query.isLoading)}
-                canUpdate={canUseSatgasActions}
+                error={evidenceQueries.some((query) => query.isError)}
+                onRetry={() => evidenceQueries.forEach((query) => query.refetch())}
+                canAccess={canViewEvidence}
+                canUpdate={canUpdateEvidence}
+                createInvestigation={canCreateEvidence ? evidenceInvestigation : null}
                 language={i18n.language}
+                roleLabel={restrictedLabel}
                 t={t}
               />
             </TabsContent>
@@ -805,61 +829,123 @@ function RecoveriesSection({
 function EvidenceSection({
   evidences,
   loading,
+  error,
+  onRetry,
+  canAccess,
   canUpdate,
+  createInvestigation,
   language,
+  roleLabel,
   t,
 }: {
   evidences: EvidenceMetadata[];
   loading: boolean;
+  error: boolean;
+  onRetry: () => void;
+  canAccess: boolean;
   canUpdate: boolean;
+  createInvestigation: Investigation | null;
   language: string;
+  roleLabel: string;
   t: TFunction;
 }) {
+  if (!canAccess) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FileArchive className="h-4 w-4" /> {t("dashboard:sections.evidenceTitle")}
+          </CardTitle>
+          <CardDescription>{t("dashboard:cases.restrictedDetail", { roleLabel })}</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  const createAction = createInvestigation ? (
+    <EvidenceCreateAction investigation={createInvestigation} />
+  ) : null;
+
   return (
-    <SectionCard icon={FileArchive} title={t("dashboard:sections.evidenceMetadata")} loading={loading} empty={evidences.length === 0} t={t}>
-      {evidences.map((item) => (
-        <div key={item.id} className="rounded-lg border p-3 text-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="font-medium">{item.title}</div>
-            <div className="flex flex-wrap items-center gap-2">
-              <WorkflowStatusBadge family="evidence" status={item.status} />
-              {canUpdate && (
-                <>
-                  <EvidenceMetadataAction evidence={item} />
-                  <EvidenceStatusAction evidence={item} />
-                </>
-              )}
-            </div>
-          </div>
-          <div className="mt-2 grid gap-2 text-muted-foreground sm:grid-cols-2">
-            <div>{t("dashboard:sections.evidenceType")}: {item.evidence_type?.name ?? t("dashboard:common.metadataUnavailable")}</div>
-            <div>{t("dashboard:sections.classification")}: {formatEvidenceClassification(t, item.classification ?? "-")}</div>
-            <div>{t("dashboard:sections.collected")}: {formatDate(item.collected_at, language)}</div>
-            <div>{t("dashboard:sections.submittedBy")}: {item.submitted_by?.name ?? t("dashboard:common.metadataUnavailable")}</div>
-          </div>
-          {item.status_semantics && (
-            <div className="mt-3 rounded-md bg-muted p-2 text-xs text-muted-foreground">
-              {item.status_semantics}
-            </div>
-          )}
-          {item.description && <Field label={t("dashboard:sections.description")}>{item.description}</Field>}
-          {item.file_metadata && (
-            <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-              <div>{t("dashboard:sections.filename")}: {item.file_metadata.original_filename ?? "-"}</div>
-              <div>MIME: {item.file_metadata.mime_type ?? "-"}</div>
-              <div>{t("dashboard:sections.fileSize")}: {item.file_metadata.file_size ?? "-"}</div>
-              <div>{t("dashboard:sections.checksum")}: {item.file_metadata.checksum_sha256 ?? "-"}</div>
-            </div>
-          )}
-          <div className="mt-3">
-            <DisabledWorkflowAction
-              title={t("dashboard:sections.evidenceFiles")}
-              description={t("dashboard:sections.evidenceFilesOutOfScope")}
-            />
-          </div>
+    <Card className="min-w-0 overflow-hidden">
+      <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 space-y-1.5">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FileArchive className="h-4 w-4 shrink-0" /> {t("dashboard:sections.evidenceTitle")}
+          </CardTitle>
+          <CardDescription>{t("dashboard:sections.evidenceCount", { count: evidences.length })}</CardDescription>
         </div>
-      ))}
-    </SectionCard>
+        {evidences.length > 0 ? createAction : null}
+      </CardHeader>
+      <CardContent className="min-w-0 space-y-4">
+        {loading ? (
+          <div className="space-y-3">
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" aria-hidden="true" />
+              <p className="break-words text-sm text-destructive">{t("dashboard:sections.evidenceLoadError")}</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={onRetry}>
+              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              {t("dashboard:sections.custodyRetry")}
+            </Button>
+          </div>
+        ) : evidences.length === 0 ? (
+          <EmptyState
+            icon={FileArchive}
+            title={t("dashboard:sections.evidenceEmptyTitle")}
+            description={t("dashboard:sections.evidenceEmptyDesc")}
+            action={createInvestigation ? <EvidenceCreateAction investigation={createInvestigation} /> : undefined}
+          />
+        ) : (
+          <div className="space-y-3">
+            {evidences.map((item) => (
+              <div key={item.id} className="min-w-0 space-y-4 rounded-lg border p-4 text-sm">
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="break-words font-medium">{item.title}</div>
+                    <div className="mt-1 break-words text-xs text-muted-foreground">
+                      {formatEvidenceType(t, item.evidence_type?.code ?? item.evidence_type?.name)}
+                    </div>
+                  </div>
+                  <WorkflowStatusBadge family="evidence" status={item.status} className="w-fit shrink-0" />
+                </div>
+                <div className="grid min-w-0 gap-3 text-muted-foreground sm:grid-cols-2">
+                  <Field label={t("dashboard:sections.classification")}>
+                    {formatEvidenceClassification(t, item.classification ?? "-")}
+                  </Field>
+                  <Field label={t("dashboard:sections.collected")}>
+                    {formatDate(item.collected_at, language)}
+                  </Field>
+                  {item.source && (
+                    <div className="min-w-0 sm:col-span-2">
+                      <Field label={t("dashboard:sections.source")}>{item.source}</Field>
+                    </div>
+                  )}
+                  {item.description && (
+                    <div className="min-w-0 sm:col-span-2">
+                      <Field label={t("dashboard:sections.description")}>{item.description}</Field>
+                    </div>
+                  )}
+                </div>
+                {canUpdate && (
+                  <div className="flex flex-wrap gap-2">
+                    {item.status !== "archived" && <EvidenceMetadataAction evidence={item} />}
+                    <EvidenceStatusAction evidence={item} />
+                  </div>
+                )}
+                <EvidenceCustodyDisclosure evidenceId={item.id} language={language} />
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">{t("dashboard:sections.evidenceFilesNotice")}</p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1025,6 +1111,15 @@ function mostRecentCompletedInvestigation(items: Investigation[]) {
 
     return bTime - aTime;
   })[0];
+}
+
+function selectEvidenceInvestigation(items: Investigation[]) {
+  return (
+    items.find((item) => {
+      const status = normalizeWorkflowToken(item.status ?? item.status_code);
+      return status !== "completed" && status !== "invs_08";
+    }) ?? null
+  );
 }
 
 function submittedRecommendationForDecision(items: Recommendation[]) {

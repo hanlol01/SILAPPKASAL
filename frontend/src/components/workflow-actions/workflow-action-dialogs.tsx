@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClipboardEdit, FilePlus2, History, Info, PenLine } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm, type FieldValues, type Path, type UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -64,6 +64,7 @@ import type {
 import {
   DECISION_OUTCOMES,
   EVIDENCE_CLASSIFICATIONS,
+  EVIDENCE_STATUSES,
   EVIDENCE_STATUS_TRANSITIONS,
   INVESTIGATION_ACTIVITY_TYPES,
   labelOption,
@@ -102,23 +103,23 @@ const recoveryMonitoringSchema = z.object({
   follow_up_plan: optionalText,
   notes: optionalText,
 });
-const evidenceMetadataSchema = z.object({
-  evidence_type_code: z.string().min(1, "Required"),
-  title: z.string().trim().min(1, "Required").max(255, "Maximum 255 characters"),
-  description: optionalText,
-  source: optionalText,
-  collected_at: z.string().optional().refine((value) => !value || value <= today, "Date cannot be in the future"),
-  classification: z.enum(EVIDENCE_CLASSIFICATIONS).optional(),
-});
-const evidenceStatusSchema = z.object({ status: z.string().min(1, "Required") });
 
 type CaseStatusValues = z.infer<typeof caseStatusSchema>;
 type ActivityValues = z.infer<typeof activitySchema>;
 type RecommendationValues = z.infer<typeof recommendationSchema>;
 type DecisionValues = z.infer<typeof decisionSchema>;
 type RecoveryMonitoringValues = z.infer<typeof recoveryMonitoringSchema>;
-type EvidenceMetadataValues = z.infer<typeof evidenceMetadataSchema>;
-type EvidenceStatusValues = z.infer<typeof evidenceStatusSchema>;
+interface EvidenceMetadataValues {
+  evidence_type_code: string;
+  title: string;
+  description?: string;
+  source?: string;
+  collected_at?: string;
+  classification?: (typeof EVIDENCE_CLASSIFICATIONS)[number];
+}
+interface EvidenceStatusValues {
+  status: string;
+}
 
 export function DisabledWorkflowAction({ title, description }: { title: string; description: string }) {
   return (
@@ -478,6 +479,21 @@ export function EvidenceMetadataAction({ evidence }: { evidence: EvidenceMetadat
     queryKey: masterDataQueryKeys.list("evidence-types"),
     queryFn: () => getMasterData("evidence-types"),
   });
+  const evidenceMetadataSchema = useMemo(
+    () =>
+      z.object({
+        evidence_type_code: z.string().min(1, t("dashboard:workflow.required")),
+        title: z.string().trim().min(1, t("dashboard:workflow.required")).max(255, t("dashboard:workflow.max255")),
+        description: z.string().trim().max(10000, t("dashboard:workflow.max10000")).optional(),
+        source: z.string().trim().max(10000, t("dashboard:workflow.max10000")).optional(),
+        collected_at: z
+          .string()
+          .optional()
+          .refine((value) => !value || value <= today, t("dashboard:workflow.dateFuture")),
+        classification: z.enum(EVIDENCE_CLASSIFICATIONS).optional(),
+      }),
+    [t],
+  );
   const form = useForm<EvidenceMetadataValues>({
     resolver: zodResolver(evidenceMetadataSchema),
     defaultValues: {
@@ -490,12 +506,14 @@ export function EvidenceMetadataAction({ evidence }: { evidence: EvidenceMetadat
     },
   });
   const mutation = useMutation({
-    mutationFn: (values: EvidenceMetadataValues) => updateEvidenceMetadata(evidence.id, nullifyEmpty(values)),
+    mutationFn: (values: EvidenceMetadataValues) =>
+      updateEvidenceMetadata(evidence.id, nullifyEmpty({ ...values })),
     onSuccess: () => {
       toast.success(t("dashboard:workflow.evidenceUpdated"));
       setOpen(false);
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.evidences(evidence.investigation_id) });
       queryClient.invalidateQueries({ queryKey: operationsQueryKeys.evidence(evidence.id) });
+      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.evidenceCustody(evidence.id) });
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
@@ -563,6 +581,10 @@ export function EvidenceStatusAction({ evidence }: { evidence: EvidenceMetadata 
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const transitions = EVIDENCE_STATUS_TRANSITIONS[evidence.status] ?? [];
+  const evidenceStatusSchema = useMemo(
+    () => z.object({ status: z.string().min(1, t("dashboard:workflow.required")) }),
+    [t],
+  );
   const form = useForm<EvidenceStatusValues>({
     resolver: zodResolver(evidenceStatusSchema),
     defaultValues: { status: "" },
@@ -584,10 +606,14 @@ export function EvidenceStatusAction({ evidence }: { evidence: EvidenceMetadata 
     },
   });
 
+  if (transitions.length === 0) {
+    return null;
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline" disabled={transitions.length === 0}>
+        <Button size="sm" variant="outline">
           <History className="mr-2 h-4 w-4" /> {t("dashboard:workflow.status")}
         </Button>
       </DialogTrigger>
@@ -788,7 +814,6 @@ function asEvidenceClassification(value: string | null | undefined): EvidenceMet
 }
 
 function asEvidenceStatus(value: string): EvidenceStatusValues["status"] {
-  return EVIDENCE_STATUSES.includes(value as EvidenceStatusValues["status"])
-    ? (value as EvidenceStatusValues["status"])
-    : "registered";
+  const status = value as (typeof EVIDENCE_STATUSES)[number];
+  return EVIDENCE_STATUSES.includes(status) ? status : "registered";
 }
