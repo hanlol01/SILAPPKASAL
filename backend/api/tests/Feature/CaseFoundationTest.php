@@ -177,6 +177,32 @@ class CaseFoundationTest extends TestCase
         $this->assertSame(2, CaseAssignment::query()->where('case_id', $case->id)->count());
     }
 
+    public function test_report_detail_includes_only_safe_active_case_assignment_context(): void
+    {
+        $admin = $this->makeUser('admin', 'admin@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
+        $case = $this->forwardedCase($admin, [$satgas], $satgas);
+
+        $this->actingAsApi($admin);
+        $this->getJson('/api/v1/reports')
+            ->assertOk()
+            ->assertJsonMissingPath('data.0.case');
+
+        $this->getJson("/api/v1/reports/{$case->report_id}")
+            ->assertOk()
+            ->assertJsonPath('data.case.id', $case->id)
+            ->assertJsonPath('data.case.case_number', $case->case_number)
+            ->assertJsonPath('data.case.active_assignments.0.satgas_id', $satgas->id)
+            ->assertJsonPath('data.case.active_assignments.0.satgas_name', $satgas->name)
+            ->assertJsonPath('data.case.active_assignments.0.is_lead', true)
+            ->assertJsonPath('data.case.active_assignments.0.is_active', true)
+            ->assertJsonMissingPath('data.case.report')
+            ->assertJsonMissingPath('data.case.active_assignments.0.id')
+            ->assertJsonMissingPath('data.case.active_assignments.0.assigned_at')
+            ->assertJsonMissingPath('data.case.active_assignments.0.satgas.email')
+            ->assertJsonMissingPath('data.case.active_assignments.0.assigned_by');
+    }
+
     public function test_status_transition_uses_master_data_and_report_status_remains_forwarded(): void
     {
         $admin = $this->makeUser('admin', 'admin@university.ac.id');

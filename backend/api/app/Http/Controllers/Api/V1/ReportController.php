@@ -61,7 +61,11 @@ class ReportController extends Controller
     {
         Gate::authorize('view', $report);
 
-        $report->load(['category', 'priorityLevel']);
+        $report->load([
+            'category',
+            'priorityLevel',
+            'case.activeAssignments.satgas',
+        ]);
 
         if ($report->report_type !== 'anonymous') {
             $report->load('reporter');
