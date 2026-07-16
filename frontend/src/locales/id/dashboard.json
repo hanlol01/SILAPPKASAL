@@ -299,12 +299,40 @@
     "custodyEmpty": "Belum ada riwayat pengelolaan bukti.",
     "custodyError": "Riwayat pengelolaan bukti tidak dapat dimuat.",
     "custodyRetry": "Coba lagi",
-    "filename": "Nama file",
-    "fileSize": "Ukuran",
-    "checksum": "Checksum",
-    "evidenceFiles": "File bukti",
-    "evidenceFilesOutOfScope": "Unggah, unduh, pratinjau, dan field penyimpanan belum tersedia pada fase ini.",
-    "evidenceFilesNotice": "Lampiran file bukti belum tersedia pada tahap ini."
+    "evidenceAttachment": {
+      "title": "Lampiran file bukti",
+      "chooseFile": "Pilih file",
+      "formatsHelp": "Format PDF, JPG, atau PNG. Maksimal 10 MB.",
+      "selectedFile": "File dipilih: {{name}}",
+      "upload": "Unggah file",
+      "uploading": "Mengunggah...",
+      "download": "Unduh file",
+      "downloading": "Mengunduh...",
+      "noAttachment": "Belum ada lampiran file.",
+      "fileName": "Nama file",
+      "fileType": "Jenis file",
+      "fileSize": "Ukuran file",
+      "uploadedAt": "Diunggah pada",
+      "uploadedBy": "Diunggah oleh",
+      "invalidFormat": "Pilih file PDF, JPG, atau PNG.",
+      "emptyFile": "File tidak boleh kosong.",
+      "fileTooLarge": "Ukuran file tidak boleh melebihi 10 MB.",
+      "uploadSuccess": "Lampiran bukti berhasil diunggah.",
+      "downloadSuccess": "Lampiran bukti berhasil diunduh.",
+      "uploadError": "Lampiran bukti tidak dapat diunggah.",
+      "downloadError": "Lampiran bukti tidak dapat diunduh.",
+      "forbidden": "Anda tidak memiliki akses ke lampiran bukti ini.",
+      "notFound": "Lampiran bukti tidak ditemukan.",
+      "conflict": "Lampiran file sudah tersedia untuk bukti ini.",
+      "invalidFile": "File tidak valid. Pastikan format dan ukurannya sesuai ketentuan.",
+      "rateLimited": "Batas unggah telah tercapai. Coba lagi nanti.",
+      "mime": {
+        "pdf": "Dokumen PDF",
+        "jpeg": "Gambar JPEG",
+        "png": "Gambar PNG",
+        "other": "File"
+      }
+    }
   },
   "registrations": {
     "title": "Pendaftaran Pelapor",
@@ -892,7 +920,9 @@
       "registered": "Bukti dicatat",
       "metadata_updated": "Informasi bukti diperbarui",
       "status_changed": "Status bukti diperbarui",
-      "reviewed": "Bukti ditinjau"
+      "reviewed": "Bukti ditinjau",
+      "file_uploaded": "File bukti diunggah",
+      "file_downloaded": "File bukti diunduh"
     },
     "campusType": {
       "universitas": "Universitas",

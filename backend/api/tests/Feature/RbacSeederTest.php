@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
@@ -26,14 +27,23 @@ class RbacSeederTest extends TestCase
 
         $this->assertDatabaseHas('permissions', ['code' => 'reports.create']);
         $this->assertDatabaseHas('permissions', ['code' => 'system.break_glass_access']);
+        $this->assertDatabaseHas('permissions', ['code' => 'evidence.upload']);
+        $this->assertDatabaseHas('permissions', ['code' => 'evidence.download']);
 
         $reporter = Role::query()->where('code', 'reporter')->with('permissions')->firstOrFail();
         $this->assertTrue($reporter->permissions->contains('code', 'reports.create'));
-        $this->assertTrue($reporter->permissions->contains('code', 'evidence.upload'));
 
         $admin = Role::query()->where('code', 'admin')->with('permissions')->firstOrFail();
         $superAdmin = Role::query()->where('code', 'super_admin')->with('permissions')->firstOrFail();
         $satgas = Role::query()->where('code', 'satgas_ppks')->with('permissions')->firstOrFail();
+
+        foreach ([$superAdmin, $admin, $reporter] as $role) {
+            $this->assertFalse($role->permissions->contains('code', 'evidence.upload'));
+            $this->assertFalse($role->permissions->contains('code', 'evidence.download'));
+        }
+
+        $this->assertTrue($satgas->permissions->contains('code', 'evidence.upload'));
+        $this->assertTrue($satgas->permissions->contains('code', 'evidence.download'));
 
         $this->assertTrue($admin->permissions->contains('code', 'cases.record_decision'));
         $this->assertTrue($superAdmin->permissions->contains('code', 'cases.record_decision'));
@@ -52,5 +62,28 @@ class RbacSeederTest extends TestCase
         $this->assertDatabaseHas('users', ['email' => 'satgas.staisa@silappkasal.test']);
         $this->assertDatabaseHas('users', ['email' => 'reporter.staisa@silappkasal.test']);
         $this->assertGreaterThanOrEqual(36, User::query()->count());
+    }
+
+    public function test_rbac_seeder_reconciles_managed_permissions_without_removing_extensions(): void
+    {
+        $this->seed(RbacSeeder::class);
+
+        $satgas = Role::query()->where('code', 'satgas_ppks')->firstOrFail();
+        $reporter = Role::query()->where('code', 'reporter')->firstOrFail();
+        $customPermission = Permission::query()->create([
+            'code' => 'integration.case_export',
+            'name' => 'Integration Case Export',
+            'description' => 'Permission managed by an installed integration.',
+            'module' => 'Integration',
+        ]);
+        $legacyReporterUpload = Permission::query()->where('code', 'evidence.upload')->firstOrFail();
+
+        $satgas->permissions()->attach($customPermission->id);
+        $reporter->permissions()->attach($legacyReporterUpload->id);
+
+        $this->seed(RbacSeeder::class);
+
+        $this->assertTrue($satgas->fresh()->permissions()->where('permissions.id', $customPermission->id)->exists());
+        $this->assertFalse($reporter->fresh()->permissions()->where('permissions.code', 'evidence.upload')->exists());
     }
 }

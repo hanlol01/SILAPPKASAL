@@ -63,6 +63,8 @@ enum AuditAction: string
     case EvidenceMetadataCreated = 'evidence.metadata_created';
     case EvidenceMetadataUpdated = 'evidence.metadata_updated';
     case EvidenceStatusChanged = 'evidence.status_changed';
+    case EvidenceFileUploaded = 'evidence.file_uploaded';
+    case EvidenceFileDownloaded = 'evidence.file_downloaded';
 
     case BreakGlassRequested = 'break_glass.request';
     case BreakGlassApproved = 'break_glass.approve';

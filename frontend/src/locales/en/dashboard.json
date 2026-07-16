@@ -299,12 +299,40 @@
     "custodyEmpty": "No evidence custody history has been recorded.",
     "custodyError": "The evidence custody history could not be loaded.",
     "custodyRetry": "Try again",
-    "filename": "Filename",
-    "fileSize": "Size",
-    "checksum": "Checksum",
-    "evidenceFiles": "Evidence files",
-    "evidenceFilesOutOfScope": "Upload, download, preview, and storage fields are not available in this phase.",
-    "evidenceFilesNotice": "Evidence file attachments are not available at this stage."
+    "evidenceAttachment": {
+      "title": "Evidence file attachment",
+      "chooseFile": "Choose file",
+      "formatsHelp": "PDF, JPG, or PNG. Maximum 10 MB.",
+      "selectedFile": "Selected file: {{name}}",
+      "upload": "Upload file",
+      "uploading": "Uploading...",
+      "download": "Download file",
+      "downloading": "Downloading...",
+      "noAttachment": "No file has been attached.",
+      "fileName": "Filename",
+      "fileType": "File type",
+      "fileSize": "File size",
+      "uploadedAt": "Uploaded at",
+      "uploadedBy": "Uploaded by",
+      "invalidFormat": "Choose a PDF, JPG, or PNG file.",
+      "emptyFile": "The file must not be empty.",
+      "fileTooLarge": "The file must not exceed 10 MB.",
+      "uploadSuccess": "The evidence attachment was uploaded.",
+      "downloadSuccess": "The evidence attachment was downloaded.",
+      "uploadError": "The evidence attachment could not be uploaded.",
+      "downloadError": "The evidence attachment could not be downloaded.",
+      "forbidden": "You do not have access to this evidence attachment.",
+      "notFound": "The evidence attachment was not found.",
+      "conflict": "A file is already attached to this evidence.",
+      "invalidFile": "The file is invalid. Check that its format and size meet the requirements.",
+      "rateLimited": "The upload limit has been reached. Try again later.",
+      "mime": {
+        "pdf": "PDF document",
+        "jpeg": "JPEG image",
+        "png": "PNG image",
+        "other": "File"
+      }
+    }
   },
   "registrations": {
     "title": "Reporter Registrations",
@@ -891,7 +919,9 @@
       "registered": "Evidence recorded",
       "metadata_updated": "Evidence information updated",
       "status_changed": "Evidence status updated",
-      "reviewed": "Evidence reviewed"
+      "reviewed": "Evidence reviewed",
+      "file_uploaded": "Evidence file uploaded",
+      "file_downloaded": "Evidence file downloaded"
     },
     "campusType": {
       "universitas": "University",

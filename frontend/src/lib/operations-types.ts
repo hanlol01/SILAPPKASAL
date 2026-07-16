@@ -272,10 +272,19 @@ export interface EvidenceMetadata {
     file_size?: number | null;
     checksum_sha256?: string | null;
   };
+  file_attachment: EvidenceFileAttachment | null;
   submitted_by?: PersonRef | null;
   custody_events?: EvidenceCustodyEvent[];
   created_at: string | null;
   updated_at: string | null;
+}
+
+export interface EvidenceFileAttachment {
+  original_filename: string;
+  mime_type: string;
+  file_size: number;
+  uploaded_at: string | null;
+  uploaded_by?: PersonRef | null;
 }
 
 export interface EvidenceCustodyEvent {
@@ -366,10 +375,6 @@ export interface EvidenceUpdatePayload {
   source?: string | null;
   collected_at?: string | null;
   classification?: string | null;
-  original_filename?: string | null;
-  mime_type?: string | null;
-  file_size?: number | null;
-  checksum_sha256?: string | null;
 }
 
 export interface EvidenceStatusPayload {

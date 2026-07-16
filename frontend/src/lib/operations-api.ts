@@ -1,4 +1,4 @@
-import { apiRequest, apiRequestEnvelope } from "@/lib/api-client";
+import { apiDownload, apiRequest, apiRequestEnvelope } from "@/lib/api-client";
 import type {
   CaseRecord,
   CaseStatusPayload,
@@ -293,6 +293,20 @@ export function updateEvidenceStatus(id: string | number, payload: EvidenceStatu
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+}
+
+export function uploadEvidenceFile(id: string | number, file: File) {
+  const body = new FormData();
+  body.append("file", file);
+
+  return apiRequest<EvidenceMetadata>(`/evidences/${id}/file`, {
+    method: "POST",
+    body,
+  });
+}
+
+export function downloadEvidenceFile(id: string | number) {
+  return apiDownload(`/evidences/${id}/file`, `evidence-${id}`);
 }
 
 function emptyMeta(total: number) {

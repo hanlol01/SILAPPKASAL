@@ -22,6 +22,7 @@ import type { TFunction } from "i18next";
 import { QueryErrorState } from "@/components/query-state";
 import { EmptyState } from "@/components/empty-state";
 import { EvidenceCustodyDisclosure } from "@/components/evidence-custody-disclosure";
+import { EvidenceFileAttachment } from "@/components/evidence-file-attachment";
 import { PriorityLevelBadge, RiskLevelBadge, StatusBadge, WorkflowStatusBadge } from "@/components/status-badge";
 import {
   ProgressTimeline,
@@ -223,6 +224,8 @@ function CaseDetail() {
     canViewEvidence &&
     Boolean(user?.permissions?.includes("evidence.upload")) &&
     !c.closed_at;
+  const canDownloadEvidence =
+    canViewEvidence && Boolean(user?.permissions?.includes("evidence.download"));
   const canCreateEvidence =
     canUpdateEvidence && evidenceInvestigation !== null;
   const latestCompletedInvestigation = mostRecentCompletedInvestigation(investigationsQuery.data ?? []);
@@ -409,6 +412,7 @@ function CaseDetail() {
                 onRetry={() => evidenceQueries.forEach((query) => query.refetch())}
                 canAccess={canViewEvidence}
                 canUpdate={canUpdateEvidence}
+                canDownload={canDownloadEvidence}
                 createInvestigation={canCreateEvidence ? evidenceInvestigation : null}
                 language={i18n.language}
                 roleLabel={restrictedLabel}
@@ -832,6 +836,7 @@ function EvidenceSection({
   onRetry,
   canAccess,
   canUpdate,
+  canDownload,
   createInvestigation,
   language,
   roleLabel,
@@ -843,6 +848,7 @@ function EvidenceSection({
   onRetry: () => void;
   canAccess: boolean;
   canUpdate: boolean;
+  canDownload: boolean;
   createInvestigation: Investigation | null;
   language: string;
   roleLabel: string;
@@ -937,12 +943,17 @@ function EvidenceSection({
                     <EvidenceStatusAction evidence={item} />
                   </div>
                 )}
+                <EvidenceFileAttachment
+                  evidence={item}
+                  canUpload={canUpdate}
+                  canDownload={canDownload}
+                  language={language}
+                />
                 <EvidenceCustodyDisclosure evidenceId={item.id} language={language} />
               </div>
             ))}
           </div>
         )}
-        <p className="text-xs text-muted-foreground">{t("dashboard:sections.evidenceFilesNotice")}</p>
       </CardContent>
     </Card>
   );

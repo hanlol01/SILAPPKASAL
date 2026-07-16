@@ -145,6 +145,9 @@ Route::prefix('v1')->group(function (): void {
     });
 
     Route::middleware('auth:sanctum')->prefix('evidences')->group(function (): void {
+        Route::post('/{evidence}/file', [EvidenceController::class, 'uploadFile'])
+            ->middleware('throttle:evidence.upload');
+        Route::get('/{evidence}/file', [EvidenceController::class, 'downloadFile']);
         Route::get('/{evidence}', [EvidenceController::class, 'show']);
         Route::patch('/{evidence}', [EvidenceController::class, 'update']);
         Route::patch('/{evidence}/status', [EvidenceController::class, 'updateStatus']);

@@ -28,6 +28,15 @@ class Evidence extends Model
         'mime_type',
         'file_size',
         'checksum_sha256',
+        'storage_disk',
+        'storage_path',
+        'file_uploaded_by',
+        'file_uploaded_at',
+    ];
+
+    protected $hidden = [
+        'storage_disk',
+        'storage_path',
     ];
 
     protected function casts(): array
@@ -37,6 +46,7 @@ class Evidence extends Model
             'source' => 'encrypted',
             'collected_at' => 'datetime',
             'file_size' => 'integer',
+            'file_uploaded_at' => 'datetime',
         ];
     }
 
@@ -53,6 +63,11 @@ class Evidence extends Model
     public function submitter(): BelongsTo
     {
         return $this->belongsTo(User::class, 'submitted_by');
+    }
+
+    public function fileUploader(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'file_uploaded_by');
     }
 
     public function statusHistories(): HasMany

@@ -25,13 +25,15 @@ class StoreEvidenceRequest extends FormRequest
             'source' => ['nullable', 'string', 'max:10000'],
             'collected_at' => ['nullable', 'date', 'before_or_equal:now'],
             'classification' => ['nullable', 'string', Rule::in(EvidenceClassification::values())],
-            'original_filename' => ['nullable', 'string', 'max:255'],
-            'mime_type' => ['nullable', 'string', 'max:255'],
-            'file_size' => ['nullable', 'integer', 'min:0'],
-            'checksum_sha256' => ['nullable', 'string', 'size:64'],
+            'original_filename' => ['prohibited'],
+            'mime_type' => ['prohibited'],
+            'file_size' => ['prohibited'],
+            'checksum_sha256' => ['prohibited'],
             'file' => ['prohibited'],
             'storage_disk' => ['prohibited'],
             'storage_path' => ['prohibited'],
+            'file_uploaded_by' => ['prohibited'],
+            'file_uploaded_at' => ['prohibited'],
         ];
     }
 }

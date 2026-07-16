@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use App\Enums\CaseStatus as CaseStatusEnum;
+use App\Enums\AuditAction;
+use App\Enums\AuditCategory;
+use App\Enums\AuditSeverity;
 use App\Enums\EvidenceClassification;
 use App\Enums\EvidenceCustodyEventType;
 use App\Enums\EvidenceStatus;
@@ -12,10 +15,28 @@ use App\Models\Investigation;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 class EvidenceService
 {
+    private const FILE_DISK = 'evidence';
+
+    /** @var array<string, string> */
+    private const EXTENSION_BY_MIME = [
+        'application/pdf' => 'pdf',
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+    ];
+
+    public function __construct(private readonly AuditLogService $auditLogService)
+    {
+    }
+
     /**
      * @param array<string, mixed> $data
      */
@@ -40,10 +61,6 @@ class EvidenceService
                 'collected_at' => $data['collected_at'] ?? null,
                 'classification' => $data['classification'] ?? EvidenceClassification::Confidential->value,
                 'status' => EvidenceStatus::Registered->value,
-                'original_filename' => $data['original_filename'] ?? null,
-                'mime_type' => $data['mime_type'] ?? null,
-                'file_size' => $data['file_size'] ?? null,
-                'checksum_sha256' => $data['checksum_sha256'] ?? null,
             ]);
 
             $this->recordStatusHistory($evidence, null, EvidenceStatus::Registered->value, $actor);
@@ -157,11 +174,185 @@ class EvidenceService
             ->get();
     }
 
+    public function uploadFile(Evidence $evidence, User $actor, UploadedFile $file): Evidence
+    {
+        $evidence->loadMissing('investigation.case.status');
+        $this->authorizeAssignedSatgas($evidence->investigation, $actor, 'evidence.upload');
+        $this->ensureEvidenceOpen($evidence);
+        $this->ensureInvestigationCanAcceptEvidence($evidence->investigation);
+
+        $mimeType = $file->getMimeType();
+        $extension = $mimeType ? (self::EXTENSION_BY_MIME[$mimeType] ?? null) : null;
+        $temporaryPath = $file->getRealPath();
+        $fileSize = $file->getSize();
+
+        if (! $extension || ! $temporaryPath || $fileSize === false || $fileSize < 1) {
+            throw $this->unprocessable('Invalid evidence file');
+        }
+
+        $checksum = hash_file('sha256', $temporaryPath);
+
+        if ($checksum === false) {
+            throw $this->serverError('Evidence file could not be processed');
+        }
+
+        $originalFilename = $this->sanitizeOriginalFilename($file->getClientOriginalName(), $extension);
+        $storedPath = null;
+
+        try {
+            return DB::transaction(function () use (
+                $evidence,
+                $actor,
+                $temporaryPath,
+                $mimeType,
+                $extension,
+                $fileSize,
+                $checksum,
+                $originalFilename,
+                &$storedPath,
+            ): Evidence {
+                $lockedEvidence = Evidence::query()
+                    ->with('investigation.case.status')
+                    ->whereKey($evidence->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $this->authorizeAssignedSatgas($lockedEvidence->investigation, $actor, 'evidence.upload');
+                $this->ensureEvidenceOpen($lockedEvidence);
+                $this->ensureInvestigationCanAcceptEvidence($lockedEvidence->investigation);
+
+                if ($lockedEvidence->storage_path !== null) {
+                    throw $this->conflict('An evidence file is already attached');
+                }
+
+                $storedPath = sprintf(
+                    'cases/%d/evidences/%d/%s.%s',
+                    $lockedEvidence->investigation->case_id,
+                    $lockedEvidence->id,
+                    Str::uuid()->toString(),
+                    $extension,
+                );
+                $source = fopen($temporaryPath, 'rb');
+
+                if ($source === false) {
+                    throw $this->serverError('Evidence file could not be processed');
+                }
+
+                try {
+                    $stored = Storage::disk(self::FILE_DISK)->writeStream($storedPath, $source, [
+                        'visibility' => 'private',
+                    ]);
+                } finally {
+                    fclose($source);
+                }
+
+                if (! $stored) {
+                    throw $this->serverError('Evidence file could not be stored');
+                }
+
+                $lockedEvidence->forceFill([
+                    'original_filename' => $originalFilename,
+                    'mime_type' => $mimeType,
+                    'file_size' => $fileSize,
+                    'checksum_sha256' => $checksum,
+                    'storage_disk' => self::FILE_DISK,
+                    'storage_path' => $storedPath,
+                    'file_uploaded_by' => $actor->id,
+                    'file_uploaded_at' => now(),
+                ])->save();
+
+                $this->recordCustodyEvent($lockedEvidence, EvidenceCustodyEventType::FileUploaded, $actor, [
+                    'mime_type' => $mimeType,
+                    'file_size' => $fileSize,
+                ]);
+                $this->recordFileAudit(AuditAction::EvidenceFileUploaded, $lockedEvidence, $actor);
+
+                return $lockedEvidence->load($this->detailRelations());
+            });
+        } catch (Throwable $exception) {
+            if ($storedPath !== null) {
+                Storage::disk(self::FILE_DISK)->delete($storedPath);
+            }
+
+            throw $exception;
+        }
+    }
+
+    public function downloadFile(Evidence $evidence, User $actor): StreamedResponse
+    {
+        $evidence->loadMissing('investigation.case');
+        $this->authorizeAssignedSatgas($evidence->investigation, $actor, 'evidence.download');
+
+        if (
+            $evidence->storage_disk !== self::FILE_DISK
+            || ! is_string($evidence->storage_path)
+            || ! $this->isExpectedStoragePath($evidence)
+            || ! Storage::disk(self::FILE_DISK)->exists($evidence->storage_path)
+        ) {
+            throw $this->notFound();
+        }
+
+        $stream = Storage::disk(self::FILE_DISK)->readStream($evidence->storage_path);
+
+        if ($stream === false) {
+            throw $this->notFound();
+        }
+
+        $filename = $this->sanitizeOriginalFilename(
+            $evidence->original_filename ?: 'evidence-'.$evidence->id,
+            self::EXTENSION_BY_MIME[$evidence->mime_type] ?? 'bin',
+        );
+        $mimeType = isset(self::EXTENSION_BY_MIME[$evidence->mime_type])
+            ? $evidence->mime_type
+            : 'application/octet-stream';
+
+        try {
+            $response = response()->streamDownload(function () use ($stream): void {
+                try {
+                    fpassthru($stream);
+                } finally {
+                    if (is_resource($stream)) {
+                        fclose($stream);
+                    }
+                }
+            }, $filename, [
+                'Content-Type' => $mimeType,
+                'Content-Length' => (string) $evidence->file_size,
+                'X-Content-Type-Options' => 'nosniff',
+                'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
+                'Pragma' => 'no-cache',
+                'Expires' => '0',
+                'Access-Control-Expose-Headers' => 'Content-Disposition',
+            ], 'attachment');
+        } catch (Throwable $exception) {
+            fclose($stream);
+            throw $exception;
+        }
+
+        try {
+            DB::transaction(function () use ($evidence, $actor): void {
+                $this->recordCustodyEvent($evidence, EvidenceCustodyEventType::FileDownloaded, $actor, [
+                    'mime_type' => $evidence->mime_type,
+                    'file_size' => $evidence->file_size,
+                ]);
+                $this->recordFileAudit(AuditAction::EvidenceFileDownloaded, $evidence, $actor);
+            });
+        } catch (Throwable $exception) {
+            fclose($stream);
+            throw $exception;
+        }
+
+        return $response;
+    }
+
     private function ensureInvestigationCanAcceptEvidence(Investigation $investigation): void
     {
         $investigation->loadMissing('case.status');
 
-        if ($investigation->case?->status?->name === CaseStatusEnum::Closed->value) {
+        if (
+            $investigation->case?->closed_at !== null
+            || $investigation->case?->status?->name === CaseStatusEnum::Closed->value
+        ) {
             throw $this->unprocessable('Evidence cannot be added to a closed case');
         }
     }
@@ -181,9 +372,13 @@ class EvidenceService
             ->first() ?? throw $this->unprocessable('Unknown evidence type');
     }
 
-    private function authorizeAssignedSatgas(Investigation $investigation, User $actor): void
+    private function authorizeAssignedSatgas(
+        Investigation $investigation,
+        User $actor,
+        string $capability = 'evidence.upload',
+    ): void
     {
-        if (! $actor->is_active || ! $actor->hasPermission('evidence.upload') || ! $actor->hasPermission('evidence.view.case') || ! $actor->hasRole('satgas_ppks')) {
+        if (! $actor->is_active || ! $actor->hasPermission($capability) || ! $actor->hasPermission('evidence.view.case') || ! $actor->hasRole('satgas_ppks')) {
             throw $this->forbidden();
         }
 
@@ -230,7 +425,59 @@ class EvidenceService
             'investigation.case',
             'evidenceType',
             'submitter',
+            'fileUploader',
         ];
+    }
+
+    private function sanitizeOriginalFilename(string $filename, string $fallbackExtension): string
+    {
+        $filename = basename(str_replace('\\', '/', $filename));
+        $filename = preg_replace('/[\x00-\x1F\x7F]+/u', '', $filename) ?? '';
+        $filename = preg_replace('/[^\pL\pN._ -]+/u', '_', $filename) ?? '';
+        $filename = trim($filename, " .\t\n\r\0\x0B");
+
+        if ($filename === '') {
+            return 'evidence.'.$fallbackExtension;
+        }
+
+        if (pathinfo($filename, PATHINFO_EXTENSION) === '') {
+            $filename .= '.'.$fallbackExtension;
+        }
+
+        return mb_strimwidth($filename, 0, 255, '');
+    }
+
+    private function isExpectedStoragePath(Evidence $evidence): bool
+    {
+        $extension = self::EXTENSION_BY_MIME[$evidence->mime_type] ?? null;
+
+        if ($extension === null) {
+            return false;
+        }
+
+        $pattern = sprintf(
+            '#^cases/%d/evidences/%d/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.%s$#D',
+            $evidence->investigation->case_id,
+            $evidence->id,
+            preg_quote($extension, '#'),
+        );
+
+        return preg_match($pattern, $evidence->storage_path) === 1;
+    }
+
+    private function recordFileAudit(AuditAction $action, Evidence $evidence, User $actor): void
+    {
+        $this->auditLogService->record(
+            action: $action,
+            category: AuditCategory::Evidence,
+            severity: AuditSeverity::Info,
+            actor: $actor,
+            subject: $evidence,
+            metadata: [
+                'evidence_id' => $evidence->id,
+                'case_id' => $evidence->investigation->case_id,
+            ],
+        );
     }
 
     /**
@@ -261,5 +508,32 @@ class EvidenceService
             'message' => $message,
             'errors' => null,
         ], 422));
+    }
+
+    private function conflict(string $message): HttpResponseException
+    {
+        return new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => $message,
+            'errors' => null,
+        ], 409));
+    }
+
+    private function notFound(): HttpResponseException
+    {
+        return new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => 'Evidence file not found',
+            'errors' => null,
+        ], 404));
+    }
+
+    private function serverError(string $message): HttpResponseException
+    {
+        return new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => $message,
+            'errors' => null,
+        ], 500));
     }
 }

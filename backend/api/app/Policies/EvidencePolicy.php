@@ -34,10 +34,26 @@ class EvidencePolicy extends BasePolicy
         return $this->canManageInvestigationEvidence($user, $evidence->investigation);
     }
 
+    public function uploadFile(User $user, Evidence $evidence): bool
+    {
+        return $this->canAccessAssignedEvidence($user, $evidence->investigation, 'evidence.upload');
+    }
+
+    public function downloadFile(User $user, Evidence $evidence): bool
+    {
+        return $this->canAccessAssignedEvidence($user, $evidence->investigation, 'evidence.download');
+    }
+
     public function canManageInvestigationEvidence(User $user, Investigation $investigation): bool
     {
-        return $this->allowPermission($user, 'evidence.view.case')
-            && $this->allowPermission($user, 'evidence.upload')
+        return $this->canAccessAssignedEvidence($user, $investigation, 'evidence.upload');
+    }
+
+    private function canAccessAssignedEvidence(User $user, Investigation $investigation, string $capability): bool
+    {
+        return $user->is_active
+            && $this->allowPermission($user, 'evidence.view.case')
+            && $this->allowPermission($user, $capability)
             && $this->allowRole($user, 'satgas_ppks')
             && CaseAssignment::query()
                 ->where('case_id', $investigation->case_id)

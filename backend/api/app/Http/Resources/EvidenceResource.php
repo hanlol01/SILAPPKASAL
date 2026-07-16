@@ -37,6 +37,16 @@ class EvidenceResource extends JsonResource
                 'file_size' => $this->file_size,
                 'checksum_sha256' => $this->checksum_sha256,
             ],
+            'file_attachment' => $this->storage_path === null ? null : [
+                'original_filename' => $this->original_filename,
+                'mime_type' => $this->mime_type,
+                'file_size' => $this->file_size,
+                'uploaded_at' => $this->file_uploaded_at?->toJSON(),
+                'uploaded_by' => $this->whenLoaded('fileUploader', fn (): ?array => $this->fileUploader ? [
+                    'id' => $this->fileUploader->id,
+                    'name' => $this->fileUploader->name,
+                ] : null),
+            ],
             'submitted_by' => $this->whenLoaded('submitter', fn (): array => [
                 'id' => $this->submitter->id,
                 'name' => $this->submitter->name,

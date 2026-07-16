@@ -46,8 +46,10 @@ class EvidenceFoundationTest extends TestCase
         $this->assertTrue(Schema::hasColumn('evidences', 'mime_type'));
         $this->assertTrue(Schema::hasColumn('evidences', 'file_size'));
         $this->assertTrue(Schema::hasColumn('evidences', 'checksum_sha256'));
-        $this->assertFalse(Schema::hasColumn('evidences', 'storage_disk'));
-        $this->assertFalse(Schema::hasColumn('evidences', 'storage_path'));
+        $this->assertTrue(Schema::hasColumn('evidences', 'storage_disk'));
+        $this->assertTrue(Schema::hasColumn('evidences', 'storage_path'));
+        $this->assertTrue(Schema::hasColumn('evidences', 'file_uploaded_by'));
+        $this->assertTrue(Schema::hasColumn('evidences', 'file_uploaded_at'));
         $this->assertFalse(Schema::hasColumn('evidence_custody_events', 'deleted_at'));
     }
 
@@ -63,7 +65,8 @@ class EvidenceFoundationTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.status', EvidenceStatus::Registered->value)
             ->assertJsonPath('data.classification', EvidenceClassification::Confidential->value)
-            ->assertJsonPath('data.file_metadata.original_filename', 'screenshot-chat.png')
+            ->assertJsonPath('data.file_metadata.original_filename', null)
+            ->assertJsonPath('data.file_attachment', null)
             ->assertJsonMissingPath('data.investigation.findings')
             ->assertJsonMissingPath('data.report.chronology')
             ->assertJsonMissingPath('data.file_content');
@@ -97,7 +100,7 @@ class EvidenceFoundationTest extends TestCase
         }
     }
 
-    public function test_evidence_creation_rejects_file_upload_and_storage_fields(): void
+    public function test_evidence_metadata_endpoints_reject_forged_file_and_storage_fields(): void
     {
         $admin = $this->makeUser('admin', 'admin@university.ac.id');
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
@@ -106,12 +109,31 @@ class EvidenceFoundationTest extends TestCase
         $this->actingAsApi($satgas);
         $this->postJson("/api/v1/investigations/{$investigation->id}/evidences", $this->evidencePayload([
             'file' => 'fake-upload-content',
+            'original_filename' => 'forged.png',
+            'mime_type' => 'image/png',
+            'file_size' => 1024,
+            'checksum_sha256' => str_repeat('a', 64),
             'storage_disk' => 'evidence',
             'storage_path' => 'private/evidence/file.png',
+            'file_uploaded_by' => $satgas->id,
+            'file_uploaded_at' => now()->toJSON(),
         ]))
             ->assertUnprocessable();
 
         $this->assertDatabaseCount('evidences', 0);
+
+        $evidence = $this->makeEvidence($investigation, $satgas);
+
+        $this->patchJson("/api/v1/evidences/{$evidence->id}", [
+            'original_filename' => 'forged.pdf',
+            'mime_type' => 'application/pdf',
+            'file_size' => 2048,
+            'checksum_sha256' => str_repeat('b', 64),
+            'storage_disk' => 'evidence',
+            'storage_path' => 'cases/1/evidences/1/forged.pdf',
+            'file_uploaded_by' => $satgas->id,
+            'file_uploaded_at' => now()->toJSON(),
+        ])->assertUnprocessable();
     }
 
     public function test_assigned_satgas_can_update_metadata_and_custody_is_append_only(): void
@@ -183,10 +205,6 @@ class EvidenceFoundationTest extends TestCase
             'source' => 'Diserahkan kepada Satgas saat investigasi.',
             'collected_at' => now()->toJSON(),
             'classification' => EvidenceClassification::Confidential->value,
-            'original_filename' => 'screenshot-chat.png',
-            'mime_type' => 'image/png',
-            'file_size' => 2048,
-            'checksum_sha256' => str_repeat('a', 64),
         ], $overrides);
     }
 

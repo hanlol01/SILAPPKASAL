@@ -145,7 +145,6 @@ class RbacSeeder extends Seeder
             'reports.read.own',
             'messages.send',
             'messages.read.case',
-            'evidence.upload',
             'evidence.view.case',
         ],
     ];
@@ -170,10 +169,15 @@ class RbacSeeder extends Seeder
             ];
         });
 
+        $managedPermissionIds = $permissions->pluck('id');
+
         foreach ($this->rolePermissions as $roleCode => $permissionCodes) {
-            $roles[$roleCode]->permissions()->sync(
-                $permissions->only($permissionCodes)->pluck('id')->all()
+            $desiredPermissionIds = $permissions->only($permissionCodes)->pluck('id');
+
+            $roles[$roleCode]->permissions()->detach(
+                $managedPermissionIds->diff($desiredPermissionIds)->all()
             );
+            $roles[$roleCode]->permissions()->syncWithoutDetaching($desiredPermissionIds->all());
         }
     }
 }

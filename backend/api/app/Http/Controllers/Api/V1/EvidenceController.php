@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreEvidenceRequest;
 use App\Http\Requests\UpdateEvidenceRequest;
 use App\Http\Requests\UpdateEvidenceStatusRequest;
+use App\Http\Requests\UploadEvidenceFileRequest;
 use App\Http\Resources\EvidenceCustodyEventResource;
 use App\Http\Resources\EvidenceResource;
 use App\Models\Evidence;
@@ -14,6 +15,7 @@ use App\Services\EvidenceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EvidenceController extends Controller
 {
@@ -93,5 +95,25 @@ class EvidenceController extends Controller
             'message' => 'Evidence custody events retrieved successfully',
             'data' => EvidenceCustodyEventResource::collection($events),
         ]);
+    }
+
+    public function uploadFile(UploadEvidenceFileRequest $request, Evidence $evidence): JsonResponse
+    {
+        Gate::authorize('uploadFile', $evidence);
+
+        $evidence = $this->evidenceService->uploadFile($evidence, $request->user(), $request->file('file'));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Evidence file uploaded successfully',
+            'data' => new EvidenceResource($evidence),
+        ]);
+    }
+
+    public function downloadFile(Request $request, Evidence $evidence): StreamedResponse
+    {
+        Gate::authorize('downloadFile', $evidence);
+
+        return $this->evidenceService->downloadFile($evidence, $request->user());
     }
 }
