@@ -2,6 +2,7 @@
   "save": "Save",
   "cancel": "Cancel",
   "loading": "Loading",
+  "restoringSession": "Restoring your session...",
   "retry": "Retry",
   "signOut": "Sign Out",
   "language": "Language",

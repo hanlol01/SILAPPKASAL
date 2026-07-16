@@ -1,6 +1,7 @@
 import { createFileRoute, Navigate, Outlet, useRouterState } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { AccessDenied } from "@/components/access-denied";
+import { AuthSessionLoader } from "@/components/auth-session-loader";
 import { PortalLayout } from "@/layouts/portal-layout";
 import { useAuth } from "@/hooks/use-auth";
 import { hasPortalAccess } from "@/lib/auth-roles";
@@ -17,11 +18,7 @@ function PortalShell() {
   });
 
   if (isHydrating) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
-        {t("portal:loadingPortal")}
-      </div>
-    );
+    return <AuthSessionLoader />;
   }
 
   if (!isAuthenticated) {

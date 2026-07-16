@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import { createRecommendation, operationsQueryKeys } from "@/lib/operations-api";
 import type { Investigation } from "@/lib/operations-types";
+import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
 const requiredText = z.string().trim().min(1, "Required").max(10000, "Maximum 10000 characters");
 const optionalText = z.string().trim().max(10000, "Maximum 10000 characters").optional();
@@ -69,15 +70,17 @@ export function RecommendationCreateAction({
         investigation_id: investigation.id,
         ...nullifyEmpty(values),
       }),
-    onSuccess: () => {
-      toast.success(t("dashboard:workflow.recommendationCreated"));
-      setOpen(false);
+    onSuccess: async () => {
+      await synchronizeWorkflowCaches(queryClient, {
+        caseId,
+        exactKeys: [
+          operationsQueryKeys.recommendations(caseId),
+          operationsQueryKeys.investigations(caseId),
+        ],
+      });
       form.reset();
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.case(caseId) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.recommendations(caseId) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.investigations(caseId) });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["my-work"] });
+      setOpen(false);
+      toast.success(t("dashboard:workflow.recommendationCreated"));
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
@@ -114,7 +117,9 @@ export function RecommendationCreateAction({
         </div>
 
         <Form {...form}>
-          <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+          <form className="space-y-4" onSubmit={form.handleSubmit((values) => {
+            if (!mutation.isPending) mutation.mutate(values);
+          })}>
             <TextareaField form={form} name="conclusion" label={t("dashboard:sections.conclusion")} />
             <TextareaField form={form} name="recommended_actions" label={t("dashboard:sections.recommendedActions")} />
             <TextareaField form={form} name="sanction_recommendation" label={t("dashboard:workflow.sanctionRecommendation")} />
@@ -124,7 +129,9 @@ export function RecommendationCreateAction({
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
                 {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {t("dashboard:workflow.createRecommendation")}
+                {mutation.isPending
+                  ? t("dashboard:common.saving")
+                  : t("dashboard:workflow.createRecommendation")}
               </Button>
             </DialogFooter>
           </form>

@@ -36,6 +36,7 @@ import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import { getMasterData, masterDataQueryKeys } from "@/lib/master-data-api";
 import { createRecovery, operationsQueryKeys } from "@/lib/operations-api";
 import type { Decision } from "@/lib/operations-types";
+import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
 const requiredText = z.string().trim().min(1, "Required").max(10000, "Maximum 10000 characters");
 const optionalText = z.string().trim().max(10000, "Maximum 10000 characters").optional();
@@ -76,15 +77,17 @@ export function RecoveryCreateAction({
 
   const mutation = useMutation({
     mutationFn: (values: RecoveryCreateValues) => createRecovery(decision.id, nullifyEmpty(values)),
-    onSuccess: () => {
-      toast.success(t("dashboard:workflow.recoveryCreated"));
-      setOpen(false);
+    onSuccess: async () => {
+      await synchronizeWorkflowCaches(queryClient, {
+        caseId,
+        exactKeys: [
+          operationsQueryKeys.decisions(decision.recommendation_id),
+          operationsQueryKeys.recoveries(decision.id),
+        ],
+      });
       form.reset();
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.case(caseId) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.decisions(decision.recommendation_id) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.recoveries(decision.id) });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["my-work"] });
+      setOpen(false);
+      toast.success(t("dashboard:workflow.recoveryCreated"));
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
@@ -108,7 +111,9 @@ export function RecoveryCreateAction({
         </DialogHeader>
 
         <Form {...form}>
-          <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+          <form className="space-y-4" onSubmit={form.handleSubmit((values) => {
+            if (!mutation.isPending) mutation.mutate(values);
+          })}>
             <FormField
               control={form.control}
               name="recovery_type_code"
@@ -146,7 +151,9 @@ export function RecoveryCreateAction({
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
                 {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {t("dashboard:workflow.createRecovery")}
+                {mutation.isPending
+                  ? t("dashboard:common.saving")
+                  : t("dashboard:workflow.createRecovery")}
               </Button>
             </DialogFooter>
           </form>

@@ -27,6 +27,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,7 +43,8 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
 import { formatRoleLabel } from "@/lib/format-labels";
-import type { ReactNode } from "react";
+import { getSessionStorageItem, setSessionStorageItem } from "@/lib/auth-storage";
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { RoleCode } from "@/lib/api-types";
 import { useTranslation } from "react-i18next";
 
@@ -114,11 +116,22 @@ const nav: {
   },
 ];
 
+const DASHBOARD_SIDEBAR_STATE_KEY = "silappkasal_dashboard_sidebar_state";
+const useBrowserLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 function AppSidebar() {
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const { isMobile, setOpenMobile } = useSidebar();
   const { roleCode } = useAuth();
   const { t } = useTranslation(["dashboard"]);
   const items = nav.filter((item) => roleCode && item.roles.includes(roleCode));
+  const closeMobileSidebar = useCallback(() => {
+    if (isMobile) setOpenMobile(false);
+  }, [isMobile, setOpenMobile]);
+
+  useEffect(() => {
+    closeMobileSidebar();
+  }, [closeMobileSidebar, path]);
 
   return (
     <Sidebar collapsible="icon">
@@ -146,7 +159,7 @@ function AppSidebar() {
                 return (
                   <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton asChild isActive={active} tooltip={t(`dashboard:nav.${item.key}`)}>
-                      <Link to={item.url}>
+                      <Link to={item.url} onClick={closeMobileSidebar}>
                         <item.icon className="h-4 w-4" />
                         <span>{t(`dashboard:nav.${item.key}`)}</span>
                       </Link>
@@ -224,13 +237,37 @@ function Topbar() {
 }
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
+  const [desktopOpen, setDesktopOpen] = useState(true);
+  const preferenceRestoredRef = useRef(false);
+
+  useBrowserLayoutEffect(() => {
+    const stored = getSessionStorageItem(DASHBOARD_SIDEBAR_STATE_KEY);
+
+    if (stored === "expanded" || stored === "collapsed") {
+      setDesktopOpen(stored === "expanded");
+    }
+
+    preferenceRestoredRef.current = true;
+  }, []);
+
+  const handleDesktopOpenChange = useCallback((nextOpen: boolean) => {
+    setDesktopOpen(nextOpen);
+
+    if (preferenceRestoredRef.current) {
+      setSessionStorageItem(
+        DASHBOARD_SIDEBAR_STATE_KEY,
+        nextOpen ? "expanded" : "collapsed",
+      );
+    }
+  }, []);
+
   return (
-    <SidebarProvider>
+    <SidebarProvider open={desktopOpen} onOpenChange={handleDesktopOpenChange}>
       <div className="flex min-h-screen w-full bg-muted/30">
         <AppSidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar />
-          <main className="flex-1 p-4 md:p-6">{children}</main>
+          <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
         </div>
       </div>
     </SidebarProvider>

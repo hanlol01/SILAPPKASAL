@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api-client";
+import { AuthSessionLoader } from "@/components/auth-session-loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -70,7 +71,7 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const { t } = useTranslation(["auth", "common"]);
-  const { login, user } = useAuth();
+  const { isHydrating, login, user } = useAuth();
   const navigate = useNavigate();
   const { redirect } = Route.useSearch();
   const [identifier, setIdentifier] = useState("");
@@ -104,6 +105,10 @@ function LoginPage() {
       setLoading(false);
     }
   };
+
+  if (isHydrating) {
+    return <AuthSessionLoader />;
+  }
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">

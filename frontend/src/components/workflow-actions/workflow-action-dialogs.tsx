@@ -1,13 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ClipboardEdit, FilePlus2, History, Info, PenLine } from "lucide-react";
-import { useMemo, useState } from "react";
+import { ClipboardEdit, FilePlus2, History, Loader2, PenLine } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, type FieldValues, type Path, type UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
@@ -69,6 +68,7 @@ import {
   INVESTIGATION_ACTIVITY_TYPES,
   labelOption,
 } from "@/lib/workflow-action-options";
+import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
 const today = new Date().toISOString().slice(0, 10);
 const requiredText = z.string().trim().min(1, "Required").max(10000, "Maximum 10000 characters");
@@ -121,22 +121,14 @@ interface EvidenceStatusValues {
   status: string;
 }
 
-export function DisabledWorkflowAction({ title, description }: { title: string; description: string }) {
-  return (
-    <Alert className="border-primary/30 bg-primary/5 [&>svg]:text-primary">
-      <Info className="h-4 w-4" />
-      <AlertTitle>{title}</AlertTitle>
-      <AlertDescription>{description}</AlertDescription>
-    </Alert>
-  );
-}
-
 export function CaseStatusAction({
   caseId,
   currentStatus,
+  onAvailabilityChange,
 }: {
   caseId: number | string;
   currentStatus: string;
+  onAvailabilityChange?: (available: boolean) => void;
 }) {
   const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
@@ -151,14 +143,11 @@ export function CaseStatusAction({
   });
   const mutation = useMutation({
     mutationFn: (values: CaseStatusValues) => updateCaseStatus(caseId, values),
-    onSuccess: () => {
-      toast.success(t("dashboard:workflow.caseStatusUpdated"));
-      setOpen(false);
+    onSuccess: async () => {
+      await synchronizeWorkflowCaches(queryClient, { caseId });
       form.reset({ status: "" });
-      queryClient.invalidateQueries({ queryKey: ["operations", "case"] });
-      queryClient.invalidateQueries({ queryKey: ["operations", "cases"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["my-work"] });
+      setOpen(false);
+      toast.success(t("dashboard:workflow.caseStatusUpdated"));
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
@@ -166,7 +155,39 @@ export function CaseStatusAction({
     },
   });
 
-  const options = caseStatusOptions(statusesQuery.data ?? [], currentStatus);
+  const options = useMemo(
+    () => caseStatusOptions(statusesQuery.data ?? [], currentStatus),
+    [currentStatus, statusesQuery.data],
+  );
+
+  useEffect(() => {
+    if (!statusesQuery.isSuccess) return;
+    const selected = form.getValues("status");
+    if (selected && !options.some((option) => option.code === selected || option.name === selected)) {
+      form.resetField("status");
+    }
+  }, [form, options, statusesQuery.isSuccess]);
+
+  useEffect(() => {
+    if (statusesQuery.isSuccess) {
+      onAvailabilityChange?.(options.length > 0);
+      return;
+    }
+
+    onAvailabilityChange?.(statusesQuery.isPending);
+  }, [onAvailabilityChange, options.length, statusesQuery.isPending, statusesQuery.isSuccess]);
+
+  if (statusesQuery.isPending) {
+    return (
+      <Button className="w-full" variant="outline" disabled>
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        {t("dashboard:workflow.loadingStatuses")}
+      </Button>
+    );
+  }
+
+  if (statusesQuery.isError && !open) return null;
+  if (statusesQuery.isSuccess && options.length === 0 && !open) return null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -181,14 +202,16 @@ export function CaseStatusAction({
           <DialogDescription>{t("dashboard:workflow.backendAuthoritative")}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+          <form className="space-y-4" onSubmit={form.handleSubmit((values) => {
+            if (!mutation.isPending) mutation.mutate(values);
+          })}>
             <FormField
               control={form.control}
               name="status"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t("dashboard:workflow.status")}</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={mutation.isPending || options.length === 0}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder={t("dashboard:workflow.selectStatus")} />
@@ -207,7 +230,8 @@ export function CaseStatusAction({
               )}
             />
             <DialogFooter>
-              <Button type="submit" disabled={mutation.isPending}>
+              <Button type="submit" disabled={mutation.isPending || options.length === 0}>
+                {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {mutation.isPending ? t("dashboard:common.saving") : t("dashboard:workflow.saveStatus")}
               </Button>
             </DialogFooter>
@@ -241,13 +265,17 @@ export function InvestigationActivityAction({
   const mutation = useMutation({
     mutationFn: (values: ActivityValues) =>
       createInvestigationActivity(investigation.id, nullifyEmpty(values)),
-    onSuccess: () => {
-      toast.success(t("dashboard:workflow.activityAdded"));
-      setOpen(false);
+    onSuccess: async () => {
+      await synchronizeWorkflowCaches(queryClient, {
+        caseId,
+        exactKeys: [
+          operationsQueryKeys.investigations(caseId),
+          operationsQueryKeys.investigation(investigation.id),
+        ],
+      });
       form.reset();
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.investigations(caseId) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.investigation(investigation.id) });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      setOpen(false);
+      toast.success(t("dashboard:workflow.activityAdded"));
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
@@ -268,7 +296,9 @@ export function InvestigationActivityAction({
           <DialogDescription>{t("dashboard:workflow.activityEndpointDesc")}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+            <form className="space-y-4" onSubmit={form.handleSubmit((values) => {
+              if (!mutation.isPending) mutation.mutate(values);
+            })}>
             <SelectField form={form} name="activity_type" label={t("dashboard:workflow.activityType")} options={INVESTIGATION_ACTIVITY_TYPES} formatter={(value) => formatGenericLabel(value)} />
             <DatePickerField form={form} name="activity_date" label={t("dashboard:workflow.activityDate")} disableFuture />
             <TextareaField form={form} name="description" label={t("dashboard:workflow.description")} />
@@ -276,6 +306,7 @@ export function InvestigationActivityAction({
             <TextareaField form={form} name="notes" label={t("dashboard:workflow.notes")} />
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
+                {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {mutation.isPending ? t("dashboard:common.saving") : t("dashboard:workflow.addActivity")}
               </Button>
             </DialogFooter>
@@ -308,11 +339,16 @@ export function RecommendationUpdateAction({
   });
   const mutation = useMutation({
     mutationFn: (values: RecommendationValues) => updateRecommendation(recommendation.id, nullifyEmpty(values)),
-    onSuccess: () => {
-      toast.success(t("dashboard:workflow.recommendationUpdated"));
+    onSuccess: async () => {
+      await synchronizeWorkflowCaches(queryClient, {
+        caseId,
+        exactKeys: [
+          operationsQueryKeys.recommendations(caseId),
+          operationsQueryKeys.recommendation(recommendation.id),
+        ],
+      });
       setOpen(false);
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.recommendations(caseId) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.recommendation(recommendation.id) });
+      toast.success(t("dashboard:workflow.recommendationUpdated"));
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
@@ -333,7 +369,9 @@ export function RecommendationUpdateAction({
           <DialogDescription>{t("dashboard:workflow.editableBackendFields")}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+          <form className="space-y-4" onSubmit={form.handleSubmit((values) => {
+            if (!mutation.isPending) mutation.mutate(values);
+          })}>
             <TextareaField form={form} name="conclusion" label={t("dashboard:sections.conclusion")} />
             <TextareaField form={form} name="recommended_actions" label={t("dashboard:sections.recommendedActions")} />
             <TextareaField form={form} name="sanction_recommendation" label={t("dashboard:sections.sanction")} />
@@ -341,6 +379,7 @@ export function RecommendationUpdateAction({
             <TextareaField form={form} name="prevention_recommendation" label={t("dashboard:sections.prevention")} />
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
+                {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {mutation.isPending ? t("dashboard:common.saving") : t("dashboard:workflow.saveRecommendation")}
               </Button>
             </DialogFooter>
@@ -351,7 +390,13 @@ export function RecommendationUpdateAction({
   );
 }
 
-export function DecisionUpdateAction({ decision }: { decision: Decision }) {
+export function DecisionUpdateAction({
+  decision,
+  caseId,
+}: {
+  decision: Decision;
+  caseId: string | number;
+}) {
   const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -367,12 +412,16 @@ export function DecisionUpdateAction({ decision }: { decision: Decision }) {
   });
   const mutation = useMutation({
     mutationFn: (values: DecisionValues) => updateDecision(decision.id, nullifyEmpty(values)),
-    onSuccess: () => {
-      toast.success(t("dashboard:workflow.decisionUpdated"));
+    onSuccess: async () => {
+      await synchronizeWorkflowCaches(queryClient, {
+        caseId,
+        exactKeys: [
+          operationsQueryKeys.decisions(decision.recommendation_id),
+          operationsQueryKeys.decision(decision.id),
+        ],
+      });
       setOpen(false);
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.decisions(decision.recommendation_id) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.decision(decision.id) });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      toast.success(t("dashboard:workflow.decisionUpdated"));
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
@@ -393,7 +442,9 @@ export function DecisionUpdateAction({ decision }: { decision: Decision }) {
           <DialogDescription>{t("dashboard:workflow.decisionDraftDesc")}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+          <form className="space-y-4" onSubmit={form.handleSubmit((values) => {
+            if (!mutation.isPending) mutation.mutate(values);
+          })}>
             <SelectField form={form} name="outcome_code" label={t("dashboard:workflow.outcome")} options={DECISION_OUTCOMES} formatter={(value) => formatDecisionOutcome(t, value)} />
             <InputField form={form} name="decision_number" label={t("dashboard:workflow.decisionNumber")} />
             <DatePickerField form={form} name="decision_date" label={t("dashboard:workflow.decisionDate")} disableFuture />
@@ -401,6 +452,7 @@ export function DecisionUpdateAction({ decision }: { decision: Decision }) {
             <TextareaField form={form} name="decision_content" label={t("dashboard:workflow.content")} className="min-h-32" />
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
+                {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {mutation.isPending ? t("dashboard:common.saving") : t("dashboard:workflow.saveDecision")}
               </Button>
             </DialogFooter>
@@ -411,7 +463,13 @@ export function DecisionUpdateAction({ decision }: { decision: Decision }) {
   );
 }
 
-export function RecoveryMonitoringAction({ recovery }: { recovery: Recovery }) {
+export function RecoveryMonitoringAction({
+  recovery,
+  caseId,
+}: {
+  recovery: Recovery;
+  caseId: string | number;
+}) {
   const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -426,14 +484,18 @@ export function RecoveryMonitoringAction({ recovery }: { recovery: Recovery }) {
   });
   const mutation = useMutation({
     mutationFn: (values: RecoveryMonitoringValues) => createRecoveryMonitoring(recovery.id, nullifyEmpty(values)),
-    onSuccess: () => {
-      toast.success(t("dashboard:workflow.monitoringAdded"));
-      setOpen(false);
+    onSuccess: async () => {
+      await synchronizeWorkflowCaches(queryClient, {
+        caseId,
+        exactKeys: [
+          operationsQueryKeys.recoveries(recovery.decision_id),
+          operationsQueryKeys.recovery(recovery.id),
+          operationsQueryKeys.recoveryMonitoring(recovery.id),
+        ],
+      });
       form.reset();
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.recoveries(recovery.decision_id) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.recovery(recovery.id) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.recoveryMonitoring(recovery.id) });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      setOpen(false);
+      toast.success(t("dashboard:workflow.monitoringAdded"));
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
@@ -454,13 +516,16 @@ export function RecoveryMonitoringAction({ recovery }: { recovery: Recovery }) {
           <DialogDescription>{t("dashboard:workflow.monitoringAllowedDesc")}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+          <form className="space-y-4" onSubmit={form.handleSubmit((values) => {
+            if (!mutation.isPending) mutation.mutate(values);
+          })}>
             <DatePickerField form={form} name="monitoring_date" label={t("dashboard:workflow.monitoringDate")} disableFuture />
             <TextareaField form={form} name="condition_summary" label={t("dashboard:workflow.conditionSummary")} />
             <TextareaField form={form} name="follow_up_plan" label={t("dashboard:workflow.followUpPlan")} />
             <TextareaField form={form} name="notes" label={t("dashboard:workflow.notes")} />
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
+                {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {mutation.isPending ? t("dashboard:common.saving") : t("dashboard:workflow.addMonitoring")}
               </Button>
             </DialogFooter>

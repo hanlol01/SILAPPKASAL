@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { History, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -39,6 +39,7 @@ import {
   updateRecommendationStatus,
 } from "@/lib/operations-api";
 import type { Recommendation } from "@/lib/operations-types";
+import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
 const recommendationStatusSchema = z.object({
   status: z.string().min(1, "Required"),
@@ -60,26 +61,54 @@ export function RecommendationStatusAction({
     queryKey: operationsQueryKeys.recommendationStatusOptions(recommendation.id),
     queryFn: () => getRecommendationStatusOptions(recommendation.id),
     enabled: open,
+    staleTime: 30_000,
   });
   const form = useForm<RecommendationStatusValues>({
     resolver: zodResolver(recommendationStatusSchema),
     defaultValues: { status: "" },
   });
 
-  const options = optionsQuery.data?.valid_transitions ?? [];
+  const options = useMemo(
+    () => optionsQuery.data?.valid_transitions ?? [],
+    [optionsQuery.data],
+  );
+  useEffect(() => {
+    if (!optionsQuery.isSuccess) return;
+    const selected = form.getValues("status");
+    if (selected && !options.some((option) => option.code === selected || option.name === selected)) {
+      form.resetField("status");
+    }
+  }, [form, options, optionsQuery.isSuccess]);
+
+  async function openWhenAvailable() {
+    if (optionsQuery.isFetching) return;
+
+    const result = await optionsQuery.refetch();
+    if (result.isError) {
+      toast.error(t("dashboard:workflow.statusOptionsError"));
+      return;
+    }
+
+    if ((result.data?.valid_transitions.length ?? 0) > 0) {
+      setOpen(true);
+    }
+  }
+
   const mutation = useMutation({
     mutationFn: (values: RecommendationStatusValues) =>
       updateRecommendationStatus(recommendation.id, values),
-    onSuccess: () => {
-      toast.success(t("dashboard:workflow.recommendationStatusUpdated"));
-      setOpen(false);
+    onSuccess: async () => {
+      await synchronizeWorkflowCaches(queryClient, {
+        caseId,
+        exactKeys: [
+          operationsQueryKeys.recommendations(caseId),
+          operationsQueryKeys.recommendation(recommendation.id),
+          operationsQueryKeys.recommendationStatusOptions(recommendation.id),
+        ],
+      });
       form.reset({ status: "" });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.case(caseId) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.recommendations(caseId) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.recommendation(recommendation.id) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.recommendationStatusOptions(recommendation.id) });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["my-work"] });
+      setOpen(false);
+      toast.success(t("dashboard:workflow.recommendationStatusUpdated"));
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
@@ -87,11 +116,28 @@ export function RecommendationStatusAction({
     },
   });
 
+  if (optionsQuery.isSuccess && options.length === 0 && !open) return null;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <History className="mr-2 h-4 w-4" /> {t("dashboard:workflow.status")}
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={optionsQuery.isFetching}
+          onClick={(event) => {
+            event.preventDefault();
+            void openWhenAvailable();
+          }}
+        >
+          {optionsQuery.isFetching ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <History className="mr-2 h-4 w-4" />
+          )}
+          {optionsQuery.isFetching
+            ? t("dashboard:workflow.loadingStatuses")
+            : t("dashboard:workflow.status")}
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -103,7 +149,9 @@ export function RecommendationStatusAction({
         </DialogHeader>
 
         <Form {...form}>
-          <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+          <form className="space-y-4" onSubmit={form.handleSubmit((values) => {
+            if (!mutation.isPending) mutation.mutate(values);
+          })}>
             <FormField
               control={form.control}
               name="status"
@@ -113,7 +161,7 @@ export function RecommendationStatusAction({
                   <Select
                     onValueChange={field.onChange}
                     value={field.value}
-                    disabled={optionsQuery.isLoading || options.length === 0}
+                    disabled={mutation.isPending || optionsQuery.isLoading || options.length === 0}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -139,7 +187,9 @@ export function RecommendationStatusAction({
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending || options.length === 0}>
                 {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {t("dashboard:workflow.saveStatus")}
+                {mutation.isPending
+                  ? t("dashboard:common.saving")
+                  : t("dashboard:workflow.saveStatus")}
               </Button>
             </DialogFooter>
           </form>

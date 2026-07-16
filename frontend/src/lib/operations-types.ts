@@ -34,6 +34,7 @@ export interface ReportSummary {
   category?: MasterRef | null;
   status: string;
   priority?: MasterRef | null;
+  case?: ReportCaseSummary | null;
   submitted_at: string | null;
   reviewed_at: string | null;
   forwarded_at: string | null;
@@ -277,6 +278,19 @@ export interface EvidenceMetadata {
   custody_events?: EvidenceCustodyEvent[];
   created_at: string | null;
   updated_at: string | null;
+}
+
+export interface ReportCaseAssignmentSummary {
+  satgas_id: number;
+  satgas_name?: string | null;
+  is_lead: boolean;
+  is_active: boolean;
+}
+
+export interface ReportCaseSummary {
+  id: number;
+  case_number: string;
+  active_assignments: ReportCaseAssignmentSummary[];
 }
 
 export interface EvidenceFileAttachment {

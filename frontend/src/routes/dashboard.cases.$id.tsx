@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueries, useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useState } from "react";
 import {
   AlertCircle,
   ArrowLeft,
@@ -57,7 +58,6 @@ import { SatgasAssignmentAction } from "@/components/workflow-actions/satgas-ass
 import {
   CaseStatusAction,
   DecisionUpdateAction,
-  DisabledWorkflowAction,
   EvidenceMetadataAction,
   EvidenceStatusAction,
   InvestigationActivityAction,
@@ -156,6 +156,7 @@ function CaseDetail() {
   const { id } = Route.useParams();
   const { user, roleCode } = useAuth();
   const { t, i18n } = useTranslation(["dashboard"]);
+  const [caseStatusAvailable, setCaseStatusAvailable] = useState(true);
   const caseQuery = useQuery({
     queryKey: operationsQueryKeys.case(id),
     queryFn: () => getCase(id),
@@ -209,6 +210,14 @@ function CaseDetail() {
   });
   const evidences = evidenceQueries.flatMap((query) => query.data ?? []);
 
+  useEffect(() => {
+    setCaseStatusAvailable(true);
+  }, [caseQuery.data?.status_code]);
+
+  const handleCaseStatusAvailability = useCallback((available: boolean) => {
+    setCaseStatusAvailable(available);
+  }, []);
+
   if (caseQuery.isLoading) {
     return <CaseDetailSkeleton />;
   }
@@ -219,6 +228,8 @@ function CaseDetail() {
 
   const c = caseQuery.data;
   const isAdminRole = roleCode === "super_admin" || roleCode === "admin";
+  const canManageAssignments =
+    isAdminRole && Boolean(user?.permissions?.includes("cases.assign_satgas"));
   const canUseSatgasActions = isAssignedSatgas && !c.closed_at;
   const canInvestigate = canUseSatgasActions && Boolean(user?.permissions?.includes("cases.investigate"));
   const canRecommend = canUseSatgasActions && Boolean(user?.permissions?.includes("cases.recommend"));
@@ -264,6 +275,13 @@ function CaseDetail() {
     decisionsLoaded &&
     finalizedDecisionForRecovery !== null &&
     !c.closed_at;
+  const hasGeneralActions =
+    (canUseSatgasActions && caseStatusAvailable)
+    || (canUseSatgasActions && c.status === "assessment")
+    || canCreateInvestigation
+    || canCreateRecommendation
+    || canCreateDecision
+    || canCreateRecovery;
   const defaultWorkflowTab = defaultWorkflowTabForCase(c);
   const restrictedLabel = restrictedRoleLabel(t, roleCode);
   const nextStepText = nextStepMessage(t, c, isAssignedSatgas, roleCode);
@@ -478,16 +496,7 @@ function CaseDetail() {
                   </div>
                 </div>
               ))}
-            </CardContent>
-          </Card>
-
-          <Card className="min-w-0">
-            <CardHeader>
-              <CardTitle className="text-base">{t("dashboard:common.actions")}</CardTitle>
-              <CardDescription>{t("dashboard:cases.actionsDesc")}</CardDescription>
-            </CardHeader>
-            <CardContent className="min-w-0 space-y-3">
-              {isAdminRole && !c.closed_at && (
+              {canManageAssignments && !c.closed_at && (
                 <>
                   <SatgasAssignmentAction
                     mode="assign-case"
@@ -502,94 +511,51 @@ function CaseDetail() {
                   </p>
                 </>
               )}
-              {!isAdminRole && (
-                <DisabledWorkflowAction
-                  title={t("dashboard:cases.assignSatgas")}
-                  description={t("dashboard:cases.assignmentManagedBy")}
-                />
+              {roleCode === "satgas_ppks" && (
+                <p className="text-xs text-muted-foreground">
+                  {t("dashboard:cases.assignmentManagedBy")}
+                </p>
               )}
-              {canUseSatgasActions ? (
-                <CaseStatusAction caseId={c.id} currentStatus={c.status_code} />
-              ) : (
-                <DisabledWorkflowAction
-                  title={t("dashboard:workflow.caseStatusUpdate")}
-                  description={t("dashboard:cases.actionsDesc")}
-                />
-              )}
-              {canUseSatgasActions && c.status === "assessment" ? (
+            </CardContent>
+          </Card>
+
+          {hasGeneralActions && (
+            <Card className="min-w-0">
+              <CardHeader>
+                <CardTitle className="text-base">{t("dashboard:common.actions")}</CardTitle>
+                <CardDescription>{t("dashboard:cases.actionsDesc")}</CardDescription>
+              </CardHeader>
+              <CardContent className="min-w-0 space-y-3">
+                {canUseSatgasActions && (
+                  <CaseStatusAction
+                    caseId={c.id}
+                    currentStatus={c.status_code}
+                    onAvailabilityChange={handleCaseStatusAvailability}
+                  />
+                )}
+                {canUseSatgasActions && c.status === "assessment" && (
                 <CaseAssessmentAction
                   caseId={c.id}
                   currentRiskCode={c.risk_level_code}
                   currentPriorityCode={c.priority}
+                  hasAssessment={Boolean(c.assessment_at || c.risk_level_code || c.priority)}
                 />
-              ) : (
-                <DisabledWorkflowAction
-                  title={t("dashboard:workflow.assessment.title")}
-                  description={
-                    c.closed_at
-                      ? t("dashboard:workflow.assessment.disabledClosed")
-                      : isAssignedSatgas
-                        ? t("dashboard:workflow.assessment.disabledNeedsStatus")
-                        : t("dashboard:workflow.assessment.disabledNotAssigned")
-                  }
-                />
-              )}
-              {canCreateInvestigation && (
-                <InvestigationCreateAction caseId={c.id} assignments={activeAssignments} />
-              )}
-              {canInvestigate && !canCreateInvestigation && (
-                <DisabledWorkflowAction
-                  title={t("dashboard:workflow.createInvestigationDisabled")}
-                  description={
-                    c.status !== "investigation"
-                      ? t("dashboard:workflow.createInvestigationNeedsStatus")
-                      : t("dashboard:workflow.createInvestigationExists")
-                  }
-                />
-              )}
-              {canCreateRecommendation && latestCompletedInvestigation && (
-                <RecommendationCreateAction caseId={c.id} investigation={latestCompletedInvestigation} />
-              )}
-              {canRecommend && !canCreateRecommendation && (
-                <DisabledWorkflowAction
-                  title={t("dashboard:workflow.createRecommendationDisabled")}
-                  description={recommendationCreateDisabledReason(
-                    t,
-                    c.status,
-                    recommendationsQuery.isSuccess,
-                    (recommendationsQuery.data ?? []).length,
-                    investigationsQuery.isSuccess,
-                    latestCompletedInvestigation,
-                  )}
-                />
-              )}
-              {canCreateDecision && submittedDecisionRecommendation && (
-                <DecisionCreateAction caseId={c.id} recommendation={submittedDecisionRecommendation} />
-              )}
-              {canManageDecisionActions && !canCreateDecision && (
-                <DisabledWorkflowAction
-                  title={t("dashboard:workflow.createDecisionDisabled")}
-                  description={decisionCreateDisabledReason(
-                    t,
-                    c.status,
-                    recommendationsQuery.isSuccess,
-                    decisionsLoaded,
-                    submittedDecisionRecommendation,
-                    decisions.length,
-                  )}
-                />
-              )}
-              {canCreateRecovery && finalizedDecisionForRecovery && (
-                <RecoveryCreateAction caseId={c.id} decision={finalizedDecisionForRecovery} />
-              )}
-              {canManageRecoveryActions && !canCreateRecovery && (
-                <DisabledWorkflowAction
-                  title={t("dashboard:workflow.createRecoveryDisabled")}
-                  description={recoveryCreateDisabledReason(t, decisionsLoaded, finalizedDecisionForRecovery, c.closed_at)}
-                />
-              )}
-            </CardContent>
-          </Card>
+                )}
+                {canCreateInvestigation && (
+                  <InvestigationCreateAction caseId={c.id} assignments={activeAssignments} />
+                )}
+                {canCreateRecommendation && latestCompletedInvestigation && (
+                  <RecommendationCreateAction caseId={c.id} investigation={latestCompletedInvestigation} />
+                )}
+                {canCreateDecision && submittedDecisionRecommendation && (
+                  <DecisionCreateAction caseId={c.id} recommendation={submittedDecisionRecommendation} />
+                )}
+                {canCreateRecovery && finalizedDecisionForRecovery && (
+                  <RecoveryCreateAction caseId={c.id} decision={finalizedDecisionForRecovery} />
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="min-w-0">
             <CardHeader>
@@ -799,7 +765,7 @@ function DecisionsSection({
             <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.decisionNumber", { id: item.id })}</div>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <WorkflowStatusBadge family="decision" status={item.status} />
-              {canUpdate && canEditDecision(item) && <DecisionUpdateAction decision={item} />}
+              {canUpdate && canEditDecision(item) && <DecisionUpdateAction decision={item} caseId={caseId} />}
               {canTransitionStatus && item.status !== "finalized" && (
                 <DecisionStatusAction decision={item} caseId={caseId} />
               )}
@@ -848,7 +814,9 @@ function RecoveriesSection({
             <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{item.recovery_type?.name ?? t("dashboard:sections.recoveryNumber", { id: item.id })}</div>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <WorkflowStatusBadge family="recovery" status={item.status} />
-              {canAddMonitoring && item.status === "ongoing" && <RecoveryMonitoringAction recovery={item} />}
+              {canAddMonitoring && item.status === "ongoing" && (
+                <RecoveryMonitoringAction recovery={item} caseId={caseId} />
+              )}
               {canTransitionStatus && !isTerminalRecovery(item) && (
                 <RecoveryStatusAction recovery={item} caseId={caseId} />
               )}
@@ -1178,81 +1146,6 @@ function submittedRecommendationForDecision(items: Recommendation[]) {
 
 function finalizedDecision(items: Decision[]) {
   return items.find((item) => item.status === "finalized") ?? null;
-}
-
-function recommendationCreateDisabledReason(
-  t: TFunction,
-  status: string | null | undefined,
-  recommendationsLoaded: boolean,
-  recommendationCount: number,
-  investigationsLoaded: boolean,
-  completedInvestigation: Investigation | null,
-) {
-  if (status !== "recommendation") {
-    return t("dashboard:workflow.createRecommendationNeedsStatus");
-  }
-
-  if (!recommendationsLoaded || !investigationsLoaded) {
-    return t("dashboard:workflow.createRecommendationLoading");
-  }
-
-  if (recommendationCount > 0) {
-    return t("dashboard:workflow.createRecommendationExists");
-  }
-
-  if (!completedInvestigation) {
-    return t("dashboard:workflow.createRecommendationNeedsInvestigation");
-  }
-
-  return t("dashboard:workflow.createRecommendationUnavailable");
-}
-
-function decisionCreateDisabledReason(
-  t: TFunction,
-  status: string | null | undefined,
-  recommendationsLoaded: boolean,
-  decisionsLoaded: boolean,
-  submittedRecommendation: Recommendation | null,
-  decisionCount: number,
-) {
-  if (status !== "decision") {
-    return t("dashboard:workflow.createDecisionNeedsStatus");
-  }
-
-  if (!recommendationsLoaded || !decisionsLoaded) {
-    return t("dashboard:workflow.createDecisionLoading");
-  }
-
-  if (decisionCount > 0) {
-    return t("dashboard:workflow.createDecisionExists");
-  }
-
-  if (!submittedRecommendation) {
-    return t("dashboard:workflow.createDecisionNeedsRecommendation");
-  }
-
-  return t("dashboard:workflow.createDecisionUnavailable");
-}
-
-function recoveryCreateDisabledReason(
-  t: TFunction,
-  decisionsLoaded: boolean,
-  decision: Decision | null,
-  closedAt: string | null | undefined,
-) {
-  if (closedAt) {
-    return t("dashboard:workflow.createRecoveryClosed");
-  }
-
-  if (!decisionsLoaded) {
-    return t("dashboard:workflow.createRecoveryLoading");
-  }
-
-  if (!decision) {
-    return t("dashboard:workflow.createRecoveryNeedsDecision");
-  }
-
-  return t("dashboard:workflow.createRecoveryUnavailable");
 }
 
 /**

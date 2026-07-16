@@ -39,6 +39,7 @@ import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import { createDecision, operationsQueryKeys } from "@/lib/operations-api";
 import type { Recommendation } from "@/lib/operations-types";
 import { DECISION_OUTCOMES } from "@/lib/workflow-action-options";
+import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
 const today = new Date().toISOString().slice(0, 10);
 const requiredDate = z.string().min(1, "Required").refine((value) => value <= today, "Date cannot be in the future");
@@ -77,16 +78,18 @@ export function DecisionCreateAction({
 
   const mutation = useMutation({
     mutationFn: (values: DecisionCreateValues) => createDecision(recommendation.id, nullifyEmpty(values)),
-    onSuccess: () => {
-      toast.success(t("dashboard:workflow.decisionCreated"));
-      setOpen(false);
+    onSuccess: async () => {
+      await synchronizeWorkflowCaches(queryClient, {
+        caseId,
+        exactKeys: [
+          operationsQueryKeys.recommendations(caseId),
+          operationsQueryKeys.recommendation(recommendation.id),
+          operationsQueryKeys.decisions(recommendation.id),
+        ],
+      });
       form.reset();
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.case(caseId) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.recommendations(caseId) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.recommendation(recommendation.id) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.decisions(recommendation.id) });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["my-work"] });
+      setOpen(false);
+      toast.success(t("dashboard:workflow.decisionCreated"));
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
@@ -110,7 +113,9 @@ export function DecisionCreateAction({
         </DialogHeader>
 
         <Form {...form}>
-          <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+          <form className="space-y-4" onSubmit={form.handleSubmit((values) => {
+            if (!mutation.isPending) mutation.mutate(values);
+          })}>
             <FormField
               control={form.control}
               name="outcome_code"
@@ -143,7 +148,9 @@ export function DecisionCreateAction({
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
                 {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {t("dashboard:workflow.createDecision")}
+                {mutation.isPending
+                  ? t("dashboard:common.saving")
+                  : t("dashboard:workflow.createDecision")}
               </Button>
             </DialogFooter>
           </form>

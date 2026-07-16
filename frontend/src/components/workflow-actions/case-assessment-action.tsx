@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, ShieldAlert } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -34,7 +34,8 @@ import {
 import { formatPriorityLevel, formatRiskLevel } from "@/lib/format-labels";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import { getMasterData, masterDataQueryKeys } from "@/lib/master-data-api";
-import { operationsQueryKeys, recordCaseAssessment } from "@/lib/operations-api";
+import { recordCaseAssessment } from "@/lib/operations-api";
+import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
 function createAssessmentSchema(messages: { riskRequired: string; priorityRequired: string }) {
   return z.object({
@@ -49,10 +50,12 @@ export function CaseAssessmentAction({
   caseId,
   currentRiskCode,
   currentPriorityCode,
+  hasAssessment = false,
 }: {
   caseId: number | string;
   currentRiskCode?: string | null;
   currentPriorityCode?: string | null;
+  hasAssessment?: boolean;
 }) {
   const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
@@ -80,15 +83,23 @@ export function CaseAssessmentAction({
       priority_level_code: currentPriorityCode ?? "",
     },
   });
+  const isUpdate = hasAssessment || Boolean(currentRiskCode || currentPriorityCode);
+
+  useEffect(() => {
+    if (!open) return;
+
+    form.reset({
+      risk_level_code: currentRiskCode ?? "",
+      priority_level_code: currentPriorityCode ?? "",
+    });
+  }, [currentPriorityCode, currentRiskCode, form, open]);
+
   const mutation = useMutation({
     mutationFn: (values: AssessmentValues) => recordCaseAssessment(caseId, values),
-    onSuccess: () => {
-      toast.success(t("dashboard:workflow.assessment.success"));
+    onSuccess: async () => {
+      await synchronizeWorkflowCaches(queryClient, { caseId });
       setOpen(false);
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.case(caseId) });
-      queryClient.invalidateQueries({ queryKey: ["operations", "cases"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["my-work"] });
+      toast.success(t("dashboard:workflow.assessment.success"));
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
@@ -100,29 +111,36 @@ export function CaseAssessmentAction({
   const optionsFailed = riskLevelsQuery.isError || priorityLevelsQuery.isError;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(nextOpen) => {
+      if (!mutation.isPending) setOpen(nextOpen);
+    }}>
       <DialogTrigger asChild>
         <Button className="w-full" variant="outline" disabled={optionsLoading}>
-          <ShieldAlert className="mr-2 h-4 w-4" /> {t("dashboard:workflow.assessment.trigger")}
+          <ShieldAlert className="mr-2 h-4 w-4" />
+          {t(`dashboard:workflow.assessment.${isUpdate ? "updateTrigger" : "createTrigger"}`)}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{t("dashboard:workflow.assessment.title")}</DialogTitle>
+          <DialogTitle>
+            {t(`dashboard:workflow.assessment.${isUpdate ? "updateTitle" : "createTitle"}`)}
+          </DialogTitle>
           <DialogDescription>{t("dashboard:workflow.assessment.desc")}</DialogDescription>
         </DialogHeader>
         {optionsFailed ? (
           <p className="text-sm text-destructive">{t("dashboard:workflow.assessment.optionsError")}</p>
         ) : (
           <Form {...form}>
-            <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+            <form className="space-y-4" onSubmit={form.handleSubmit((values) => {
+              if (!mutation.isPending) mutation.mutate(values);
+            })}>
               <FormField
                 control={form.control}
                 name="risk_level_code"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t("dashboard:workflow.assessment.riskLabel")}</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={mutation.isPending}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder={t("dashboard:workflow.assessment.selectRisk")} />
@@ -147,7 +165,7 @@ export function CaseAssessmentAction({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t("dashboard:workflow.assessment.priorityLabel")}</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={mutation.isPending}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder={t("dashboard:workflow.assessment.selectPriority")} />
@@ -171,7 +189,9 @@ export function CaseAssessmentAction({
               <DialogFooter>
                 <Button type="submit" disabled={mutation.isPending}>
                   {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {t("dashboard:workflow.assessment.submit")}
+                  {mutation.isPending
+                    ? t("dashboard:common.saving")
+                    : t("dashboard:workflow.assessment.submit")}
                 </Button>
               </DialogFooter>
             </form>

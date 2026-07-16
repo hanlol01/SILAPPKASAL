@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, UserRoundSearch } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -30,12 +30,14 @@ import {
   operationsQueryKeys,
 } from "@/lib/operations-api";
 import type { SatgasAssignmentPayload, UserLookupItem } from "@/lib/operations-types";
+import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
 type SatgasAssignmentActionProps = {
   mode: "forward-report" | "assign-case";
   targetId: string | number;
   currentSatgasIds?: number[];
   currentLeadSatgasId?: number | null;
+  reportId?: string | number;
 };
 
 export function SatgasAssignmentAction({
@@ -43,6 +45,7 @@ export function SatgasAssignmentAction({
   targetId,
   currentSatgasIds = [],
   currentLeadSatgasId = null,
+  reportId,
 }: SatgasAssignmentActionProps) {
   const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
@@ -63,21 +66,39 @@ export function SatgasAssignmentAction({
     () => satgasUsers.filter((user) => selectedIds.includes(user.id)),
     [satgasUsers, selectedIds],
   );
+  const currentSatgasKey = currentSatgasIds.join(",");
+
+  useEffect(() => {
+    if (!open) return;
+
+    setSelectedIds(currentSatgasKey === "" ? [] : currentSatgasKey.split(",").map(Number));
+    setLeadId(currentLeadSatgasId);
+    setFieldErrors({});
+  }, [currentLeadSatgasId, currentSatgasKey, open]);
 
   const mutation = useMutation<unknown, Error, SatgasAssignmentPayload>({
     mutationFn: (payload: SatgasAssignmentPayload) =>
       mode === "forward-report"
         ? forwardReportToCase(targetId, payload)
         : assignCaseSatgas(targetId, payload),
-    onSuccess: () => {
+    onSuccess: async (result) => {
+      const caseId = mode === "forward-report"
+        ? forwardedCaseId(result)
+        : targetId;
+
+      await synchronizeWorkflowCaches(queryClient, {
+        caseId,
+        reportId: reportId ?? (mode === "forward-report" ? targetId : undefined),
+        includeReports: true,
+      });
+
+      setOpen(false);
+      setFieldErrors({});
       toast.success(
         mode === "forward-report"
           ? t("dashboard:workflow.assignment.forwardSuccess")
           : t("dashboard:workflow.assignment.assignSuccess"),
       );
-      setOpen(false);
-      setFieldErrors({});
-      invalidateAfterSuccess(queryClient, mode, targetId);
     },
     onError: (error) => {
       const errors = laravelErrors(error);
@@ -106,6 +127,8 @@ export function SatgasAssignmentAction({
   }
 
   function submit() {
+    if (mutation.isPending) return;
+
     const errors = validateSelection(selectedIds, leadId, t);
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0 || leadId === null) return;
@@ -119,7 +142,9 @@ export function SatgasAssignmentAction({
   const copy = actionCopy(mode, currentSatgasIds.length > 0, t);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(nextOpen) => {
+      if (!mutation.isPending) setOpen(nextOpen);
+    }}>
       <DialogTrigger asChild>
         <Button className="w-full" variant="outline">
           <UserRoundSearch className="mr-2 h-4 w-4" /> {copy.trigger}
@@ -207,7 +232,7 @@ export function SatgasAssignmentAction({
             disabled={mutation.isPending || usersQuery.isLoading || satgasUsers.length === 0}
           >
             {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {copy.submit}
+            {mutation.isPending ? t("dashboard:common.saving") : copy.submit}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -273,19 +298,18 @@ function laravelErrors(error: unknown) {
   );
 }
 
-function invalidateAfterSuccess(
-  queryClient: ReturnType<typeof useQueryClient>,
-  mode: SatgasAssignmentActionProps["mode"],
-  targetId: string | number,
-) {
-  if (mode === "forward-report") {
-    queryClient.invalidateQueries({ queryKey: ["operations", "report"] });
-    queryClient.invalidateQueries({ queryKey: ["operations", "reports"] });
-    queryClient.invalidateQueries({ queryKey: ["operations", "cases"] });
-  } else {
-    queryClient.invalidateQueries({ queryKey: ["operations", "case"] });
-    queryClient.invalidateQueries({ queryKey: ["operations", "cases"] });
+function forwardedCaseId(result: unknown) {
+  if (
+    result
+    && typeof result === "object"
+    && "case" in result
+    && result.case
+    && typeof result.case === "object"
+    && "id" in result.case
+    && (typeof result.case.id === "string" || typeof result.case.id === "number")
+  ) {
+    return result.case.id;
   }
 
-  queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+  return undefined;
 }

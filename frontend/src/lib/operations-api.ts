@@ -39,35 +39,51 @@ import type {
 
 type QueryValue = string | number | boolean | undefined;
 
+export function normalizeOperationId(id: string | number) {
+  return String(id);
+}
+
 export const operationsQueryKeys = {
+  reportsRoot: () => ["operations", "reports"] as const,
   reports: (query?: Record<string, QueryValue>) => ["operations", "reports", query] as const,
-  report: (id: string | number) => ["operations", "report", id] as const,
+  report: (id: string | number) => ["operations", "report", normalizeOperationId(id)] as const,
+  casesRoot: () => ["operations", "cases"] as const,
   cases: (query?: Record<string, QueryValue>) => ["operations", "cases", query] as const,
-  case: (id: string | number) => ["operations", "case", id] as const,
-  investigations: (caseId: string | number) => ["operations", "case", caseId, "investigations"] as const,
-  investigation: (id: string | number) => ["operations", "investigation", id] as const,
+  case: (id: string | number) => ["operations", "case", normalizeOperationId(id)] as const,
+  investigations: (caseId: string | number) =>
+    ["operations", "case", normalizeOperationId(caseId), "investigations"] as const,
+  investigation: (id: string | number) =>
+    ["operations", "investigation", normalizeOperationId(id)] as const,
   investigationStatusOptions: (id: string | number) =>
-    ["operations", "investigation", id, "status-options"] as const,
-  recommendations: (caseId: string | number) => ["operations", "case", caseId, "recommendations"] as const,
-  recommendation: (id: string | number) => ["operations", "recommendation", id] as const,
+    ["operations", "investigation", normalizeOperationId(id), "status-options"] as const,
+  recommendations: (caseId: string | number) =>
+    ["operations", "case", normalizeOperationId(caseId), "recommendations"] as const,
+  recommendation: (id: string | number) =>
+    ["operations", "recommendation", normalizeOperationId(id)] as const,
   recommendationStatusOptions: (id: string | number) =>
-    ["operations", "recommendation", id, "status-options"] as const,
+    ["operations", "recommendation", normalizeOperationId(id), "status-options"] as const,
   decisions: (recommendationId: string | number) =>
-    ["operations", "recommendation", recommendationId, "decisions"] as const,
-  decision: (id: string | number) => ["operations", "decision", id] as const,
+    ["operations", "recommendation", normalizeOperationId(recommendationId), "decisions"] as const,
+  decision: (id: string | number) =>
+    ["operations", "decision", normalizeOperationId(id)] as const,
   decisionStatusOptions: (id: string | number) =>
-    ["operations", "decision", id, "status-options"] as const,
-  recoveries: (decisionId: string | number) => ["operations", "decision", decisionId, "recoveries"] as const,
-  recovery: (id: string | number) => ["operations", "recovery", id] as const,
+    ["operations", "decision", normalizeOperationId(id), "status-options"] as const,
+  recoveries: (decisionId: string | number) =>
+    ["operations", "decision", normalizeOperationId(decisionId), "recoveries"] as const,
+  recovery: (id: string | number) =>
+    ["operations", "recovery", normalizeOperationId(id)] as const,
   recoveryStatusOptions: (id: string | number) =>
-    ["operations", "recovery", id, "status-options"] as const,
-  recoveryMonitoring: (id: string | number) => ["operations", "recovery", id, "monitoring"] as const,
+    ["operations", "recovery", normalizeOperationId(id), "status-options"] as const,
+  recoveryMonitoring: (id: string | number) =>
+    ["operations", "recovery", normalizeOperationId(id), "monitoring"] as const,
   evidences: (investigationId: string | number) =>
-    ["operations", "investigation", investigationId, "evidences"] as const,
-  evidence: (id: string | number) => ["operations", "evidence", id] as const,
-  evidenceCustody: (id: string | number) => ["operations", "evidence", id, "custody"] as const,
+    ["operations", "investigation", normalizeOperationId(investigationId), "evidences"] as const,
+  evidence: (id: string | number) =>
+    ["operations", "evidence", normalizeOperationId(id)] as const,
+  evidenceCustody: (id: string | number) =>
+    ["operations", "evidence", normalizeOperationId(id), "custody"] as const,
   reporterEvidenceFiles: (caseId: string | number) =>
-    ["operations", "case", caseId, "reporter-evidence-files"] as const,
+    ["operations", "case", normalizeOperationId(caseId), "reporter-evidence-files"] as const,
   userLookup: (role: string, search?: string) => ["operations", "users", "lookup", role, search ?? ""] as const,
 };
 

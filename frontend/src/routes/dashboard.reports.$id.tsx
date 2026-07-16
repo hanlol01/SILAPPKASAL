@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { SatgasAssignmentAction } from "@/components/workflow-actions/satgas-assignment-action";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDateTime } from "@/lib/format";
@@ -45,7 +46,7 @@ function ReportDetailPage() {
   }
 
   if (reportQuery.isLoading) {
-    return <div className="py-12 text-center text-sm text-muted-foreground">{t("dashboard:reports.loading")}</div>;
+    return <ReportDetailSkeleton />;
   }
 
   if (reportQuery.isError || !reportQuery.data) {
@@ -55,6 +56,12 @@ function ReportDetailPage() {
   const report = reportQuery.data;
   const canRequestBreakGlass = Boolean(user?.permissions?.includes("privacy.request_break_glass"));
   const isAnonymousReport = Boolean(report.is_anonymous || report.report_type === "anonymous");
+  const reportCase = report.case ?? null;
+  const activeAssignments = reportCase?.active_assignments ?? [];
+  const assignmentMode = reportCase ? "assign-case" : "forward-report";
+  const canManageAssignment = reportCase
+    ? Boolean(user?.permissions?.includes("cases.assign_satgas"))
+    : Boolean(user?.permissions?.includes("reports.forward"));
 
   return (
     <div className="space-y-6">
@@ -120,24 +127,104 @@ function ReportDetailPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{t("dashboard:common.actions")}</CardTitle>
-            <CardDescription>{t("dashboard:reports.actionsDesc")}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <SatgasAssignmentAction mode="forward-report" targetId={report.id} />
-            {isAnonymousReport && canRequestBreakGlass && (
-              <BreakGlassRequestDialog
-                reportId={report.id}
-                registrationNumber={report.registration_number}
-              />
-            )}
-            <p className="text-xs text-muted-foreground">
-              {t("dashboard:reports.satgasHint")}
-            </p>
-          </CardContent>
-        </Card>
+        <div className="min-w-0 space-y-4">
+          <Card className="min-w-0">
+            <CardHeader>
+              <CardTitle className="text-base">{t("dashboard:cases.assignments")}</CardTitle>
+              <CardDescription>{t("dashboard:cases.assignmentsDesc")}</CardDescription>
+            </CardHeader>
+            <CardContent className="min-w-0 space-y-3">
+              {reportCase ? (
+                <>
+                  <p className="min-w-0 break-words text-sm font-medium [overflow-wrap:anywhere]">
+                    {t("dashboard:reports.assignmentCaseNumber", { number: reportCase.case_number })}
+                  </p>
+                  {activeAssignments.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">{t("dashboard:cases.noAssignments")}</p>
+                  ) : (
+                    activeAssignments.map((assignment) => (
+                      <div key={assignment.satgas_id} className="min-w-0 rounded-md border p-3 text-sm">
+                        <p className="min-w-0 break-words font-medium [overflow-wrap:anywhere]">
+                          {assignment.satgas_name ?? `Satgas #${assignment.satgas_id}`}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {assignment.is_lead
+                            ? t("dashboard:cases.leadSatgas")
+                            : t("dashboard:cases.assignedSatgas")}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {t("dashboard:reports.assignmentPendingCase")}
+                </p>
+              )}
+
+              {canManageAssignment && (
+                <>
+                  <SatgasAssignmentAction
+                    mode={assignmentMode}
+                    targetId={reportCase?.id ?? report.id}
+                    reportId={report.id}
+                    currentSatgasIds={activeAssignments.map((assignment) => assignment.satgas_id)}
+                    currentLeadSatgasId={
+                      activeAssignments.find((assignment) => assignment.is_lead)?.satgas_id ?? null
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">{t("dashboard:reports.satgasHint")}</p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {isAnonymousReport && canRequestBreakGlass && (
+            <Card className="min-w-0">
+              <CardHeader>
+                <CardTitle className="text-base">{t("dashboard:common.actions")}</CardTitle>
+                <CardDescription>{t("dashboard:reports.generalActionsDesc")}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <BreakGlassRequestDialog
+                  reportId={report.id}
+                  registrationNumber={report.registration_number}
+                />
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReportDetailSkeleton() {
+  return (
+    <div className="space-y-6" aria-busy="true" aria-live="polite">
+      <Skeleton className="h-4 w-56" />
+      <div className="flex flex-wrap items-center gap-3">
+        <Skeleton className="h-8 w-28" />
+        <Skeleton className="h-7 w-48" />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="space-y-4 rounded-lg border p-5 lg:col-span-2">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-64" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <div key={index} className="space-y-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-4 w-40" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-3 rounded-lg border p-5">
+          <Skeleton className="h-5 w-28" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-9 w-full" />
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
-import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, Navigate, Outlet, useRouterState } from "@tanstack/react-router";
 import { AccessDenied } from "@/components/access-denied";
+import { AuthSessionLoader } from "@/components/auth-session-loader";
 import { DashboardLayout } from "@/layouts/dashboard-layout";
 import { useAuth } from "@/hooks/use-auth";
 import { hasDashboardAccess } from "@/lib/auth-roles";
@@ -11,20 +11,16 @@ export const Route = createFileRoute("/dashboard")({
 
 function DashboardShell() {
   const { isAuthenticated, isHydrating, roleCode } = useAuth();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!isHydrating && !isAuthenticated) {
-      navigate({ to: "/login" });
-    }
-  }, [isAuthenticated, isHydrating, navigate]);
+  const redirectTo = useRouterState({
+    select: (state) => `${state.location.pathname}${state.location.searchStr}`,
+  });
 
   if (isHydrating) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
-        Loading dashboard...
-      </div>
-    );
+    return <AuthSessionLoader />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" search={{ redirect: redirectTo }} replace />;
   }
 
   if (isAuthenticated && !hasDashboardAccess(roleCode)) {

@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { History, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -38,6 +38,7 @@ import {
   updateInvestigationStatus,
 } from "@/lib/operations-api";
 import type { Investigation } from "@/lib/operations-types";
+import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
 const investigationStatusSchema = z.object({
   status: z.string().min(1, "Required"),
@@ -59,37 +60,83 @@ export function InvestigationStatusAction({
     queryKey: operationsQueryKeys.investigationStatusOptions(investigation.id),
     queryFn: () => getInvestigationStatusOptions(investigation.id),
     enabled: open,
+    staleTime: 30_000,
   });
   const form = useForm<InvestigationStatusValues>({
     resolver: zodResolver(investigationStatusSchema),
     defaultValues: { status: "" },
   });
 
-  const options = optionsQuery.data?.valid_transitions ?? [];
+  const options = useMemo(
+    () => optionsQuery.data?.valid_transitions ?? [],
+    [optionsQuery.data],
+  );
+  useEffect(() => {
+    if (!optionsQuery.isSuccess) return;
+    const selected = form.getValues("status");
+    if (selected && !options.some((option) => option.code === selected || option.name === selected)) {
+      form.resetField("status");
+    }
+  }, [form, options, optionsQuery.isSuccess]);
+
+  async function openWhenAvailable() {
+    if (optionsQuery.isFetching) return;
+
+    const result = await optionsQuery.refetch();
+    if (result.isError) {
+      toast.error(t("dashboard:workflow.statusOptionsError"));
+      return;
+    }
+
+    if ((result.data?.valid_transitions.length ?? 0) > 0) {
+      setOpen(true);
+    }
+  }
+
   const mutation = useMutation({
     mutationFn: (values: InvestigationStatusValues) =>
       updateInvestigationStatus(investigation.id, values),
-    onSuccess: () => {
-      toast.success(t("dashboard:workflow.investigationStatusUpdated"));
-      setOpen(false);
+    onSuccess: async () => {
+      await synchronizeWorkflowCaches(queryClient, {
+        caseId,
+        exactKeys: [
+          operationsQueryKeys.investigations(caseId),
+          operationsQueryKeys.investigation(investigation.id),
+          operationsQueryKeys.investigationStatusOptions(investigation.id),
+          operationsQueryKeys.recommendations(caseId),
+        ],
+      });
       form.reset({ status: "" });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.investigations(caseId) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.investigation(investigation.id) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.investigationStatusOptions(investigation.id) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.recommendations(caseId) });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["my-work"] });
+      setOpen(false);
+      toast.success(t("dashboard:workflow.investigationStatusUpdated"));
     },
     onError: () => {
       toast.error(t("dashboard:workflow.investigationStatusError"));
     },
   });
 
+  if (optionsQuery.isSuccess && options.length === 0 && !open) return null;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <History className="mr-2 h-4 w-4" /> {t("dashboard:workflow.status")}
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={optionsQuery.isFetching}
+          onClick={(event) => {
+            event.preventDefault();
+            void openWhenAvailable();
+          }}
+        >
+          {optionsQuery.isFetching ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <History className="mr-2 h-4 w-4" />
+          )}
+          {optionsQuery.isFetching
+            ? t("dashboard:workflow.loadingStatuses")
+            : t("dashboard:workflow.status")}
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -101,7 +148,9 @@ export function InvestigationStatusAction({
         </DialogHeader>
 
         <Form {...form}>
-          <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+          <form className="space-y-4" onSubmit={form.handleSubmit((values) => {
+            if (!mutation.isPending) mutation.mutate(values);
+          })}>
             <FormField
               control={form.control}
               name="status"
@@ -111,7 +160,7 @@ export function InvestigationStatusAction({
                   <Select
                     onValueChange={field.onChange}
                     value={field.value}
-                    disabled={optionsQuery.isLoading || options.length === 0}
+                    disabled={mutation.isPending || optionsQuery.isLoading || options.length === 0}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -145,7 +194,9 @@ export function InvestigationStatusAction({
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending || options.length === 0}>
                 {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {t("dashboard:workflow.saveStatus")}
+                {mutation.isPending
+                  ? t("dashboard:common.saving")
+                  : t("dashboard:workflow.saveStatus")}
               </Button>
             </DialogFooter>
           </form>

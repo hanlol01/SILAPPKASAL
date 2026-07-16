@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { loginRequest, logoutRequest, meRequest } from "@/lib/auth-api";
+import { ApiError } from "@/lib/api-client";
 import { AuthContext } from "@/lib/auth-context";
 import {
   clearAuthToken,
@@ -15,15 +16,23 @@ import type { ApiUser, ReporterRegistrationAuthState } from "@/lib/api-types";
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [user, setUser] = useState<ApiUser | null>(null);
-  const [registration, setRegistrationValue] = useState<ReporterRegistrationAuthState | null>(() =>
-    getRegistrationState<ReporterRegistrationAuthState>(),
-  );
-  const hasToken = Boolean(getAuthToken());
+  const [registration, setRegistrationValue] = useState<ReporterRegistrationAuthState | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isStorageBootstrapped, setIsStorageBootstrapped] = useState(false);
+
+  useEffect(() => {
+    const restoredToken = getAuthToken();
+    const restoredRegistration = getRegistrationState<ReporterRegistrationAuthState>();
+
+    setToken(restoredToken);
+    setRegistrationValue(restoredToken ? null : restoredRegistration);
+    setIsStorageBootstrapped(true);
+  }, []);
 
   const meQuery = useQuery({
     queryKey: ["auth", "me"],
     queryFn: meRequest,
-    enabled: hasToken && !user,
+    enabled: isStorageBootstrapped && Boolean(token) && !user,
     retry: false,
   });
 
@@ -33,10 +42,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [meQuery.data]);
 
+  useEffect(() => {
+    if (!(meQuery.error instanceof ApiError) || meQuery.error.status !== 401) return;
+
+    clearAuthToken();
+    setToken(null);
+    setUser(null);
+    queryClient.removeQueries({ queryKey: ["auth"] });
+  }, [meQuery.error, queryClient]);
+
   const setRegistration = (value: ReporterRegistrationAuthState | null) => {
     setRegistrationValue(value);
     if (value) {
       clearAuthToken();
+      setToken(null);
       setUser(null);
       setRegistrationState(value);
       return;
@@ -57,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearRegistrationState();
     setRegistrationValue(null);
     setAuthToken(result.token, remember ? "local" : "session");
+    setToken(result.token);
     setUser(result.user);
     queryClient.setQueryData(["auth", "me"], result.user);
     return "user" as const;
@@ -71,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearAuthToken();
       clearRegistrationState();
       setUser(null);
+      setToken(null);
       setRegistrationValue(null);
       queryClient.removeQueries({ queryKey: ["auth"] });
       queryClient.removeQueries({ queryKey: ["dashboard"] });
@@ -80,7 +101,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const roleCode = user?.role?.code ?? null;
-  const isHydrating = hasToken && !user && (meQuery.isPending || meQuery.isFetching);
+  const isHydrating =
+    !isStorageBootstrapped
+    || Boolean(token) && !user && (meQuery.isPending || meQuery.isFetching);
 
   return (
     <AuthContext.Provider

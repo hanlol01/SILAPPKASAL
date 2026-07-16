@@ -35,6 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import { createInvestigation, operationsQueryKeys } from "@/lib/operations-api";
 import type { CaseAssignment } from "@/lib/operations-types";
+import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
 function createInvestigationCreateSchema(messages: {
   required: string;
@@ -94,17 +95,17 @@ export function InvestigationCreateAction({
         lead_investigator_id: Number(values.lead_investigator_id),
         plan_summary: values.plan_summary.trim(),
     }),
-    onSuccess: () => {
-      toast.success(t("dashboard:workflow.investigationCreated"));
-      setOpen(false);
+    onSuccess: async () => {
+      await synchronizeWorkflowCaches(queryClient, {
+        caseId,
+        exactKeys: [operationsQueryKeys.investigations(caseId)],
+      });
       form.reset({
         lead_investigator_id: activeAssignments[0]?.satgas_id ? String(activeAssignments[0].satgas_id) : "",
         plan_summary: "",
       });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.case(caseId) });
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.investigations(caseId) });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["my-work"] });
+      setOpen(false);
+      toast.success(t("dashboard:workflow.investigationCreated"));
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
@@ -128,7 +129,9 @@ export function InvestigationCreateAction({
         </DialogHeader>
 
         <Form {...form}>
-          <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+          <form className="space-y-4" onSubmit={form.handleSubmit((values) => {
+            if (!mutation.isPending) mutation.mutate(values);
+          })}>
             <FormField
               control={form.control}
               name="lead_investigator_id"
@@ -191,7 +194,9 @@ export function InvestigationCreateAction({
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending}>
                 {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {t("dashboard:workflow.createInvestigation")}
+                {mutation.isPending
+                  ? t("dashboard:common.saving")
+                  : t("dashboard:workflow.createInvestigation")}
               </Button>
             </DialogFooter>
           </form>
