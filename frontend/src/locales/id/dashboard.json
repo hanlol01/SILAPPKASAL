@@ -251,6 +251,27 @@
         "caseClosed": "Kasus ditutup",
         "caseClosedDesc": "Kasus dinyatakan selesai dan ditutup."
       }
+    },
+    "reporterEvidence": {
+      "title": "Bukti dari Pelapor",
+      "description": "File pendukung yang diunggah pelapor untuk laporan terkait kasus ini.",
+      "count": "{{count}} file dari pelapor",
+      "emptyTitle": "Belum ada bukti dari pelapor",
+      "emptyDescription": "Pelapor belum mengunggah file pendukung untuk laporan ini.",
+      "loadError": "Daftar bukti dari pelapor tidak dapat dimuat.",
+      "retry": "Coba lagi",
+      "download": "Unduh",
+      "downloading": "Mengunduh...",
+      "downloadSuccess": "File dari pelapor berhasil diunduh.",
+      "downloadError": "File dari pelapor tidak dapat diunduh.",
+      "forbidden": "Anda tidak memiliki akses ke file dari pelapor ini.",
+      "notFound": "File dari pelapor tidak ditemukan.",
+      "mime": {
+        "pdf": "Dokumen PDF",
+        "jpeg": "Gambar JPEG",
+        "png": "Gambar PNG",
+        "other": "File"
+      }
     }
   },
   "sections": {

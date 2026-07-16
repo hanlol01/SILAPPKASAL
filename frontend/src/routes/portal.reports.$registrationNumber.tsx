@@ -30,6 +30,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { QueryErrorState } from "@/components/query-state";
 import { PortalStatusBadge } from "@/components/portal/portal-status-badge";
 import { PortalReportTypeBadge } from "@/components/portal/portal-report-type-badge";
+import { ReporterEvidenceSubmissions } from "@/components/portal/reporter-evidence-submissions";
 import {
   ProgressTimeline,
   ProgressTimelineSkeleton,
@@ -125,6 +126,7 @@ export function PortalReportDetailContent({
       {reportQuery.isSuccess && reportQuery.data && (
         <>
           <ReportDetail report={reportQuery.data} />
+          <ReporterEvidenceSubmissions registrationNumber={registrationNumber} />
           <ReportProgressSection
             registrationNumber={registrationNumber}
             enabled={hasPortalAccess(roleCode)}

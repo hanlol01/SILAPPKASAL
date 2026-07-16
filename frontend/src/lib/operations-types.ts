@@ -287,6 +287,14 @@ export interface EvidenceFileAttachment {
   uploaded_by?: PersonRef | null;
 }
 
+export interface ReporterEvidenceFile {
+  id: string;
+  original_filename: string;
+  mime_type: string;
+  file_size: number;
+  uploaded_at: string | null;
+}
+
 export interface EvidenceCustodyEvent {
   event_type: string;
   actor?: PersonRef | null;

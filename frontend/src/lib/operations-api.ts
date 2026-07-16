@@ -31,6 +31,7 @@ import type {
   RecoveryMonitoringPayload,
   RecoveryStatusOptions,
   RecoveryStatusPayload,
+  ReporterEvidenceFile,
   ReportSummary,
   SatgasAssignmentPayload,
   UserLookupItem,
@@ -65,6 +66,8 @@ export const operationsQueryKeys = {
     ["operations", "investigation", investigationId, "evidences"] as const,
   evidence: (id: string | number) => ["operations", "evidence", id] as const,
   evidenceCustody: (id: string | number) => ["operations", "evidence", id, "custody"] as const,
+  reporterEvidenceFiles: (caseId: string | number) =>
+    ["operations", "case", caseId, "reporter-evidence-files"] as const,
   userLookup: (role: string, search?: string) => ["operations", "users", "lookup", role, search ?? ""] as const,
 };
 
@@ -307,6 +310,17 @@ export function uploadEvidenceFile(id: string | number, file: File) {
 
 export function downloadEvidenceFile(id: string | number) {
   return apiDownload(`/evidences/${id}/file`, `evidence-${id}`);
+}
+
+export function getCaseReporterEvidenceFiles(caseId: string | number) {
+  return apiRequest<ReporterEvidenceFile[]>(`/cases/${caseId}/reporter-evidence-files`);
+}
+
+export function downloadCaseReporterEvidenceFile(id: string) {
+  return apiDownload(
+    `/reporter-evidence-files/${encodeURIComponent(id)}/download`,
+    `reporter-evidence-${id}`,
+  );
 }
 
 function emptyMeta(total: number) {

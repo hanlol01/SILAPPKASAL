@@ -1,5 +1,5 @@
 import { clearAuthToken, getAuthToken } from "@/lib/auth-storage";
-import type { ApiEnvelope } from "@/lib/api-types";
+import type { ApiEnvelope, PaginationMeta } from "@/lib/api-types";
 
 export class ApiError extends Error {
   status: number;
@@ -35,7 +35,7 @@ function isFormDataBody(body: BodyInit | null | undefined): body is FormData {
   return typeof FormData !== "undefined" && body instanceof FormData;
 }
 
-async function apiFetch<T>(
+async function apiFetch<T, TMeta = PaginationMeta>(
   path: string,
   init: RequestInit & { query?: Record<string, string | number | boolean | undefined> } = {},
 ) {
@@ -55,7 +55,7 @@ async function apiFetch<T>(
     headers,
   });
 
-  const payload = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
+  const payload = (await response.json().catch(() => null)) as ApiEnvelope<T, TMeta> | null;
 
   if (!response.ok || !payload?.success) {
     if (response.status === 401) {
@@ -81,11 +81,14 @@ export async function apiRequest<T>(
   return payload.data;
 }
 
-export async function apiRequestEnvelope<T>(
+export async function apiRequestEnvelope<
+  T,
+  TMeta = PaginationMeta,
+>(
   path: string,
   init: RequestInit & { query?: Record<string, string | number | boolean | undefined> } = {},
 ) {
-  return apiFetch<T>(path, init);
+  return apiFetch<T, TMeta>(path, init);
 }
 
 export async function apiDownload(path: string, fallbackFilename: string) {

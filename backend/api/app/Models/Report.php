@@ -6,6 +6,7 @@ use App\Enums\ReportStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -88,6 +89,11 @@ class Report extends Model
     public function case(): HasOne
     {
         return $this->hasOne(CaseRecord::class);
+    }
+
+    public function evidenceSubmissions(): HasMany
+    {
+        return $this->hasMany(ReportEvidenceSubmission::class);
     }
 
     public function isSubmitted(): bool

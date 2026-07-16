@@ -1,11 +1,11 @@
 export type RoleCode = "super_admin" | "admin" | "satgas_ppks" | string;
 
-export interface ApiEnvelope<T> {
+export interface ApiEnvelope<T, TMeta = PaginationMeta> {
   success: boolean;
   message: string;
   data: T;
   errors?: Record<string, string[]> | null;
-  meta?: PaginationMeta;
+  meta?: TMeta;
 }
 
 export interface PaginationMeta {

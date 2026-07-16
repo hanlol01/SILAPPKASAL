@@ -20,6 +20,7 @@ import {
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { QueryErrorState } from "@/components/query-state";
+import { ReporterEvidenceFiles } from "@/components/reporter-evidence-files";
 import { EmptyState } from "@/components/empty-state";
 import { EvidenceCustodyDisclosure } from "@/components/evidence-custody-disclosure";
 import { EvidenceFileAttachment } from "@/components/evidence-file-attachment";
@@ -166,6 +167,13 @@ function CaseDetail() {
     );
   const canViewEvidence =
     isAssignedSatgas && Boolean(user?.permissions?.includes("evidence.view.case"));
+  const canViewReporterEvidence =
+    isAssignedSatgas
+    && user?.is_active === true
+    && Boolean(user.permissions?.includes("reporter_evidence.read.assigned"));
+  const canDownloadReporterEvidence =
+    canViewReporterEvidence
+    && Boolean(user?.permissions?.includes("reporter_evidence.download.assigned"));
   const investigationsQuery = useQuery({
     queryKey: operationsQueryKeys.investigations(id),
     queryFn: () => getCaseInvestigations(id),
@@ -424,19 +432,28 @@ function CaseDetail() {
               />
             </TabsContent>
             <TabsContent value="evidence" className="min-w-0">
-              <EvidenceSection
-                evidences={evidences}
-                loading={evidenceQueries.some((query) => query.isLoading)}
-                error={evidenceQueries.some((query) => query.isError)}
-                onRetry={() => evidenceQueries.forEach((query) => query.refetch())}
-                canAccess={canViewEvidence}
-                canUpdate={canUpdateEvidence}
-                canDownload={canDownloadEvidence}
-                createInvestigation={canCreateEvidence ? evidenceInvestigation : null}
-                language={i18n.language}
-                roleLabel={restrictedLabel}
-                t={t}
-              />
+              <div className="min-w-0 space-y-4">
+                {canViewReporterEvidence && (
+                  <ReporterEvidenceFiles
+                    caseId={c.id}
+                    canDownload={canDownloadReporterEvidence}
+                    language={i18n.language}
+                  />
+                )}
+                <EvidenceSection
+                  evidences={evidences}
+                  loading={evidenceQueries.some((query) => query.isLoading)}
+                  error={evidenceQueries.some((query) => query.isError)}
+                  onRetry={() => evidenceQueries.forEach((query) => query.refetch())}
+                  canAccess={canViewEvidence}
+                  canUpdate={canUpdateEvidence}
+                  canDownload={canDownloadEvidence}
+                  createInvestigation={canCreateEvidence ? evidenceInvestigation : null}
+                  language={i18n.language}
+                  roleLabel={restrictedLabel}
+                  t={t}
+                />
+              </div>
             </TabsContent>
           </Tabs>
         </div>

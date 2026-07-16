@@ -72,6 +72,11 @@ class RbacSeeder extends Seeder
         'evidence.upload' => ['name' => 'Upload Evidence', 'description' => 'Mengupload bukti', 'module' => 'Bukti'],
         'evidence.view.case' => ['name' => 'View Case Evidence', 'description' => 'Melihat bukti dalam konteks kasus', 'module' => 'Bukti'],
         'evidence.download' => ['name' => 'Download Evidence', 'description' => 'Mengunduh bukti', 'module' => 'Bukti'],
+        'reporter_evidence.read.own' => ['name' => 'Read Own Reporter Evidence', 'description' => 'Melihat lampiran bukti pada laporan sendiri', 'module' => 'Bukti Pelapor'],
+        'reporter_evidence.upload.own' => ['name' => 'Upload Own Reporter Evidence', 'description' => 'Mengunggah lampiran bukti pada laporan sendiri', 'module' => 'Bukti Pelapor'],
+        'reporter_evidence.download.own' => ['name' => 'Download Own Reporter Evidence', 'description' => 'Mengunduh lampiran bukti pada laporan sendiri', 'module' => 'Bukti Pelapor'],
+        'reporter_evidence.read.assigned' => ['name' => 'Read Assigned Reporter Evidence', 'description' => 'Melihat lampiran bukti pelapor pada kasus yang ditugaskan', 'module' => 'Bukti Pelapor'],
+        'reporter_evidence.download.assigned' => ['name' => 'Download Assigned Reporter Evidence', 'description' => 'Mengunduh lampiran bukti pelapor pada kasus yang ditugaskan', 'module' => 'Bukti Pelapor'],
     ];
 
     /**
@@ -139,6 +144,8 @@ class RbacSeeder extends Seeder
             'evidence.upload',
             'evidence.view.case',
             'evidence.download',
+            'reporter_evidence.read.assigned',
+            'reporter_evidence.download.assigned',
         ],
         'reporter' => [
             'reports.create',
@@ -146,6 +153,9 @@ class RbacSeeder extends Seeder
             'messages.send',
             'messages.read.case',
             'evidence.view.case',
+            'reporter_evidence.read.own',
+            'reporter_evidence.upload.own',
+            'reporter_evidence.download.own',
         ],
     ];
 

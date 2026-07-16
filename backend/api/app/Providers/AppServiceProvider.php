@@ -89,5 +89,13 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('evidence.upload', function (Request $request) {
             return Limit::perHour(10)->by('user:'.$request->user()->id);
         });
+
+        RateLimiter::for('reporter.evidence.upload', function (Request $request) {
+            $userId = $request->user()?->getAuthIdentifier();
+
+            return Limit::perHour(10)->by(
+                $userId ? 'user:'.$userId : 'ip:'.$request->ip()
+            );
+        });
     }
 }

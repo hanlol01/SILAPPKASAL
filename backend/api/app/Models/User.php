@@ -146,6 +146,11 @@ class User extends Authenticatable
         return $this->hasMany(Evidence::class, 'submitted_by');
     }
 
+    public function reportEvidenceSubmissions(): HasMany
+    {
+        return $this->hasMany(ReportEvidenceSubmission::class, 'uploaded_by');
+    }
+
     public function evidenceStatusChanges(): HasMany
     {
         return $this->hasMany(EvidenceStatusHistory::class, 'changed_by');

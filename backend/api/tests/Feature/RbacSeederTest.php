@@ -29,6 +29,11 @@ class RbacSeederTest extends TestCase
         $this->assertDatabaseHas('permissions', ['code' => 'system.break_glass_access']);
         $this->assertDatabaseHas('permissions', ['code' => 'evidence.upload']);
         $this->assertDatabaseHas('permissions', ['code' => 'evidence.download']);
+        $this->assertDatabaseHas('permissions', ['code' => 'reporter_evidence.read.own']);
+        $this->assertDatabaseHas('permissions', ['code' => 'reporter_evidence.upload.own']);
+        $this->assertDatabaseHas('permissions', ['code' => 'reporter_evidence.download.own']);
+        $this->assertDatabaseHas('permissions', ['code' => 'reporter_evidence.read.assigned']);
+        $this->assertDatabaseHas('permissions', ['code' => 'reporter_evidence.download.assigned']);
 
         $reporter = Role::query()->where('code', 'reporter')->with('permissions')->firstOrFail();
         $this->assertTrue($reporter->permissions->contains('code', 'reports.create'));
@@ -44,6 +49,21 @@ class RbacSeederTest extends TestCase
 
         $this->assertTrue($satgas->permissions->contains('code', 'evidence.upload'));
         $this->assertTrue($satgas->permissions->contains('code', 'evidence.download'));
+        $this->assertTrue($satgas->permissions->contains('code', 'reporter_evidence.read.assigned'));
+        $this->assertTrue($satgas->permissions->contains('code', 'reporter_evidence.download.assigned'));
+        $this->assertFalse($satgas->permissions->contains('code', 'reporter_evidence.read.own'));
+        $this->assertTrue($reporter->permissions->contains('code', 'reporter_evidence.read.own'));
+        $this->assertTrue($reporter->permissions->contains('code', 'reporter_evidence.upload.own'));
+        $this->assertTrue($reporter->permissions->contains('code', 'reporter_evidence.download.own'));
+        $this->assertFalse($reporter->permissions->contains('code', 'reporter_evidence.read.assigned'));
+
+        foreach ([$superAdmin, $admin] as $role) {
+            $this->assertFalse($role->permissions->contains('code', 'reporter_evidence.read.own'));
+            $this->assertFalse($role->permissions->contains('code', 'reporter_evidence.upload.own'));
+            $this->assertFalse($role->permissions->contains('code', 'reporter_evidence.download.own'));
+            $this->assertFalse($role->permissions->contains('code', 'reporter_evidence.read.assigned'));
+            $this->assertFalse($role->permissions->contains('code', 'reporter_evidence.download.assigned'));
+        }
 
         $this->assertTrue($admin->permissions->contains('code', 'cases.record_decision'));
         $this->assertTrue($superAdmin->permissions->contains('code', 'cases.record_decision'));
@@ -77,13 +97,16 @@ class RbacSeederTest extends TestCase
             'module' => 'Integration',
         ]);
         $legacyReporterUpload = Permission::query()->where('code', 'evidence.upload')->firstOrFail();
+        $assignedReporterEvidence = Permission::query()->where('code', 'reporter_evidence.download.assigned')->firstOrFail();
 
         $satgas->permissions()->attach($customPermission->id);
         $reporter->permissions()->attach($legacyReporterUpload->id);
+        $reporter->permissions()->attach($assignedReporterEvidence->id);
 
         $this->seed(RbacSeeder::class);
 
         $this->assertTrue($satgas->fresh()->permissions()->where('permissions.id', $customPermission->id)->exists());
         $this->assertFalse($reporter->fresh()->permissions()->where('permissions.code', 'evidence.upload')->exists());
+        $this->assertFalse($reporter->fresh()->permissions()->where('permissions.code', 'reporter_evidence.download.assigned')->exists());
     }
 }

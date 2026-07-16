@@ -70,6 +70,29 @@ export interface PortalReportTimeline {
 }
 
 // ---------------------------------------------------------------------------
+// Reporter-owned supporting files
+// ---------------------------------------------------------------------------
+
+export interface PortalEvidenceFile {
+  id: string;
+  original_filename: string;
+  mime_type: string;
+  file_size: number;
+  uploaded_at: string | null;
+}
+
+export interface PortalEvidenceFilesMeta {
+  upload_allowed: boolean;
+  max_files: number;
+  remaining_slots: number;
+}
+
+export interface PortalEvidenceFilesResult {
+  data: PortalEvidenceFile[];
+  meta: PortalEvidenceFilesMeta;
+}
+
+// ---------------------------------------------------------------------------
 // Portal Notifications (GET /api/v1/portal/notifications)
 // ---------------------------------------------------------------------------
 

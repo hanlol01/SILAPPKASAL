@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\PortalController;
 use App\Http\Controllers\Api\V1\RecommendationController;
 use App\Http\Controllers\Api\V1\RecoveryController;
+use App\Http\Controllers\Api\V1\ReportEvidenceSubmissionController;
 use App\Http\Controllers\Api\V1\ReporterRegistrationController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\UserController;
@@ -125,6 +126,7 @@ Route::prefix('v1')->group(function (): void {
 
     Route::middleware('auth:sanctum')->prefix('cases')->group(function (): void {
         Route::get('/', [CaseController::class, 'index']);
+        Route::get('/{case}/reporter-evidence-files', [ReportEvidenceSubmissionController::class, 'indexForCase']);
         Route::post('/{case}/investigations', [InvestigationController::class, 'storeForCase']);
         Route::get('/{case}/investigations', [InvestigationController::class, 'indexForCase']);
         Route::post('/{case}/recommendations', [RecommendationController::class, 'storeForCase']);
@@ -213,9 +215,17 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware('auth:sanctum')->prefix('portal')->group(function (): void {
         Route::get('/summary', [PortalController::class, 'summary']);
         Route::get('/reports', [PortalController::class, 'reports']);
+        Route::get('/reports/{registrationNumber}/evidence-files', [ReportEvidenceSubmissionController::class, 'indexForReporter']);
+        Route::post('/reports/{registrationNumber}/evidence-files', [ReportEvidenceSubmissionController::class, 'storeForReporter'])
+            ->middleware('throttle:reporter.evidence.upload');
+        Route::get('/evidence-files/{uuid}/download', [ReportEvidenceSubmissionController::class, 'downloadForReporter']);
         Route::get('/reports/{registrationNumber}/timeline', [PortalController::class, 'reportTimeline']);
         Route::get('/reports/{registrationNumber}', [PortalController::class, 'report']);
         Route::get('/notifications', [PortalController::class, 'notifications']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('reporter-evidence-files')->group(function (): void {
+        Route::get('/{uuid}/download', [ReportEvidenceSubmissionController::class, 'downloadForSatgas']);
     });
 
     Route::middleware('auth:sanctum')->prefix('users')->group(function (): void {

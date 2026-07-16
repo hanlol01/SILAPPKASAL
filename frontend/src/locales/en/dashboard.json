@@ -251,6 +251,27 @@
         "caseClosed": "Case closed",
         "caseClosedDesc": "The case has been completed and closed."
       }
+    },
+    "reporterEvidence": {
+      "title": "Evidence from Reporter",
+      "description": "Supporting files uploaded by the reporter for the report related to this case.",
+      "count": "{{count}} files from the reporter",
+      "emptyTitle": "No evidence from the reporter",
+      "emptyDescription": "The reporter has not uploaded supporting files for this report.",
+      "loadError": "The evidence from reporter list could not be loaded.",
+      "retry": "Try again",
+      "download": "Download",
+      "downloading": "Downloading...",
+      "downloadSuccess": "The reporter file was downloaded.",
+      "downloadError": "The reporter file could not be downloaded.",
+      "forbidden": "You do not have access to this reporter file.",
+      "notFound": "The reporter file was not found.",
+      "mime": {
+        "pdf": "PDF document",
+        "jpeg": "JPEG image",
+        "png": "PNG image",
+        "other": "File"
+      }
     }
   },
   "sections": {
