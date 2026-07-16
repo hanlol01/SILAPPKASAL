@@ -15,12 +15,22 @@ class RecommendationPolicy extends BasePolicy
 
     public function update(User $user, Recommendation $recommendation): bool
     {
-        return $this->canReadSensitive($user, $recommendation);
+        return $this->canReadAssignedSensitive($user, $recommendation);
     }
 
     public function updateStatus(User $user, Recommendation $recommendation): bool
     {
-        return $this->canReadSensitive($user, $recommendation);
+        return $this->canReadAssignedSensitive($user, $recommendation);
+    }
+
+    public function submit(User $user, Recommendation $recommendation): bool
+    {
+        return $this->canReadAssignedSensitive($user, $recommendation);
+    }
+
+    public function review(User $user, Recommendation $recommendation): bool
+    {
+        return $this->canReview($user);
     }
 
     public function canReadMetadata(User $user): bool
@@ -31,7 +41,20 @@ class RecommendationPolicy extends BasePolicy
 
     public function canReadSensitive(User $user, Recommendation $recommendation): bool
     {
-        return $this->allowPermission($user, 'cases.recommend')
+        return $this->canReview($user) || $this->canReadAssignedSensitive($user, $recommendation);
+    }
+
+    private function canReview(User $user): bool
+    {
+        return $user->is_active
+            && $this->allowPermission($user, 'cases.review_recommendation')
+            && $this->allowRole($user, 'super_admin');
+    }
+
+    private function canReadAssignedSensitive(User $user, Recommendation $recommendation): bool
+    {
+        return $user->is_active
+            && $this->allowPermission($user, 'cases.recommend')
             && $this->allowRole($user, 'satgas_ppks')
             && CaseAssignment::query()
                 ->where('case_id', $recommendation->case_id)

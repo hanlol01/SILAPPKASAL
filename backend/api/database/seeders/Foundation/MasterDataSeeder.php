@@ -149,8 +149,8 @@ class MasterDataSeeder extends Seeder
             ['CSTS-06', 'assessment', 'Satgas melakukan asesmen risiko.', 3, 'Asesmen', false, 'satgas_ppks', ['investigation']],
             ['CSTS-07', 'investigation', 'Proses investigasi sedang berjalan.', 4, 'Investigasi', false, 'satgas_ppks', ['mediation', 'recommendation']],
             ['CSTS-08', 'mediation', 'Proses mediasi opsional.', 4, 'Investigasi', false, 'satgas_ppks', ['recommendation']],
-            ['CSTS-09', 'recommendation', 'Satgas menyusun rekomendasi.', 5, 'Rekomendasi', false, 'satgas_ppks', ['decision']],
-            ['CSTS-10', 'decision', 'Menunggu keputusan pimpinan PT.', 6, 'Keputusan', false, 'leader', ['decided']],
+            ['CSTS-09', 'recommendation', 'Satgas menyusun rekomendasi.', 5, 'Rekomendasi', false, 'satgas_ppks', []],
+            ['CSTS-10', 'decision', 'Menunggu keputusan institusi.', 6, 'Keputusan', false, 'admin', []],
             ['CSTS-11', 'decided', 'Keputusan pimpinan telah diterbitkan.', 6, 'Keputusan', false, 'leader', ['recovery']],
             ['CSTS-12', 'recovery', 'Tahap pendampingan korban.', 7, 'Monitoring', false, 'satgas_ppks', ['monitoring']],
             ['CSTS-13', 'monitoring', 'Monitoring pasca kasus.', 7, 'Monitoring', false, 'satgas_ppks', ['closed']],
@@ -338,7 +338,7 @@ class MasterDataSeeder extends Seeder
             ['NOTIF-11', 'Kasus ditutup', 'Pelapor', 'whatsapp', 'case.closed', 'mvp_extended'],
             ['NOTIF-12', 'Kasus ditugaskan ke Satgas', 'Satgas', 'in_app', 'case.assigned', 'mvp_extended'],
             ['NOTIF-13', 'Status kasus berubah untuk Satgas', 'Satgas', 'in_app', 'case.status_changed.internal', 'mvp_extended'],
-            ['NOTIF-14', 'Rekomendasi dikirim ke pimpinan', 'Admin/Super Admin', 'in_app', 'recommendation.submitted_to_leader', 'mvp_extended'],
+            ['NOTIF-14', 'Rekomendasi dikirim ke pimpinan', 'Super Admin', 'in_app', 'recommendation.submitted_to_leader', 'mvp_extended'],
             ['NOTIF-15', 'Keputusan final untuk kasus', 'Satgas', 'in_app', 'decision.finalized', 'mvp_extended'],
             ['NOTIF-16', 'Rekomendasi dibuat', 'Admin/Super Admin', 'in_app', 'recommendation.created', 'mvp_extended'],
             ['NOTIF-17', 'Status rekomendasi berubah untuk Satgas', 'Satgas', 'in_app', 'recommendation.status_changed.internal', 'mvp_extended'],
@@ -347,6 +347,8 @@ class MasterDataSeeder extends Seeder
             ['NOTIF-20', 'Rencana pemulihan dibuat untuk Satgas', 'Satgas', 'in_app', 'recovery.created.internal', 'mvp_extended'],
             ['NOTIF-21', 'Status pemulihan berubah untuk Satgas', 'Satgas', 'in_app', 'recovery.status_changed.internal', 'mvp_extended'],
             ['NOTIF-22', 'Asesmen risiko dan prioritas dicatat untuk Satgas', 'Satgas', 'in_app', 'case.assessment_recorded.internal', 'mvp_extended'],
+            ['NOTIF-23', 'Rekomendasi dikembalikan untuk revisi', 'Satgas', 'in_app', 'recommendation.returned_for_revision', 'mvp_extended'],
+            ['NOTIF-24', 'Rekomendasi disetujui untuk putusan', 'Admin', 'in_app', 'recommendation.approved', 'mvp_extended'],
         ];
 
         foreach ($rows as $index => [$code, $name, $recipient, $channel, $template, $classification]) {

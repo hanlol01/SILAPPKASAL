@@ -101,6 +101,9 @@ export function DecisionStatusAction({
         caseId,
         exactKeys: [
           operationsQueryKeys.decisions(decision.recommendation_id),
+          operationsQueryKeys.recommendations(caseId),
+          operationsQueryKeys.recommendation(decision.recommendation_id),
+          operationsQueryKeys.recommendationStatusOptions(decision.recommendation_id),
           operationsQueryKeys.decision(decision.id),
           operationsQueryKeys.decisionStatusOptions(decision.id),
         ],

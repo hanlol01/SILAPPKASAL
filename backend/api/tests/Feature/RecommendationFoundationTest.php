@@ -14,6 +14,7 @@ use App\Models\CaseRecord;
 use App\Models\CaseStatus;
 use App\Models\Investigation;
 use App\Models\InvestigationStatus;
+use App\Models\Permission;
 use App\Models\Recommendation;
 use App\Models\RecommendationStatus as RecommendationStatusModel;
 use App\Models\Report;
@@ -22,6 +23,7 @@ use App\Models\User;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -44,6 +46,9 @@ class RecommendationFoundationTest extends TestCase
         $this->assertTrue(Schema::hasTable('recommendation_status_histories'));
         $this->assertTrue(Schema::hasColumn('recommendations', 'case_id'));
         $this->assertTrue(Schema::hasColumn('recommendations', 'investigation_id'));
+        $this->assertTrue(Schema::hasColumn('recommendations', 'returned_by'));
+        $this->assertTrue(Schema::hasColumn('recommendations', 'revision_note'));
+        $this->assertTrue(Schema::hasColumn('recommendations', 'approved_by'));
         $this->assertTrue(Schema::hasColumn('recommendation_statuses', 'valid_transitions'));
         $this->assertTrue(Schema::hasTable('decisions'));
         $this->assertDatabaseCount('decisions', 0);
@@ -56,8 +61,11 @@ class RecommendationFoundationTest extends TestCase
 
         $this->assertContains(RecommendationStatusEnum::SubmittedToLeader->value, $drafting->valid_transitions);
         $this->assertDatabaseHas('permissions', ['code' => 'cases.recommend']);
+        $this->assertDatabaseHas('permissions', ['code' => 'cases.review_recommendation']);
         $this->assertDatabaseHas('notification_types', ['code' => 'NOTIF-16']);
         $this->assertDatabaseHas('notification_types', ['code' => 'NOTIF-17']);
+        $this->assertDatabaseHas('notification_types', ['code' => 'NOTIF-23']);
+        $this->assertDatabaseHas('notification_types', ['code' => 'NOTIF-24']);
     }
 
     public function test_assigned_satgas_can_create_recommendation_from_completed_investigation(): void
@@ -170,36 +178,44 @@ class RecommendationFoundationTest extends TestCase
             ->assertUnprocessable();
     }
 
-    public function test_status_transitions_use_master_data_history_and_do_not_update_case_status(): void
+    public function test_assigned_satgas_can_submit_and_resubmit_a_returned_recommendation(): void
     {
         $admin = $this->makeUser('admin', 'admin@university.ac.id');
+        $superAdmin = $this->makeUser('super_admin', 'super@university.ac.id');
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
         $case = $this->makeRecommendationCase($admin, $satgas);
         $investigation = $this->makeCompletedInvestigation($case, $satgas);
         $recommendation = $this->makeRecommendation($case, $investigation, $satgas);
 
         $this->actingAsApi($satgas);
-        $this->patchJson("/api/v1/recommendations/{$recommendation->id}/status", [
-            'status' => RecommendationStatusEnum::InternalReview->value,
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")
+            ->assertOk()
+            ->assertJsonPath('data.status', RecommendationStatusEnum::SubmittedToLeader->value);
+
+        $this->actingAsApi($superAdmin);
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/review", [
+            'action' => 'return_for_revision',
+            'revision_note' => 'Perjelas dasar rekomendasi dan tindakan tindak lanjut.',
         ])
             ->assertOk()
-            ->assertJsonPath('data.status', RecommendationStatusEnum::InternalReview->value);
+            ->assertJsonPath('data.status', RecommendationStatusEnum::Revised->value)
+            ->assertJsonPath('data.leadership_review.revision_note', 'Perjelas dasar rekomendasi dan tindakan tindak lanjut.');
+
+        $this->actingAsApi($satgas);
+        $this->patchJson("/api/v1/recommendations/{$recommendation->id}", [
+            'recommended_actions' => 'Tindakan rekomendasi yang telah diperbaiki.',
+        ])->assertOk();
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")
+            ->assertOk()
+            ->assertJsonPath('data.status', RecommendationStatusEnum::SubmittedToLeader->value);
+
+        $this->assertNotNull($recommendation->refresh()->submitted_at);
+        $this->assertSame(CaseStatusEnum::Recommendation->value, $case->refresh()->status->name);
+        $this->assertDatabaseCount('recommendation_status_histories', 4);
 
         $this->actingAsApi($satgas);
         $this->patchJson("/api/v1/recommendations/{$recommendation->id}/status", [
             'status' => RecommendationStatusEnum::SubmittedToLeader->value,
-        ])
-            ->assertOk()
-            ->assertJsonPath('data.status', RecommendationStatusEnum::SubmittedToLeader->value);
-
-        $recommendation->refresh();
-        $this->assertNotNull($recommendation->submitted_at);
-        $this->assertSame(CaseStatusEnum::Recommendation->value, $case->refresh()->status->name);
-        $this->assertDatabaseCount('recommendation_status_histories', 3);
-
-        $this->actingAsApi($satgas);
-        $this->patchJson("/api/v1/recommendations/{$recommendation->id}/status", [
-            'status' => RecommendationStatusEnum::Revised->value,
         ])
             ->assertUnprocessable();
     }
@@ -255,8 +271,7 @@ class RecommendationFoundationTest extends TestCase
                 'code' => 'RECS-02',
                 'name' => RecommendationStatusEnum::InternalReview->value,
             ])
-            ->assertJsonFragment([
-                'code' => 'RECS-03',
+            ->assertJsonMissing([
                 'name' => RecommendationStatusEnum::SubmittedToLeader->value,
             ])
             ->assertJsonMissing([
@@ -327,7 +342,7 @@ class RecommendationFoundationTest extends TestCase
 
         $this->assertSame($recommendation->id, $createdLog->metadata['recommendation_id']);
         $this->assertSame(1, $admin->notifications()->where('data->notification_type_code', 'NOTIF-16')->count());
-        $this->assertSame(1, $superAdmin->notifications()->where('data->notification_type_code', 'NOTIF-16')->count());
+        $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'NOTIF-16')->count());
         $this->assertSame(0, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-16')->count());
 
         $this->patchJson("/api/v1/recommendations/{$recommendation->id}", [
@@ -359,32 +374,261 @@ class RecommendationFoundationTest extends TestCase
         $this->assertSame(0, $admin->notifications()->where('data->notification_type_code', 'NOTIF-17')->count());
         $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'NOTIF-17')->count());
 
-        $this->patchJson("/api/v1/recommendations/{$recommendation->id}/status", [
-            'status' => RecommendationStatusEnum::SubmittedToLeader->value,
-        ])
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")
             ->assertOk();
 
-        $this->assertSame(1, $admin->notifications()->where('data->notification_type_code', 'NOTIF-14')->count());
+        $this->assertSame(0, $admin->notifications()->where('data->notification_type_code', 'NOTIF-14')->count());
         $this->assertSame(1, $superAdmin->notifications()->where('data->notification_type_code', 'NOTIF-14')->count());
         $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-17')->count());
+
+        $this->actingAsApi($superAdmin);
+        $revisionNote = 'Perbaiki dasar analisis sebelum rekomendasi dikirim kembali.';
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/review", [
+            'action' => 'return_for_revision',
+            'revision_note' => $revisionNote,
+        ])->assertOk();
+
+        $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-23')->count());
+        $this->assertSame(1, $otherSatgas->notifications()->where('data->notification_type_code', 'NOTIF-23')->count());
 
         $auditJson = AuditLog::query()
             ->whereIn('action', [
                 AuditAction::RecommendationCreated->value,
                 AuditAction::RecommendationUpdated->value,
                 AuditAction::RecommendationStatusChanged->value,
+                AuditAction::RecommendationSubmitted->value,
+                AuditAction::RecommendationReturnedForRevision->value,
             ])
             ->get()
             ->toJson();
 
         $this->assertStringNotContainsString('Kesimpulan rekomendasi rahasia', $auditJson);
         $this->assertStringNotContainsString('Tindakan rekomendasi yang diperbarui', $auditJson);
+        $this->assertStringNotContainsString($revisionNote, $auditJson);
 
         $payload = $satgas->notifications()->where('data->notification_type_code', 'NOTIF-17')->firstOrFail()->data;
         $this->assertSame($case->id, $payload['case_id']);
         $this->assertSame($recommendation->id, $payload['recommendation_id']);
         $this->assertArrayNotHasKey('conclusion', $payload);
         $this->assertArrayNotHasKey('recommended_actions', $payload);
+    }
+
+    public function test_only_active_super_admin_can_review_and_approval_advances_case_atomically(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-review@university.ac.id');
+        $superAdmin = $this->makeUser('super_admin', 'super-review@university.ac.id');
+        $inactiveSuperAdmin = $this->makeUser('super_admin', 'inactive-super@university.ac.id');
+        $inactiveSuperAdmin->forceFill(['is_active' => false])->save();
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-review@university.ac.id');
+        $otherSatgas = $this->makeUser('satgas_ppks', 'other-review@university.ac.id');
+        $case = $this->makeRecommendationCase($admin, $satgas);
+        $investigation = $this->makeCompletedInvestigation($case, $satgas);
+        $recommendation = $this->makeRecommendation($case, $investigation, $satgas);
+
+        $this->actingAsApi($otherSatgas);
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")->assertForbidden();
+
+        $this->actingAsApi($satgas);
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")->assertOk();
+
+        $admin->role->permissions()->syncWithoutDetaching([
+            Permission::query()->where('code', 'cases.review_recommendation')->firstOrFail()->id,
+        ]);
+        $admin->unsetRelation('role');
+
+        foreach ([$admin, $satgas, $inactiveSuperAdmin] as $unauthorizedReviewer) {
+            $this->actingAsApi($unauthorizedReviewer);
+            $this->postJson("/api/v1/recommendations/{$recommendation->id}/review", [
+                'action' => 'approve',
+            ])->assertForbidden();
+        }
+
+        $this->actingAsApi($superAdmin);
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/review", [
+            'action' => 'return_for_revision',
+        ])->assertUnprocessable();
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/review", [
+            'action' => 'approve',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.status', RecommendationStatusEnum::Accepted->value)
+            ->assertJsonPath('data.leadership_review.approved_by.id', $superAdmin->id);
+
+        $this->assertSame(CaseStatusEnum::Decision->value, $case->refresh()->status->name);
+        $this->assertNotNull($recommendation->refresh()->approved_at);
+        $this->assertSame(1, $admin->notifications()->where('data->notification_type_code', 'NOTIF-24')->count());
+        $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'NOTIF-24')->count());
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::RecommendationApproved->value,
+            'subject_id' => $recommendation->id,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::CaseStatusChanged->value,
+            'subject_id' => $case->id,
+        ]);
+
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/review", [
+            'action' => 'approve',
+        ])->assertUnprocessable();
+        $this->assertDatabaseCount('recommendation_status_histories', 3);
+    }
+
+    public function test_review_detail_privacy_and_legacy_terminal_status_compatibility(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-privacy@university.ac.id');
+        $superAdmin = $this->makeUser('super_admin', 'super-privacy@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-privacy@university.ac.id');
+        $case = $this->makeRecommendationCase($admin, $satgas);
+        $investigation = $this->makeCompletedInvestigation($case, $satgas);
+        $recommendation = $this->makeRecommendation($case, $investigation, $satgas);
+
+        $this->actingAsApi($satgas);
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")->assertOk();
+
+        $this->actingAsApi($superAdmin);
+        $this->getJson("/api/v1/recommendations/{$recommendation->id}")
+            ->assertOk()
+            ->assertJsonPath('data.conclusion', 'Kesimpulan rekomendasi rahasia.');
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/review", [
+            'action' => 'return_for_revision',
+            'revision_note' => 'Catatan revisi rahasia hanya untuk reviewer dan Satgas.',
+        ])->assertOk();
+
+        $this->actingAsApi($admin);
+        $this->getJson("/api/v1/recommendations/{$recommendation->id}")
+            ->assertOk()
+            ->assertJsonMissingPath('data.conclusion')
+            ->assertJsonMissingPath('data.leadership_review')
+            ->assertJsonMissingPath('data.revision_note');
+
+        $this->actingAsApi($satgas);
+        $this->getJson("/api/v1/recommendations/{$recommendation->id}")
+            ->assertOk()
+            ->assertJsonPath('data.leadership_review.revision_note', 'Catatan revisi rahasia hanya untuk reviewer dan Satgas.');
+
+        $legacyStatus = RecommendationStatusModel::query()
+            ->where('name', RecommendationStatusEnum::PartiallyAccepted->value)
+            ->firstOrFail();
+        $recommendation->forceFill(['status_code' => $legacyStatus->code])->save();
+
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")->assertUnprocessable();
+        $this->getJson("/api/v1/recommendations/{$recommendation->id}/status-options")
+            ->assertOk()
+            ->assertJsonCount(0, 'data.valid_transitions');
+    }
+
+    public function test_review_metadata_is_consistent_across_return_edit_and_resubmission(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-review-state@university.ac.id');
+        $superAdmin = $this->makeUser('super_admin', 'super-review-state@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-review-state@university.ac.id');
+        $case = $this->makeRecommendationCase($admin, $satgas);
+        $investigation = $this->makeCompletedInvestigation($case, $satgas);
+        $recommendation = $this->makeRecommendation($case, $investigation, $satgas);
+
+        $this->actingAsApi($satgas);
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")->assertOk();
+
+        $recommendation->forceFill([
+            'approved_by' => $superAdmin->id,
+            'approved_at' => now(),
+        ])->save();
+
+        $this->actingAsApi($superAdmin);
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/review", [
+            'action' => 'return_for_revision',
+            'revision_note' => 'Lengkapi dasar analisis sebelum rekomendasi dikirim kembali.',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.leadership_review.approved_by', null)
+            ->assertJsonPath('data.leadership_review.approved_at', null);
+
+        $recommendation->refresh();
+        $this->assertNotNull($recommendation->returned_by);
+        $this->assertNotNull($recommendation->returned_at);
+        $this->assertSame('Lengkapi dasar analisis sebelum rekomendasi dikirim kembali.', $recommendation->revision_note);
+        $this->assertNull($recommendation->approved_by);
+        $this->assertNull($recommendation->approved_at);
+
+        $this->actingAsApi($satgas);
+        $this->patchJson("/api/v1/recommendations/{$recommendation->id}", [
+            'recommended_actions' => 'Tindakan rekomendasi yang diperbaiki tanpa menghapus catatan return.',
+        ])->assertOk();
+
+        $recommendation->refresh();
+        $this->assertNotNull($recommendation->returned_by);
+        $this->assertSame('Lengkapi dasar analisis sebelum rekomendasi dikirim kembali.', $recommendation->revision_note);
+
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")
+            ->assertOk()
+            ->assertJsonPath('data.leadership_review.returned_by', null)
+            ->assertJsonPath('data.leadership_review.returned_at', null)
+            ->assertJsonPath('data.leadership_review.revision_note', null)
+            ->assertJsonPath('data.leadership_review.approved_by', null)
+            ->assertJsonPath('data.leadership_review.approved_at', null);
+
+        $recommendation->refresh();
+        $this->assertNull($recommendation->returned_by);
+        $this->assertNull($recommendation->returned_at);
+        $this->assertNull($recommendation->revision_note);
+        $this->assertNull($recommendation->approved_by);
+        $this->assertNull($recommendation->approved_at);
+    }
+
+    public function test_malformed_legacy_revision_note_does_not_break_sensitive_detail_serialization(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-legacy-note@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-legacy-note@university.ac.id');
+        $case = $this->makeRecommendationCase($admin, $satgas);
+        $investigation = $this->makeCompletedInvestigation($case, $satgas);
+        $recommendation = $this->makeRecommendation($case, $investigation, $satgas);
+
+        DB::table('recommendations')
+            ->where('id', $recommendation->id)
+            ->update(['revision_note' => 'legacy plaintext that is not encrypted']);
+
+        $this->actingAsApi($satgas);
+        $this->getJson("/api/v1/recommendations/{$recommendation->id}")
+            ->assertOk()
+            ->assertJsonPath('data.leadership_review.revision_note', null);
+
+        $this->assertSame(
+            'legacy plaintext that is not encrypted',
+            DB::table('recommendations')->where('id', $recommendation->id)->value('revision_note'),
+        );
+    }
+
+    public function test_failed_approval_rolls_back_recommendation_history_audit_and_notification(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-approval-rollback@university.ac.id');
+        $superAdmin = $this->makeUser('super_admin', 'super-approval-rollback@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-approval-rollback@university.ac.id');
+        $case = $this->makeRecommendationCase($admin, $satgas);
+        $investigation = $this->makeCompletedInvestigation($case, $satgas);
+        $recommendation = $this->makeRecommendation($case, $investigation, $satgas);
+
+        $this->actingAsApi($satgas);
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")->assertOk();
+
+        $decisionStatus = CaseStatus::query()->where('name', CaseStatusEnum::Decision->value)->firstOrFail();
+        $case->forceFill([
+            'status_code' => $decisionStatus->code,
+            'current_stage' => $decisionStatus->workflow_stage,
+        ])->save();
+        $historyCount = $recommendation->statusHistories()->count();
+        $auditCount = AuditLog::query()->count();
+        $notificationCount = $admin->notifications()->count();
+
+        $this->actingAsApi($superAdmin);
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/review", [
+            'action' => 'approve',
+        ])->assertUnprocessable();
+
+        $this->assertSame(RecommendationStatusEnum::SubmittedToLeader->value, $recommendation->refresh()->status->name);
+        $this->assertSame(CaseStatusEnum::Decision->value, $case->refresh()->status->name);
+        $this->assertSame($historyCount, $recommendation->statusHistories()->count());
+        $this->assertSame($auditCount, AuditLog::query()->count());
+        $this->assertSame($notificationCount, $admin->notifications()->count());
     }
 
     private function payload(Investigation $investigation): array

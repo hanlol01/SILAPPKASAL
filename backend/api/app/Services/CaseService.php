@@ -240,6 +240,7 @@ class CaseService
             }
 
             $nextStatus = $this->resolveStatus($requestedStatus);
+            $this->ensureNotLifecycleControlledTransition($case->status?->name, $nextStatus->name);
             $allowedTransitions = $case->status?->valid_transitions ?? [];
 
             if (! in_array($nextStatus->name, $allowedTransitions, true)) {
@@ -362,6 +363,18 @@ class CaseService
                     ->orWhereRaw('LOWER(name) = ?', [$normalized]);
             })
             ->first() ?? throw $this->unprocessable('Unknown case status');
+    }
+
+    private function ensureNotLifecycleControlledTransition(?string $fromStatus, string $toStatus): void
+    {
+        $controlledTransitions = [
+            CaseStatusEnum::Recommendation->value.'>'.CaseStatusEnum::Decision->value,
+            CaseStatusEnum::Decision->value.'>'.CaseStatusEnum::Decided->value,
+        ];
+
+        if (in_array($fromStatus.'>'.$toStatus, $controlledTransitions, true)) {
+            throw $this->unprocessable('This case transition is controlled by its workflow action');
+        }
     }
 
     /**

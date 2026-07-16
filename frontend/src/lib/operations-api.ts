@@ -22,6 +22,7 @@ import type {
   PaginatedData,
   Recommendation,
   RecommendationCreatePayload,
+  RecommendationReviewPayload,
   RecommendationStatusOptions,
   RecommendationStatusPayload,
   RecommendationUpdatePayload,
@@ -310,6 +311,19 @@ export function updateEvidenceMetadata(id: string | number, payload: EvidenceUpd
 export function updateEvidenceStatus(id: string | number, payload: EvidenceStatusPayload) {
   return apiRequest<EvidenceMetadata>(`/evidences/${id}/status`, {
     method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function submitRecommendation(id: string | number) {
+  return apiRequest<Recommendation>(`/recommendations/${id}/submit`, {
+    method: "POST",
+  });
+}
+
+export function reviewRecommendation(id: string | number, payload: RecommendationReviewPayload) {
+  return apiRequest<Recommendation>(`/recommendations/${id}/review`, {
+    method: "POST",
     body: JSON.stringify(payload),
   });
 }

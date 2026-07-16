@@ -153,6 +153,13 @@ export interface Recommendation {
   sanction_recommendation?: string | null;
   recovery_recommendation?: string | null;
   prevention_recommendation?: string | null;
+  leadership_review?: {
+    revision_note?: string | null;
+    returned_by?: PersonRef | null;
+    returned_at?: string | null;
+    approved_by?: PersonRef | null;
+    approved_at?: string | null;
+  };
   submitted_at: string | null;
   created_at: string | null;
   updated_at: string | null;
@@ -279,6 +286,10 @@ export interface EvidenceMetadata {
   created_at: string | null;
   updated_at: string | null;
 }
+
+export type RecommendationReviewPayload =
+  | { action: "approve" }
+  | { action: "return_for_revision"; revision_note: string };
 
 export interface ReportCaseAssignmentSummary {
   satgas_id: number;

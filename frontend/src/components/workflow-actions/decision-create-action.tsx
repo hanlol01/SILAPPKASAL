@@ -84,6 +84,7 @@ export function DecisionCreateAction({
         exactKeys: [
           operationsQueryKeys.recommendations(caseId),
           operationsQueryKeys.recommendation(recommendation.id),
+          operationsQueryKeys.recommendationStatusOptions(recommendation.id),
           operationsQueryKeys.decisions(recommendation.id),
         ],
       });

@@ -27,6 +27,8 @@ class NotificationService
     public const TYPE_RECOVERY_CREATED = 'NOTIF-20';
     public const TYPE_RECOVERY_STATUS_CHANGED = 'NOTIF-21';
     public const TYPE_CASE_ASSESSMENT_RECORDED = 'NOTIF-22';
+    public const TYPE_RECOMMENDATION_RETURNED = 'NOTIF-23';
+    public const TYPE_RECOMMENDATION_APPROVED = 'NOTIF-24';
 
     public function caseAssessmentRecorded(CaseRecord $case): void
     {
@@ -91,7 +93,7 @@ class NotificationService
             return;
         }
 
-        $this->send($this->decisionManagers(), [
+        $this->send($this->leadershipReviewers(), [
             'notification_type_code' => self::TYPE_RECOMMENDATION_SUBMITTED_TO_LEADER,
             'event' => 'recommendation_submitted_to_leader',
             'title' => 'Recommendation submitted',
@@ -134,6 +136,48 @@ class NotificationService
             'event' => 'recommendation_status_changed',
             'title' => 'Recommendation status updated',
             'body' => 'A recommendation for an assigned case has a status update.',
+            'subject_type' => 'recommendation',
+            'subject_id' => $recommendation->id,
+            'case_id' => $recommendation->case_id,
+            'recommendation_id' => $recommendation->id,
+            'status_code' => $recommendation->status_code,
+        ]);
+    }
+
+    public function recommendationReturnedForRevision(Recommendation $recommendation): void
+    {
+        $recommendation->loadMissing(['status', 'case.activeAssignments.satgas']);
+
+        if ($recommendation->status?->name !== RecommendationStatusEnum::Revised->value || ! $recommendation->case) {
+            return;
+        }
+
+        $this->send($this->activeAssignedSatgas($recommendation->case), [
+            'notification_type_code' => self::TYPE_RECOMMENDATION_RETURNED,
+            'event' => 'recommendation_returned_for_revision',
+            'title' => 'Recommendation returned for revision',
+            'body' => 'A recommendation for an assigned case requires revision.',
+            'subject_type' => 'recommendation',
+            'subject_id' => $recommendation->id,
+            'case_id' => $recommendation->case_id,
+            'recommendation_id' => $recommendation->id,
+            'status_code' => $recommendation->status_code,
+        ]);
+    }
+
+    public function recommendationApproved(Recommendation $recommendation): void
+    {
+        $recommendation->loadMissing('status');
+
+        if ($recommendation->status?->name !== RecommendationStatusEnum::Accepted->value) {
+            return;
+        }
+
+        $this->send($this->decisionManagers(), [
+            'notification_type_code' => self::TYPE_RECOMMENDATION_APPROVED,
+            'event' => 'recommendation_approved',
+            'title' => 'Recommendation approved',
+            'body' => 'An approved recommendation is ready for decision recording.',
             'subject_type' => 'recommendation',
             'subject_id' => $recommendation->id,
             'case_id' => $recommendation->case_id,
@@ -286,9 +330,22 @@ class NotificationService
     {
         return User::query()
             ->where('is_active', true)
-            ->whereHas('role', fn (Builder $query): Builder => $query->whereIn('code', ['admin', 'super_admin']))
+            ->whereHas('role', fn (Builder $query): Builder => $query->where('code', 'admin'))
             ->get()
             ->filter(fn (User $user): bool => $user->hasPermission('cases.record_decision'))
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    private function leadershipReviewers(): Collection
+    {
+        return User::query()
+            ->where('is_active', true)
+            ->whereHas('role', fn (Builder $query): Builder => $query->where('code', 'super_admin'))
+            ->get()
+            ->filter(fn (User $user): bool => $user->hasPermission('cases.review_recommendation'))
             ->values();
     }
 

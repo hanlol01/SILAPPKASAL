@@ -417,6 +417,8 @@ export function DecisionUpdateAction({
         caseId,
         exactKeys: [
           operationsQueryKeys.decisions(decision.recommendation_id),
+          operationsQueryKeys.recommendations(caseId),
+          operationsQueryKeys.recommendation(decision.recommendation_id),
           operationsQueryKeys.decision(decision.id),
         ],
       });

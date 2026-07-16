@@ -6,14 +6,14 @@ use App\Enums\AuditAction;
 use App\Enums\AuditCategory;
 use App\Enums\AuditSeverity;
 use App\Enums\CaseStatus as CaseStatusEnum;
-use App\Enums\DecisionOutcome;
 use App\Enums\DecisionStatus as DecisionStatusEnum;
 use App\Enums\RecommendationStatus as RecommendationStatusEnum;
 use App\Models\CaseAssignment;
+use App\Models\CaseRecord;
+use App\Models\CaseStatus;
 use App\Models\Decision;
 use App\Models\DecisionStatus;
 use App\Models\Recommendation;
-use App\Models\RecommendationStatus;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -62,8 +62,6 @@ class DecisionService
             $this->recordStatusHistory($decision, null, $status->code, $actor);
             $decision = $decision->load($this->detailRelations());
 
-            $this->updateRecommendationForDecisionOutcome($recommendation, $decision, $actor);
-
             $this->recordAudit(
                 AuditAction::DecisionCreated,
                 $actor,
@@ -96,7 +94,7 @@ class DecisionService
     {
         $recommendation->loadMissing('case');
 
-        if (! $this->canManageDecision($user) && ! $this->isAssignedToRecommendationCase($recommendation, $user)) {
+        if (! $this->canReadDecision($user, $recommendation)) {
             throw $this->forbidden();
         }
 
@@ -111,7 +109,7 @@ class DecisionService
     {
         $decision->loadMissing('recommendation.case');
 
-        if (! $this->canManageDecision($user) && ! $this->isAssignedToRecommendationCase($decision->recommendation, $user)) {
+        if (! $this->canReadDecision($user, $decision->recommendation)) {
             throw $this->forbidden();
         }
 
@@ -183,6 +181,24 @@ class DecisionService
                 throw $this->unprocessable('Invalid decision status transition');
             }
 
+            $case = null;
+
+            if ($nextStatus->name === DecisionStatusEnum::Finalized->value) {
+                $recommendation = Recommendation::query()
+                    ->whereKey($decision->recommendation_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                $case = CaseRecord::query()
+                    ->with('status')
+                    ->whereKey($recommendation->case_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($case->status?->name !== CaseStatusEnum::Decision->value) {
+                    throw $this->unprocessable('Case must be in decision status before finalization');
+                }
+            }
+
             $fromStatusCode = $decision->status_code;
             $fromStatusName = $decision->status?->name;
             $decision->forceFill([
@@ -191,6 +207,11 @@ class DecisionService
             ])->save();
 
             $this->recordStatusHistory($decision, $fromStatusCode, $nextStatus->code, $actor);
+
+            if ($case) {
+                $this->advanceCaseToDecided($case, $actor);
+            }
+
             $decision = $decision->load($this->detailRelations());
 
             $this->recordAudit(
@@ -258,8 +279,8 @@ class DecisionService
     {
         $recommendation->loadMissing(['case.status', 'status', 'decision']);
 
-        if ($recommendation->status?->name !== RecommendationStatusEnum::SubmittedToLeader->value) {
-            throw $this->unprocessable('Decision requires a submitted recommendation');
+        if ($recommendation->status?->name !== RecommendationStatusEnum::Accepted->value) {
+            throw $this->unprocessable('Decision requires an approved recommendation');
         }
 
         if ($recommendation->case?->status?->name !== CaseStatusEnum::Decision->value) {
@@ -296,7 +317,14 @@ class DecisionService
     {
         return $user->is_active
             && $user->hasPermission('cases.record_decision')
-            && ($user->hasRole('admin') || $user->hasRole('super_admin'));
+            && $user->hasRole('admin');
+    }
+
+    private function canReadDecision(User $user, Recommendation $recommendation): bool
+    {
+        return $this->canManageDecision($user)
+            || ($user->is_active && $user->hasPermission('cases.read.all') && $user->hasRole('super_admin'))
+            || $this->isAssignedToRecommendationCase($recommendation, $user);
     }
 
     private function isAssignedToRecommendationCase(Recommendation $recommendation, User $user): bool
@@ -319,37 +347,36 @@ class DecisionService
             ->firstOrFail();
     }
 
-    private function recommendationStatusByName(RecommendationStatusEnum $status): RecommendationStatus
+    private function advanceCaseToDecided(CaseRecord $case, User $actor): void
     {
-        return RecommendationStatus::query()
-            ->where('name', $status->value)
+        $status = CaseStatus::query()
+            ->where('name', CaseStatusEnum::Decided->value)
             ->where('is_active', true)
             ->firstOrFail();
-    }
+        $fromStatusCode = $case->status_code;
+        $fromStatusName = $case->status?->name;
 
-    private function updateRecommendationForDecisionOutcome(Recommendation $recommendation, Decision $decision, User $actor): void
-    {
-        $nextStatus = match ($decision->outcome_code) {
-            DecisionOutcome::Accepted->value => RecommendationStatusEnum::Accepted,
-            DecisionOutcome::PartiallyAccepted->value => RecommendationStatusEnum::PartiallyAccepted,
-            DecisionOutcome::Rejected->value => RecommendationStatusEnum::Rejected,
-            default => null,
-        };
+        $case->forceFill([
+            'status_code' => $status->code,
+            'current_stage' => $status->workflow_stage,
+            'decision_at' => now(),
+        ])->save();
 
-        if (! $nextStatus) {
-            return;
-        }
-
-        $status = $this->recommendationStatusByName($nextStatus);
-        $fromStatusCode = $recommendation->status_code;
-
-        $recommendation->forceFill(['status_code' => $status->code])->save();
-        $recommendation->statusHistories()->create([
-            'from_status_code' => $fromStatusCode,
-            'to_status_code' => $status->code,
-            'changed_by' => $actor->id,
-            'changed_at' => now(),
-        ]);
+        $this->auditLogService->record(
+            action: AuditAction::CaseStatusChanged,
+            category: AuditCategory::Case,
+            severity: AuditSeverity::Info,
+            actor: $actor,
+            subject: $case,
+            metadata: [
+                'case_id' => $case->id,
+                'from_status' => $fromStatusName,
+                'to_status' => $status->name,
+                'source' => 'decision_finalization',
+            ],
+            beforeChanges: ['status_code' => $fromStatusCode],
+            afterChanges: ['status_code' => $status->code],
+        );
     }
 
     private function resolveStatus(string $status): DecisionStatus

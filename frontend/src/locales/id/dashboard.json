@@ -149,6 +149,17 @@
       "title": "Langkah Berikutnya",
       "desc": "Arahan singkat sesuai status kasus dan peran Anda.",
       "fallback": "Ikuti aksi alur kerja yang tersedia pada panel aksi.",
+      "context": {
+        "recommendationSubmittedSatgas": "Rekomendasi telah dikirim. Tunggu hasil tinjauan Pimpinan PPKS.",
+        "recommendationSubmittedSuperAdmin": "Tinjau rekomendasi, lalu setujui atau kembalikan kepada Satgas untuk revisi.",
+        "recommendationPendingAdmin": "Rekomendasi sedang menunggu persetujuan Pimpinan PPKS. Putusan belum dapat dibuat.",
+        "recommendationRevisedSatgas": "Baca catatan revisi, perbarui rekomendasi, lalu kirim kembali ke Pimpinan PPKS.",
+        "recommendationAcceptedAdmin": "Rekomendasi telah disetujui. Buat putusan melalui tab Putusan.",
+        "recommendationAcceptedSatgas": "Rekomendasi telah disetujui. Tunggu Admin mencatat putusan.",
+        "decisionDraftAdmin": "Lengkapi draf putusan, lalu ubah statusnya menjadi tercatat.",
+        "decisionRecordedAdmin": "Putusan telah tercatat dan siap difinalisasi.",
+        "decisionFinalizedSatgas": "Putusan telah final. Lanjutkan tindak lanjut yang diizinkan pada tahap berikutnya."
+      },
       "forwarded": {
         "all": "Kasus menunggu tahap asesmen dimulai.",
         "satgas": "Mulai penanganan dengan mengubah status kasus ke tahap asesmen.",
@@ -174,8 +185,8 @@
         "admin": "Menunggu rekomendasi dari Satgas yang ditugaskan."
       },
       "decision": {
-        "all": "Menunggu putusan dari Pimpinan PPKS.",
-        "superAdmin": "Buat putusan melalui tab Putusan berdasarkan rekomendasi yang dikirim."
+        "all": "Menunggu putusan institusi.",
+        "admin": "Kelola putusan melalui tab Putusan berdasarkan rekomendasi yang telah disetujui."
       },
       "decided": {
         "all": "Putusan telah dikeluarkan. Tahap pemulihan dapat disiapkan.",
@@ -511,6 +522,78 @@
     "recommendationUpdateError": "Rekomendasi tidak dapat diperbarui",
     "recommendationStatusUpdated": "Status rekomendasi diperbarui",
     "recommendationStatusError": "Status rekomendasi tidak dapat diperbarui",
+    "submitRecommendation": "Kirim ke Pimpinan",
+    "submitRecommendationDesc": "Setelah dikirim, rekomendasi tidak dapat diubah sampai Pimpinan PPKS mengembalikannya untuk revisi.",
+    "recommendationSubmitted": "Rekomendasi dikirim ke Pimpinan PPKS",
+    "recommendationSubmitError": "Rekomendasi tidak dapat dikirim",
+    "approveRecommendation": "Setujui Rekomendasi",
+    "approveRecommendationDesc": "Persetujuan akan memajukan kasus ke tahap putusan dan menyerahkannya kepada Admin.",
+    "returnRecommendation": "Kembalikan untuk Revisi",
+    "returnRecommendationDesc": "Berikan catatan yang jelas agar Satgas dapat memperbaiki rekomendasi.",
+    "revisionNote": "Catatan revisi",
+    "revisionNoteMin": "Catatan revisi minimal 10 karakter.",
+    "revisionNoteMax": "Catatan revisi maksimal 5000 karakter.",
+    "recommendationApproved": "Rekomendasi disetujui",
+    "recommendationReturned": "Rekomendasi dikembalikan untuk revisi",
+    "recommendationReviewError": "Tinjauan rekomendasi tidak dapat disimpan",
+    "approvalRecord": "Catatan persetujuan",
+    "approvedByAt": "Disetujui oleh {{name}} pada {{date}}",
+    "recommendationGuidance": {
+      "fallback": "Status rekomendasi ini bersifat baca-saja untuk peran Anda.",
+      "drafting": {
+        "satgas": "Lengkapi rekomendasi, lalu kirim ke Pimpinan PPKS.",
+        "admin": "Rekomendasi masih disusun oleh Satgas.",
+        "superAdmin": "Rekomendasi belum dikirim untuk ditinjau."
+      },
+      "internal_review": {
+        "satgas": "Selesaikan tinjauan internal, lalu kirim ke Pimpinan PPKS.",
+        "admin": "Rekomendasi masih dalam tinjauan internal Satgas.",
+        "superAdmin": "Rekomendasi belum dikirim untuk ditinjau."
+      },
+      "submitted_to_leader": {
+        "satgas": "Menunggu hasil tinjauan Pimpinan PPKS.",
+        "admin": "Menunggu persetujuan Pimpinan PPKS sebelum putusan dapat dibuat.",
+        "superAdmin": "Tinjau isi rekomendasi, lalu setujui atau kembalikan untuk revisi."
+      },
+      "revised": {
+        "satgas": "Perbarui rekomendasi sesuai catatan revisi, lalu kirim kembali.",
+        "admin": "Rekomendasi sedang direvisi oleh Satgas.",
+        "superAdmin": "Rekomendasi telah dikembalikan dan menunggu pengiriman ulang."
+      },
+      "accepted": {
+        "satgas": "Rekomendasi telah disetujui dan menunggu putusan Admin.",
+        "admin": "Rekomendasi siap digunakan untuk membuat putusan.",
+        "superAdmin": "Rekomendasi telah disetujui dan diserahkan kepada Admin."
+      },
+      "partially_accepted": {
+        "satgas": "Status legacy ini ditampilkan sebagai catatan baca-saja.",
+        "admin": "Status legacy ini ditampilkan sebagai catatan baca-saja.",
+        "superAdmin": "Status legacy ini ditampilkan sebagai catatan baca-saja."
+      },
+      "rejected": {
+        "satgas": "Status legacy ini ditampilkan sebagai catatan baca-saja.",
+        "admin": "Status legacy ini ditampilkan sebagai catatan baca-saja.",
+        "superAdmin": "Status legacy ini ditampilkan sebagai catatan baca-saja."
+      }
+    },
+    "decisionGuidance": {
+      "fallback": "Putusan ini bersifat baca-saja untuk peran Anda.",
+      "draft": {
+        "admin": "Lengkapi draf putusan dan catat statusnya ketika siap.",
+        "satgas": "Putusan sedang disusun oleh Admin.",
+        "superAdmin": "Putusan sedang disusun oleh Admin."
+      },
+      "recorded": {
+        "admin": "Putusan telah tercatat dan dapat difinalisasi.",
+        "satgas": "Putusan telah tercatat dan menunggu finalisasi.",
+        "superAdmin": "Putusan telah tercatat dan menunggu finalisasi Admin."
+      },
+      "finalized": {
+        "admin": "Putusan telah final dan kasus telah maju ke tahap diputuskan.",
+        "satgas": "Putusan telah final. Lanjutkan tindak lanjut yang diizinkan.",
+        "superAdmin": "Putusan telah final."
+      }
+    },
     "decisionCreated": "Putusan dibuat",
     "decisionCreateError": "Putusan tidak dapat dibuat",
     "decisionUpdated": "Putusan diperbarui",
@@ -571,7 +654,7 @@
     "createDecisionNeedsStatus": "Kasus harus berada pada status putusan sebelum putusan dibuat.",
     "createDecisionLoading": "Data rekomendasi atau putusan masih dimuat.",
     "createDecisionExists": "Kasus ini sudah memiliki putusan.",
-    "createDecisionNeedsRecommendation": "Rekomendasi yang sudah dikirim ke pimpinan diperlukan sebelum putusan dibuat.",
+    "createDecisionNeedsRecommendation": "Rekomendasi yang sudah disetujui Pimpinan PPKS diperlukan sebelum putusan dibuat.",
     "createDecisionUnavailable": "Pembuatan putusan tidak tersedia untuk kasus ini.",
     "createRecoveryClosed": "Kasus yang sudah ditutup tidak dapat menerima aksi pemulihan.",
     "createRecoveryLoading": "Data putusan masih dimuat.",

@@ -163,6 +163,8 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/{recommendation}/status-options', [RecommendationController::class, 'statusOptions']);
         Route::get('/{recommendation}', [RecommendationController::class, 'show']);
         Route::patch('/{recommendation}', [RecommendationController::class, 'update']);
+        Route::post('/{recommendation}/submit', [RecommendationController::class, 'submit']);
+        Route::post('/{recommendation}/review', [RecommendationController::class, 'review']);
         Route::patch('/{recommendation}/status', [RecommendationController::class, 'updateStatus']);
     });
 

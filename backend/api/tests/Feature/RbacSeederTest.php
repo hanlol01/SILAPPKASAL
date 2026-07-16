@@ -34,6 +34,7 @@ class RbacSeederTest extends TestCase
         $this->assertDatabaseHas('permissions', ['code' => 'reporter_evidence.download.own']);
         $this->assertDatabaseHas('permissions', ['code' => 'reporter_evidence.read.assigned']);
         $this->assertDatabaseHas('permissions', ['code' => 'reporter_evidence.download.assigned']);
+        $this->assertDatabaseHas('permissions', ['code' => 'cases.review_recommendation']);
 
         $reporter = Role::query()->where('code', 'reporter')->with('permissions')->firstOrFail();
         $this->assertTrue($reporter->permissions->contains('code', 'reports.create'));
@@ -66,8 +67,12 @@ class RbacSeederTest extends TestCase
         }
 
         $this->assertTrue($admin->permissions->contains('code', 'cases.record_decision'));
-        $this->assertTrue($superAdmin->permissions->contains('code', 'cases.record_decision'));
+        $this->assertFalse($superAdmin->permissions->contains('code', 'cases.record_decision'));
         $this->assertFalse($satgas->permissions->contains('code', 'cases.record_decision'));
+        $this->assertTrue($superAdmin->permissions->contains('code', 'cases.review_recommendation'));
+        $this->assertFalse($admin->permissions->contains('code', 'cases.review_recommendation'));
+        $this->assertFalse($satgas->permissions->contains('code', 'cases.review_recommendation'));
+        $this->assertFalse($reporter->permissions->contains('code', 'cases.review_recommendation'));
         $this->assertTrue($admin->permissions->contains('code', 'cases.monitor'));
         $this->assertTrue($superAdmin->permissions->contains('code', 'cases.monitor'));
         $this->assertTrue($satgas->permissions->contains('code', 'cases.monitor'));

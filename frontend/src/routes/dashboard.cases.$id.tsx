@@ -49,7 +49,10 @@ import { DecisionStatusAction } from "@/components/workflow-actions/decision-sta
 import { InvestigationCreateAction } from "@/components/workflow-actions/investigation-create-action";
 import { InvestigationStatusAction } from "@/components/workflow-actions/investigation-status-action";
 import { RecommendationCreateAction } from "@/components/workflow-actions/recommendation-create-action";
-import { RecommendationStatusAction } from "@/components/workflow-actions/recommendation-status-action";
+import {
+  RecommendationReviewActions,
+  RecommendationSubmitAction,
+} from "@/components/workflow-actions/recommendation-review-actions";
 import { CaseAssessmentAction } from "@/components/workflow-actions/case-assessment-action";
 import { EvidenceCreateAction } from "@/components/workflow-actions/evidence-create-action";
 import { RecoveryCreateAction } from "@/components/workflow-actions/recovery-create-action";
@@ -233,8 +236,14 @@ function CaseDetail() {
   const canUseSatgasActions = isAssignedSatgas && !c.closed_at;
   const canInvestigate = canUseSatgasActions && Boolean(user?.permissions?.includes("cases.investigate"));
   const canRecommend = canUseSatgasActions && Boolean(user?.permissions?.includes("cases.recommend"));
+  const canReviewRecommendation =
+    roleCode === "super_admin"
+    && user?.is_active === true
+    && Boolean(user.permissions?.includes("cases.review_recommendation"));
   const canManageDecisionActions =
-    roleCode === "super_admin" && Boolean(user?.permissions?.includes("cases.record_decision"));
+    roleCode === "admin"
+    && user?.is_active === true
+    && Boolean(user.permissions?.includes("cases.record_decision"));
   const canManageRecoveryActions = isAdminRole && Boolean(user?.permissions?.includes("cases.monitor"));
   const canAddRecoveryMonitoring = canManageRecoveryActions || canUseSatgasActions;
   const activeAssignments = (c.assignments ?? []).filter((assignment) => assignment.is_active);
@@ -248,7 +257,7 @@ function CaseDetail() {
   const canCreateEvidence =
     canUpdateEvidence && evidenceInvestigation !== null;
   const latestCompletedInvestigation = mostRecentCompletedInvestigation(investigationsQuery.data ?? []);
-  const submittedDecisionRecommendation = submittedRecommendationForDecision(recommendationsQuery.data ?? []);
+  const acceptedDecisionRecommendation = acceptedRecommendationForDecision(recommendationsQuery.data ?? []);
   const decisionsLoaded = recommendationsQuery.isSuccess && decisionQueries.every((query) => query.isSuccess);
   const finalizedDecisionForRecovery = finalizedDecision(decisions);
   const canCreateInvestigation =
@@ -268,23 +277,33 @@ function CaseDetail() {
     recommendationsQuery.isSuccess &&
     decisionsLoaded &&
     c.status === "decision" &&
-    submittedDecisionRecommendation !== null &&
+    acceptedDecisionRecommendation !== null &&
     decisions.length === 0;
   const canCreateRecovery =
     canManageRecoveryActions &&
     decisionsLoaded &&
     finalizedDecisionForRecovery !== null &&
     !c.closed_at;
+  const caseStatusToken = normalizeWorkflowToken(c.status ?? c.status_code);
+  const isLifecycleControlledCase = ["recommendation", "csts_09", "decision", "csts_10"].includes(
+    caseStatusToken,
+  );
+  const canUseGenericCaseStatus = canUseSatgasActions && !isLifecycleControlledCase;
   const hasGeneralActions =
-    (canUseSatgasActions && caseStatusAvailable)
+    (canUseGenericCaseStatus && caseStatusAvailable)
     || (canUseSatgasActions && c.status === "assessment")
     || canCreateInvestigation
-    || canCreateRecommendation
-    || canCreateDecision
     || canCreateRecovery;
   const defaultWorkflowTab = defaultWorkflowTabForCase(c);
   const restrictedLabel = restrictedRoleLabel(t, roleCode);
-  const nextStepText = nextStepMessage(t, c, isAssignedSatgas, roleCode);
+  const nextStepText = nextStepMessage(
+    t,
+    c,
+    isAssignedSatgas,
+    roleCode,
+    recommendationsQuery.data ?? [],
+    decisions,
+  );
   const timelineLoading =
     investigationsQuery.isLoading ||
     recommendationsQuery.isLoading ||
@@ -420,8 +439,16 @@ function CaseDetail() {
                 recommendations={recommendationsQuery.data ?? []}
                 loading={recommendationsQuery.isLoading}
                 canUpdate={canRecommend}
-                canTransitionStatus={canRecommend}
+                canSubmit={canRecommend}
+                canReview={canReviewRecommendation}
+                createAction={
+                  canCreateRecommendation && latestCompletedInvestigation
+                    ? <RecommendationCreateAction caseId={c.id} investigation={latestCompletedInvestigation} />
+                    : null
+                }
                 caseId={c.id}
+                language={i18n.language}
+                roleCode={roleCode}
                 roleLabel={restrictedLabel}
                 t={t}
               />
@@ -432,8 +459,14 @@ function CaseDetail() {
                 loading={decisionQueries.some((query) => query.isLoading)}
                 canUpdate={canManageDecisionActions}
                 canTransitionStatus={canManageDecisionActions}
+                createAction={
+                  canCreateDecision && acceptedDecisionRecommendation
+                    ? <DecisionCreateAction caseId={c.id} recommendation={acceptedDecisionRecommendation} />
+                    : null
+                }
                 caseId={c.id}
                 language={i18n.language}
+                roleCode={roleCode}
                 roleLabel={restrictedLabel}
                 t={t}
               />
@@ -526,7 +559,7 @@ function CaseDetail() {
                 <CardDescription>{t("dashboard:cases.actionsDesc")}</CardDescription>
               </CardHeader>
               <CardContent className="min-w-0 space-y-3">
-                {canUseSatgasActions && (
+                {canUseGenericCaseStatus && (
                   <CaseStatusAction
                     caseId={c.id}
                     currentStatus={c.status_code}
@@ -543,12 +576,6 @@ function CaseDetail() {
                 )}
                 {canCreateInvestigation && (
                   <InvestigationCreateAction caseId={c.id} assignments={activeAssignments} />
-                )}
-                {canCreateRecommendation && latestCompletedInvestigation && (
-                  <RecommendationCreateAction caseId={c.id} investigation={latestCompletedInvestigation} />
-                )}
-                {canCreateDecision && submittedDecisionRecommendation && (
-                  <DecisionCreateAction caseId={c.id} recommendation={submittedDecisionRecommendation} />
                 )}
                 {canCreateRecovery && finalizedDecisionForRecovery && (
                   <RecoveryCreateAction caseId={c.id} decision={finalizedDecisionForRecovery} />
@@ -693,21 +720,36 @@ function RecommendationsSection({
   recommendations,
   loading,
   canUpdate,
-  canTransitionStatus,
+  canSubmit,
+  canReview,
+  createAction,
   caseId,
+  language,
+  roleCode,
   roleLabel,
   t,
 }: {
   recommendations: Recommendation[];
   loading: boolean;
   canUpdate: boolean;
-  canTransitionStatus: boolean;
+  canSubmit: boolean;
+  canReview: boolean;
+  createAction: React.ReactNode;
   caseId: number | string;
+  language: string;
+  roleCode: string | null | undefined;
   roleLabel: string;
   t: TFunction;
 }) {
   return (
-    <SectionCard icon={ClipboardList} title={t("dashboard:sections.recommendations")} loading={loading} empty={recommendations.length === 0} t={t}>
+    <SectionCard
+      icon={ClipboardList}
+      title={t("dashboard:sections.recommendations")}
+      loading={loading}
+      empty={recommendations.length === 0}
+      emptyAction={createAction}
+      t={t}
+    >
       {recommendations.map((item) => (
         <div key={item.id} className="min-w-0 rounded-lg border p-3 text-sm">
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
@@ -717,7 +759,12 @@ function RecommendationsSection({
               {canUpdate && canEditRecommendation(item) && hasRecommendationDetail(item) && (
                 <RecommendationUpdateAction recommendation={item} caseId={caseId} />
               )}
-              {canTransitionStatus && <RecommendationStatusAction recommendation={item} caseId={caseId} />}
+              {canSubmit && canSubmitRecommendation(item) && (
+                <RecommendationSubmitAction recommendation={item} caseId={caseId} />
+              )}
+              {canReview && item.status === "submitted_to_leader" && (
+                <RecommendationReviewActions recommendation={item} caseId={caseId} />
+              )}
             </div>
           </div>
           <div className="mt-2 min-w-0 break-words text-muted-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.author")}: {item.author?.name ?? t("dashboard:common.metadataUnavailable")}</div>
@@ -728,10 +775,26 @@ function RecommendationsSection({
               {item.sanction_recommendation && <Field label={t("dashboard:sections.sanction")}>{item.sanction_recommendation}</Field>}
               {item.recovery_recommendation && <Field label={t("dashboard:sections.recovery")}>{item.recovery_recommendation}</Field>}
               {item.prevention_recommendation && <Field label={t("dashboard:sections.prevention")}>{item.prevention_recommendation}</Field>}
+              {item.leadership_review?.revision_note && (
+                <Field label={t("dashboard:workflow.revisionNote")}>
+                  {item.leadership_review.revision_note}
+                </Field>
+              )}
+              {item.leadership_review?.approved_at && (
+                <Field label={t("dashboard:workflow.approvalRecord")}>
+                  {t("dashboard:workflow.approvedByAt", {
+                    name: item.leadership_review.approved_by?.name ?? t("dashboard:common.metadataUnavailable"),
+                    date: formatDate(item.leadership_review.approved_at, language),
+                  })}
+                </Field>
+              )}
             </div>
           ) : (
             <MetadataOnlyText roleLabel={roleLabel} t={t} />
           )}
+          <p className="mt-3 min-w-0 break-words text-xs text-muted-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">
+            {recommendationGuidance(t, item, roleCode)}
+          </p>
         </div>
       ))}
     </SectionCard>
@@ -743,8 +806,10 @@ function DecisionsSection({
   loading,
   canUpdate,
   canTransitionStatus,
+  createAction,
   caseId,
   language,
+  roleCode,
   roleLabel,
   t,
 }: {
@@ -752,13 +817,22 @@ function DecisionsSection({
   loading: boolean;
   canUpdate: boolean;
   canTransitionStatus: boolean;
+  createAction: React.ReactNode;
   caseId: number | string;
   language: string;
+  roleCode: string | null | undefined;
   roleLabel: string;
   t: TFunction;
 }) {
   return (
-    <SectionCard icon={Scale} title={t("dashboard:sections.decisions")} loading={loading} empty={decisions.length === 0} t={t}>
+    <SectionCard
+      icon={Scale}
+      title={t("dashboard:sections.decisions")}
+      loading={loading}
+      empty={decisions.length === 0}
+      emptyAction={createAction}
+      t={t}
+    >
       {decisions.map((item) => (
         <div key={item.id} className="min-w-0 rounded-lg border p-3 text-sm">
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
@@ -783,6 +857,9 @@ function DecisionsSection({
           ) : (
             <MetadataOnlyText roleLabel={roleLabel} t={t} />
           )}
+          <p className="mt-3 min-w-0 break-words text-xs text-muted-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">
+            {decisionGuidance(t, item, roleCode)}
+          </p>
         </div>
       ))}
     </SectionCard>
@@ -972,6 +1049,7 @@ function SectionCard({
   title,
   loading,
   empty,
+  emptyAction,
   children,
   t,
 }: {
@@ -979,6 +1057,7 @@ function SectionCard({
   title: string;
   loading: boolean;
   empty: boolean;
+  emptyAction?: React.ReactNode;
   children: React.ReactNode;
   t: TFunction;
 }) {
@@ -992,7 +1071,12 @@ function SectionCard({
       </CardHeader>
       <CardContent className="min-w-0 space-y-3">
         {loading && <EmptyText>{t("dashboard:sections.loading", { name: title.toLowerCase() })}</EmptyText>}
-        {!loading && empty && <EmptyText>{t("dashboard:sections.empty", { name: title.toLowerCase() })}</EmptyText>}
+        {!loading && empty && (
+          <>
+            <EmptyText>{t("dashboard:sections.empty", { name: title.toLowerCase() })}</EmptyText>
+            {emptyAction && <div className="flex min-w-0 justify-end">{emptyAction}</div>}
+          </>
+        )}
         {!loading && !empty && children}
       </CardContent>
     </Card>
@@ -1053,7 +1137,39 @@ function nextStepMessage(
   caseRecord: CaseRecord,
   isAssignedSatgas: boolean,
   roleCode: string | null | undefined,
+  recommendations: Recommendation[],
+  decisions: Decision[],
 ) {
+  const recommendation = recommendations[0];
+  const decision = decisions[0];
+
+  if (decision?.status === "finalized" && isAssignedSatgas) {
+    return t("dashboard:cases.nextStep.context.decisionFinalizedSatgas");
+  }
+
+  if (decision?.status === "draft" && roleCode === "admin") {
+    return t("dashboard:cases.nextStep.context.decisionDraftAdmin");
+  }
+
+  if (decision?.status === "recorded" && roleCode === "admin") {
+    return t("dashboard:cases.nextStep.context.decisionRecordedAdmin");
+  }
+
+  if (recommendation?.status === "submitted_to_leader") {
+    if (isAssignedSatgas) return t("dashboard:cases.nextStep.context.recommendationSubmittedSatgas");
+    if (roleCode === "super_admin") return t("dashboard:cases.nextStep.context.recommendationSubmittedSuperAdmin");
+    if (roleCode === "admin") return t("dashboard:cases.nextStep.context.recommendationPendingAdmin");
+  }
+
+  if (recommendation?.status === "revised" && isAssignedSatgas) {
+    return t("dashboard:cases.nextStep.context.recommendationRevisedSatgas");
+  }
+
+  if (recommendation?.status === "accepted") {
+    if (roleCode === "admin" && !decision) return t("dashboard:cases.nextStep.context.recommendationAcceptedAdmin");
+    if (isAssignedSatgas) return t("dashboard:cases.nextStep.context.recommendationAcceptedSatgas");
+  }
+
   const token = normalizeWorkflowToken(caseRecord.status ?? caseRecord.status_code);
   const fallback = t("dashboard:cases.nextStep.fallback");
 
@@ -1105,7 +1221,11 @@ function hasRecommendationDetail(item: Recommendation) {
 }
 
 function canEditRecommendation(item: Recommendation) {
-  return item.status === "drafting" || item.status === "revised";
+  return item.status === "drafting" || item.status === "internal_review" || item.status === "revised";
+}
+
+function canSubmitRecommendation(item: Recommendation) {
+  return item.status === "drafting" || item.status === "internal_review" || item.status === "revised";
 }
 
 function canEditDecision(item: Decision) {
@@ -1140,8 +1260,34 @@ function selectEvidenceInvestigation(items: Investigation[]) {
   );
 }
 
-function submittedRecommendationForDecision(items: Recommendation[]) {
-  return items.find((item) => item.status === "submitted_to_leader") ?? null;
+function acceptedRecommendationForDecision(items: Recommendation[]) {
+  return items.find((item) => item.status === "accepted") ?? null;
+}
+
+function recommendationGuidance(
+  t: TFunction,
+  recommendation: Recommendation,
+  roleCode: string | null | undefined,
+) {
+  const status = normalizeWorkflowToken(recommendation.status ?? recommendation.status_code);
+  const role = roleCode === "super_admin" ? "superAdmin" : roleCode === "satgas_ppks" ? "satgas" : "admin";
+
+  return t(`dashboard:workflow.recommendationGuidance.${status}.${role}`, {
+    defaultValue: t("dashboard:workflow.recommendationGuidance.fallback"),
+  });
+}
+
+function decisionGuidance(
+  t: TFunction,
+  decision: Decision,
+  roleCode: string | null | undefined,
+) {
+  const status = normalizeWorkflowToken(decision.status ?? decision.status_code);
+  const role = roleCode === "satgas_ppks" ? "satgas" : roleCode === "admin" ? "admin" : "superAdmin";
+
+  return t(`dashboard:workflow.decisionGuidance.${status}.${role}`, {
+    defaultValue: t("dashboard:workflow.decisionGuidance.fallback"),
+  });
 }
 
 function finalizedDecision(items: Decision[]) {

@@ -33,6 +33,7 @@ class CasePolicy extends BasePolicy
     public function updateStatus(User $user, CaseRecord $case): bool
     {
         return ! $this->isClosed($case)
+            && ! $this->isLifecycleControlled($case)
             && $this->canReadAssigned($user)
             && $this->isAssignedTo($case, $user);
     }
@@ -59,6 +60,14 @@ class CasePolicy extends BasePolicy
     private function isClosed(CaseRecord $case): bool
     {
         return $case->status?->name === CaseStatusEnum::Closed->value;
+    }
+
+    private function isLifecycleControlled(CaseRecord $case): bool
+    {
+        return in_array($case->status?->name, [
+            CaseStatusEnum::Recommendation->value,
+            CaseStatusEnum::Decision->value,
+        ], true);
     }
 
     private function isAssignedTo(CaseRecord $case, User $user): bool

@@ -228,6 +228,48 @@ class CaseFoundationTest extends TestCase
             ->assertUnprocessable();
     }
 
+    public function test_generic_case_status_api_cannot_bypass_controlled_workflow_transitions(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-lifecycle@university.ac.id');
+        $superAdmin = $this->makeUser('super_admin', 'super-lifecycle@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-lifecycle@university.ac.id');
+        $case = $this->forwardedCase($admin, [$satgas], $satgas);
+        $recommendation = CaseStatus::query()->where('name', CaseStatusEnum::Recommendation->value)->firstOrFail();
+        $decision = CaseStatus::query()->where('name', CaseStatusEnum::Decision->value)->firstOrFail();
+
+        $recommendation->forceFill(['valid_transitions' => [CaseStatusEnum::Decision->value]])->save();
+        $decision->forceFill(['valid_transitions' => [CaseStatusEnum::Decided->value]])->save();
+
+        $case->forceFill([
+            'status_code' => $recommendation->code,
+            'current_stage' => $recommendation->workflow_stage,
+        ])->save();
+        $this->actingAsApi($satgas);
+        $this->patchJson("/api/v1/cases/{$case->id}/status", [
+            'status' => CaseStatusEnum::Decision->value,
+        ])->assertForbidden();
+        $this->assertSame(CaseStatusEnum::Recommendation->value, $case->refresh()->status->name);
+
+        foreach ([$admin, $superAdmin] as $unauthorizedActor) {
+            $this->actingAsApi($unauthorizedActor);
+            $this->patchJson("/api/v1/cases/{$case->id}/status", [
+                'status' => CaseStatusEnum::Decision->value,
+            ])->assertForbidden();
+        }
+
+        $case->forceFill([
+            'status_code' => $decision->code,
+            'current_stage' => $decision->workflow_stage,
+        ])->save();
+        foreach ([$satgas, $admin, $superAdmin] as $unauthorizedActor) {
+            $this->actingAsApi($unauthorizedActor);
+            $this->patchJson("/api/v1/cases/{$case->id}/status", [
+                'status' => CaseStatusEnum::Decided->value,
+            ])->assertForbidden();
+        }
+        $this->assertSame(CaseStatusEnum::Decision->value, $case->refresh()->status->name);
+    }
+
     public function test_closed_case_rejects_transition_and_assignment(): void
     {
         $admin = $this->makeUser('admin', 'admin@university.ac.id');

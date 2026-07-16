@@ -104,6 +104,7 @@ class NotificationFoundationTest extends TestCase
     public function test_notification_triggers_create_metadata_only_payloads(): void
     {
         $admin = $this->makeUser('admin', 'admin@university.ac.id');
+        $superAdmin = $this->makeUser('super_admin', 'super@university.ac.id');
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
         $case = $this->makeCase($satgas);
         $recommendation = $this->makeSubmittedRecommendation($case, $satgas);
@@ -115,11 +116,13 @@ class NotificationFoundationTest extends TestCase
 
         $satgasPayloads = $satgas->notifications()->get()->pluck('data')->all();
         $adminPayloads = $admin->notifications()->get()->pluck('data')->all();
+        $superAdminPayloads = $superAdmin->notifications()->get()->pluck('data')->all();
 
         $this->assertNotEmpty($satgasPayloads);
-        $this->assertNotEmpty($adminPayloads);
+        $this->assertEmpty($adminPayloads);
+        $this->assertNotEmpty($superAdminPayloads);
 
-        foreach (array_merge($satgasPayloads, $adminPayloads) as $payload) {
+        foreach (array_merge($satgasPayloads, $superAdminPayloads) as $payload) {
             $this->assertArrayHasKey('notification_type_code', $payload);
             $json = json_encode($payload);
             $this->assertStringNotContainsString('chronology', $json);

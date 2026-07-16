@@ -38,6 +38,8 @@ class AuditLogService
         'sanction_recommendation',
         'recovery_recommendation',
         'prevention_recommendation',
+        'revision_note',
+        'review_note',
         'decision_summary',
         'decision_body',
         'recovery_plan',

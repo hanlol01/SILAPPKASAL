@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Database\Seeders\MasterDataSeeder;
+use App\Models\CaseStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -43,6 +44,8 @@ class MasterDataSeederTest extends TestCase
         $this->assertDatabaseHas('risk_levels', ['code' => 'RISK-01']);
         $this->assertDatabaseHas('priority_levels', ['code' => 'PRIO-01']);
         $this->assertDatabaseHas('notification_types', ['code' => 'NOTIF-01']);
+        $this->assertSame([], CaseStatus::query()->where('name', 'recommendation')->firstOrFail()->valid_transitions);
+        $this->assertSame([], CaseStatus::query()->where('name', 'decision')->firstOrFail()->valid_transitions);
     }
 
     public function test_master_data_seeder_does_not_create_business_rows(): void

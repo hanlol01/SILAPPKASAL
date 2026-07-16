@@ -50,6 +50,9 @@ enum AuditAction: string
     case RecommendationCreated = 'recommendation.created';
     case RecommendationUpdated = 'recommendation.updated';
     case RecommendationStatusChanged = 'recommendation.status_changed';
+    case RecommendationSubmitted = 'recommendation.submitted';
+    case RecommendationReturnedForRevision = 'recommendation.returned_for_revision';
+    case RecommendationApproved = 'recommendation.approved';
 
     case DecisionCreated = 'decision.created';
     case DecisionUpdated = 'decision.updated';

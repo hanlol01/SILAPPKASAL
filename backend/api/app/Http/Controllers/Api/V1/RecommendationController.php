@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreRecommendationRequest;
+use App\Http\Requests\SubmitRecommendationRequest;
+use App\Http\Requests\ReviewRecommendationRequest;
 use App\Http\Requests\UpdateRecommendationRequest;
 use App\Http\Requests\UpdateRecommendationStatusRequest;
 use App\Http\Resources\RecommendationDetailResource;
@@ -99,6 +101,32 @@ class RecommendationController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Recommendation status updated successfully',
+            'data' => new RecommendationDetailResource($recommendation),
+        ]);
+    }
+
+    public function submit(SubmitRecommendationRequest $request, Recommendation $recommendation): JsonResponse
+    {
+        Gate::authorize('submit', $recommendation);
+
+        $recommendation = $this->recommendationService->submit($recommendation, $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Recommendation submitted successfully',
+            'data' => new RecommendationDetailResource($recommendation),
+        ]);
+    }
+
+    public function review(ReviewRecommendationRequest $request, Recommendation $recommendation): JsonResponse
+    {
+        Gate::authorize('review', $recommendation);
+
+        $recommendation = $this->recommendationService->review($recommendation, $request->user(), $request->validated());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Recommendation review recorded successfully',
             'data' => new RecommendationDetailResource($recommendation),
         ]);
     }

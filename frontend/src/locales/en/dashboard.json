@@ -149,6 +149,17 @@
       "title": "Next Step",
       "desc": "Short guidance based on the case status and your role.",
       "fallback": "Follow the workflow actions available in the action panel.",
+      "context": {
+        "recommendationSubmittedSatgas": "The recommendation has been submitted. Wait for the PPKS Leadership review.",
+        "recommendationSubmittedSuperAdmin": "Review the recommendation, then approve it or return it to Satgas for revision.",
+        "recommendationPendingAdmin": "The recommendation is awaiting PPKS Leadership approval. A decision cannot be created yet.",
+        "recommendationRevisedSatgas": "Read the revision note, update the recommendation, then resubmit it to the PPKS Leadership.",
+        "recommendationAcceptedAdmin": "The recommendation has been approved. Create the decision in the Decision tab.",
+        "recommendationAcceptedSatgas": "The recommendation has been approved. Wait for Admin to record the decision.",
+        "decisionDraftAdmin": "Complete the decision draft, then move it to recorded status.",
+        "decisionRecordedAdmin": "The decision has been recorded and is ready to be finalized.",
+        "decisionFinalizedSatgas": "The decision is final. Continue the permitted follow-up in the next stage."
+      },
       "forwarded": {
         "all": "The case is waiting for the assessment stage to begin.",
         "satgas": "Start handling by moving the case status to the assessment stage.",
@@ -174,8 +185,8 @@
         "admin": "Waiting for the recommendation from the assigned Satgas."
       },
       "decision": {
-        "all": "Waiting for the decision from the PPKS Leadership.",
-        "superAdmin": "Create the decision in the Decision tab based on the submitted recommendation."
+        "all": "Waiting for the institutional decision.",
+        "admin": "Manage the decision in the Decision tab based on the approved recommendation."
       },
       "decided": {
         "all": "The decision has been issued. The recovery stage can be prepared.",
@@ -511,6 +522,78 @@
     "recommendationUpdateError": "Recommendation could not be updated",
     "recommendationStatusUpdated": "Recommendation status updated",
     "recommendationStatusError": "Recommendation status could not be updated",
+    "submitRecommendation": "Submit to Leadership",
+    "submitRecommendationDesc": "After submission, the recommendation cannot be edited unless the PPKS Leadership returns it for revision.",
+    "recommendationSubmitted": "Recommendation submitted to the PPKS Leadership",
+    "recommendationSubmitError": "Recommendation could not be submitted",
+    "approveRecommendation": "Approve Recommendation",
+    "approveRecommendationDesc": "Approval will advance the case to the decision stage and hand it off to Admin.",
+    "returnRecommendation": "Return for Revision",
+    "returnRecommendationDesc": "Provide a clear note so Satgas can revise the recommendation.",
+    "revisionNote": "Revision note",
+    "revisionNoteMin": "The revision note must be at least 10 characters.",
+    "revisionNoteMax": "The revision note must be at most 5000 characters.",
+    "recommendationApproved": "Recommendation approved",
+    "recommendationReturned": "Recommendation returned for revision",
+    "recommendationReviewError": "Recommendation review could not be saved",
+    "approvalRecord": "Approval record",
+    "approvedByAt": "Approved by {{name}} on {{date}}",
+    "recommendationGuidance": {
+      "fallback": "This recommendation status is read-only for your role.",
+      "drafting": {
+        "satgas": "Complete the recommendation, then submit it to the PPKS Leadership.",
+        "admin": "The recommendation is still being prepared by Satgas.",
+        "superAdmin": "The recommendation has not been submitted for review."
+      },
+      "internal_review": {
+        "satgas": "Complete the internal review, then submit it to the PPKS Leadership.",
+        "admin": "The recommendation is still under Satgas internal review.",
+        "superAdmin": "The recommendation has not been submitted for review."
+      },
+      "submitted_to_leader": {
+        "satgas": "Waiting for the PPKS Leadership review.",
+        "admin": "Waiting for PPKS Leadership approval before a decision can be created.",
+        "superAdmin": "Review the recommendation, then approve it or return it for revision."
+      },
+      "revised": {
+        "satgas": "Update the recommendation using the revision note, then resubmit it.",
+        "admin": "The recommendation is being revised by Satgas.",
+        "superAdmin": "The recommendation was returned and is awaiting resubmission."
+      },
+      "accepted": {
+        "satgas": "The recommendation has been approved and is awaiting the Admin decision.",
+        "admin": "The recommendation is ready for decision creation.",
+        "superAdmin": "The recommendation has been approved and handed off to Admin."
+      },
+      "partially_accepted": {
+        "satgas": "This legacy status is shown as a read-only record.",
+        "admin": "This legacy status is shown as a read-only record.",
+        "superAdmin": "This legacy status is shown as a read-only record."
+      },
+      "rejected": {
+        "satgas": "This legacy status is shown as a read-only record.",
+        "admin": "This legacy status is shown as a read-only record.",
+        "superAdmin": "This legacy status is shown as a read-only record."
+      }
+    },
+    "decisionGuidance": {
+      "fallback": "This decision is read-only for your role.",
+      "draft": {
+        "admin": "Complete the decision draft and record its status when ready.",
+        "satgas": "The decision is being prepared by Admin.",
+        "superAdmin": "The decision is being prepared by Admin."
+      },
+      "recorded": {
+        "admin": "The decision has been recorded and can be finalized.",
+        "satgas": "The decision has been recorded and is awaiting finalization.",
+        "superAdmin": "The decision has been recorded and is awaiting Admin finalization."
+      },
+      "finalized": {
+        "admin": "The decision is final and the case has advanced to decided.",
+        "satgas": "The decision is final. Continue the permitted follow-up.",
+        "superAdmin": "The decision is final."
+      }
+    },
     "decisionCreated": "Decision created",
     "decisionCreateError": "Decision could not be created",
     "decisionUpdated": "Decision updated",
@@ -571,7 +654,7 @@
     "createDecisionNeedsStatus": "Case must be in decision status before creating a decision.",
     "createDecisionLoading": "Recommendation or decision data is still loading.",
     "createDecisionExists": "This case already has a decision.",
-    "createDecisionNeedsRecommendation": "A submitted recommendation is required before creating a decision.",
+    "createDecisionNeedsRecommendation": "A recommendation approved by PPKS Leadership is required before creating a decision.",
     "createDecisionUnavailable": "Decision creation is not available for this case.",
     "createRecoveryClosed": "Closed cases cannot receive recovery actions.",
     "createRecoveryLoading": "Decision data is still loading.",

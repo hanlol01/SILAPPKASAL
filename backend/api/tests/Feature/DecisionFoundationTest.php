@@ -17,6 +17,7 @@ use App\Models\Decision;
 use App\Models\DecisionStatus;
 use App\Models\Investigation;
 use App\Models\InvestigationStatus;
+use App\Models\Permission;
 use App\Models\Recommendation;
 use App\Models\RecommendationStatus;
 use App\Models\Report;
@@ -62,12 +63,12 @@ class DecisionFoundationTest extends TestCase
         $this->assertDatabaseHas('notification_types', ['code' => 'NOTIF-19', 'template_key' => 'decision.status_changed.internal']);
     }
 
-    public function test_admin_can_create_decision_for_submitted_recommendation_and_case_in_decision_status(): void
+    public function test_admin_can_create_decision_for_accepted_recommendation_and_case_in_decision_status(): void
     {
         $admin = $this->makeUser('admin', 'admin@university.ac.id');
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
         $case = $this->makeDecisionCase($admin, $satgas);
-        $recommendation = $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::SubmittedToLeader);
+        $recommendation = $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::Accepted);
 
         $this->actingAsApi($admin);
         $this->postJson("/api/v1/recommendations/{$recommendation->id}/decisions", $this->decisionPayload())
@@ -92,7 +93,7 @@ class DecisionFoundationTest extends TestCase
         $this->assertSame(RecommendationStatusEnum::Accepted->value, $recommendation->refresh()->status->name);
     }
 
-    public function test_decision_creation_requires_submitted_recommendation_and_case_decision_status(): void
+    public function test_decision_creation_requires_accepted_recommendation_and_case_decision_status(): void
     {
         $admin = $this->makeUser('admin', 'admin@university.ac.id');
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
@@ -103,11 +104,19 @@ class DecisionFoundationTest extends TestCase
         $this->postJson("/api/v1/recommendations/{$draftRecommendation->id}/decisions", $this->decisionPayload())
             ->assertUnprocessable();
 
+        $submittedRecommendation = $this->makeRecommendation(
+            $this->makeDecisionCase($admin, $satgas),
+            $satgas,
+            RecommendationStatusEnum::SubmittedToLeader,
+        );
+        $this->postJson("/api/v1/recommendations/{$submittedRecommendation->id}/decisions", $this->decisionPayload())
+            ->assertUnprocessable();
+
         $recommendationCase = $this->makeCaseWithStatus($admin, $satgas, CaseStatusEnum::Recommendation);
-        $submittedRecommendation = $this->makeRecommendation($recommendationCase, $satgas, RecommendationStatusEnum::SubmittedToLeader);
+        $acceptedRecommendation = $this->makeRecommendation($recommendationCase, $satgas, RecommendationStatusEnum::Accepted);
 
         $this->actingAsApi($admin);
-        $this->postJson("/api/v1/recommendations/{$submittedRecommendation->id}/decisions", $this->decisionPayload())
+        $this->postJson("/api/v1/recommendations/{$acceptedRecommendation->id}/decisions", $this->decisionPayload())
             ->assertUnprocessable();
 
         $this->assertDatabaseCount('decisions', 0);
@@ -119,7 +128,7 @@ class DecisionFoundationTest extends TestCase
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
         $otherSatgas = $this->makeUser('satgas_ppks', 'other@university.ac.id');
         $case = $this->makeDecisionCase($admin, $satgas);
-        $recommendation = $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::SubmittedToLeader);
+        $recommendation = $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::Accepted);
         $decision = $this->makeDecision($recommendation, $admin);
 
         $this->actingAsApi($satgas);
@@ -146,13 +155,50 @@ class DecisionFoundationTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_super_admin_is_read_only_and_only_active_admin_can_manage_decisions(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-manager@university.ac.id');
+        $inactiveAdmin = $this->makeUser('admin', 'inactive-admin@university.ac.id');
+        $inactiveAdmin->forceFill(['is_active' => false])->save();
+        $superAdmin = $this->makeUser('super_admin', 'super-readonly@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-manager@university.ac.id');
+        $case = $this->makeDecisionCase($admin, $satgas);
+        $recommendation = $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::Accepted);
+        $decision = $this->makeDecision($recommendation, $admin);
+
+        $superAdmin->role->permissions()->syncWithoutDetaching([
+            Permission::query()->where('code', 'cases.record_decision')->firstOrFail()->id,
+        ]);
+        $superAdmin->unsetRelation('role');
+
+        $this->actingAsApi($superAdmin);
+        $this->getJson("/api/v1/decisions/{$decision->id}")
+            ->assertOk()
+            ->assertJsonPath('data.decision_summary', 'Ringkasan keputusan institusi.');
+        $this->patchJson("/api/v1/decisions/{$decision->id}", [
+            'decision_summary' => 'Super Admin tidak boleh mengubah.',
+        ])->assertForbidden();
+        $this->patchJson("/api/v1/decisions/{$decision->id}/status", [
+            'status' => DecisionStatusEnum::Recorded->value,
+        ])->assertForbidden();
+
+        $otherCase = $this->makeDecisionCase($admin, $satgas);
+        $otherRecommendation = $this->makeRecommendation($otherCase, $satgas, RecommendationStatusEnum::Accepted);
+        $this->postJson("/api/v1/recommendations/{$otherRecommendation->id}/decisions", $this->decisionPayload())
+            ->assertForbidden();
+
+        $this->actingAsApi($inactiveAdmin);
+        $this->postJson("/api/v1/recommendations/{$otherRecommendation->id}/decisions", $this->decisionPayload())
+            ->assertForbidden();
+    }
+
     public function test_decision_status_options_follow_view_policy_and_actor_authority(): void
     {
         $admin = $this->makeUser('admin', 'admin@university.ac.id');
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
         $reporter = $this->makeUser('reporter', 'reporter@university.ac.id');
         $case = $this->makeDecisionCase($admin, $satgas);
-        $recommendation = $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::SubmittedToLeader);
+        $recommendation = $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::Accepted);
         $decision = $this->makeDecision($recommendation, $admin);
 
         $this->actingAsApi($admin);
@@ -179,8 +225,8 @@ class DecisionFoundationTest extends TestCase
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
         $caseA = $this->makeDecisionCase($admin, $satgas);
         $caseB = $this->makeDecisionCase($admin, $satgas);
-        $recommendationA = $this->makeRecommendation($caseA, $satgas, RecommendationStatusEnum::SubmittedToLeader);
-        $recommendationB = $this->makeRecommendation($caseB, $satgas, RecommendationStatusEnum::SubmittedToLeader);
+        $recommendationA = $this->makeRecommendation($caseA, $satgas, RecommendationStatusEnum::Accepted);
+        $recommendationB = $this->makeRecommendation($caseB, $satgas, RecommendationStatusEnum::Accepted);
         $decisionA = $this->makeDecision($recommendationA, $admin, ['decision_number' => null]);
         $decisionB = $this->makeDecision($recommendationB, $admin, ['decision_number' => null]);
 
@@ -202,12 +248,12 @@ class DecisionFoundationTest extends TestCase
             ->assertJsonPath('data.decision_number', 'SK-SAMA');
     }
 
-    public function test_status_transitions_use_master_data_history_and_never_update_case_status(): void
+    public function test_finalization_advances_case_to_decided_and_locks_decision(): void
     {
         $admin = $this->makeUser('admin', 'admin@university.ac.id');
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
         $case = $this->makeDecisionCase($admin, $satgas);
-        $recommendation = $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::SubmittedToLeader);
+        $recommendation = $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::Accepted);
         $decision = $this->makeDecision($recommendation, $admin);
 
         $this->actingAsApi($admin);
@@ -226,9 +272,13 @@ class DecisionFoundationTest extends TestCase
 
         $decision->refresh();
         $this->assertNotNull($decision->finalized_at);
-        $this->assertSame(CaseStatusEnum::Decision->value, $case->refresh()->status->name);
+        $this->assertSame(CaseStatusEnum::Decided->value, $case->refresh()->status->name);
         $this->assertNull($case->closed_at);
         $this->assertDatabaseCount('decision_status_histories', 3);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::CaseStatusChanged->value,
+            'subject_id' => $case->id,
+        ]);
 
         $this->actingAsApi($admin);
         $this->patchJson("/api/v1/decisions/{$decision->id}/status", [
@@ -241,6 +291,38 @@ class DecisionFoundationTest extends TestCase
             'decision_summary' => 'Tidak boleh berubah setelah finalized.',
         ])
             ->assertUnprocessable();
+    }
+
+    public function test_failed_finalization_rolls_back_decision_case_history_audit_and_notification(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-rollback@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-rollback@university.ac.id');
+        $case = $this->makeDecisionCase($admin, $satgas);
+        $recommendation = $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::Accepted);
+        $decision = $this->makeDecision($recommendation, $admin);
+
+        $this->actingAsApi($admin);
+        $this->patchJson("/api/v1/decisions/{$decision->id}/status", [
+            'status' => DecisionStatusEnum::Recorded->value,
+        ])->assertOk();
+
+        $recommendationStatus = CaseStatus::query()
+            ->where('name', CaseStatusEnum::Recommendation->value)
+            ->firstOrFail();
+        $case->forceFill(['status_code' => $recommendationStatus->code])->save();
+        $historyCount = $decision->statusHistories()->count();
+        $auditCount = AuditLog::query()->count();
+        $notificationCount = $satgas->notifications()->count();
+
+        $this->patchJson("/api/v1/decisions/{$decision->id}/status", [
+            'status' => DecisionStatusEnum::Finalized->value,
+        ])->assertUnprocessable();
+
+        $this->assertSame(DecisionStatusEnum::Recorded->value, $decision->refresh()->status->name);
+        $this->assertSame(CaseStatusEnum::Recommendation->value, $case->refresh()->status->name);
+        $this->assertSame($historyCount, $decision->statusHistories()->count());
+        $this->assertSame($auditCount, AuditLog::query()->count());
+        $this->assertSame($notificationCount, $satgas->notifications()->count());
     }
 
     public function test_decision_workflow_dispatches_audit_logs_and_notifications(): void
@@ -259,7 +341,7 @@ class DecisionFoundationTest extends TestCase
             'assigned_at' => now(),
         ]);
 
-        $recommendation = $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::SubmittedToLeader);
+        $recommendation = $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::Accepted);
 
         $this->actingAsApi($admin);
         $decisionId = $this->postJson("/api/v1/recommendations/{$recommendation->id}/decisions", $this->decisionPayload())
@@ -337,7 +419,7 @@ class DecisionFoundationTest extends TestCase
         $admin = $this->makeUser('admin', 'admin@university.ac.id');
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
         $case = $this->makeDecisionCase($admin, $satgas);
-        $recommendation = $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::SubmittedToLeader);
+        $recommendation = $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::Accepted);
 
         $this->actingAsApi($admin);
         $this->postJson("/api/v1/recommendations/{$recommendation->id}/decisions", $this->decisionPayload([
@@ -346,7 +428,7 @@ class DecisionFoundationTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.outcome_code', DecisionOutcome::Deferred->value);
 
-        $this->assertSame(RecommendationStatusEnum::SubmittedToLeader->value, $recommendation->refresh()->status->name);
+        $this->assertSame(RecommendationStatusEnum::Accepted->value, $recommendation->refresh()->status->name);
     }
 
     public function test_reporter_cannot_access_decisions_and_duplicate_decision_is_rejected(): void
@@ -355,7 +437,7 @@ class DecisionFoundationTest extends TestCase
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
         $reporter = $this->makeUser('reporter', 'reporter@university.ac.id');
         $case = $this->makeDecisionCase($admin, $satgas);
-        $recommendation = $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::SubmittedToLeader);
+        $recommendation = $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::Accepted);
         $decision = $this->makeDecision($recommendation, $admin);
 
         $this->actingAsApi($reporter);
