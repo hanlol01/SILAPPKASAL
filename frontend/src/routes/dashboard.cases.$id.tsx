@@ -272,9 +272,9 @@ function CaseDetail() {
   });
 
   return (
-    <div className="space-y-6">
-      <Breadcrumb>
-        <BreadcrumbList>
+    <div className="min-w-0 space-y-6">
+      <Breadcrumb className="min-w-0">
+        <BreadcrumbList className="min-w-0">
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
               <Link to="/dashboard">{t("dashboard:nav.overview")}</Link>
@@ -287,31 +287,35 @@ function CaseDetail() {
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{c.case_number}</BreadcrumbPage>
+          <BreadcrumbItem className="min-w-0">
+            <BreadcrumbPage className="min-w-0 break-words [overflow-wrap:anywhere]">
+              {c.case_number}
+            </BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
         <Button variant="ghost" size="sm" asChild>
           <Link to="/dashboard/cases">
             <ArrowLeft className="mr-2 h-4 w-4" /> {t("dashboard:cases.allCases")}
           </Link>
         </Button>
-        <div className="flex items-center gap-2">
-          <h1 className="font-mono text-lg font-semibold">{c.case_number}</h1>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <h1 className="min-w-0 break-words font-mono text-lg font-semibold [overflow-wrap:anywhere]">
+            {c.case_number}
+          </h1>
           <StatusBadge status={c.status ?? c.status_code} />
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          <Card>
+      <div className="grid min-w-0 gap-4 lg:grid-cols-3">
+        <div className="min-w-0 space-y-4 lg:col-span-2">
+          <Card className="min-w-0">
             <CardHeader>
               <CardTitle className="text-base">{t("dashboard:cases.metadata")}</CardTitle>
               <CardDescription>{t("dashboard:cases.metadataDesc")}</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
+            <CardContent className="grid min-w-0 gap-4 text-sm sm:grid-cols-2">
               <Field label={t("dashboard:cases.caseNumber")}>{c.case_number}</Field>
               <Field label={t("dashboard:reports.registration")}>{c.registration_number}</Field>
               <Field label={t("dashboard:common.status")}>{formatCaseStatus(t, c.status ?? c.status_code)}</Field>
@@ -331,34 +335,49 @@ function CaseDetail() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-w-0">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <History className="h-4 w-4" /> {t("dashboard:cases.progress.title")}
               </CardTitle>
               <CardDescription>{t("dashboard:cases.progress.desc")}</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-w-0">
               {timelineLoading ? (
                 <ProgressTimelineSkeleton rows={4} />
               ) : timelineEvents.length === 0 ? (
                 <EmptyText>{t("dashboard:cases.progress.empty")}</EmptyText>
               ) : (
-                <ProgressTimeline events={timelineEvents} />
+                <ProgressTimeline
+                  events={timelineEvents}
+                  className="min-w-0 [&_li]:min-w-0 [&_li>div>div]:break-words [&_li>div>div]:[overflow-wrap:anywhere] [&_li>div>div]:whitespace-pre-wrap"
+                />
               )}
             </CardContent>
           </Card>
 
           <SensitiveReportSection report={c.report} roleLabel={restrictedLabel} t={t} />
-          <Tabs defaultValue={defaultWorkflowTab} className="w-full">
-            <TabsList className="w-full flex-wrap justify-start">
-              <TabsTrigger value="investigation">{t("dashboard:cases.tabInvestigation")}</TabsTrigger>
-              <TabsTrigger value="recommendation">{t("dashboard:cases.tabRecommendation")}</TabsTrigger>
-              <TabsTrigger value="decision">{t("dashboard:cases.tabDecision")}</TabsTrigger>
-              <TabsTrigger value="recovery">{t("dashboard:cases.tabRecovery")}</TabsTrigger>
-              <TabsTrigger value="evidence">{t("dashboard:cases.tabEvidence")}</TabsTrigger>
-            </TabsList>
-            <TabsContent value="investigation">
+          <Tabs defaultValue={defaultWorkflowTab} className="w-full min-w-0">
+            <div className="w-full min-w-0 overscroll-x-contain overflow-x-auto">
+              <TabsList className="h-auto w-max min-w-full flex-nowrap justify-start">
+                <TabsTrigger value="investigation" className="shrink-0 whitespace-nowrap">
+                  {t("dashboard:cases.tabInvestigation")}
+                </TabsTrigger>
+                <TabsTrigger value="recommendation" className="shrink-0 whitespace-nowrap">
+                  {t("dashboard:cases.tabRecommendation")}
+                </TabsTrigger>
+                <TabsTrigger value="decision" className="shrink-0 whitespace-nowrap">
+                  {t("dashboard:cases.tabDecision")}
+                </TabsTrigger>
+                <TabsTrigger value="recovery" className="shrink-0 whitespace-nowrap">
+                  {t("dashboard:cases.tabRecovery")}
+                </TabsTrigger>
+                <TabsTrigger value="evidence" className="shrink-0 whitespace-nowrap">
+                  {t("dashboard:cases.tabEvidence")}
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="investigation" className="min-w-0">
               <InvestigationsSection
                 investigations={investigationsQuery.data ?? []}
                 loading={investigationsQuery.isLoading}
@@ -370,7 +389,7 @@ function CaseDetail() {
                 t={t}
               />
             </TabsContent>
-            <TabsContent value="recommendation">
+            <TabsContent value="recommendation" className="min-w-0">
               <RecommendationsSection
                 recommendations={recommendationsQuery.data ?? []}
                 loading={recommendationsQuery.isLoading}
@@ -381,7 +400,7 @@ function CaseDetail() {
                 t={t}
               />
             </TabsContent>
-            <TabsContent value="decision">
+            <TabsContent value="decision" className="min-w-0">
               <DecisionsSection
                 decisions={decisions}
                 loading={decisionQueries.some((query) => query.isLoading)}
@@ -393,7 +412,7 @@ function CaseDetail() {
                 t={t}
               />
             </TabsContent>
-            <TabsContent value="recovery">
+            <TabsContent value="recovery" className="min-w-0">
               <RecoveriesSection
                 recoveries={recoveries}
                 loading={recoveryQueries.some((query) => query.isLoading)}
@@ -404,7 +423,7 @@ function CaseDetail() {
                 t={t}
               />
             </TabsContent>
-            <TabsContent value="evidence">
+            <TabsContent value="evidence" className="min-w-0">
               <EvidenceSection
                 evidences={evidences}
                 loading={evidenceQueries.some((query) => query.isLoading)}
@@ -422,19 +441,21 @@ function CaseDetail() {
           </Tabs>
         </div>
 
-        <div className="space-y-4">
-          <Card>
+        <div className="min-w-0 space-y-4">
+          <Card className="min-w-0">
             <CardHeader>
               <CardTitle className="text-base">{t("dashboard:cases.assignments")}</CardTitle>
               <CardDescription>{t("dashboard:cases.assignmentsDesc")}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="min-w-0 space-y-3">
               {(c.assignments ?? []).length === 0 && (
                 <EmptyText>{t("dashboard:cases.noAssignments")}</EmptyText>
               )}
               {(c.assignments ?? []).map((assignment) => (
-                <div key={assignment.id} className="rounded-lg border p-3 text-sm">
-                  <div className="font-medium">{assignment.satgas_name ?? `Satgas #${assignment.satgas_id}`}</div>
+                <div key={assignment.id} className="min-w-0 rounded-lg border p-3 text-sm">
+                  <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">
+                    {assignment.satgas_name ?? `Satgas #${assignment.satgas_id}`}
+                  </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     {assignment.is_lead ? t("dashboard:cases.leadSatgas") : t("dashboard:cases.assignedSatgas")} - {formatDate(assignment.assigned_at, i18n.language)}
                   </div>
@@ -443,12 +464,12 @@ function CaseDetail() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-w-0">
             <CardHeader>
               <CardTitle className="text-base">{t("dashboard:common.actions")}</CardTitle>
               <CardDescription>{t("dashboard:cases.actionsDesc")}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="min-w-0 space-y-3">
               {isAdminRole && !c.closed_at && (
                 <>
                   <SatgasAssignmentAction
@@ -553,7 +574,7 @@ function CaseDetail() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-w-0">
             <CardHeader>
               <CardTitle className="text-base">{t("dashboard:cases.currentStatusTitle")}</CardTitle>
               <CardDescription>{t("dashboard:cases.currentStatusDesc")}</CardDescription>
@@ -568,19 +589,21 @@ function CaseDetail() {
                   {c.priority && <PriorityLevelBadge value={c.priority} />}
                 </div>
               )}
-              <div className="text-xs text-muted-foreground">
+              <div className="min-w-0 break-words text-xs text-muted-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">
                 {t("dashboard:common.stage")}: {c.current_stage_label ?? formatCaseStatus(t, c.current_stage ?? c.status ?? c.status_code)}
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-w-0">
             <CardHeader>
               <CardTitle className="text-base">{t("dashboard:cases.nextStep.title")}</CardTitle>
               <CardDescription>{t("dashboard:cases.nextStep.desc")}</CardDescription>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm">{nextStepText}</p>
+            <CardContent className="min-w-0">
+              <p className="min-w-0 break-words text-sm [overflow-wrap:anywhere] whitespace-pre-wrap">
+                {nextStepText}
+              </p>
             </CardContent>
           </Card>
 
@@ -593,7 +616,7 @@ function CaseDetail() {
 function SensitiveReportSection({ report, roleLabel, t }: { report: unknown; roleLabel: string; t: TFunction }) {
   if (!report || typeof report !== "object") {
     return (
-      <Card>
+      <Card className="min-w-0">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Lock className="h-4 w-4" /> {t("dashboard:cases.sensitiveReport")}
@@ -608,21 +631,21 @@ function SensitiveReportSection({ report, roleLabel, t }: { report: unknown; rol
   const respondent = data.respondent as { name?: string | null; details?: string | null } | undefined;
 
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardHeader>
         <CardTitle className="text-base">{t("dashboard:cases.sensitiveReport")}</CardTitle>
         <CardDescription>{t("dashboard:cases.sensitiveDesc")}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4 text-sm">
+      <CardContent className="min-w-0 space-y-4 text-sm">
         <Field label={t("dashboard:cases.chronology")}>{asText(data.chronology)}</Field>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid min-w-0 gap-4 sm:grid-cols-2">
           <Field label={t("dashboard:cases.incidentDate")}>{asText(data.incident_date)}</Field>
           <Field label={t("dashboard:cases.incidentTime")}>{asText(data.incident_time)}</Field>
           <Field label={t("dashboard:cases.incidentLocation")}>{asText(data.incident_location)}</Field>
           <Field label={t("dashboard:cases.witnessInfo")}>{asText(data.witness_info)}</Field>
         </div>
         <Separator />
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid min-w-0 gap-4 sm:grid-cols-2">
           <Field label={t("dashboard:cases.respondentName")}>{respondent?.name ?? "-"}</Field>
           <Field label={t("dashboard:cases.respondentDetails")}>{respondent?.details ?? "-"}</Field>
         </div>
@@ -653,10 +676,10 @@ function InvestigationsSection({
   return (
     <SectionCard icon={FileSearch} title={t("dashboard:sections.investigations")} loading={loading} empty={investigations.length === 0} t={t}>
       {investigations.map((item) => (
-        <div key={item.id} className="rounded-lg border p-3 text-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="font-medium">{t("dashboard:sections.investigationNumber", { id: item.id })}</div>
-            <div className="flex flex-wrap items-center gap-2">
+        <div key={item.id} className="min-w-0 rounded-lg border p-3 text-sm">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.investigationNumber", { id: item.id })}</div>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <WorkflowStatusBadge family="investigation" status={item.status} />
               {canAddActivity && <InvestigationActivityAction investigation={item} caseId={caseId} />}
               {canTransitionStatus && item.status !== "completed" && (
@@ -664,12 +687,12 @@ function InvestigationsSection({
               )}
             </div>
           </div>
-          <div className="mt-2 grid gap-2 text-muted-foreground sm:grid-cols-2">
-            <div>{t("dashboard:sections.lead")}: {item.lead_investigator?.name ?? t("dashboard:common.metadataUnavailable")}</div>
-            <div>{t("dashboard:sections.started")}: {formatDate(item.started_at, language)}</div>
+          <div className="mt-2 grid min-w-0 gap-2 text-muted-foreground sm:grid-cols-2">
+            <div className="min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.lead")}: {item.lead_investigator?.name ?? t("dashboard:common.metadataUnavailable")}</div>
+            <div className="min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.started")}: {formatDate(item.started_at, language)}</div>
           </div>
           {item.plan_summary || item.findings || item.conclusion ? (
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 min-w-0 space-y-2">
               {item.plan_summary && <Field label={t("dashboard:sections.planSummary")}>{item.plan_summary}</Field>}
               {item.findings && <Field label={t("dashboard:sections.findings")}>{item.findings}</Field>}
               {item.conclusion && <Field label={t("dashboard:sections.conclusion")}>{item.conclusion}</Field>}
@@ -703,10 +726,10 @@ function RecommendationsSection({
   return (
     <SectionCard icon={ClipboardList} title={t("dashboard:sections.recommendations")} loading={loading} empty={recommendations.length === 0} t={t}>
       {recommendations.map((item) => (
-        <div key={item.id} className="rounded-lg border p-3 text-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="font-medium">{t("dashboard:sections.recommendationNumber", { id: item.id })}</div>
-            <div className="flex flex-wrap items-center gap-2">
+        <div key={item.id} className="min-w-0 rounded-lg border p-3 text-sm">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.recommendationNumber", { id: item.id })}</div>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <WorkflowStatusBadge family="recommendation" status={item.status} />
               {canUpdate && canEditRecommendation(item) && hasRecommendationDetail(item) && (
                 <RecommendationUpdateAction recommendation={item} caseId={caseId} />
@@ -714,9 +737,9 @@ function RecommendationsSection({
               {canTransitionStatus && <RecommendationStatusAction recommendation={item} caseId={caseId} />}
             </div>
           </div>
-          <div className="mt-2 text-muted-foreground">{t("dashboard:sections.author")}: {item.author?.name ?? t("dashboard:common.metadataUnavailable")}</div>
+          <div className="mt-2 min-w-0 break-words text-muted-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.author")}: {item.author?.name ?? t("dashboard:common.metadataUnavailable")}</div>
           {item.conclusion || item.recommended_actions ? (
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 min-w-0 space-y-2">
               {item.conclusion && <Field label={t("dashboard:sections.conclusion")}>{item.conclusion}</Field>}
               {item.recommended_actions && <Field label={t("dashboard:sections.recommendedActions")}>{item.recommended_actions}</Field>}
               {item.sanction_recommendation && <Field label={t("dashboard:sections.sanction")}>{item.sanction_recommendation}</Field>}
@@ -754,10 +777,10 @@ function DecisionsSection({
   return (
     <SectionCard icon={Scale} title={t("dashboard:sections.decisions")} loading={loading} empty={decisions.length === 0} t={t}>
       {decisions.map((item) => (
-        <div key={item.id} className="rounded-lg border p-3 text-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="font-medium">{t("dashboard:sections.decisionNumber", { id: item.id })}</div>
-            <div className="flex flex-wrap items-center gap-2">
+        <div key={item.id} className="min-w-0 rounded-lg border p-3 text-sm">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.decisionNumber", { id: item.id })}</div>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <WorkflowStatusBadge family="decision" status={item.status} />
               {canUpdate && canEditDecision(item) && <DecisionUpdateAction decision={item} />}
               {canTransitionStatus && item.status !== "finalized" && (
@@ -765,12 +788,12 @@ function DecisionsSection({
               )}
             </div>
           </div>
-          <div className="mt-2 grid gap-2 text-muted-foreground sm:grid-cols-2">
-            <div>{t("dashboard:sections.outcome")}: {formatDecisionOutcome(t, item.outcome_code)}</div>
-            <div>{t("dashboard:sections.date")}: {formatDate(item.decision_date, language)}</div>
+          <div className="mt-2 grid min-w-0 gap-2 text-muted-foreground sm:grid-cols-2">
+            <div className="min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.outcome")}: {formatDecisionOutcome(t, item.outcome_code)}</div>
+            <div className="min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.date")}: {formatDate(item.decision_date, language)}</div>
           </div>
           {item.decision_summary || item.decision_content ? (
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 min-w-0 space-y-2">
               {item.decision_summary && <Field label={t("dashboard:sections.summary")}>{item.decision_summary}</Field>}
               {item.decision_content && <Field label={t("dashboard:sections.content")}>{item.decision_content}</Field>}
             </div>
@@ -803,10 +826,10 @@ function RecoveriesSection({
   return (
     <SectionCard icon={BriefcaseMedical} title={t("dashboard:sections.recoveries")} loading={loading} empty={recoveries.length === 0} t={t}>
       {recoveries.map((item) => (
-        <div key={item.id} className="rounded-lg border p-3 text-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="font-medium">{item.recovery_type?.name ?? t("dashboard:sections.recoveryNumber", { id: item.id })}</div>
-            <div className="flex flex-wrap items-center gap-2">
+        <div key={item.id} className="min-w-0 rounded-lg border p-3 text-sm">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{item.recovery_type?.name ?? t("dashboard:sections.recoveryNumber", { id: item.id })}</div>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <WorkflowStatusBadge family="recovery" status={item.status} />
               {canAddMonitoring && item.status === "ongoing" && <RecoveryMonitoringAction recovery={item} />}
               {canTransitionStatus && !isTerminalRecovery(item) && (
@@ -815,7 +838,7 @@ function RecoveriesSection({
             </div>
           </div>
           {item.recovery_plan || item.support_needs || item.notes ? (
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 min-w-0 space-y-2">
               {item.recovery_plan && <Field label={t("dashboard:sections.plan")}>{item.recovery_plan}</Field>}
               {item.support_needs && <Field label={t("dashboard:sections.supportNeeds")}>{item.support_needs}</Field>}
               {item.notes && <Field label={t("dashboard:sections.notes")}>{item.notes}</Field>}
@@ -856,7 +879,7 @@ function EvidenceSection({
 }) {
   if (!canAccess) {
     return (
-      <Card>
+      <Card className="min-w-0">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <FileArchive className="h-4 w-4" /> {t("dashboard:sections.evidenceTitle")}
@@ -912,8 +935,8 @@ function EvidenceSection({
               <div key={item.id} className="min-w-0 space-y-4 rounded-lg border p-4 text-sm">
                 <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
-                    <div className="break-words font-medium">{item.title}</div>
-                    <div className="mt-1 break-words text-xs text-muted-foreground">
+                    <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{item.title}</div>
+                    <div className="mt-1 min-w-0 break-words text-xs text-muted-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">
                       {formatEvidenceType(t, item.evidence_type?.code ?? item.evidence_type?.name)}
                     </div>
                   </div>
@@ -938,7 +961,7 @@ function EvidenceSection({
                   )}
                 </div>
                 {canUpdate && (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex min-w-0 flex-wrap gap-2">
                     {item.status !== "archived" && <EvidenceMetadataAction evidence={item} />}
                     <EvidenceStatusAction evidence={item} />
                   </div>
@@ -975,14 +998,14 @@ function SectionCard({
   t: TFunction;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
+    <Card className="min-w-0">
+      <CardHeader className="min-w-0">
+        <CardTitle className="flex min-w-0 items-center gap-2 text-base">
           <Icon className="h-4 w-4" /> {title}
         </CardTitle>
         <CardDescription>{t("dashboard:common.readOnlyOperationalData")}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="min-w-0 space-y-3">
         {loading && <EmptyText>{t("dashboard:sections.loading", { name: title.toLowerCase() })}</EmptyText>}
         {!loading && empty && <EmptyText>{t("dashboard:sections.empty", { name: title.toLowerCase() })}</EmptyText>}
         {!loading && !empty && children}
@@ -993,9 +1016,9 @@ function SectionCard({
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div>
+    <div className="min-w-0">
       <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-1 whitespace-pre-wrap text-sm">{children}</div>
+      <div className="mt-1 min-w-0 break-words text-sm [overflow-wrap:anywhere] whitespace-pre-wrap">{children}</div>
     </div>
   );
 }

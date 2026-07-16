@@ -95,7 +95,7 @@ export function EvidenceFileAttachment({
     <section className="min-w-0 border-t pt-3" aria-labelledby={`evidence-file-${evidence.id}`}>
       <div className="mb-2 flex min-w-0 items-center gap-2">
         <FileText className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-        <h4 id={`evidence-file-${evidence.id}`} className="break-words text-sm font-medium">
+        <h4 id={`evidence-file-${evidence.id}`} className="min-w-0 break-words text-sm font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">
           {t("dashboard:sections.evidenceAttachment.title")}
         </h4>
       </div>
@@ -150,7 +150,7 @@ export function EvidenceFileAttachment({
         </div>
       ) : uploadAllowed ? (
         <div className="min-w-0 space-y-3">
-          <div className="space-y-1.5">
+          <div className="min-w-0 space-y-1.5">
             <label htmlFor={`evidence-file-input-${evidence.id}`} className="text-xs font-medium">
               {t("dashboard:sections.evidenceAttachment.chooseFile")}
             </label>
@@ -165,19 +165,19 @@ export function EvidenceFileAttachment({
               aria-invalid={Boolean(clientError)}
               onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
             />
-            <p id={`evidence-file-help-${evidence.id}`} className="text-xs text-muted-foreground">
+            <p id={`evidence-file-help-${evidence.id}`} className="min-w-0 break-words text-xs text-muted-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">
               {t("dashboard:sections.evidenceAttachment.formatsHelp")}
             </p>
           </div>
           {selectedFile && (
-            <p className="break-all text-xs text-foreground" aria-live="polite">
+            <p className="min-w-0 break-words text-xs text-foreground [overflow-wrap:anywhere] whitespace-pre-wrap" aria-live="polite">
               {t("dashboard:sections.evidenceAttachment.selectedFile", {
                 name: selectedFile.name,
               })}
             </p>
           )}
           {clientError && (
-            <p className="break-words text-xs text-destructive" role="alert">
+            <p className="min-w-0 break-words text-xs text-destructive [overflow-wrap:anywhere] whitespace-pre-wrap" role="alert">
               {clientError}
             </p>
           )}
@@ -201,7 +201,7 @@ export function EvidenceFileAttachment({
           </Button>
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">
+        <p className="min-w-0 break-words text-xs text-muted-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">
           {t("dashboard:sections.evidenceAttachment.noAttachment")}
         </p>
       )}
@@ -213,7 +213,7 @@ function AttachmentDetail({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 break-all text-foreground">{value}</dd>
+      <dd className="mt-0.5 min-w-0 break-words text-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">{value}</dd>
     </div>
   );
 }

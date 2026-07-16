@@ -35,33 +35,36 @@ export function EvidenceCustodyDisclosure({
   }));
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="border-t pt-3">
+    <Collapsible open={open} onOpenChange={setOpen} className="min-w-0 border-t pt-3">
       <CollapsibleTrigger asChild>
-        <Button variant="ghost" size="sm" className="group h-auto w-full justify-between gap-2 px-2 py-2">
+        <Button variant="ghost" size="sm" className="group h-auto w-full min-w-0 justify-between gap-2 whitespace-normal px-2 py-2">
           <span className="flex min-w-0 items-center gap-2 text-left">
             <History className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className="break-words">{t("dashboard:sections.custodyTitle")}</span>
+            <span className="min-w-0 break-words [overflow-wrap:anywhere] whitespace-normal">{t("dashboard:sections.custodyTitle")}</span>
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" aria-hidden="true" />
         </Button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="px-2 pb-1 pt-3">
+      <CollapsibleContent className="min-w-0 px-2 pb-1 pt-3">
         {custodyQuery.isLoading ? (
           <ProgressTimelineSkeleton rows={2} />
         ) : custodyQuery.isError ? (
-          <div className="flex flex-col items-start gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-destructive">{t("dashboard:sections.custodyError")}</p>
+          <div className="flex min-w-0 flex-col items-start gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="min-w-0 break-words text-sm text-destructive [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.custodyError")}</p>
             <Button variant="outline" size="sm" onClick={() => custodyQuery.refetch()}>
               <RefreshCw className="h-4 w-4" aria-hidden="true" />
               {t("dashboard:sections.custodyRetry")}
             </Button>
           </div>
         ) : events.length === 0 ? (
-          <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+          <p className="min-w-0 break-words rounded-md border border-dashed p-3 text-sm text-muted-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">
             {t("dashboard:sections.custodyEmpty")}
           </p>
         ) : (
-          <ProgressTimeline events={events} />
+          <ProgressTimeline
+            events={events}
+            className="min-w-0 [&_li]:min-w-0 [&_li>div>div]:break-words [&_li>div>div]:[overflow-wrap:anywhere] [&_li>div>div]:whitespace-pre-wrap"
+          />
         )}
       </CollapsibleContent>
     </Collapsible>
