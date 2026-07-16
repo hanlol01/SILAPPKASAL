@@ -138,6 +138,61 @@ export async function apiDownload(path: string, fallbackFilename: string) {
   }
 }
 
+export interface AuthenticatedBlobResponse {
+  blob: Blob;
+  contentType: string;
+  contentLength: number | null;
+  filename: string | null;
+}
+
+export async function apiFetchBlob(
+  path: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<AuthenticatedBlobResponse> {
+  const token = getAuthToken();
+  const headers = new Headers({ Accept: "application/pdf, image/jpeg, image/png" });
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(buildUrl(path), {
+    headers,
+    signal: options.signal,
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as ApiEnvelope<unknown> | null;
+
+    if (response.status === 401) {
+      clearAuthToken();
+    }
+
+    throw new ApiError(
+      payload?.message || "Request failed",
+      response.status,
+      payload?.errors ?? null,
+    );
+  }
+
+  const rawContentType = response.headers.get("Content-Type") ?? "";
+  const contentType = rawContentType.split(";", 1)[0].trim().toLowerCase();
+  const rawContentLength = response.headers.get("Content-Length");
+  const parsedContentLength = rawContentLength === null ? Number.NaN : Number(rawContentLength);
+  const contentDisposition = response.headers.get("Content-Disposition");
+
+  return {
+    blob: await response.blob(),
+    contentType,
+    contentLength: Number.isFinite(parsedContentLength) && parsedContentLength >= 0
+      ? parsedContentLength
+      : null,
+    filename: contentDisposition
+      ? parseDownloadFilename(contentDisposition, "") || null
+      : null,
+  };
+}
+
 function parseDownloadFilename(contentDisposition: string | null, fallbackFilename: string) {
   const encodedFilename = contentDisposition?.match(/filename\*\s*=\s*UTF-8''([^;]+)/i)?.[1];
   const basicFilename = contentDisposition?.match(/filename\s*=\s*(?:"([^"]*)"|([^;]+))/i);

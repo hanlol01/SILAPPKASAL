@@ -162,17 +162,21 @@ class ReportEvidenceSubmissionService
     {
         $this->authorizeReporter($actor, 'reporter_evidence.download.own');
 
-        $submission = ReportEvidenceSubmission::query()
-            ->where('uuid', $uuid)
-            ->whereHas('report', fn ($query) => $query
-                ->where('reporter_id', $actor->id)
-                ->whereNotNull('reporter_id'))
-            ->first() ?? throw $this->notFound();
-
         return $this->download(
-            $submission,
+            $this->reporterSubmissionOrFail($actor, $uuid),
             $actor,
             AuditAction::ReporterEvidenceDownloadedByReporter,
+        );
+    }
+
+    public function previewForReporter(User $actor, string $uuid): StreamedResponse
+    {
+        $this->authorizeReporter($actor, 'reporter_evidence.download.own');
+
+        return $this->preview(
+            $this->reporterSubmissionOrFail($actor, $uuid),
+            $actor,
+            AuditAction::ReporterEvidencePreviewedByReporter,
         );
     }
 
@@ -193,16 +197,21 @@ class ReportEvidenceSubmissionService
     {
         $this->authorizeSatgasIdentity($actor, 'reporter_evidence.download.assigned');
 
-        $submission = ReportEvidenceSubmission::query()
-            ->where('uuid', $uuid)
-            ->whereHas('report.case.activeAssignments', fn ($query) => $query
-                ->where('satgas_id', $actor->id))
-            ->first() ?? throw $this->notFound();
-
         return $this->download(
-            $submission,
+            $this->assignedSubmissionOrFail($actor, $uuid),
             $actor,
             AuditAction::ReporterEvidenceDownloadedBySatgas,
+        );
+    }
+
+    public function previewForAssignedSatgas(User $actor, string $uuid): StreamedResponse
+    {
+        $this->authorizeSatgasIdentity($actor, 'reporter_evidence.download.assigned');
+
+        return $this->preview(
+            $this->assignedSubmissionOrFail($actor, $uuid),
+            $actor,
+            AuditAction::ReporterEvidencePreviewedBySatgas,
         );
     }
 
@@ -211,8 +220,34 @@ class ReportEvidenceSubmissionService
         User $actor,
         AuditAction $action,
     ): StreamedResponse {
+        return $this->respondWithFile($submission, $actor, $action, 'attachment');
+    }
+
+    private function preview(
+        ReportEvidenceSubmission $submission,
+        User $actor,
+        AuditAction $action,
+    ): StreamedResponse {
+        return $this->respondWithFile($submission, $actor, $action, 'inline');
+    }
+
+    private function respondWithFile(
+        ReportEvidenceSubmission $submission,
+        User $actor,
+        AuditAction $action,
+        string $disposition,
+    ): StreamedResponse {
+        $preview = $disposition === 'inline';
+        $trustedMime = is_string($submission->mime_type)
+            && isset(self::EXTENSION_BY_MIME[$submission->mime_type]);
+
+        if ($preview && (! $trustedMime || ! is_int($submission->file_size) || $submission->file_size < 1)) {
+            throw $this->unprocessable('Supporting file cannot be previewed');
+        }
+
         if (
             $submission->storage_disk !== self::FILE_DISK
+            || ! is_string($submission->storage_path)
             || ! $this->isExpectedStoragePath($submission)
             || ! Storage::disk(self::FILE_DISK)->exists($submission->storage_path)
         ) {
@@ -232,34 +267,22 @@ class ReportEvidenceSubmissionService
             : 'application/octet-stream';
 
         try {
-            DB::transaction(fn () => $this->recordAudit(
-                $action,
-                $submission,
-                $actor,
-            ));
-        } catch (Throwable $exception) {
-            fclose($stream);
-            throw $exception;
-        }
-
-        try {
-            return response()->streamDownload(function () use ($stream): void {
-                try {
-                    fpassthru($stream);
-                } finally {
-                    if (is_resource($stream)) {
-                        fclose($stream);
+            $response = $this->streamSubmissionFile(
+                $stream,
+                $filename,
+                $mimeType,
+                (int) $submission->file_size,
+                $disposition,
+                afterStream: $preview
+                    ? function () use ($action, $submission, $actor): void {
+                        DB::transaction(fn () => $this->recordAudit(
+                            $action,
+                            $submission,
+                            $actor,
+                        ));
                     }
-                }
-            }, $filename, [
-                'Content-Type' => $mimeType,
-                'Content-Length' => (string) $submission->file_size,
-                'X-Content-Type-Options' => 'nosniff',
-                'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
-                'Pragma' => 'no-cache',
-                'Expires' => '0',
-                'Access-Control-Expose-Headers' => 'Content-Disposition',
-            ], 'attachment');
+                    : null,
+            );
         } catch (Throwable $exception) {
             if (is_resource($stream)) {
                 fclose($stream);
@@ -267,6 +290,93 @@ class ReportEvidenceSubmissionService
 
             throw $exception;
         }
+
+        if ($preview) {
+            return $response;
+        }
+
+        try {
+            DB::transaction(fn () => $this->recordAudit(
+                $action,
+                $submission,
+                $actor,
+            ));
+        } catch (Throwable $exception) {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+
+            throw $exception;
+        }
+
+        return $response;
+    }
+
+    /** @param resource $stream */
+    private function streamSubmissionFile(
+        mixed $stream,
+        string $filename,
+        string $mimeType,
+        int $fileSize,
+        string $disposition,
+        ?callable $afterStream = null,
+    ): StreamedResponse {
+        $headers = [
+            'Content-Type' => $mimeType,
+            'Content-Length' => (string) $fileSize,
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+            'Access-Control-Expose-Headers' => 'Content-Disposition',
+        ];
+
+        if ($disposition === 'inline') {
+            $headers['Cross-Origin-Resource-Policy'] = 'same-origin';
+        }
+
+        try {
+            return response()->streamDownload(function () use ($stream, $afterStream): void {
+                try {
+                    if (fpassthru($stream) === false) {
+                        throw new \RuntimeException('Supporting file stream failed');
+                    }
+
+                    if ($afterStream !== null) {
+                        $afterStream();
+                    }
+                } finally {
+                    if (is_resource($stream)) {
+                        fclose($stream);
+                    }
+                }
+            }, $filename, $headers, $disposition);
+        } catch (Throwable $exception) {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+
+            throw $exception;
+        }
+    }
+
+    private function reporterSubmissionOrFail(User $actor, string $uuid): ReportEvidenceSubmission
+    {
+        return ReportEvidenceSubmission::query()
+            ->where('uuid', $uuid)
+            ->whereHas('report', fn ($query) => $query
+                ->where('reporter_id', $actor->id)
+                ->whereNotNull('reporter_id'))
+            ->first() ?? throw $this->notFound();
+    }
+
+    private function assignedSubmissionOrFail(User $actor, string $uuid): ReportEvidenceSubmission
+    {
+        return ReportEvidenceSubmission::query()
+            ->where('uuid', $uuid)
+            ->whereHas('report.case.activeAssignments', fn ($query) => $query
+                ->where('satgas_id', $actor->id))
+            ->first() ?? throw $this->notFound();
     }
 
     private function ownedReportOrFail(User $actor, string $registrationNumber): Report

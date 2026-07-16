@@ -1,4 +1,4 @@
-import { apiDownload, apiRequest, apiRequestEnvelope } from "@/lib/api-client";
+import { apiDownload, apiFetchBlob, apiRequest, apiRequestEnvelope } from "@/lib/api-client";
 import type {
   CaseRecord,
   CaseStatusPayload,
@@ -312,6 +312,10 @@ export function downloadEvidenceFile(id: string | number) {
   return apiDownload(`/evidences/${id}/file`, `evidence-${id}`);
 }
 
+export function previewEvidenceFile(id: string | number, signal?: AbortSignal) {
+  return apiFetchBlob(`/evidences/${id}/preview`, { signal });
+}
+
 export function getCaseReporterEvidenceFiles(caseId: string | number) {
   return apiRequest<ReporterEvidenceFile[]>(`/cases/${caseId}/reporter-evidence-files`);
 }
@@ -320,6 +324,13 @@ export function downloadCaseReporterEvidenceFile(id: string) {
   return apiDownload(
     `/reporter-evidence-files/${encodeURIComponent(id)}/download`,
     `reporter-evidence-${id}`,
+  );
+}
+
+export function previewCaseReporterEvidenceFile(id: string, signal?: AbortSignal) {
+  return apiFetchBlob(
+    `/reporter-evidence-files/${encodeURIComponent(id)}/preview`,
+    { signal },
   );
 }
 

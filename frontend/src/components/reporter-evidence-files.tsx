@@ -4,15 +4,18 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/empty-state";
+import { SecureFilePreviewDialog } from "@/components/secure-file-preview-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api-client";
+import { isPreviewableMimeType } from "@/lib/file-preview";
 import { formatDateTime } from "@/lib/format";
 import {
   downloadCaseReporterEvidenceFile,
   getCaseReporterEvidenceFiles,
   operationsQueryKeys,
+  previewCaseReporterEvidenceFile,
 } from "@/lib/operations-api";
 import type { ReporterEvidenceFile } from "@/lib/operations-types";
 
@@ -122,23 +125,47 @@ function ReporterFileRow({
         </div>
       </div>
       {canDownload && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="w-full shrink-0 sm:w-auto"
-          disabled={downloading}
-          onClick={onDownload}
-        >
-          {downloading ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <Download className="h-4 w-4" aria-hidden="true" />
+        <div className="flex min-w-0 flex-wrap gap-2 sm:justify-end">
+          {isPreviewableMimeType(file.mime_type) && (
+            <SecureFilePreviewDialog
+              fileKey={`${file.id}:${file.mime_type}:${file.original_filename}`}
+              expectedMimeType={file.mime_type}
+              loadPreview={(signal) => previewCaseReporterEvidenceFile(file.id, signal)}
+              onDownload={onDownload}
+              downloadPending={downloading}
+              labels={{
+                preview: t("dashboard:cases.reporterEvidence.preview"),
+                title: t("dashboard:cases.reporterEvidence.previewTitle", { name: file.original_filename }),
+                description: t("dashboard:cases.reporterEvidence.previewDescription"),
+                loading: t("dashboard:cases.reporterEvidence.previewLoading"),
+                error: t("dashboard:cases.reporterEvidence.previewError"),
+                retry: t("dashboard:cases.reporterEvidence.previewRetry"),
+                close: t("dashboard:cases.reporterEvidence.previewClose"),
+                download: t("dashboard:cases.reporterEvidence.download"),
+                downloading: t("dashboard:cases.reporterEvidence.downloading"),
+                imageAlt: t("dashboard:cases.reporterEvidence.previewImageAlt", { name: file.original_filename }),
+                pdfTitle: t("dashboard:cases.reporterEvidence.previewPdfTitle", { name: file.original_filename }),
+                pdfFallback: t("dashboard:cases.reporterEvidence.previewPdfFallback"),
+              }}
+            />
           )}
-          {downloading
-            ? t("dashboard:cases.reporterEvidence.downloading")
-            : t("dashboard:cases.reporterEvidence.download")}
-        </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={downloading}
+            onClick={onDownload}
+          >
+            {downloading ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Download className="h-4 w-4" aria-hidden="true" />
+            )}
+            {downloading
+              ? t("dashboard:cases.reporterEvidence.downloading")
+              : t("dashboard:cases.reporterEvidence.download")}
+          </Button>
+        </div>
       )}
     </div>
   );

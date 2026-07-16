@@ -116,4 +116,11 @@ class EvidenceController extends Controller
 
         return $this->evidenceService->downloadFile($evidence, $request->user());
     }
+
+    public function previewFile(Request $request, Evidence $evidence): StreamedResponse
+    {
+        Gate::authorize('previewFile', $evidence);
+
+        return $this->evidenceService->previewFile($evidence, $request->user());
+    }
 }

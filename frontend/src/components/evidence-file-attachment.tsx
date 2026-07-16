@@ -5,12 +5,15 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { CompactFileUpload } from "@/components/compact-file-upload";
+import { SecureFilePreviewDialog } from "@/components/secure-file-preview-dialog";
 import { ApiError } from "@/lib/api-client";
+import { isPreviewableMimeType } from "@/lib/file-preview";
 import { formatDateTime } from "@/lib/format";
 import {
   downloadEvidenceFile,
   operationsQueryKeys,
+  previewEvidenceFile,
   uploadEvidenceFile,
 } from "@/lib/operations-api";
 import type { EvidenceMetadata } from "@/lib/operations-types";
@@ -41,9 +44,7 @@ export function EvidenceFileAttachment({
   const uploadMutation = useMutation({
     mutationFn: (file: File) => uploadEvidenceFile(evidence.id, file),
     onSuccess: async () => {
-      setSelectedFile(null);
-      setClientError(null);
-      if (inputRef.current) inputRef.current.value = "";
+      clearSelection();
 
       await Promise.all([
         queryClient.invalidateQueries({
@@ -91,6 +92,12 @@ export function EvidenceFileAttachment({
     setClientError(null);
   }
 
+  function clearSelection() {
+    setSelectedFile(null);
+    setClientError(null);
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
   return (
     <section className="min-w-0 border-t pt-3" aria-labelledby={`evidence-file-${evidence.id}`}>
       <div className="mb-2 flex min-w-0 items-center gap-2">
@@ -127,78 +134,92 @@ export function EvidenceFileAttachment({
             )}
           </dl>
           {canDownload && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="max-w-full"
-              disabled={downloadMutation.isPending}
-              onClick={() => downloadMutation.mutate()}
-            >
-              {downloadMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <Download className="h-4 w-4" aria-hidden="true" />
+            <div className="flex min-w-0 flex-wrap gap-2">
+              {isPreviewableMimeType(attachment.mime_type) && (
+                <SecureFilePreviewDialog
+                  fileKey={`${evidence.id}:${attachment.mime_type}:${attachment.original_filename}`}
+                  expectedMimeType={attachment.mime_type}
+                  loadPreview={(signal) => previewEvidenceFile(evidence.id, signal)}
+                  onPreviewLoaded={() => {
+                    void queryClient.invalidateQueries({
+                      queryKey: operationsQueryKeys.evidenceCustody(evidence.id),
+                    });
+                  }}
+                  onDownload={() => downloadMutation.mutate()}
+                  downloadPending={downloadMutation.isPending}
+                  labels={{
+                    preview: t("dashboard:sections.evidenceAttachment.preview"),
+                    title: t("dashboard:sections.evidenceAttachment.previewTitle", { name: attachment.original_filename }),
+                    description: t("dashboard:sections.evidenceAttachment.previewDescription"),
+                    loading: t("dashboard:sections.evidenceAttachment.previewLoading"),
+                    error: t("dashboard:sections.evidenceAttachment.previewError"),
+                    retry: t("dashboard:sections.evidenceAttachment.previewRetry"),
+                    close: t("dashboard:sections.evidenceAttachment.previewClose"),
+                    download: t("dashboard:sections.evidenceAttachment.download"),
+                    downloading: t("dashboard:sections.evidenceAttachment.downloading"),
+                    imageAlt: t("dashboard:sections.evidenceAttachment.previewImageAlt", { name: attachment.original_filename }),
+                    pdfTitle: t("dashboard:sections.evidenceAttachment.previewPdfTitle", { name: attachment.original_filename }),
+                    pdfFallback: t("dashboard:sections.evidenceAttachment.previewPdfFallback"),
+                  }}
+                />
               )}
-              <span className="truncate">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={downloadMutation.isPending}
+                onClick={() => downloadMutation.mutate()}
+              >
+                {downloadMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Download className="h-4 w-4" aria-hidden="true" />
+                )}
                 {downloadMutation.isPending
                   ? t("dashboard:sections.evidenceAttachment.downloading")
                   : t("dashboard:sections.evidenceAttachment.download")}
-              </span>
-            </Button>
+              </Button>
+            </div>
           )}
         </div>
       ) : uploadAllowed ? (
         <div className="min-w-0 space-y-3">
-          <div className="min-w-0 space-y-1.5">
-            <label htmlFor={`evidence-file-input-${evidence.id}`} className="text-xs font-medium">
-              {t("dashboard:sections.evidenceAttachment.chooseFile")}
-            </label>
-            <Input
-              ref={inputRef}
-              id={`evidence-file-input-${evidence.id}`}
-              type="file"
-              accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-              className="h-auto min-h-9 min-w-0 py-1.5 file:mr-3"
-              disabled={uploadMutation.isPending}
-              aria-describedby={`evidence-file-help-${evidence.id}`}
-              aria-invalid={Boolean(clientError)}
-              onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
-            />
-            <p id={`evidence-file-help-${evidence.id}`} className="min-w-0 break-words text-xs text-muted-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">
-              {t("dashboard:sections.evidenceAttachment.formatsHelp")}
-            </p>
-          </div>
-          {selectedFile && (
-            <p className="min-w-0 break-words text-xs text-foreground [overflow-wrap:anywhere] whitespace-pre-wrap" aria-live="polite">
-              {t("dashboard:sections.evidenceAttachment.selectedFile", {
-                name: selectedFile.name,
-              })}
-            </p>
-          )}
-          {clientError && (
-            <p className="min-w-0 break-words text-xs text-destructive [overflow-wrap:anywhere] whitespace-pre-wrap" role="alert">
-              {clientError}
-            </p>
-          )}
-          <Button
-            type="button"
-            size="sm"
-            className="max-w-full"
-            disabled={!selectedFile || uploadMutation.isPending}
-            onClick={() => selectedFile && uploadMutation.mutate(selectedFile)}
-          >
-            {uploadMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Upload className="h-4 w-4" aria-hidden="true" />
-            )}
-            <span className="truncate">
+          <CompactFileUpload
+            inputId={`evidence-file-input-${evidence.id}`}
+            inputRef={inputRef}
+            accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+            title={t("dashboard:sections.evidenceAttachment.chooseFile")}
+            instructions={t("dashboard:sections.evidenceAttachment.formatsHelp")}
+            chooseLabel={t("dashboard:sections.evidenceAttachment.chooseFile")}
+            changeLabel={t("dashboard:sections.evidenceAttachment.changeFile")}
+            removeLabel={t("dashboard:sections.evidenceAttachment.removeFile")}
+            selectedLabel={t("dashboard:sections.evidenceAttachment.selectedFileLabel")}
+            selectedFile={selectedFile}
+            selectedDetails={selectedFile
+              ? `${formatMimeType(selectedFile.type, t)} | ${formatByteSize(selectedFile.size, language)}`
+              : undefined}
+            error={clientError}
+            disabled={uploadMutation.isPending}
+            onFileChange={handleFileChange}
+            onRemove={clearSelection}
+          />
+          <div className="flex min-w-0 flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              disabled={!selectedFile || uploadMutation.isPending}
+              onClick={() => selectedFile && uploadMutation.mutate(selectedFile)}
+            >
+              {uploadMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Upload className="h-4 w-4" aria-hidden="true" />
+              )}
               {uploadMutation.isPending
                 ? t("dashboard:sections.evidenceAttachment.uploading")
                 : t("dashboard:sections.evidenceAttachment.upload")}
-            </span>
-          </Button>
+            </Button>
+          </div>
         </div>
       ) : (
         <p className="min-w-0 break-words text-xs text-muted-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">

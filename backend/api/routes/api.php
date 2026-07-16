@@ -150,6 +150,7 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/{evidence}/file', [EvidenceController::class, 'uploadFile'])
             ->middleware('throttle:evidence.upload');
         Route::get('/{evidence}/file', [EvidenceController::class, 'downloadFile']);
+        Route::get('/{evidence}/preview', [EvidenceController::class, 'previewFile']);
         Route::get('/{evidence}', [EvidenceController::class, 'show']);
         Route::patch('/{evidence}', [EvidenceController::class, 'update']);
         Route::patch('/{evidence}/status', [EvidenceController::class, 'updateStatus']);
@@ -219,6 +220,7 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/reports/{registrationNumber}/evidence-files', [ReportEvidenceSubmissionController::class, 'storeForReporter'])
             ->middleware('throttle:reporter.evidence.upload');
         Route::get('/evidence-files/{uuid}/download', [ReportEvidenceSubmissionController::class, 'downloadForReporter']);
+        Route::get('/evidence-files/{uuid}/preview', [ReportEvidenceSubmissionController::class, 'previewForReporter']);
         Route::get('/reports/{registrationNumber}/timeline', [PortalController::class, 'reportTimeline']);
         Route::get('/reports/{registrationNumber}', [PortalController::class, 'report']);
         Route::get('/notifications', [PortalController::class, 'notifications']);
@@ -226,6 +228,7 @@ Route::prefix('v1')->group(function (): void {
 
     Route::middleware('auth:sanctum')->prefix('reporter-evidence-files')->group(function (): void {
         Route::get('/{uuid}/download', [ReportEvidenceSubmissionController::class, 'downloadForSatgas']);
+        Route::get('/{uuid}/preview', [ReportEvidenceSubmissionController::class, 'previewForSatgas']);
     });
 
     Route::middleware('auth:sanctum')->prefix('users')->group(function (): void {

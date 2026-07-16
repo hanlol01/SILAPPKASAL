@@ -130,7 +130,66 @@ class EvidenceFileTest extends TestCase
         ]);
     }
 
-    public function test_admin_super_admin_reporter_unassigned_and_inactive_satgas_cannot_upload_or_download(): void
+    public function test_authorized_satgas_previews_pdf_jpeg_and_png_inline_with_dedicated_events(): void
+    {
+        [$pdfEvidence, $satgas, $investigation] = $this->assignedEvidence();
+        $jpegEvidence = $this->makeEvidence($investigation, $satgas, title: 'JPEG preview evidence');
+        $pngEvidence = $this->makeEvidence($investigation, $satgas, title: 'PNG preview evidence');
+        $files = [
+            [$pdfEvidence, 'preview.pdf', $this->pdfContent(), 'application/pdf'],
+            [$jpegEvidence, 'preview.jpeg', $this->jpegContent(), 'image/jpeg'],
+            [$pngEvidence, 'preview.png', $this->pngContent(), 'image/png'],
+        ];
+        $this->actingAsApi($satgas);
+
+        foreach ($files as [$evidence, $filename, $content]) {
+            $this->upload($evidence, $filename, $content)->assertOk();
+        }
+
+        foreach ($files as [$evidence, $filename, $content, $mimeType]) {
+            $response = $this->get("/api/v1/evidences/{$evidence->id}/preview");
+
+            $response
+                ->assertOk()
+                ->assertHeader('Content-Type', $mimeType)
+                ->assertHeader('Content-Length', (string) strlen($content))
+                ->assertHeader('X-Content-Type-Options', 'nosniff')
+                ->assertHeader('Cache-Control', 'must-revalidate, no-cache, no-store, private')
+                ->assertHeader('Pragma', 'no-cache')
+                ->assertHeader('Expires', '0')
+                ->assertHeader('Cross-Origin-Resource-Policy', 'same-origin');
+            $this->assertStringStartsWith('inline;', (string) $response->headers->get('Content-Disposition'));
+            $this->assertStringContainsString($filename, (string) $response->headers->get('Content-Disposition'));
+            $this->assertDatabaseMissing('evidence_custody_events', [
+                'evidence_id' => $evidence->id,
+                'event_type' => EvidenceCustodyEventType::FilePreviewed->value,
+            ]);
+            $this->assertDatabaseMissing('audit_logs', [
+                'action' => AuditAction::EvidenceFilePreviewed->value,
+                'subject_id' => $evidence->id,
+            ]);
+            $this->assertSame($content, $response->streamedContent());
+            $this->assertDatabaseHas('evidence_custody_events', [
+                'evidence_id' => $evidence->id,
+                'event_type' => EvidenceCustodyEventType::FilePreviewed->value,
+                'actor_id' => $satgas->id,
+            ]);
+            $this->assertDatabaseHas('audit_logs', [
+                'action' => AuditAction::EvidenceFilePreviewed->value,
+                'actor_id' => $satgas->id,
+                'subject_id' => $evidence->id,
+            ]);
+        }
+
+        $this->assertDatabaseMissing('evidence_custody_events', [
+            'event_type' => EvidenceCustodyEventType::FileDownloaded->value,
+        ]);
+        $this->assertDatabaseMissing('audit_logs', [
+            'action' => AuditAction::EvidenceFileDownloaded->value,
+        ]);
+    }
+
+    public function test_unauthorized_roles_historical_assignment_and_wrong_case_satgas_cannot_access_files(): void
     {
         [$evidence, $satgas, $investigation, $admin] = $this->assignedEvidence();
         $this->actingAsApi($satgas);
@@ -139,8 +198,19 @@ class EvidenceFileTest extends TestCase
         $superAdmin = $this->makeUser('super_admin', 'super@university.ac.id');
         $reporter = $this->makeUser('reporter', 'reporter@university.ac.id');
         $unassigned = $this->makeUser('satgas_ppks', 'other@university.ac.id');
+        $historical = $this->makeUser('satgas_ppks', 'historical@university.ac.id');
+        $wrongCase = $this->makeUser('satgas_ppks', 'wrong-case@university.ac.id');
         $inactive = $this->makeUser('satgas_ppks', 'inactive@university.ac.id');
         $inactive->forceFill(['is_active' => false])->save();
+        CaseAssignment::query()->create([
+            'case_id' => $investigation->case_id,
+            'satgas_id' => $historical->id,
+            'assigned_by' => $admin->id,
+            'is_lead' => false,
+            'is_active' => false,
+            'assigned_at' => now()->subDay(),
+            'unassigned_at' => now(),
+        ]);
         CaseAssignment::query()->create([
             'case_id' => $investigation->case_id,
             'satgas_id' => $inactive->id,
@@ -149,12 +219,18 @@ class EvidenceFileTest extends TestCase
             'is_active' => true,
             'assigned_at' => now(),
         ]);
+        $this->makeInvestigation($admin, $wrongCase);
 
-        foreach ([$admin, $superAdmin, $reporter, $unassigned, $inactive] as $user) {
+        foreach ([$admin, $superAdmin, $reporter, $unassigned, $historical, $wrongCase, $inactive] as $user) {
             $this->actingAsApi($user);
             $this->upload($evidence)->assertForbidden();
             $this->get("/api/v1/evidences/{$evidence->id}/file")->assertForbidden();
+            $this->getJson("/api/v1/evidences/{$evidence->id}/preview")->assertForbidden();
         }
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'action' => AuditAction::EvidenceFilePreviewed->value,
+        ]);
     }
 
     public function test_file_routes_require_authentication_and_their_distinct_permissions(): void
@@ -163,6 +239,7 @@ class EvidenceFileTest extends TestCase
 
         $this->upload($evidence)->assertUnauthorized();
         $this->getJson("/api/v1/evidences/{$evidence->id}/file")->assertUnauthorized();
+        $this->getJson("/api/v1/evidences/{$evidence->id}/preview")->assertUnauthorized();
 
         $this->actingAsApi($satgas);
         $this->upload($evidence)->assertOk();
@@ -173,6 +250,7 @@ class EvidenceFileTest extends TestCase
         $this->actingAsApi($satgas);
 
         $this->get("/api/v1/evidences/{$evidence->id}/file")->assertForbidden();
+        $this->getJson("/api/v1/evidences/{$evidence->id}/preview")->assertForbidden();
         $this->assertDatabaseMissing('evidence_custody_events', [
             'evidence_id' => $evidence->id,
             'event_type' => EvidenceCustodyEventType::FileDownloaded->value,
@@ -303,12 +381,19 @@ class EvidenceFileTest extends TestCase
         $this->getJson("/api/v1/evidences/{$evidence->id}/file")
             ->assertNotFound()
             ->assertJsonPath('message', 'Evidence file not found');
+        $this->getJson("/api/v1/evidences/{$evidence->id}/preview")
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Evidence file not found');
 
         $this->upload($evidence)->assertOk();
         $path = $evidence->refresh()->storage_path;
         Storage::disk('evidence')->delete($path);
 
         $this->getJson("/api/v1/evidences/{$evidence->id}/file")
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Evidence file not found')
+            ->assertDontSee($path);
+        $this->getJson("/api/v1/evidences/{$evidence->id}/preview")
             ->assertNotFound()
             ->assertJsonPath('message', 'Evidence file not found')
             ->assertDontSee($path);
@@ -319,6 +404,40 @@ class EvidenceFileTest extends TestCase
         ]);
         $this->assertDatabaseMissing('audit_logs', [
             'action' => AuditAction::EvidenceFileDownloaded->value,
+            'subject_id' => $evidence->id,
+        ]);
+        $this->assertDatabaseMissing('evidence_custody_events', [
+            'evidence_id' => $evidence->id,
+            'event_type' => EvidenceCustodyEventType::FilePreviewed->value,
+        ]);
+        $this->assertDatabaseMissing('audit_logs', [
+            'action' => AuditAction::EvidenceFilePreviewed->value,
+            'subject_id' => $evidence->id,
+        ]);
+    }
+
+    public function test_unsupported_or_inconsistent_preview_metadata_is_rejected_without_success_events(): void
+    {
+        [$evidence, $satgas] = $this->assignedEvidence();
+        $this->actingAsApi($satgas);
+        $this->upload($evidence)->assertOk();
+
+        $evidence->forceFill(['mime_type' => 'text/html'])->save();
+        $this->getJson("/api/v1/evidences/{$evidence->id}/preview")
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Evidence file cannot be previewed');
+
+        $evidence->forceFill(['mime_type' => 'image/png'])->save();
+        $this->getJson("/api/v1/evidences/{$evidence->id}/preview")
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Evidence file not found');
+
+        $this->assertDatabaseMissing('evidence_custody_events', [
+            'evidence_id' => $evidence->id,
+            'event_type' => EvidenceCustodyEventType::FilePreviewed->value,
+        ]);
+        $this->assertDatabaseMissing('audit_logs', [
+            'action' => AuditAction::EvidenceFilePreviewed->value,
             'subject_id' => $evidence->id,
         ]);
     }
@@ -333,6 +452,16 @@ class EvidenceFileTest extends TestCase
         $this->get("/api/v1/evidences/{$evidence->id}/file")
             ->assertOk()
             ->assertDownload('archived-evidence.pdf');
+        $previewResponse = $this->get("/api/v1/evidences/{$evidence->id}/preview");
+        $previewResponse
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+        $this->assertSame($this->pdfContent(), $previewResponse->streamedContent());
+        $this->assertDatabaseHas('evidence_custody_events', [
+            'evidence_id' => $evidence->id,
+            'event_type' => EvidenceCustodyEventType::FilePreviewed->value,
+            'actor_id' => $satgas->id,
+        ]);
     }
 
     public function test_audit_persistence_failure_rolls_back_metadata_and_removes_new_file(): void

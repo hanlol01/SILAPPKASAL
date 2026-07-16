@@ -10,6 +10,7 @@ enum EvidenceCustodyEventType: string
     case Reviewed = 'reviewed';
     case FileUploaded = 'file_uploaded';
     case FileDownloaded = 'file_downloaded';
+    case FilePreviewed = 'file_previewed';
 
     /**
      * @return list<string>

@@ -44,6 +44,11 @@ class EvidencePolicy extends BasePolicy
         return $this->canAccessAssignedEvidence($user, $evidence->investigation, 'evidence.download');
     }
 
+    public function previewFile(User $user, Evidence $evidence): bool
+    {
+        return $this->downloadFile($user, $evidence);
+    }
+
     public function canManageInvestigationEvidence(User $user, Investigation $investigation): bool
     {
         return $this->canAccessAssignedEvidence($user, $investigation, 'evidence.upload');

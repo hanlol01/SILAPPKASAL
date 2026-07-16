@@ -55,6 +55,11 @@ class ReportEvidenceSubmissionController extends Controller
         return $this->service->downloadForReporter($request->user(), $uuid);
     }
 
+    public function previewForReporter(Request $request, string $uuid): StreamedResponse
+    {
+        return $this->service->previewForReporter($request->user(), $uuid);
+    }
+
     public function indexForCase(Request $request, CaseRecord $case): JsonResponse
     {
         $files = $this->service->listForAssignedSatgas($request->user(), $case);
@@ -69,5 +74,10 @@ class ReportEvidenceSubmissionController extends Controller
     public function downloadForSatgas(Request $request, string $uuid): StreamedResponse
     {
         return $this->service->downloadForAssignedSatgas($request->user(), $uuid);
+    }
+
+    public function previewForSatgas(Request $request, string $uuid): StreamedResponse
+    {
+        return $this->service->previewForAssignedSatgas($request->user(), $uuid);
     }
 }

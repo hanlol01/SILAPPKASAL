@@ -21,6 +21,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
 use RuntimeException;
 use Tests\TestCase;
@@ -131,6 +132,87 @@ class ReportEvidenceSubmissionTest extends TestCase
         $this->assertArrayNotHasKey('checksum', $audit->metadata);
     }
 
+    public function test_reporter_and_assigned_satgas_preview_pdf_jpeg_and_png_with_dedicated_audits(): void
+    {
+        $reporter = $this->makeUser('reporter', 'owner@example.test');
+        $admin = $this->makeUser('admin', 'admin@example.test');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas@example.test');
+        $report = $this->makeReport($reporter, ReportStatus::Forwarded->value);
+        $files = [
+            ['preview.pdf', $this->pdfContent(), 'application/pdf'],
+            ['preview.jpeg', $this->jpegContent(), 'image/jpeg'],
+            ['preview.png', $this->pngContent(), 'image/png'],
+        ];
+        $uploaded = [];
+        $this->actingAsApi($reporter);
+
+        foreach ($files as [$filename, $content, $mimeType]) {
+            $uploaded[] = [
+                $this->upload($report, $filename, $content)->assertCreated()->json('data.id'),
+                $filename,
+                $content,
+                $mimeType,
+            ];
+        }
+
+        foreach ($uploaded as [$uuid, $filename, $content, $mimeType]) {
+            $response = $this->get("/api/v1/portal/evidence-files/{$uuid}/preview");
+            $submissionId = ReportEvidenceSubmission::query()->where('uuid', $uuid)->valueOrFail('id');
+            $this->assertDatabaseMissing('audit_logs', [
+                'action' => AuditAction::ReporterEvidencePreviewedByReporter->value,
+                'subject_id' => $submissionId,
+            ]);
+            $this->assertInlinePreviewResponse($response, $filename, $content, $mimeType);
+            $this->assertDatabaseHas('audit_logs', [
+                'action' => AuditAction::ReporterEvidencePreviewedByReporter->value,
+                'subject_id' => $submissionId,
+            ]);
+        }
+
+        $case = $this->makeCase($report, $admin, $satgas);
+        $this->actingAsApi($satgas);
+
+        foreach ($uploaded as [$uuid, $filename, $content, $mimeType]) {
+            $response = $this->get("/api/v1/reporter-evidence-files/{$uuid}/preview");
+            $submissionId = ReportEvidenceSubmission::query()->where('uuid', $uuid)->valueOrFail('id');
+            $this->assertDatabaseMissing('audit_logs', [
+                'action' => AuditAction::ReporterEvidencePreviewedBySatgas->value,
+                'subject_id' => $submissionId,
+            ]);
+            $this->assertInlinePreviewResponse($response, $filename, $content, $mimeType);
+            $this->assertDatabaseHas('audit_logs', [
+                'action' => AuditAction::ReporterEvidencePreviewedBySatgas->value,
+                'subject_id' => $submissionId,
+            ]);
+        }
+
+        $this->assertSame(3, AuditLog::query()
+            ->where('action', AuditAction::ReporterEvidencePreviewedByReporter->value)
+            ->where('actor_id', $reporter->id)
+            ->count());
+        $this->assertSame(3, AuditLog::query()
+            ->where('action', AuditAction::ReporterEvidencePreviewedBySatgas->value)
+            ->where('actor_id', $satgas->id)
+            ->count());
+        $this->assertDatabaseMissing('audit_logs', [
+            'action' => AuditAction::ReporterEvidenceDownloadedByReporter->value,
+        ]);
+        $this->assertDatabaseMissing('audit_logs', [
+            'action' => AuditAction::ReporterEvidenceDownloadedBySatgas->value,
+        ]);
+        $this->assertDatabaseCount('evidence_custody_events', 0);
+
+        $audit = AuditLog::query()
+            ->where('action', AuditAction::ReporterEvidencePreviewedBySatgas->value)
+            ->firstOrFail();
+        $this->assertArrayHasKey('attachment_uuid', $audit->metadata);
+        $this->assertArrayNotHasKey('filename', $audit->metadata);
+        $this->assertArrayNotHasKey('storage_path', $audit->metadata);
+        $this->assertArrayNotHasKey('storage_disk', $audit->metadata);
+        $this->assertArrayNotHasKey('checksum', $audit->metadata);
+        $this->assertNotNull($case->id);
+    }
+
     public function test_reporter_cannot_access_another_report_or_substitute_an_attachment_uuid(): void
     {
         $owner = $this->makeUser('reporter', 'owner@example.test');
@@ -146,7 +228,13 @@ class ReportEvidenceSubmissionTest extends TestCase
         $this->getJson("/api/v1/portal/evidence-files/{$uuid}/download")
             ->assertNotFound()
             ->assertJsonPath('message', 'Supporting file not found');
+        $this->getJson("/api/v1/portal/evidence-files/{$uuid}/preview")
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Supporting file not found');
         $this->getJson('/api/v1/portal/evidence-files/00000000-0000-4000-8000-000000000000/download')
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Supporting file not found');
+        $this->getJson('/api/v1/portal/evidence-files/00000000-0000-4000-8000-000000000000/preview')
             ->assertNotFound()
             ->assertJsonPath('message', 'Supporting file not found');
 
@@ -196,6 +284,9 @@ class ReportEvidenceSubmissionTest extends TestCase
         $this->getJson("/api/v1/portal/evidence-files/{$anonymousUuid}/download")
             ->assertNotFound()
             ->assertJsonPath('message', 'Supporting file not found');
+        $this->getJson("/api/v1/portal/evidence-files/{$anonymousUuid}/preview")
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Supporting file not found');
 
         $this->actingAsApi($assigned);
         $this->getJson("/api/v1/cases/{$ownerCase->id}/reporter-evidence-files")
@@ -203,6 +294,9 @@ class ReportEvidenceSubmissionTest extends TestCase
             ->assertJsonPath('data.0.id', $ownerUuid);
         $this->getJson("/api/v1/cases/{$otherCase->id}/reporter-evidence-files")->assertForbidden();
         $this->getJson("/api/v1/reporter-evidence-files/{$otherUuid}/download")
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Supporting file not found');
+        $this->getJson("/api/v1/reporter-evidence-files/{$otherUuid}/preview")
             ->assertNotFound()
             ->assertJsonPath('message', 'Supporting file not found');
     }
@@ -235,6 +329,12 @@ class ReportEvidenceSubmissionTest extends TestCase
             ->assertJsonPath('data.0.id', $closedUuid);
         $this->get("/api/v1/portal/evidence-files/{$rejectedUuid}/download")->assertOk();
         $this->get("/api/v1/portal/evidence-files/{$closedUuid}/download")->assertOk();
+        $rejectedPreview = $this->get("/api/v1/portal/evidence-files/{$rejectedUuid}/preview");
+        $rejectedPreview->assertOk();
+        $this->assertSame($this->pdfContent(), $rejectedPreview->streamedContent());
+        $closedPreview = $this->get("/api/v1/portal/evidence-files/{$closedUuid}/preview");
+        $closedPreview->assertOk();
+        $this->assertSame($this->pdfContent(), $closedPreview->streamedContent());
     }
 
     public function test_locked_report_count_rejects_a_sixth_upload(): void
@@ -299,8 +399,15 @@ class ReportEvidenceSubmissionTest extends TestCase
         $download = $this->get("/api/v1/reporter-evidence-files/{$uuid}/download");
         $download->assertOk()->assertDownload('reporter-document.pdf');
         $this->assertSame($this->pdfContent(), $download->streamedContent());
+        $preview = $this->get("/api/v1/reporter-evidence-files/{$uuid}/preview");
+        $preview->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->assertSame($this->pdfContent(), $preview->streamedContent());
         $this->assertDatabaseHas('audit_logs', [
             'action' => AuditAction::ReporterEvidenceDownloadedBySatgas->value,
+            'actor_id' => $satgas->id,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::ReporterEvidencePreviewedBySatgas->value,
             'actor_id' => $satgas->id,
         ]);
         $audit = AuditLog::query()
@@ -324,10 +431,16 @@ class ReportEvidenceSubmissionTest extends TestCase
         $this->getJson("/api/v1/reporter-evidence-files/{$uuid}/download")
             ->assertNotFound()
             ->assertJsonPath('message', 'Supporting file not found');
+        $this->getJson("/api/v1/reporter-evidence-files/{$uuid}/preview")
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Supporting file not found');
 
         $case = $this->makeCase($report, $admin, $satgas, activeAssignment: false);
         $this->getJson("/api/v1/cases/{$case->id}/reporter-evidence-files")->assertForbidden();
         $this->getJson("/api/v1/reporter-evidence-files/{$uuid}/download")
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Supporting file not found');
+        $this->getJson("/api/v1/reporter-evidence-files/{$uuid}/preview")
             ->assertNotFound()
             ->assertJsonPath('message', 'Supporting file not found');
         $this->assertDatabaseMissing('audit_logs', [
@@ -343,6 +456,9 @@ class ReportEvidenceSubmissionTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.id', $uuid);
         $this->get("/api/v1/reporter-evidence-files/{$uuid}/download")->assertOk();
+        $preview = $this->get("/api/v1/reporter-evidence-files/{$uuid}/preview");
+        $preview->assertOk();
+        $this->assertSame($this->pdfContent(), $preview->streamedContent());
         $this->assertDatabaseHas('audit_logs', [
             'action' => AuditAction::ReporterEvidenceDownloadedBySatgas->value,
             'actor_id' => $satgas->id,
@@ -382,21 +498,27 @@ class ReportEvidenceSubmissionTest extends TestCase
             $this->getJson("/api/v1/reporter-evidence-files/{$uuid}/download")
                 ->assertNotFound()
                 ->assertJsonPath('message', 'Supporting file not found');
+            $this->getJson("/api/v1/reporter-evidence-files/{$uuid}/preview")
+                ->assertNotFound()
+                ->assertJsonPath('message', 'Supporting file not found');
         }
 
         $this->actingAsApi($inactive);
         $this->getJson("/api/v1/cases/{$case->id}/reporter-evidence-files")->assertForbidden();
         $this->getJson("/api/v1/reporter-evidence-files/{$uuid}/download")->assertForbidden();
+        $this->getJson("/api/v1/reporter-evidence-files/{$uuid}/preview")->assertForbidden();
 
         foreach ([$admin, $superAdmin] as $user) {
             $this->actingAsApi($user);
             $this->getJson("/api/v1/cases/{$case->id}/reporter-evidence-files")->assertForbidden();
             $this->getJson("/api/v1/reporter-evidence-files/{$uuid}/download")->assertForbidden();
+            $this->getJson("/api/v1/reporter-evidence-files/{$uuid}/preview")->assertForbidden();
         }
 
         $this->actingAsApi($reporter);
         $this->getJson("/api/v1/cases/{$case->id}/reporter-evidence-files")->assertForbidden();
         $this->getJson("/api/v1/reporter-evidence-files/{$uuid}/download")->assertForbidden();
+        $this->getJson("/api/v1/reporter-evidence-files/{$uuid}/preview")->assertForbidden();
     }
 
     public function test_inactive_reporter_and_reporter_without_exact_permissions_are_denied(): void
@@ -411,6 +533,7 @@ class ReportEvidenceSubmissionTest extends TestCase
         $this->getJson($this->reportFilesUrl($report))->assertForbidden();
         $this->upload($report)->assertForbidden();
         $this->getJson("/api/v1/portal/evidence-files/{$uuid}/download")->assertForbidden();
+        $this->getJson("/api/v1/portal/evidence-files/{$uuid}/preview")->assertForbidden();
 
         $reporter = $this->makeUser('reporter', 'permissionless@example.test');
         $permission = Permission::query()->where('code', 'reporter_evidence.read.own')->firstOrFail();
@@ -433,8 +556,12 @@ class ReportEvidenceSubmissionTest extends TestCase
         $this->upload($report)->assertUnauthorized();
         $this->getJson('/api/v1/portal/evidence-files/00000000-0000-4000-8000-000000000000/download')
             ->assertUnauthorized();
+        $this->getJson('/api/v1/portal/evidence-files/00000000-0000-4000-8000-000000000000/preview')
+            ->assertUnauthorized();
         $this->getJson("/api/v1/cases/{$case->id}/reporter-evidence-files")->assertUnauthorized();
         $this->getJson('/api/v1/reporter-evidence-files/00000000-0000-4000-8000-000000000000/download')
+            ->assertUnauthorized();
+        $this->getJson('/api/v1/reporter-evidence-files/00000000-0000-4000-8000-000000000000/preview')
             ->assertUnauthorized();
 
         $this->actingAsApi($reporter);
@@ -443,6 +570,7 @@ class ReportEvidenceSubmissionTest extends TestCase
         $reporter->role->permissions()->detach($reporterDownload->id);
         $this->actingAsApi($reporter->fresh());
         $this->getJson("/api/v1/portal/evidence-files/{$uuid}/download")->assertForbidden();
+        $this->getJson("/api/v1/portal/evidence-files/{$uuid}/preview")->assertForbidden();
 
         $satgasRead = Permission::query()->where('code', 'reporter_evidence.read.assigned')->firstOrFail();
         $satgasDownload = Permission::query()->where('code', 'reporter_evidence.download.assigned')->firstOrFail();
@@ -454,6 +582,7 @@ class ReportEvidenceSubmissionTest extends TestCase
         $satgas->role->permissions()->detach($satgasDownload->id);
         $this->actingAsApi($satgas->fresh());
         $this->getJson("/api/v1/reporter-evidence-files/{$uuid}/download")->assertForbidden();
+        $this->getJson("/api/v1/reporter-evidence-files/{$uuid}/preview")->assertForbidden();
     }
 
     public function test_validation_rejects_unsafe_empty_oversized_double_extension_and_spoofed_files(): void
@@ -590,13 +719,26 @@ class ReportEvidenceSubmissionTest extends TestCase
     public function test_missing_physical_file_returns_generic_not_found_without_path_leakage(): void
     {
         $reporter = $this->makeUser('reporter', 'owner@example.test');
-        $report = $this->makeReport($reporter);
+        $admin = $this->makeUser('admin', 'admin@example.test');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas@example.test');
+        $report = $this->makeReport($reporter, ReportStatus::Forwarded->value);
         $this->actingAsApi($reporter);
         $uuid = $this->upload($report)->assertCreated()->json('data.id');
         $submission = ReportEvidenceSubmission::query()->sole();
+        $this->makeCase($report, $admin, $satgas);
         Storage::disk('evidence')->delete($submission->storage_path);
 
         $this->getJson("/api/v1/portal/evidence-files/{$uuid}/download")
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Supporting file not found')
+            ->assertDontSee($submission->storage_path);
+        $this->getJson("/api/v1/portal/evidence-files/{$uuid}/preview")
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Supporting file not found')
+            ->assertDontSee($submission->storage_path);
+
+        $this->actingAsApi($satgas);
+        $this->getJson("/api/v1/reporter-evidence-files/{$uuid}/preview")
             ->assertNotFound()
             ->assertJsonPath('message', 'Supporting file not found')
             ->assertDontSee($submission->storage_path);
@@ -604,6 +746,43 @@ class ReportEvidenceSubmissionTest extends TestCase
             'action' => AuditAction::ReporterEvidenceDownloadedByReporter->value,
             'subject_id' => $submission->id,
         ]);
+        $this->assertDatabaseMissing('audit_logs', [
+            'action' => AuditAction::ReporterEvidencePreviewedByReporter->value,
+            'subject_id' => $submission->id,
+        ]);
+        $this->assertDatabaseMissing('audit_logs', [
+            'action' => AuditAction::ReporterEvidencePreviewedBySatgas->value,
+            'subject_id' => $submission->id,
+        ]);
+    }
+
+    public function test_unsupported_or_inconsistent_reporter_file_metadata_is_never_previewed(): void
+    {
+        $reporter = $this->makeUser('reporter', 'owner@example.test');
+        $report = $this->makeReport($reporter);
+        $this->actingAsApi($reporter);
+
+        $unsupportedUuid = $this->upload($report, 'unsupported.pdf')->assertCreated()->json('data.id');
+        $unsupported = ReportEvidenceSubmission::query()->where('uuid', $unsupportedUuid)->firstOrFail();
+        $unsupported->forceFill(['mime_type' => 'text/html'])->save();
+
+        $this->getJson("/api/v1/portal/evidence-files/{$unsupportedUuid}/preview")
+            ->assertUnprocessable();
+
+        $inconsistentUuid = $this->upload($report, 'inconsistent.pdf')->assertCreated()->json('data.id');
+        $inconsistent = ReportEvidenceSubmission::query()->where('uuid', $inconsistentUuid)->firstOrFail();
+        $inconsistent->forceFill(['mime_type' => 'image/png'])->save();
+
+        $this->getJson("/api/v1/portal/evidence-files/{$inconsistentUuid}/preview")
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Supporting file not found');
+
+        foreach ([$unsupported->id, $inconsistent->id] as $submissionId) {
+            $this->assertDatabaseMissing('audit_logs', [
+                'action' => AuditAction::ReporterEvidencePreviewedByReporter->value,
+                'subject_id' => $submissionId,
+            ]);
+        }
     }
 
     public function test_audit_failure_rolls_back_metadata_and_removes_the_new_file(): void
@@ -729,6 +908,28 @@ class ReportEvidenceSubmissionTest extends TestCase
     private function reportFilesUrl(Report $report): string
     {
         return "/api/v1/portal/reports/{$report->registration_number}/evidence-files";
+    }
+
+    private function assertInlinePreviewResponse(
+        TestResponse $response,
+        string $filename,
+        string $content,
+        string $mimeType,
+    ): void {
+        $response
+            ->assertOk()
+            ->assertHeader('Content-Type', $mimeType)
+            ->assertHeader('Content-Length', (string) strlen($content))
+            ->assertHeader('X-Content-Type-Options', 'nosniff')
+            ->assertHeader('Cache-Control', 'must-revalidate, no-cache, no-store, private')
+            ->assertHeader('Pragma', 'no-cache')
+            ->assertHeader('Expires', '0')
+            ->assertHeader('Cross-Origin-Resource-Policy', 'same-origin');
+
+        $contentDisposition = (string) $response->headers->get('Content-Disposition');
+        $this->assertStringStartsWith('inline;', $contentDisposition);
+        $this->assertStringContainsString($filename, $contentDisposition);
+        $this->assertSame($content, $response->streamedContent());
     }
 
     private function actingAsApi(User $user): void

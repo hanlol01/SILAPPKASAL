@@ -5,16 +5,19 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/empty-state";
+import { CompactFileUpload } from "@/components/compact-file-upload";
+import { SecureFilePreviewDialog } from "@/components/secure-file-preview-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api-client";
+import { isPreviewableMimeType } from "@/lib/file-preview";
 import { formatDateTime } from "@/lib/format";
 import {
   downloadPortalReportEvidenceFile,
   getPortalReportEvidenceFiles,
   portalQueryKeys,
+  previewPortalReportEvidenceFile,
   uploadPortalReportEvidenceFile,
 } from "@/lib/portal-api";
 import type { PortalEvidenceFile } from "@/lib/portal-types";
@@ -38,9 +41,7 @@ export function ReporterEvidenceSubmissions({ registrationNumber }: { registrati
   const uploadMutation = useMutation({
     mutationFn: (file: File) => uploadPortalReportEvidenceFile(registrationNumber, file),
     onSuccess: async () => {
-      setSelectedFile(null);
-      setClientError(null);
-      if (inputRef.current) inputRef.current.value = "";
+      clearSelection();
       await queryClient.invalidateQueries({
         queryKey: portalQueryKeys.reportEvidenceFiles(registrationNumber),
       });
@@ -77,6 +78,12 @@ export function ReporterEvidenceSubmissions({ registrationNumber }: { registrati
     setClientError(null);
   }
 
+  function clearSelection() {
+    setSelectedFile(null);
+    setClientError(null);
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
   return (
     <Card className="min-w-0">
       <CardHeader>
@@ -104,38 +111,29 @@ export function ReporterEvidenceSubmissions({ registrationNumber }: { registrati
                 <p className="break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
                   {t("evidenceFiles.optionalHelp")}
                 </p>
-                <p className="break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
-                  {t("evidenceFiles.formatsHelp")}
-                </p>
               </div>
 
               {uploadAllowed ? (
                 <div className="min-w-0 space-y-3">
-                  <div className="min-w-0 space-y-1.5">
-                    <label htmlFor={`report-evidence-${registrationNumber}`} className="text-sm font-medium">
-                      {t("evidenceFiles.chooseFile")}
-                    </label>
-                    <Input
-                      ref={inputRef}
-                      id={`report-evidence-${registrationNumber}`}
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                      className="h-auto min-h-9 min-w-0 py-1.5 file:mr-3"
-                      disabled={uploadMutation.isPending}
-                      aria-invalid={Boolean(clientError)}
-                      onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
-                    />
-                  </div>
-                  {selectedFile && (
-                    <p className="min-w-0 break-words text-xs [overflow-wrap:anywhere] whitespace-pre-wrap" aria-live="polite">
-                      {t("evidenceFiles.selectedFile", { name: selectedFile.name })}
-                    </p>
-                  )}
-                  {clientError && (
-                    <p className="min-w-0 break-words text-xs text-destructive [overflow-wrap:anywhere] whitespace-pre-wrap" role="alert">
-                      {clientError}
-                    </p>
-                  )}
+                  <CompactFileUpload
+                    inputId={`report-evidence-${registrationNumber}`}
+                    inputRef={inputRef}
+                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                    title={t("evidenceFiles.chooseFile")}
+                    instructions={t("evidenceFiles.formatsHelp")}
+                    chooseLabel={t("evidenceFiles.chooseFile")}
+                    changeLabel={t("evidenceFiles.changeFile")}
+                    removeLabel={t("evidenceFiles.removeFile")}
+                    selectedLabel={t("evidenceFiles.selectedFileLabel")}
+                    selectedFile={selectedFile}
+                    selectedDetails={selectedFile
+                      ? `${formatMimeType(selectedFile.type, t)} | ${formatByteSize(selectedFile.size, i18n.language)}`
+                      : undefined}
+                    error={clientError}
+                    disabled={uploadMutation.isPending}
+                    onFileChange={handleFileChange}
+                    onRemove={clearSelection}
+                  />
                   <div className="flex min-w-0 flex-wrap items-center gap-3">
                     <Button
                       type="button"
@@ -222,23 +220,47 @@ function EvidenceFileList({
               </p>
             </div>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-full shrink-0 sm:w-auto"
-            disabled={downloadingId === file.id}
-            onClick={() => onDownload(file.id)}
-          >
-            {downloadingId === file.id ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Download className="h-4 w-4" aria-hidden="true" />
+          <div className="flex min-w-0 flex-wrap gap-2 sm:justify-end">
+            {isPreviewableMimeType(file.mime_type) && (
+              <SecureFilePreviewDialog
+                fileKey={`${file.id}:${file.mime_type}:${file.original_filename}`}
+                expectedMimeType={file.mime_type}
+                loadPreview={(signal) => previewPortalReportEvidenceFile(file.id, signal)}
+                onDownload={() => onDownload(file.id)}
+                downloadPending={downloadingId === file.id}
+                labels={{
+                  preview: t("evidenceFiles.preview"),
+                  title: t("evidenceFiles.previewTitle", { name: file.original_filename }),
+                  description: t("evidenceFiles.previewDescription"),
+                  loading: t("evidenceFiles.previewLoading"),
+                  error: t("evidenceFiles.previewError"),
+                  retry: t("evidenceFiles.previewRetry"),
+                  close: t("evidenceFiles.previewClose"),
+                  download: t("evidenceFiles.download"),
+                  downloading: t("evidenceFiles.downloading"),
+                  imageAlt: t("evidenceFiles.previewImageAlt", { name: file.original_filename }),
+                  pdfTitle: t("evidenceFiles.previewPdfTitle", { name: file.original_filename }),
+                  pdfFallback: t("evidenceFiles.previewPdfFallback"),
+                }}
+              />
             )}
-            {downloadingId === file.id
-              ? t("evidenceFiles.downloading")
-              : t("evidenceFiles.download")}
-          </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={downloadingId === file.id}
+              onClick={() => onDownload(file.id)}
+            >
+              {downloadingId === file.id ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Download className="h-4 w-4" aria-hidden="true" />
+              )}
+              {downloadingId === file.id
+                ? t("evidenceFiles.downloading")
+                : t("evidenceFiles.download")}
+            </Button>
+          </div>
         </div>
       ))}
     </div>

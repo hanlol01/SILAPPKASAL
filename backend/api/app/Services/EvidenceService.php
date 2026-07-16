@@ -283,10 +283,77 @@ class EvidenceService
         $evidence->loadMissing('investigation.case');
         $this->authorizeAssignedSatgas($evidence->investigation, $actor, 'evidence.download');
 
+        $file = $this->openEvidenceFile($evidence);
+        $response = $this->streamEvidenceFile(
+            $file['stream'],
+            $file['filename'],
+            $file['mime_type'],
+            $file['file_size'],
+            'attachment',
+        );
+
+        try {
+            DB::transaction(function () use ($evidence, $actor): void {
+                $this->recordCustodyEvent($evidence, EvidenceCustodyEventType::FileDownloaded, $actor, [
+                    'mime_type' => $evidence->mime_type,
+                    'file_size' => $evidence->file_size,
+                ]);
+                $this->recordFileAudit(AuditAction::EvidenceFileDownloaded, $evidence, $actor);
+            });
+        } catch (Throwable $exception) {
+            if (is_resource($file['stream'])) {
+                fclose($file['stream']);
+            }
+
+            throw $exception;
+        }
+
+        return $response;
+    }
+
+    public function previewFile(Evidence $evidence, User $actor): StreamedResponse
+    {
+        $evidence->loadMissing('investigation.case');
+        $this->authorizeAssignedSatgas($evidence->investigation, $actor, 'evidence.download');
+
+        $file = $this->openEvidenceFile($evidence, preview: true);
+        return $this->streamEvidenceFile(
+            $file['stream'],
+            $file['filename'],
+            $file['mime_type'],
+            $file['file_size'],
+            'inline',
+            sameOrigin: true,
+            afterStream: function () use ($evidence, $actor): void {
+                DB::transaction(function () use ($evidence, $actor): void {
+                    $this->recordCustodyEvent($evidence, EvidenceCustodyEventType::FilePreviewed, $actor);
+                    $this->recordFileAudit(AuditAction::EvidenceFilePreviewed, $evidence, $actor);
+                });
+            },
+        );
+    }
+
+    /**
+     * @return array{stream: resource, filename: string, mime_type: string, file_size: int}
+     */
+    private function openEvidenceFile(Evidence $evidence, bool $preview = false): array
+    {
         if (
             $evidence->storage_disk !== self::FILE_DISK
             || ! is_string($evidence->storage_path)
-            || ! $this->isExpectedStoragePath($evidence)
+        ) {
+            throw $this->notFound();
+        }
+
+        $trustedMime = is_string($evidence->mime_type)
+            && isset(self::EXTENSION_BY_MIME[$evidence->mime_type]);
+
+        if ($preview && (! $trustedMime || ! is_int($evidence->file_size) || $evidence->file_size < 1)) {
+            throw $this->unprocessable('Evidence file cannot be previewed');
+        }
+
+        if (
+            ! $this->isExpectedStoragePath($evidence)
             || ! Storage::disk(self::FILE_DISK)->exists($evidence->storage_path)
         ) {
             throw $this->notFound();
@@ -306,43 +373,61 @@ class EvidenceService
             ? $evidence->mime_type
             : 'application/octet-stream';
 
+        return [
+            'stream' => $stream,
+            'filename' => $filename,
+            'mime_type' => $mimeType,
+            'file_size' => (int) $evidence->file_size,
+        ];
+    }
+
+    /** @param resource $stream */
+    private function streamEvidenceFile(
+        mixed $stream,
+        string $filename,
+        string $mimeType,
+        int $fileSize,
+        string $disposition,
+        bool $sameOrigin = false,
+        ?callable $afterStream = null,
+    ): StreamedResponse {
+        $headers = [
+            'Content-Type' => $mimeType,
+            'Content-Length' => (string) $fileSize,
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+            'Access-Control-Expose-Headers' => 'Content-Disposition',
+        ];
+
+        if ($sameOrigin) {
+            $headers['Cross-Origin-Resource-Policy'] = 'same-origin';
+        }
+
         try {
-            $response = response()->streamDownload(function () use ($stream): void {
+            return response()->streamDownload(function () use ($stream, $afterStream): void {
                 try {
-                    fpassthru($stream);
+                    if (fpassthru($stream) === false) {
+                        throw new \RuntimeException('Evidence file stream failed');
+                    }
+
+                    if ($afterStream !== null) {
+                        $afterStream();
+                    }
                 } finally {
                     if (is_resource($stream)) {
                         fclose($stream);
                     }
                 }
-            }, $filename, [
-                'Content-Type' => $mimeType,
-                'Content-Length' => (string) $evidence->file_size,
-                'X-Content-Type-Options' => 'nosniff',
-                'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
-                'Pragma' => 'no-cache',
-                'Expires' => '0',
-                'Access-Control-Expose-Headers' => 'Content-Disposition',
-            ], 'attachment');
+            }, $filename, $headers, $disposition);
         } catch (Throwable $exception) {
-            fclose($stream);
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+
             throw $exception;
         }
-
-        try {
-            DB::transaction(function () use ($evidence, $actor): void {
-                $this->recordCustodyEvent($evidence, EvidenceCustodyEventType::FileDownloaded, $actor, [
-                    'mime_type' => $evidence->mime_type,
-                    'file_size' => $evidence->file_size,
-                ]);
-                $this->recordFileAudit(AuditAction::EvidenceFileDownloaded, $evidence, $actor);
-            });
-        } catch (Throwable $exception) {
-            fclose($stream);
-            throw $exception;
-        }
-
-        return $response;
     }
 
     private function ensureInvestigationCanAcceptEvidence(Investigation $investigation): void

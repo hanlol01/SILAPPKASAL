@@ -65,10 +65,13 @@ enum AuditAction: string
     case EvidenceStatusChanged = 'evidence.status_changed';
     case EvidenceFileUploaded = 'evidence.file_uploaded';
     case EvidenceFileDownloaded = 'evidence.file_downloaded';
+    case EvidenceFilePreviewed = 'evidence.file_previewed';
 
     case ReporterEvidenceUploaded = 'reporter_evidence.uploaded';
     case ReporterEvidenceDownloadedByReporter = 'reporter_evidence.downloaded_by_reporter';
     case ReporterEvidenceDownloadedBySatgas = 'reporter_evidence.downloaded_by_satgas';
+    case ReporterEvidencePreviewedByReporter = 'reporter_evidence.previewed_by_reporter';
+    case ReporterEvidencePreviewedBySatgas = 'reporter_evidence.previewed_by_satgas';
 
     case BreakGlassRequested = 'break_glass.request';
     case BreakGlassApproved = 'break_glass.approve';

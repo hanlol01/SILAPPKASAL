@@ -8,7 +8,7 @@
  * cache collisions with admin ["operations", ...] / ["dashboard", ...] keys.
  */
 
-import { apiDownload, apiRequest, apiRequestEnvelope } from "@/lib/api-client";
+import { apiDownload, apiFetchBlob, apiRequest, apiRequestEnvelope } from "@/lib/api-client";
 import type {
   PortalSummary,
   PortalReport,
@@ -117,6 +117,14 @@ export function downloadPortalReportEvidenceFile(id: string) {
   return apiDownload(
     `/portal/evidence-files/${encodeURIComponent(id)}/download`,
     `supporting-file-${id}`,
+  );
+}
+
+/** GET /api/v1/portal/evidence-files/{uuid}/preview */
+export function previewPortalReportEvidenceFile(id: string, signal?: AbortSignal) {
+  return apiFetchBlob(
+    `/portal/evidence-files/${encodeURIComponent(id)}/preview`,
+    { signal },
   );
 }
 
