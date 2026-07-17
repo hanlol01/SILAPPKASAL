@@ -78,11 +78,14 @@ class AuthEndpointsTest extends TestCase
     {
         $this->makeUser(['password' => 'SecurePass123']);
 
-        $this->postJson('/api/v1/auth/login', [
+        $this->withHeader('Accept-Language', 'en')->postJson('/api/v1/auth/login', [
             'identifier' => 'reporter@university.ac.id',
             'password' => 'WrongPass123',
         ])->assertUnauthorized()
-            ->assertJsonPath('success', false);
+            ->assertHeader('Content-Language', 'en')
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error_code', 'invalid_credentials')
+            ->assertJsonPath('message', 'The email, student ID, employee ID, or password is incorrect.');
     }
 
     public function test_inactive_user_login_returns_forbidden(): void
@@ -93,11 +96,13 @@ class AuthEndpointsTest extends TestCase
             'is_active' => false,
         ]);
 
-        $this->postJson('/api/v1/auth/login', [
+        $this->withHeader('Accept-Language', 'id')->postJson('/api/v1/auth/login', [
             'identifier' => 'inactive@university.ac.id',
             'password' => 'SecurePass123',
         ])->assertForbidden()
-            ->assertJsonPath('success', false);
+            ->assertHeader('Content-Language', 'id')
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error_code', 'account_inactive');
     }
 
     public function test_login_validation_errors_return_422(): void
@@ -107,6 +112,7 @@ class AuthEndpointsTest extends TestCase
             'password' => '',
         ])->assertUnprocessable()
             ->assertJsonPath('success', false)
+            ->assertJsonPath('error_code', 'validation_failed')
             ->assertJsonStructure(['errors' => ['identifier', 'password']]);
     }
 
@@ -123,7 +129,8 @@ class AuthEndpointsTest extends TestCase
             'identifier' => 'missing@university.ac.id',
             'password' => 'WrongPass123',
         ])->assertTooManyRequests()
-            ->assertJsonPath('success', false);
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error_code', 'too_many_requests');
     }
 
     public function test_me_returns_authenticated_user(): void
@@ -141,9 +148,23 @@ class AuthEndpointsTest extends TestCase
 
     public function test_me_requires_token(): void
     {
-        $this->getJson('/api/v1/auth/me')
+        $this->withHeader('Accept-Language', '')
+            ->getJson('/api/v1/auth/me')
             ->assertUnauthorized()
-            ->assertJsonPath('success', false);
+            ->assertHeader('Content-Language', 'id')
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Autentikasi diperlukan.')
+            ->assertJsonPath('error_code', 'unauthenticated');
+    }
+
+    public function test_unsupported_api_locale_falls_back_to_indonesian(): void
+    {
+        $this->withHeader('Accept-Language', 'fr-FR')
+            ->getJson('/api/v1/auth/me')
+            ->assertUnauthorized()
+            ->assertHeader('Content-Language', 'id')
+            ->assertJsonPath('message', 'Autentikasi diperlukan.')
+            ->assertJsonPath('error_code', 'unauthenticated');
     }
 
     public function test_logout_deletes_only_current_token(): void

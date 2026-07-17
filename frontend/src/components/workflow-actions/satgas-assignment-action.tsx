@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ApiError } from "@/lib/api-client";
+import { apiErrorMessage, laravelFieldErrors } from "@/lib/form-errors";
 import {
   assignCaseSatgas,
   forwardReportToCase,
@@ -103,11 +103,7 @@ export function SatgasAssignmentAction({
     onError: (error) => {
       const errors = laravelErrors(error);
       setFieldErrors(errors);
-      toast.error(
-        error instanceof ApiError
-          ? error.message
-          : t("dashboard:workflow.assignment.actionError"),
-      );
+      toast.error(apiErrorMessage(error, t("dashboard:workflow.assignment.actionError")));
     },
   });
 
@@ -291,11 +287,7 @@ function validateSelection(
 }
 
 function laravelErrors(error: unknown) {
-  if (!(error instanceof ApiError) || !error.errors) return {};
-
-  return Object.fromEntries(
-    Object.entries(error.errors).map(([key, messages]) => [key, messages[0] ?? error.message]),
-  );
+  return laravelFieldErrors(error);
 }
 
 function forwardedCaseId(result: unknown) {

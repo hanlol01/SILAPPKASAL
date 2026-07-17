@@ -27,10 +27,15 @@ function parseDate(value: string | null | undefined) {
 
 export function formatDate(value: string | null | undefined, language?: string): string {
   const date = parseDate(value);
-  return date ? format(date, "dd MMM yyyy", { locale: localeFor(language) }) : "-";
+  return date ? format(date, "d MMMM yyyy", { locale: localeFor(language) }) : "-";
 }
 
 export function formatDateTime(value: string | null | undefined, language?: string): string {
   const date = parseDate(value);
-  return date ? format(date, "dd MMM yyyy HH:mm", { locale: localeFor(language) }) : "-";
+  if (!date) return "-";
+
+  const isEnglish = language?.toLowerCase().startsWith("en");
+  return format(date, isEnglish ? "d MMMM yyyy, HH:mm" : "d MMMM yyyy, HH.mm", {
+    locale: localeFor(language),
+  });
 }

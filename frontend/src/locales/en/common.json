@@ -6,6 +6,7 @@
   "retry": "Retry",
   "signOut": "Sign Out",
   "language": "Language",
+  "toggleLanguage": "Change language",
   "toggleTheme": "Toggle theme",
   "unexpectedError": "An unexpected error occurred.",
   "edit": "Edit",
@@ -36,5 +37,23 @@
     "required": "This field is required.",
     "email": "Enter a valid email address.",
     "passwordConfirmationMismatch": "Password confirmation does not match."
+  },
+  "apiErrors": {
+    "fallback": "The request could not be completed. Please try again.",
+    "validationFailed": "Please check the information you entered.",
+    "unauthenticated": "Your session has ended. Please sign in again.",
+    "forbidden": "You do not have permission to perform this action.",
+    "tooManyRequests": "Too many requests. Please try again later.",
+    "invalidCredentials": "The email, student ID, employee ID, or password is incorrect.",
+    "accountInactive": "Your account is inactive. Please contact an administrator.",
+    "currentPasswordIncorrect": "The current password is incorrect.",
+    "registrationDuplicateActive": "An active account with this email or student ID is already registered at the selected university.",
+    "registrationDuplicatePending": "A registration with this email or student ID is awaiting review.",
+    "registrationInvalidCredentials": "The registration credentials are invalid.",
+    "registrationPasswordUnavailable": "The registration password is no longer available for approval.",
+    "registrationNotPending": "This registration is no longer awaiting review.",
+    "registrationNumberUnavailable": "A registration number could not be created. Please try again.",
+    "trackingNotFound": "The report tracking code was not found.",
+    "portalReportNotFound": "The report was not found."
   }
 }

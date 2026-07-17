@@ -41,11 +41,7 @@ import {
 import type { Recommendation } from "@/lib/operations-types";
 import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
-const recommendationStatusSchema = z.object({
-  status: z.string().min(1, "Required"),
-});
-
-type RecommendationStatusValues = z.infer<typeof recommendationStatusSchema>;
+type RecommendationStatusValues = { status: string };
 
 export function RecommendationStatusAction({
   recommendation,
@@ -64,7 +60,9 @@ export function RecommendationStatusAction({
     staleTime: 30_000,
   });
   const form = useForm<RecommendationStatusValues>({
-    resolver: zodResolver(recommendationStatusSchema),
+    resolver: zodResolver(z.object({
+      status: z.string().min(1, t("dashboard:workflow.required")),
+    })),
     defaultValues: { status: "" },
   });
 

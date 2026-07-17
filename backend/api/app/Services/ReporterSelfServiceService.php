@@ -8,6 +8,7 @@ use App\Enums\AuditSeverity;
 use App\Enums\ReporterRegistrationStatus;
 use App\Models\ReporterRegistration;
 use App\Models\User;
+use App\Support\ApiErrorCode;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Hash;
 
@@ -55,9 +56,10 @@ class ReporterSelfServiceService
         if (! Hash::check((string) $data['current_password'], $user->password)) {
             throw new HttpResponseException(response()->json([
                 'success' => false,
-                'message' => 'Current password is incorrect',
+                'message' => __('api.errors.current_password_incorrect'),
+                'error_code' => ApiErrorCode::CurrentPasswordIncorrect,
                 'errors' => [
-                    'current_password' => ['Current password is incorrect'],
+                    'current_password' => [__('api.errors.current_password_incorrect')],
                 ],
             ], 422));
         }
@@ -91,7 +93,8 @@ class ReporterSelfServiceService
         $registrationNumber = ReporterRegistration::query()
             ->where('approved_user_id', $user->id)
             ->where('status', ReporterRegistrationStatus::Approved->value)
-            ->latest()
+            ->latest('created_at')
+            ->latest('id')
             ->value('registration_number');
 
         return [

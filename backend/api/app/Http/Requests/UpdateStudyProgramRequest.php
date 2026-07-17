@@ -64,7 +64,7 @@ class UpdateStudyProgramRequest extends FormRequest
                     ->exists();
 
                 if (! $facultyMatchesUniversity) {
-                    $validator->errors()->add('faculty_id', 'The selected faculty does not belong to the selected university.');
+                    $validator->errors()->add('faculty_id', __('validation.custom.faculty_id.campus_selection'));
                 }
             },
         ];

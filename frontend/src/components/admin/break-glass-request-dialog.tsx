@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,16 +23,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError } from "@/lib/api-client";
 import { requestBreakGlass } from "@/lib/break-glass-api";
 import type { BreakGlassReasonCategory } from "@/lib/break-glass-types";
+import { apiErrorMessage } from "@/lib/form-errors";
 
-const REASON_CATEGORIES: Array<{ value: BreakGlassReasonCategory; label: string }> = [
-  { value: "legal_requirement", label: "Legal requirement" },
-  { value: "safety_emergency", label: "Safety emergency" },
-  { value: "investigation_necessity", label: "Investigation necessity" },
-  { value: "institutional_compliance", label: "Institutional compliance" },
-  { value: "victim_consent", label: "Victim/reporter consent" },
+const REASON_CATEGORIES: BreakGlassReasonCategory[] = [
+  "legal_requirement",
+  "safety_emergency",
+  "investigation_necessity",
+  "institutional_compliance",
+  "victim_consent",
 ];
 
 interface BreakGlassRequestDialogProps {
@@ -43,6 +44,7 @@ export function BreakGlassRequestDialog({
   reportId,
   registrationNumber,
 }: BreakGlassRequestDialogProps) {
+  const { t } = useTranslation(["dashboard"]);
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [reasonCategory, setReasonCategory] =
@@ -60,7 +62,7 @@ export function BreakGlassRequestDialog({
         acknowledgment,
       }),
     onSuccess: () => {
-      toast.success("Break-glass request submitted");
+      toast.success(t("dashboard:breakGlass.request.success"));
       setOpen(false);
       setReason("");
       setAcknowledgment(false);
@@ -68,19 +70,20 @@ export function BreakGlassRequestDialog({
       queryClient.invalidateQueries({ queryKey: ["break-glass"] });
     },
     onError: (error) => {
-      setFieldError(error instanceof ApiError ? error.message : "Break-glass request failed");
-      toast.error(error instanceof ApiError ? error.message : "Break-glass request failed");
+      const message = apiErrorMessage(error, t("dashboard:breakGlass.request.error"));
+      setFieldError(message);
+      toast.error(message);
     },
   });
 
   function submit() {
     if (reason.trim().length < 50) {
-      setFieldError("Reason must be at least 50 characters.");
+      setFieldError(t("dashboard:breakGlass.request.reasonMin"));
       return;
     }
 
     if (!acknowledgment) {
-      setFieldError("You must acknowledge the privacy policy before submitting.");
+      setFieldError(t("dashboard:breakGlass.request.acknowledgmentRequired"));
       return;
     }
 
@@ -93,20 +96,20 @@ export function BreakGlassRequestDialog({
       <DialogTrigger asChild>
         <Button variant="outline" className="w-full">
           <ShieldAlert className="mr-2 h-4 w-4" />
-          Request break-glass
+          {t("dashboard:breakGlass.request.trigger")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Request break-glass access</DialogTitle>
+          <DialogTitle>{t("dashboard:breakGlass.request.title")}</DialogTitle>
           <DialogDescription>
-            Submit an audited request to reveal the reporter identity for {registrationNumber}.
+            {t("dashboard:breakGlass.request.description", { registrationNumber })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Reason category</Label>
+            <Label>{t("dashboard:breakGlass.request.category")}</Label>
             <Select
               value={reasonCategory}
               onValueChange={(value) => setReasonCategory(value as BreakGlassReasonCategory)}
@@ -117,8 +120,8 @@ export function BreakGlassRequestDialog({
               </SelectTrigger>
               <SelectContent>
                 {REASON_CATEGORIES.map((category) => (
-                  <SelectItem key={category.value} value={category.value}>
-                    {category.label}
+                  <SelectItem key={category} value={category}>
+                    {t(`dashboard:breakGlass.reasonCategories.${category}`)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -126,7 +129,7 @@ export function BreakGlassRequestDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="break-glass-reason">Reason</Label>
+            <Label htmlFor="break-glass-reason">{t("dashboard:breakGlass.request.reason")}</Label>
             <Textarea
               id="break-glass-reason"
               value={reason}
@@ -134,10 +137,12 @@ export function BreakGlassRequestDialog({
               minLength={50}
               maxLength={2000}
               disabled={mutation.isPending}
-              placeholder="Describe the documented, policy-aligned reason for requesting exceptional access."
+              placeholder={t("dashboard:breakGlass.request.reasonPlaceholder")}
               className="min-h-32"
             />
-            <div className="text-xs text-muted-foreground">{reason.trim().length}/2000 characters</div>
+            <div className="text-xs text-muted-foreground">
+              {t("dashboard:breakGlass.request.characterCount", { count: reason.trim().length, max: 2000 })}
+            </div>
           </div>
 
           <label className="flex items-start gap-3 rounded-lg border p-3 text-sm">
@@ -147,8 +152,7 @@ export function BreakGlassRequestDialog({
               disabled={mutation.isPending}
             />
             <span>
-              I acknowledge this is exceptional, audited access and must not be used for routine
-              identity lookup.
+              {t("dashboard:breakGlass.request.acknowledgment")}
             </span>
           </label>
 
@@ -162,7 +166,7 @@ export function BreakGlassRequestDialog({
         <DialogFooter>
           <Button onClick={submit} disabled={mutation.isPending}>
             {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Submit request
+            {t("dashboard:breakGlass.request.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

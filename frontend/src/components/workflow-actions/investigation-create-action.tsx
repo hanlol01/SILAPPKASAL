@@ -147,7 +147,7 @@ export function InvestigationCreateAction({
                     <SelectContent>
                       {activeAssignments.map((assignment) => (
                         <SelectItem key={assignment.id} value={String(assignment.satgas_id)}>
-                          {assignment.satgas_name ?? `Satgas #${assignment.satgas_id}`}
+                          {assignment.satgas_name ?? t("dashboard:common.metadataUnavailable")}
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -69,46 +69,78 @@ import {
   labelOption,
 } from "@/lib/workflow-action-options";
 import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
+import type { TFunction } from "i18next";
 
 const today = new Date().toISOString().slice(0, 10);
-const requiredText = z.string().trim().min(1, "Required").max(10000, "Maximum 10000 characters");
-const optionalText = z.string().trim().max(10000, "Maximum 10000 characters").optional();
-const requiredDate = z.string().min(1, "Required").refine((value) => value <= today, "Date cannot be in the future");
 
-const caseStatusSchema = z.object({ status: z.string().min(1, "Required") });
-const activitySchema = z.object({
-  activity_type: z.enum(INVESTIGATION_ACTIVITY_TYPES),
-  activity_date: requiredDate,
-  description: requiredText,
-  findings: optionalText,
-  notes: optionalText,
-});
-const recommendationSchema = z.object({
-  conclusion: requiredText,
-  recommended_actions: requiredText,
-  sanction_recommendation: optionalText,
-  recovery_recommendation: optionalText,
-  prevention_recommendation: optionalText,
-});
-const decisionSchema = z.object({
-  outcome_code: z.enum(DECISION_OUTCOMES),
-  decision_number: z.string().trim().max(100, "Maximum 100 characters").optional(),
-  decision_date: requiredDate,
-  decision_summary: requiredText,
-  decision_content: z.string().trim().min(1, "Required").max(20000, "Maximum 20000 characters"),
-});
-const recoveryMonitoringSchema = z.object({
-  monitoring_date: requiredDate,
-  condition_summary: requiredText,
-  follow_up_plan: optionalText,
-  notes: optionalText,
-});
+function requiredText(t: TFunction, maximum = 10000) {
+  return z.string().trim()
+    .min(1, t("dashboard:workflow.required"))
+    .max(maximum, t(`dashboard:workflow.max${maximum}`));
+}
 
-type CaseStatusValues = z.infer<typeof caseStatusSchema>;
-type ActivityValues = z.infer<typeof activitySchema>;
-type RecommendationValues = z.infer<typeof recommendationSchema>;
-type DecisionValues = z.infer<typeof decisionSchema>;
-type RecoveryMonitoringValues = z.infer<typeof recoveryMonitoringSchema>;
+function optionalText(t: TFunction) {
+  return z.string().trim().max(10000, t("dashboard:workflow.max10000")).optional();
+}
+
+function requiredDate(t: TFunction) {
+  return z.string()
+    .min(1, t("dashboard:workflow.required"))
+    .refine((value) => value <= today, t("dashboard:workflow.dateFuture"));
+}
+
+function createCaseStatusSchema(t: TFunction) {
+  return z.object({ status: z.string().min(1, t("dashboard:workflow.required")) });
+}
+
+function createActivitySchema(t: TFunction) {
+  return z.object({
+    activity_type: z.enum(INVESTIGATION_ACTIVITY_TYPES, {
+      errorMap: () => ({ message: t("dashboard:workflow.required") }),
+    }),
+    activity_date: requiredDate(t),
+    description: requiredText(t),
+    findings: optionalText(t),
+    notes: optionalText(t),
+  });
+}
+
+function createRecommendationSchema(t: TFunction) {
+  return z.object({
+    conclusion: requiredText(t),
+    recommended_actions: requiredText(t),
+    sanction_recommendation: optionalText(t),
+    recovery_recommendation: optionalText(t),
+    prevention_recommendation: optionalText(t),
+  });
+}
+
+function createDecisionSchema(t: TFunction) {
+  return z.object({
+    outcome_code: z.enum(DECISION_OUTCOMES, {
+      errorMap: () => ({ message: t("dashboard:workflow.required") }),
+    }),
+    decision_number: z.string().trim().max(100, t("dashboard:workflow.max100")).optional(),
+    decision_date: requiredDate(t),
+    decision_summary: requiredText(t),
+    decision_content: requiredText(t, 20000),
+  });
+}
+
+function createRecoveryMonitoringSchema(t: TFunction) {
+  return z.object({
+    monitoring_date: requiredDate(t),
+    condition_summary: requiredText(t),
+    follow_up_plan: optionalText(t),
+    notes: optionalText(t),
+  });
+}
+
+type CaseStatusValues = z.infer<ReturnType<typeof createCaseStatusSchema>>;
+type ActivityValues = z.infer<ReturnType<typeof createActivitySchema>>;
+type RecommendationValues = z.infer<ReturnType<typeof createRecommendationSchema>>;
+type DecisionValues = z.infer<ReturnType<typeof createDecisionSchema>>;
+type RecoveryMonitoringValues = z.infer<ReturnType<typeof createRecoveryMonitoringSchema>>;
 interface EvidenceMetadataValues {
   evidence_type_code: string;
   title: string;
@@ -138,7 +170,7 @@ export function CaseStatusAction({
     queryFn: () => getMasterData("case-statuses"),
   });
   const form = useForm<CaseStatusValues>({
-    resolver: zodResolver(caseStatusSchema),
+    resolver: zodResolver(createCaseStatusSchema(t)),
     defaultValues: { status: "" },
   });
   const mutation = useMutation({
@@ -253,7 +285,7 @@ export function InvestigationActivityAction({
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const form = useForm<ActivityValues>({
-    resolver: zodResolver(activitySchema),
+    resolver: zodResolver(createActivitySchema(t)),
     defaultValues: {
       activity_type: "case_review",
       activity_date: today,
@@ -328,7 +360,7 @@ export function RecommendationUpdateAction({
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const form = useForm<RecommendationValues>({
-    resolver: zodResolver(recommendationSchema),
+    resolver: zodResolver(createRecommendationSchema(t)),
     defaultValues: {
       conclusion: recommendation.conclusion ?? "",
       recommended_actions: recommendation.recommended_actions ?? "",
@@ -401,7 +433,7 @@ export function DecisionUpdateAction({
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const form = useForm<DecisionValues>({
-    resolver: zodResolver(decisionSchema),
+    resolver: zodResolver(createDecisionSchema(t)),
     defaultValues: {
       outcome_code: asDecisionOutcome(decision.outcome_code),
       decision_number: decision.decision_number ?? "",
@@ -476,7 +508,7 @@ export function RecoveryMonitoringAction({
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const form = useForm<RecoveryMonitoringValues>({
-    resolver: zodResolver(recoveryMonitoringSchema),
+    resolver: zodResolver(createRecoveryMonitoringSchema(t)),
     defaultValues: {
       monitoring_date: today,
       condition_summary: "",
@@ -557,7 +589,9 @@ export function EvidenceMetadataAction({ evidence }: { evidence: EvidenceMetadat
           .string()
           .optional()
           .refine((value) => !value || value <= today, t("dashboard:workflow.dateFuture")),
-        classification: z.enum(EVIDENCE_CLASSIFICATIONS).optional(),
+        classification: z.enum(EVIDENCE_CLASSIFICATIONS, {
+          errorMap: () => ({ message: t("dashboard:workflow.required") }),
+        }).optional(),
       }),
     [t],
   );

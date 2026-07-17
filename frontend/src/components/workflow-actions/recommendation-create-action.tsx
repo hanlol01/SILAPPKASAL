@@ -26,22 +26,29 @@ import {
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
+import { formatDateTime } from "@/lib/format";
 import { createRecommendation, operationsQueryKeys } from "@/lib/operations-api";
 import type { Investigation } from "@/lib/operations-types";
 import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
-const requiredText = z.string().trim().min(1, "Required").max(10000, "Maximum 10000 characters");
-const optionalText = z.string().trim().max(10000, "Maximum 10000 characters").optional();
+function createRecommendationSchema(t: ReturnType<typeof useTranslation>["t"]) {
+  const requiredText = z.string().trim()
+    .min(1, t("dashboard:workflow.required"))
+    .max(10000, t("dashboard:workflow.max10000"));
+  const optionalText = z.string().trim()
+    .max(10000, t("dashboard:workflow.max10000"))
+    .optional();
 
-const recommendationCreateSchema = z.object({
-  conclusion: requiredText,
-  recommended_actions: requiredText,
-  sanction_recommendation: optionalText,
-  recovery_recommendation: optionalText,
-  prevention_recommendation: optionalText,
-});
+  return z.object({
+    conclusion: requiredText,
+    recommended_actions: requiredText,
+    sanction_recommendation: optionalText,
+    recovery_recommendation: optionalText,
+    prevention_recommendation: optionalText,
+  });
+}
 
-type RecommendationCreateValues = z.infer<typeof recommendationCreateSchema>;
+type RecommendationCreateValues = z.infer<ReturnType<typeof createRecommendationSchema>>;
 
 export function RecommendationCreateAction({
   caseId,
@@ -54,7 +61,7 @@ export function RecommendationCreateAction({
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const form = useForm<RecommendationCreateValues>({
-    resolver: zodResolver(recommendationCreateSchema),
+    resolver: zodResolver(createRecommendationSchema(t)),
     defaultValues: {
       conclusion: "",
       recommended_actions: "",
@@ -90,12 +97,9 @@ export function RecommendationCreateAction({
 
   const usingInvestigationCopy = investigation.completed_at
     ? t("dashboard:workflow.recommendationCreateUsingInvestigationCompleted", {
-        id: investigation.id,
         completedAt: formatDateTime(investigation.completed_at, i18n.language),
       })
-    : t("dashboard:workflow.recommendationCreateUsingInvestigation", {
-        id: investigation.id,
-      });
+    : t("dashboard:workflow.recommendationCreateUsingInvestigation");
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -171,12 +175,4 @@ function nullifyEmpty<T extends Record<string, unknown>>(values: T): T {
   return Object.fromEntries(
     Object.entries(values).map(([key, value]) => [key, value === "" ? null : value]),
   ) as T;
-}
-
-function formatDateTime(value: string, language: string) {
-  const locale = language?.startsWith("id") ? "id-ID" : "en";
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
 }

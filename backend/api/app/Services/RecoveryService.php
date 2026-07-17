@@ -100,7 +100,8 @@ class RecoveryService
         return Recovery::query()
             ->where('decision_id', $decision->id)
             ->with($this->detailRelations())
-            ->latest()
+            ->latest('created_at')
+            ->latest('id')
             ->get();
     }
 
@@ -319,7 +320,8 @@ class RecoveryService
         return $recovery->monitorings()
             ->with('monitor')
             ->latest('monitoring_date')
-            ->latest()
+            ->latest('created_at')
+            ->latest('id')
             ->get();
     }
 

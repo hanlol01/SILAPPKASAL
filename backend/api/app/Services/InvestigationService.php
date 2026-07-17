@@ -86,6 +86,7 @@ class InvestigationService
             ->with(['case', 'status', 'leadInvestigator'])
             ->withCount('activities')
             ->latest('started_at')
+            ->latest('id')
             ->get();
     }
 

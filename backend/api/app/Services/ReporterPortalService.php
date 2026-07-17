@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Enums\CaseStatus as CaseStatusEnum;
-use App\Enums\ReportStatus;
+use App\Enums\ReporterSafeStatus;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -37,6 +37,7 @@ class ReporterPortalService
         return $this->ownedReportsQuery($user)
             ->with(['category', 'case.status'])
             ->latest('submitted_at')
+            ->latest('id')
             ->paginate($perPage)
             ->through(fn (Report $report): Report => $this->withPortalStatus($report));
     }
@@ -93,7 +94,14 @@ class ReporterPortalService
             $events[] = ['stage' => 'selesai', 'occurred_at' => $case->closed_at];
         }
 
-        usort($events, static fn (array $a, array $b): int => $a['occurred_at'] <=> $b['occurred_at']);
+        $stageOrder = array_flip(['laporan_dikirim', 'laporan_ditinjau', 'proses_penanganan', 'selesai']);
+        usort($events, static function (array $a, array $b) use ($stageOrder): int {
+            $timeComparison = $a['occurred_at'] <=> $b['occurred_at'];
+
+            return $timeComparison !== 0
+                ? $timeComparison
+                : ($stageOrder[$a['stage']] ?? PHP_INT_MAX) <=> ($stageOrder[$b['stage']] ?? PHP_INT_MAX);
+        });
 
         return [
             'registration_number' => $report->registration_number,
@@ -125,18 +133,6 @@ class ReporterPortalService
 
     private function portalStatus(Report $report): string
     {
-        if ($report->relationLoaded('case') && $report->case?->relationLoaded('status')) {
-            if ($report->case->status?->name === CaseStatusEnum::Closed->value) {
-                return 'Completed';
-            }
-
-            return 'In Process';
-        }
-
-        return match ($report->status) {
-            ReportStatus::Submitted->value => 'Submitted',
-            ReportStatus::Forwarded->value => 'In Process',
-            default => 'Under Review',
-        };
+        return ReporterSafeStatus::forReport($report)->value;
     }
 }

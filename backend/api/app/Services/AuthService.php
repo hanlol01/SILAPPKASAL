@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\ReporterRegistrationStatus;
 use App\Models\ReporterRegistration;
 use App\Models\User;
+use App\Support\ApiErrorCode;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Hash;
 
@@ -23,7 +24,8 @@ class AuthService
 
             throw new HttpResponseException(response()->json([
                 'success' => false,
-                'message' => 'Email/NIM/NIP atau password salah',
+                'message' => __('api.errors.invalid_credentials'),
+                'error_code' => ApiErrorCode::InvalidCredentials,
                 'errors' => null,
             ], 401));
         }
@@ -31,7 +33,8 @@ class AuthService
         if (! $user->is_active) {
             throw new HttpResponseException(response()->json([
                 'success' => false,
-                'message' => 'Akun Anda telah dinonaktifkan. Hubungi admin.',
+                'message' => __('api.errors.account_inactive'),
+                'error_code' => ApiErrorCode::AccountInactive,
                 'errors' => null,
             ], 403));
         }
@@ -96,7 +99,8 @@ class AuthService
             ])
             ->whereNotNull('password_hash')
             ->whereRaw('LOWER(email) = ?', [mb_strtolower($identifier)])
-            ->latest()
+            ->latest('created_at')
+            ->latest('id')
             ->first();
 
         if (! $registration || ! Hash::check($password, (string) $registration->password_hash)) {

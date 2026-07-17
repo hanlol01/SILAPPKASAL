@@ -16,6 +16,7 @@ import {
   type FacultyPayload,
 } from "@/lib/campus-admin-api";
 import { ApiError } from "@/lib/api-client";
+import { apiErrorMessage } from "@/lib/form-errors";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -74,7 +75,7 @@ function FacultiesPage() {
       toast.success(t("dashboard:masterData.facultyStatusUpdated"));
       invalidate();
     },
-    onError: (error) => toast.error(error instanceof ApiError ? error.message : t("dashboard:masterData.facultyStatusError")),
+    onError: (error) => toast.error(apiErrorMessage(error, t("dashboard:masterData.facultyStatusError"))),
   });
 
   return (
@@ -208,7 +209,7 @@ function FacultyDialog({
     onError: (error) => {
       if (error instanceof ApiError) {
         setErrors(error.errors ?? {});
-        toast.error(error.message);
+        toast.error(apiErrorMessage(error, t("dashboard:masterData.facultySaveError")));
       }
     },
   });

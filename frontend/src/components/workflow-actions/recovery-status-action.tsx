@@ -42,11 +42,7 @@ import {
 import type { Recovery } from "@/lib/operations-types";
 import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
-const recoveryStatusSchema = z.object({
-  status: z.string().min(1, "Required"),
-});
-
-type RecoveryStatusValues = z.infer<typeof recoveryStatusSchema>;
+type RecoveryStatusValues = { status: string };
 
 export function RecoveryStatusAction({
   recovery,
@@ -65,7 +61,9 @@ export function RecoveryStatusAction({
     staleTime: 30_000,
   });
   const form = useForm<RecoveryStatusValues>({
-    resolver: zodResolver(recoveryStatusSchema),
+    resolver: zodResolver(z.object({
+      status: z.string().min(1, t("dashboard:workflow.required")),
+    })),
     defaultValues: { status: "" },
   });
 

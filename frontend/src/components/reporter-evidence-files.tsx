@@ -146,6 +146,11 @@ function ReporterFileRow({
                 imageAlt: t("dashboard:cases.reporterEvidence.previewImageAlt", { name: file.original_filename }),
                 pdfTitle: t("dashboard:cases.reporterEvidence.previewPdfTitle", { name: file.original_filename }),
                 pdfFallback: t("dashboard:cases.reporterEvidence.previewPdfFallback"),
+                zoomIn: t("dashboard:cases.reporterEvidence.previewZoomIn"),
+                zoomOut: t("dashboard:cases.reporterEvidence.previewZoomOut"),
+                resetZoom: t("dashboard:cases.reporterEvidence.previewResetZoom"),
+                fit: t("dashboard:cases.reporterEvidence.previewFit"),
+                controls: t("dashboard:cases.reporterEvidence.previewControls"),
               }}
             />
           )}

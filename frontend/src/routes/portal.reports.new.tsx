@@ -113,12 +113,6 @@ function NewPortalReportPage() {
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
-      if (hasLaravelMessage(error, "incident_time", "validation.date_format")) {
-        form.setError("incident_time", {
-          type: "server",
-          message: t("portal:reportWizard.invalidTimeFormat"),
-        });
-      }
       const errorStep = stepForLaravelErrors(error);
       if (errorStep) setStep(errorStep);
       toast.error(apiErrorMessage(error, t("common:unexpectedError")));
@@ -550,11 +544,6 @@ function stepForLaravelErrors(error: unknown): WizardStep | null {
 
 function hasAny(values: string[], candidates: string[]) {
   return candidates.some((candidate) => values.includes(candidate));
-}
-
-function hasLaravelMessage(error: unknown, field: string, message: string) {
-  if (!(error instanceof ApiError) || !error.errors?.[field]) return false;
-  return error.errors[field].some((item) => item.includes(message));
 }
 
 function toReportPayload(values: z.infer<ReturnType<typeof createWizardSchema>>): ReportSubmissionPayload {

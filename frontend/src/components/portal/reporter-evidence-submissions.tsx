@@ -241,6 +241,11 @@ function EvidenceFileList({
                   imageAlt: t("evidenceFiles.previewImageAlt", { name: file.original_filename }),
                   pdfTitle: t("evidenceFiles.previewPdfTitle", { name: file.original_filename }),
                   pdfFallback: t("evidenceFiles.previewPdfFallback"),
+                  zoomIn: t("evidenceFiles.previewZoomIn"),
+                  zoomOut: t("evidenceFiles.previewZoomOut"),
+                  resetZoom: t("evidenceFiles.previewResetZoom"),
+                  fit: t("evidenceFiles.previewFit"),
+                  controls: t("evidenceFiles.previewControls"),
                 }}
               />
             )}

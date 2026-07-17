@@ -33,13 +33,13 @@ class DashboardFilterRequest extends FormRequest
             $dateFrom = $this->dateFrom($dateTo);
 
             if ($dateFrom->greaterThan($dateTo)) {
-                $validator->errors()->add('date_from', 'The date_from must be before or equal to date_to.');
+                $validator->errors()->add('date_from', __('validation.custom.date_from.before_or_equal_date_to'));
 
                 return;
             }
 
             if ($dateFrom->diffInDays($dateTo) > 366) {
-                $validator->errors()->add('date_from', 'The dashboard date range may not be greater than 366 days.');
+                $validator->errors()->add('date_from', __('validation.custom.date_from.max_dashboard_range'));
             }
         });
     }

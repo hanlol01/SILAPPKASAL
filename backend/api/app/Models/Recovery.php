@@ -64,6 +64,9 @@ class Recovery extends Model
 
     public function monitorings(): HasMany
     {
-        return $this->hasMany(RecoveryMonitoring::class);
+        return $this->hasMany(RecoveryMonitoring::class)
+            ->orderByDesc('monitoring_date')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
     }
 }

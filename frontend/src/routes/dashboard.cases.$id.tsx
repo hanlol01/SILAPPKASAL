@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   ArrowLeft,
@@ -68,13 +68,14 @@ import {
   RecoveryMonitoringAction,
 } from "@/components/workflow-actions/workflow-action-dialogs";
 import { useAuth } from "@/hooks/use-auth";
-import { formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import {
   formatCaseStatus,
   formatDecisionOutcome,
   formatEvidenceClassification,
   formatEvidenceType,
   formatPriorityLevel,
+  formatRecoveryType,
   formatRiskLevel,
 } from "@/lib/format-labels";
 import {
@@ -99,6 +100,7 @@ const WORKFLOW_TABS = ["investigation", "recommendation", "decision", "recovery"
 type WorkflowTab = (typeof WORKFLOW_TABS)[number];
 
 const WORKFLOW_TAB_FALLBACK: WorkflowTab = "investigation";
+const CASE_WORKFLOW_TAB_CLASS = "relative shrink-0 whitespace-nowrap rounded-none bg-transparent px-3 py-2 shadow-none after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:origin-center after:scale-x-0 after:rounded-full after:bg-primary after:transition-transform hover:bg-muted/60 hover:text-foreground motion-reduce:transition-none motion-reduce:after:transition-none data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:after:scale-x-100";
 const WORKFLOW_TAB_BY_TOKEN: Record<string, WorkflowTab> = {
   "4": "investigation",
   csts_07: "investigation",
@@ -160,6 +162,11 @@ function CaseDetail() {
   const { user, roleCode } = useAuth();
   const { t, i18n } = useTranslation(["dashboard"]);
   const [caseStatusAvailable, setCaseStatusAvailable] = useState(true);
+  const [workflowTabSelection, setWorkflowTabSelection] = useState<{
+    context: string;
+    value: WorkflowTab;
+  } | null>(null);
+  const workflowTabListRef = useRef<HTMLDivElement | null>(null);
   const caseQuery = useQuery({
     queryKey: operationsQueryKeys.case(id),
     queryFn: () => getCase(id),
@@ -214,6 +221,14 @@ function CaseDetail() {
   const evidences = evidenceQueries.flatMap((query) => query.data ?? []);
 
   useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      scrollActiveWorkflowTabIntoView(workflowTabListRef.current);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [caseQuery.data?.id, caseQuery.data?.status, caseQuery.data?.status_code, workflowTabSelection]);
+
+  useEffect(() => {
     setCaseStatusAvailable(true);
   }, [caseQuery.data?.status_code]);
 
@@ -230,6 +245,15 @@ function CaseDetail() {
   }
 
   const c = caseQuery.data;
+  const workflowTabContext = `${c.id}:${normalizeWorkflowToken(c.status ?? c.status_code)}`;
+  const activeWorkflowTab = workflowTabSelection?.context === workflowTabContext
+    ? workflowTabSelection.value
+    : defaultWorkflowTabForCase(c);
+
+  function handleWorkflowTabChange(value: string) {
+    if (!isWorkflowTab(value)) return;
+    setWorkflowTabSelection({ context: workflowTabContext, value });
+  }
   const isAdminRole = roleCode === "super_admin" || roleCode === "admin";
   const canManageAssignments =
     isAdminRole && Boolean(user?.permissions?.includes("cases.assign_satgas"));
@@ -294,7 +318,6 @@ function CaseDetail() {
     || (canUseSatgasActions && c.status === "assessment")
     || canCreateInvestigation
     || canCreateRecovery;
-  const defaultWorkflowTab = defaultWorkflowTabForCase(c);
   const restrictedLabel = restrictedRoleLabel(t, roleCode);
   const nextStepText = nextStepMessage(
     t,
@@ -375,8 +398,8 @@ function CaseDetail() {
               <Field label={t("dashboard:common.priority")}>
                 {c.priority ? <PriorityLevelBadge value={c.priority} /> : formatPriorityValue(t, c.priority)}
               </Field>
-              <Field label={t("dashboard:common.forwarded")}>{formatDate(c.forwarded_at, i18n.language)}</Field>
-              <Field label={t("dashboard:common.closed")}>{formatDate(c.closed_at, i18n.language)}</Field>
+              <Field label={t("dashboard:common.forwarded")}>{formatDateTime(c.forwarded_at, i18n.language)}</Field>
+              <Field label={t("dashboard:common.closed")}>{formatDateTime(c.closed_at, i18n.language)}</Field>
             </CardContent>
           </Card>
 
@@ -402,22 +425,22 @@ function CaseDetail() {
           </Card>
 
           <SensitiveReportSection report={c.report} roleLabel={restrictedLabel} t={t} />
-          <Tabs defaultValue={defaultWorkflowTab} className="w-full min-w-0">
-            <div className="w-full min-w-0 overscroll-x-contain overflow-x-auto">
-              <TabsList className="h-auto w-max min-w-full flex-nowrap justify-start">
-                <TabsTrigger value="investigation" className="shrink-0 whitespace-nowrap">
+          <Tabs value={activeWorkflowTab} onValueChange={handleWorkflowTabChange} className="w-full min-w-0">
+            <div className="w-full min-w-0 overscroll-x-contain overflow-x-auto" ref={workflowTabListRef}>
+              <TabsList className="h-auto min-w-max flex-nowrap justify-start rounded-none border-b border-border bg-transparent p-0">
+                <TabsTrigger value="investigation" className={CASE_WORKFLOW_TAB_CLASS}>
                   {t("dashboard:cases.tabInvestigation")}
                 </TabsTrigger>
-                <TabsTrigger value="recommendation" className="shrink-0 whitespace-nowrap">
+                <TabsTrigger value="recommendation" className={CASE_WORKFLOW_TAB_CLASS}>
                   {t("dashboard:cases.tabRecommendation")}
                 </TabsTrigger>
-                <TabsTrigger value="decision" className="shrink-0 whitespace-nowrap">
+                <TabsTrigger value="decision" className={CASE_WORKFLOW_TAB_CLASS}>
                   {t("dashboard:cases.tabDecision")}
                 </TabsTrigger>
-                <TabsTrigger value="recovery" className="shrink-0 whitespace-nowrap">
+                <TabsTrigger value="recovery" className={CASE_WORKFLOW_TAB_CLASS}>
                   {t("dashboard:cases.tabRecovery")}
                 </TabsTrigger>
-                <TabsTrigger value="evidence" className="shrink-0 whitespace-nowrap">
+                <TabsTrigger value="evidence" className={CASE_WORKFLOW_TAB_CLASS}>
                   {t("dashboard:cases.tabEvidence")}
                 </TabsTrigger>
               </TabsList>
@@ -522,10 +545,10 @@ function CaseDetail() {
               {(c.assignments ?? []).map((assignment) => (
                 <div key={assignment.id} className="min-w-0 rounded-lg border p-3 text-sm">
                   <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">
-                    {assignment.satgas_name ?? `Satgas #${assignment.satgas_id}`}
+                    {assignment.satgas_name ?? t("dashboard:common.metadataUnavailable")}
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {assignment.is_lead ? t("dashboard:cases.leadSatgas") : t("dashboard:cases.assignedSatgas")} - {formatDate(assignment.assigned_at, i18n.language)}
+                    {assignment.is_lead ? t("dashboard:cases.leadSatgas") : t("dashboard:cases.assignedSatgas")} - {formatDateTime(assignment.assigned_at, i18n.language)}
                   </div>
                 </div>
               ))}
@@ -688,7 +711,7 @@ function InvestigationsSection({
       {investigations.map((item) => (
         <div key={item.id} className="min-w-0 rounded-lg border p-3 text-sm">
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.investigationNumber", { id: item.id })}</div>
+            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.investigationNumber")}</div>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <WorkflowStatusBadge family="investigation" status={item.status} />
               {canAddActivity && <InvestigationActivityAction investigation={item} caseId={caseId} />}
@@ -699,7 +722,7 @@ function InvestigationsSection({
           </div>
           <div className="mt-2 grid min-w-0 gap-2 text-muted-foreground sm:grid-cols-2">
             <div className="min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.lead")}: {item.lead_investigator?.name ?? t("dashboard:common.metadataUnavailable")}</div>
-            <div className="min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.started")}: {formatDate(item.started_at, language)}</div>
+            <div className="min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.started")}: {formatDateTime(item.started_at, language)}</div>
           </div>
           {item.plan_summary || item.findings || item.conclusion ? (
             <div className="mt-3 min-w-0 space-y-2">
@@ -753,7 +776,7 @@ function RecommendationsSection({
       {recommendations.map((item) => (
         <div key={item.id} className="min-w-0 rounded-lg border p-3 text-sm">
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.recommendationNumber", { id: item.id })}</div>
+            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.recommendationNumber")}</div>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <WorkflowStatusBadge family="recommendation" status={item.status} />
               {canUpdate && canEditRecommendation(item) && hasRecommendationDetail(item) && (
@@ -784,7 +807,7 @@ function RecommendationsSection({
                 <Field label={t("dashboard:workflow.approvalRecord")}>
                   {t("dashboard:workflow.approvedByAt", {
                     name: item.leadership_review.approved_by?.name ?? t("dashboard:common.metadataUnavailable"),
-                    date: formatDate(item.leadership_review.approved_at, language),
+                    date: formatDateTime(item.leadership_review.approved_at, language),
                   })}
                 </Field>
               )}
@@ -836,7 +859,7 @@ function DecisionsSection({
       {decisions.map((item) => (
         <div key={item.id} className="min-w-0 rounded-lg border p-3 text-sm">
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.decisionNumber", { id: item.id })}</div>
+            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{item.decision_number?.trim() || t("dashboard:sections.decisionNumber")}</div>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <WorkflowStatusBadge family="decision" status={item.status} />
               {canUpdate && canEditDecision(item) && <DecisionUpdateAction decision={item} caseId={caseId} />}
@@ -888,7 +911,7 @@ function RecoveriesSection({
       {recoveries.map((item) => (
         <div key={item.id} className="min-w-0 rounded-lg border p-3 text-sm">
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{item.recovery_type?.name ?? t("dashboard:sections.recoveryNumber", { id: item.id })}</div>
+            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{recoveryDisplayLabel(t, item, recoveries)}</div>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <WorkflowStatusBadge family="recovery" status={item.status} />
               {canAddMonitoring && item.status === "ongoing" && (
@@ -1212,6 +1235,20 @@ function isWorkflowTab(value: string): value is WorkflowTab {
   return (WORKFLOW_TABS as readonly string[]).includes(value);
 }
 
+function scrollActiveWorkflowTabIntoView(container: HTMLDivElement | null) {
+  const activeTab = container?.querySelector<HTMLElement>(`[data-state="active"]`);
+  if (!container || !activeTab) return;
+
+  const containerBounds = container.getBoundingClientRect();
+  const activeBounds = activeTab.getBoundingClientRect();
+
+  if (activeBounds.left < containerBounds.left) {
+    container.scrollLeft -= containerBounds.left - activeBounds.left;
+  } else if (activeBounds.right > containerBounds.right) {
+    container.scrollLeft += activeBounds.right - containerBounds.right;
+  }
+}
+
 function asText(value: unknown) {
   return typeof value === "string" && value ? value : "-";
 }
@@ -1247,21 +1284,26 @@ function mostRecentCompletedInvestigation(items: Investigation[]) {
     const aTime = a.completed_at ? new Date(a.completed_at).getTime() : 0;
     const bTime = b.completed_at ? new Date(b.completed_at).getTime() : 0;
 
-    return bTime - aTime;
+    return bTime - aTime || b.id - a.id;
   })[0];
 }
 
 function selectEvidenceInvestigation(items: Investigation[]) {
   return (
-    items.find((item) => {
+    [...items]
+      .filter((item) => {
       const status = normalizeWorkflowToken(item.status ?? item.status_code);
       return status !== "completed" && status !== "invs_08";
-    }) ?? null
+      })
+      .sort((a, b) => compareNewest(a.started_at ?? a.created_at, a.id, b.started_at ?? b.created_at, b.id))[0]
+    ?? null
   );
 }
 
 function acceptedRecommendationForDecision(items: Recommendation[]) {
-  return items.find((item) => item.status === "accepted") ?? null;
+  return [...items]
+    .filter((item) => item.status === "accepted")
+    .sort((a, b) => compareNewest(a.created_at, a.id, b.created_at, b.id))[0] ?? null;
 }
 
 function recommendationGuidance(
@@ -1291,7 +1333,38 @@ function decisionGuidance(
 }
 
 function finalizedDecision(items: Decision[]) {
-  return items.find((item) => item.status === "finalized") ?? null;
+  return [...items]
+    .filter((item) => item.status === "finalized")
+    .sort((a, b) => compareNewest(a.created_at, a.id, b.created_at, b.id))[0] ?? null;
+}
+
+function compareNewest(
+  aDate: string | null | undefined,
+  aId: number,
+  bDate: string | null | undefined,
+  bId: number,
+) {
+  const aTime = aDate ? new Date(aDate).getTime() : 0;
+  const bTime = bDate ? new Date(bDate).getTime() : 0;
+  return bTime - aTime || bId - aId;
+}
+
+function recoveryDisplayLabel(t: TFunction, item: Recovery, items: Recovery[]) {
+  const typeValue = item.recovery_type?.code ?? item.recovery_type?.name;
+  const typeKey = normalizeWorkflowToken(typeValue) || "recovery";
+  const matchingItems = items.filter((candidate) => (
+    (normalizeWorkflowToken(candidate.recovery_type?.code ?? candidate.recovery_type?.name) || "recovery") === typeKey
+  ));
+  const typeLabel = typeValue
+    ? formatRecoveryType(t, typeValue)
+    : t("dashboard:sections.recoveryNumber");
+
+  if (matchingItems.length < 2) return typeLabel;
+
+  return t("dashboard:sections.recoveryTypeSequence", {
+    type: typeLabel,
+    sequence: matchingItems.findIndex((candidate) => candidate.id === item.id) + 1,
+  });
 }
 
 /**
@@ -1372,19 +1445,15 @@ function caseProgressEvents(
   ];
 
   return candidates
-    .flatMap((candidate) => (candidate.at ? [{ ...candidate, at: candidate.at }] : []))
-    .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
+    .flatMap((candidate, order) => (candidate.at ? [{ ...candidate, at: candidate.at, order }] : []))
+    .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime() || a.order - b.order)
     .map((candidate) => ({
       id: candidate.id,
       title: t(`dashboard:cases.progress.events.${candidate.key}`),
-      timestamp: formatDate(candidate.at, language),
+      timestamp: formatDateTime(candidate.at, language),
       description: t(`dashboard:cases.progress.events.${candidate.key}Desc`),
       icon: candidate.icon,
     }));
-}
-
-function formatDate(value: string | null | undefined, language: string) {
-  return formatDateTime(value, language);
 }
 
 function formatRiskValue(t: TFunction, value: unknown) {

@@ -90,7 +90,8 @@ class RecommendationService
         return Recommendation::query()
             ->where('case_id', $case->id)
             ->with(['case', 'status', 'author'])
-            ->latest()
+            ->latest('created_at')
+            ->latest('id')
             ->get();
     }
 

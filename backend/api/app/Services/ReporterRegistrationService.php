@@ -9,6 +9,7 @@ use App\Enums\ReporterRegistrationStatus;
 use App\Models\ReporterRegistration;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\ApiErrorCode;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -73,7 +74,8 @@ class ReporterRegistrationService
             ->when(! empty($filters['search']), fn (Builder $query): Builder => $this->applyRegistrationSearch($query, (string) $filters['search']))
             ->when(! empty($filters['status']), fn ($query) => $query->where('status', $filters['status']))
             ->when(! empty($filters['university_id']), fn ($query) => $query->where('university_id', $filters['university_id']))
-            ->latest()
+            ->latest('created_at')
+            ->latest('id')
             ->paginate((int) ($filters['per_page'] ?? 15));
     }
 
@@ -90,7 +92,7 @@ class ReporterRegistrationService
             $this->ensureNoActiveUserDuplicate($registration->email, $registration->nim, $registration->university_id);
 
             if (! $registration->password_hash) {
-                throw $this->unprocessable('Registration password is no longer available for approval');
+                throw $this->unprocessable(ApiErrorCode::RegistrationPasswordUnavailable);
             }
 
             $role = Role::query()->where('code', 'reporter')->firstOrFail();
@@ -150,7 +152,7 @@ class ReporterRegistrationService
             ->first();
 
         if (! $registration || ! Hash::check((string) $data['password'], (string) $registration->password_hash)) {
-            throw $this->unprocessable('Invalid registration credentials');
+            throw $this->unprocessable(ApiErrorCode::RegistrationInvalidCredentials);
         }
 
         $newNim = $this->normalizeNim($data['nim']);
@@ -256,7 +258,7 @@ class ReporterRegistrationService
     private function ensurePending(ReporterRegistration $registration): void
     {
         if ($registration->status !== ReporterRegistrationStatus::Pending) {
-            throw $this->unprocessable('Only pending reporter registrations can be reviewed');
+            throw $this->unprocessable(ApiErrorCode::RegistrationNotPending);
         }
     }
 
@@ -274,7 +276,7 @@ class ReporterRegistrationService
             ->exists();
 
         if ($emailExists || $nimExists) {
-            throw $this->unprocessable('An active account already exists for this email or NIM in the selected university');
+            throw $this->unprocessable(ApiErrorCode::RegistrationDuplicateActive);
         }
     }
 
@@ -292,7 +294,7 @@ class ReporterRegistrationService
             ->when($excludeId, fn (Builder $query): Builder => $query->whereKeyNot($excludeId));
 
         if ($emailQuery->exists() || $nimQuery->exists()) {
-            throw $this->unprocessable('A pending registration already exists for this email or NIM in the selected university');
+            throw $this->unprocessable(ApiErrorCode::RegistrationDuplicatePending);
         }
     }
 
@@ -338,7 +340,7 @@ class ReporterRegistrationService
             }
         }
 
-        throw $this->unprocessable('Unable to generate reporter registration number');
+        throw $this->unprocessable(ApiErrorCode::RegistrationNumberUnavailable);
     }
 
     private function normalizeEmail(string $email): string
@@ -351,11 +353,12 @@ class ReporterRegistrationService
         return trim($nim);
     }
 
-    private function unprocessable(string $message): HttpResponseException
+    private function unprocessable(string $errorCode): HttpResponseException
     {
         return new HttpResponseException(response()->json([
             'success' => false,
-            'message' => $message,
+            'message' => __("api.errors.{$errorCode}"),
+            'error_code' => $errorCode,
             'errors' => null,
         ], 422));
     }

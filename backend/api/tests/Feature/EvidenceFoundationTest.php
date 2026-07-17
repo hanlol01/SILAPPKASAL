@@ -83,6 +83,32 @@ class EvidenceFoundationTest extends TestCase
         ]);
     }
 
+    public function test_evidence_list_uses_id_as_a_deterministic_timestamp_tie_breaker(): void
+    {
+        $admin = $this->makeUser('admin', 'admin@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
+        $investigation = $this->makeInvestigation($admin, $satgas);
+
+        $this->actingAsApi($satgas);
+        $firstEvidenceId = $this->postJson(
+            "/api/v1/investigations/{$investigation->id}/evidences",
+            $this->evidencePayload(['title' => 'Bukti pertama']),
+        )->assertCreated()->json('data.id');
+        $secondEvidenceId = $this->postJson(
+            "/api/v1/investigations/{$investigation->id}/evidences",
+            $this->evidencePayload(['title' => 'Bukti kedua']),
+        )->assertCreated()->json('data.id');
+
+        Evidence::query()
+            ->whereIn('id', [$firstEvidenceId, $secondEvidenceId])
+            ->update(['created_at' => now()->startOfSecond()]);
+
+        $this->getJson("/api/v1/investigations/{$investigation->id}/evidences")
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $secondEvidenceId)
+            ->assertJsonPath('data.1.id', $firstEvidenceId);
+    }
+
     public function test_admin_super_admin_reporter_and_unassigned_satgas_have_no_default_evidence_access(): void
     {
         $admin = $this->makeUser('admin', 'admin@university.ac.id');

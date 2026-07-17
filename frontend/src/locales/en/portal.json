@@ -101,6 +101,13 @@
   "trackingLoading": "Tracking...",
   "trackingError": "Report could not be tracked.",
   "trackingInvalidFormat": "Tracking code format is invalid.",
+  "statusCodes": {
+    "submitted": "Submitted",
+    "under_review": "Under review",
+    "in_process": "In process",
+    "completed": "Completed",
+    "unknown": "Report status"
+  },
   "myReports": "My Reports",
   "myReportsSubtitle": "All reports you have submitted.",
   "searchPlaceholder": "Search by registration number, status, category...",
@@ -154,6 +161,11 @@
     "previewImageAlt": "Preview of {{name}}",
     "previewPdfTitle": "PDF preview of {{name}}",
     "previewPdfFallback": "If the PDF does not appear in your browser, use the Download button.",
+    "previewZoomIn": "Zoom in",
+    "previewZoomOut": "Zoom out",
+    "previewResetZoom": "Reset to 100%",
+    "previewFit": "Fit to screen",
+    "previewControls": "Image viewing controls",
     "uploadSuccess": "The supporting file was uploaded.",
     "downloadSuccess": "The supporting file was downloaded.",
     "loadError": "The supporting file list could not be loaded.",
@@ -215,6 +227,58 @@
   "noNotifications": "No notifications",
   "noNotificationsDesc": "You'll be notified when there are updates to your reports.",
   "notificationsAdvisory": "These notifications are read-only and will be marked automatically when you open the related report.",
+  "notificationContent": {
+    "case_assigned": {
+      "title": "Report handling started",
+      "body": "Your report has been forwarded for handling.",
+      "type": "Report update"
+    },
+    "case_status_changed": {
+      "title": "Report status updated",
+      "body": "There is a new development in the handling of your report.",
+      "type": "Status update"
+    },
+    "investigation_update": {
+      "title": "Report handling updated",
+      "body": "There is an update in the handling of your report.",
+      "type": "Handling update"
+    },
+    "recommendation_update": {
+      "title": "Follow-up process updated",
+      "body": "There is an update in the follow-up process for your report.",
+      "type": "Follow-up update"
+    },
+    "decision_update": {
+      "title": "Report handling updated",
+      "body": "There is a new update in the handling of your report.",
+      "type": "Handling update"
+    },
+    "recovery_update": {
+      "title": "Recovery support updated",
+      "body": "There is an update in the recovery support related to your report.",
+      "type": "Recovery update"
+    },
+    "privacy_notice": {
+      "title": "Privacy notice",
+      "body": "Report identity access was performed through the official procedure and recorded in the audit trail.",
+      "type": "Privacy"
+    },
+    "break_glass_approved": {
+      "title": "Emergency access request approved",
+      "body": "The identity access request was processed through the official procedure.",
+      "type": "Emergency access"
+    },
+    "break_glass_denied": {
+      "title": "Emergency access request denied",
+      "body": "The identity access request was not approved.",
+      "type": "Emergency access"
+    },
+    "default": {
+      "title": "Report update",
+      "body": "There is an update related to your report.",
+      "type": "Notification"
+    }
+  },
   
   "account": "Account",
   "accountSubtitle": "Manage your profile and security settings.",

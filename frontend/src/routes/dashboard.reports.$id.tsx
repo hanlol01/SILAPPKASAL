@@ -145,7 +145,7 @@ function ReportDetailPage() {
                     activeAssignments.map((assignment) => (
                       <div key={assignment.satgas_id} className="min-w-0 rounded-md border p-3 text-sm">
                         <p className="min-w-0 break-words font-medium [overflow-wrap:anywhere]">
-                          {assignment.satgas_name ?? `Satgas #${assignment.satgas_id}`}
+                          {assignment.satgas_name ?? t("dashboard:common.metadataUnavailable")}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
                           {assignment.is_lead

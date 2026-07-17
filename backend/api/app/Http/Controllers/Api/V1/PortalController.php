@@ -5,11 +5,12 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\NotificationIndexRequest;
 use App\Http\Requests\PortalReportIndexRequest;
-use App\Http\Resources\NotificationResource;
+use App\Http\Resources\PortalNotificationResource;
 use App\Http\Resources\PortalReportResource;
 use App\Http\Resources\PortalReportTimelineResource;
 use App\Http\Resources\PortalSummaryResource;
 use App\Services\ReporterPortalService;
+use App\Support\ApiErrorCode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 
@@ -61,7 +62,8 @@ class PortalController extends Controller
         if (! $report) {
             return response()->json([
                 'success' => false,
-                'message' => 'Portal report not found',
+                'message' => __('api.errors.portal_report_not_found'),
+                'error_code' => ApiErrorCode::PortalReportNotFound,
                 'errors' => null,
             ], 404);
         }
@@ -82,7 +84,8 @@ class PortalController extends Controller
         if (! $timeline) {
             return response()->json([
                 'success' => false,
-                'message' => 'Portal report not found',
+                'message' => __('api.errors.portal_report_not_found'),
+                'error_code' => ApiErrorCode::PortalReportNotFound,
                 'errors' => null,
             ], 404);
         }
@@ -109,7 +112,7 @@ class PortalController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Portal notifications retrieved successfully',
-            'data' => NotificationResource::collection($notifications->items()),
+            'data' => PortalNotificationResource::collection($notifications->items()),
             'meta' => [
                 'current_page' => $notifications->currentPage(),
                 'per_page' => $notifications->perPage(),

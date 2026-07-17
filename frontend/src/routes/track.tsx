@@ -7,8 +7,9 @@ import { toast } from "sonner";
 import { Search } from "lucide-react";
 import { z } from "zod";
 
-import { ApiError } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/format";
+import { apiErrorMessage } from "@/lib/form-errors";
+import { portalStatusLabel } from "@/lib/portal-labels";
 import { trackReport } from "@/lib/portal-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,11 +40,9 @@ function TrackPage() {
     onError: (err) => {
       form.setError("tracking_code", {
         type: "server",
-        message: err instanceof ApiError ? err.message : t("portal:trackingError"),
+        message: apiErrorMessage(err, t("portal:trackingError")),
       });
-      if (!(err instanceof ApiError)) {
-        toast.error(t("common:unexpectedError"));
-      }
+      toast.error(apiErrorMessage(err, t("portal:trackingError")));
     },
   });
 
@@ -91,7 +90,7 @@ function TrackPage() {
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted-foreground">{t("portal:status")}</dt>
-                  <dd className="font-medium">{result.status}</dd>
+                  <dd className="font-medium">{portalStatusLabel(t, result.status)}</dd>
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted-foreground">{t("portal:submitted")}</dt>

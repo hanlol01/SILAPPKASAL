@@ -32,7 +32,9 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: 'id',
+    supportedLngs: ['id', 'en'],
+    load: 'languageOnly',
+    nonExplicitSupportedLngs: true,
     fallbackLng: 'id',
     ns: ['common', 'auth', 'portal', 'dashboard'],
     defaultNS: 'common',
@@ -42,6 +44,7 @@ i18n
     detection: {
       order: ['localStorage'],
       caches: ['localStorage'],
+      lookupLocalStorage: 'i18nextLng',
     },
   });
 

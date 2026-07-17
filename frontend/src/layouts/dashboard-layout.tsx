@@ -135,10 +135,10 @@ function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border">
-        <div className="flex items-center gap-2 px-2 py-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-sidebar-primary/10">
-            <img src="/Logo.ico" alt="" aria-hidden="true" className="h-7 w-7 object-contain" />
+      <SidebarHeader className="border-b border-sidebar-border group-data-[collapsible=icon]:p-0">
+        <div className="flex min-w-0 items-center gap-2 px-2 py-2 group-data-[collapsible=icon]:h-12 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-sidebar-primary/10 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8">
+            <img src="/Logo.ico" alt="" aria-hidden="true" className="h-7 w-7 object-contain group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:w-6" />
           </div>
           <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
             <span className="text-sm font-semibold text-sidebar-foreground">{t("dashboard:brand.name")}</span>

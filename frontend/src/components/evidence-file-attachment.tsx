@@ -160,6 +160,11 @@ export function EvidenceFileAttachment({
                     imageAlt: t("dashboard:sections.evidenceAttachment.previewImageAlt", { name: attachment.original_filename }),
                     pdfTitle: t("dashboard:sections.evidenceAttachment.previewPdfTitle", { name: attachment.original_filename }),
                     pdfFallback: t("dashboard:sections.evidenceAttachment.previewPdfFallback"),
+                    zoomIn: t("dashboard:sections.evidenceAttachment.previewZoomIn"),
+                    zoomOut: t("dashboard:sections.evidenceAttachment.previewZoomOut"),
+                    resetZoom: t("dashboard:sections.evidenceAttachment.previewResetZoom"),
+                    fit: t("dashboard:sections.evidenceAttachment.previewFit"),
+                    controls: t("dashboard:sections.evidenceAttachment.previewControls"),
                   }}
                 />
               )}

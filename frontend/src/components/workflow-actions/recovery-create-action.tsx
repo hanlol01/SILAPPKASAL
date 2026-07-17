@@ -38,17 +38,23 @@ import { createRecovery, operationsQueryKeys } from "@/lib/operations-api";
 import type { Decision } from "@/lib/operations-types";
 import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
-const requiredText = z.string().trim().min(1, "Required").max(10000, "Maximum 10000 characters");
-const optionalText = z.string().trim().max(10000, "Maximum 10000 characters").optional();
+function createRecoverySchema(t: ReturnType<typeof useTranslation>["t"]) {
+  const requiredText = z.string().trim()
+    .min(1, t("dashboard:workflow.required"))
+    .max(10000, t("dashboard:workflow.max10000"));
+  const optionalText = z.string().trim()
+    .max(10000, t("dashboard:workflow.max10000"))
+    .optional();
 
-const recoveryCreateSchema = z.object({
-  recovery_type_code: z.string().min(1, "Required"),
-  recovery_plan: requiredText,
-  support_needs: optionalText,
-  notes: optionalText,
-});
+  return z.object({
+    recovery_type_code: z.string().min(1, t("dashboard:workflow.required")),
+    recovery_plan: requiredText,
+    support_needs: optionalText,
+    notes: optionalText,
+  });
+}
 
-type RecoveryCreateValues = z.infer<typeof recoveryCreateSchema>;
+type RecoveryCreateValues = z.infer<ReturnType<typeof createRecoverySchema>>;
 
 export function RecoveryCreateAction({
   decision,
@@ -66,7 +72,7 @@ export function RecoveryCreateAction({
     enabled: open,
   });
   const form = useForm<RecoveryCreateValues>({
-    resolver: zodResolver(recoveryCreateSchema),
+    resolver: zodResolver(createRecoverySchema(t)),
     defaultValues: {
       recovery_type_code: "",
       recovery_plan: "",

@@ -1,10 +1,9 @@
 import { Bell, BellDot, Info, FileText, AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { formatDate } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import {
-  portalNotificationBody,
-  portalNotificationTypeLabel,
+  portalNotificationContent,
 } from "@/lib/portal-labels";
 import type { PortalNotification } from "@/lib/portal-types";
 import { useTranslation } from "react-i18next";
@@ -15,14 +14,17 @@ import { useTranslation } from "react-i18next";
  */
 function typeIcon(type: string) {
   switch (type) {
-    case "report_status":
-    case "status_update":
+    case "case_assigned":
+    case "case_status_changed":
+    case "investigation_update":
+    case "recommendation_update":
+    case "decision_update":
+    case "recovery_update":
       return FileText;
-    case "reminder":
-    case "warning":
+    case "break_glass_denied":
       return AlertTriangle;
-    case "info":
-    case "system":
+    case "privacy_notice":
+    case "break_glass_approved":
       return Info;
     default:
       return Bell;
@@ -45,9 +47,10 @@ interface PortalNotificationItemProps {
 export function PortalNotificationItem({
   notification,
 }: PortalNotificationItemProps) {
-  const { i18n } = useTranslation(["portal"]);
+  const { t, i18n } = useTranslation(["portal"]);
   const isUnread = notification.read_at === null;
-  const Icon = typeIcon(notification.type);
+  const content = portalNotificationContent(t, notification);
+  const Icon = typeIcon(content.iconToken);
 
   return (
     <Card
@@ -78,20 +81,16 @@ export function PortalNotificationItem({
                 isUnread ? "font-medium" : "text-muted-foreground",
               )}
             >
-              {notification.title}
+              {content.title}
             </p>
             {isUnread && (
               <BellDot className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
             )}
           </div>
-          {notification.body ? (
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {portalNotificationBody(notification.body, i18n.language)}
-            </p>
-          ) : null}
+          <p className="mt-0.5 text-sm text-muted-foreground">{content.body}</p>
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-            <span>{portalNotificationTypeLabel(notification.type, i18n.language)}</span>
-            <span>{formatDate(notification.created_at, i18n.language)}</span>
+            <span>{content.typeLabel}</span>
+            <span>{formatDateTime(notification.created_at, i18n.language)}</span>
           </div>
         </div>
       </CardContent>

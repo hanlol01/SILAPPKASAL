@@ -170,6 +170,7 @@ class ReporterSelfServiceFoundationTest extends TestCase
             'password' => 'NewSecurePass123',
             'password_confirmation' => 'NewSecurePass123',
         ])->assertUnprocessable()
+            ->assertJsonPath('error_code', 'current_password_incorrect')
             ->assertJsonValidationErrors(['current_password']);
 
         $this->patchJson('/api/v1/me/change-password', [

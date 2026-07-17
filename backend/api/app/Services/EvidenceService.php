@@ -83,7 +83,8 @@ class EvidenceService
         return Evidence::query()
             ->where('investigation_id', $investigation->id)
             ->with($this->summaryRelations())
-            ->latest()
+            ->latest('created_at')
+            ->latest('id')
             ->get();
     }
 
@@ -170,7 +171,8 @@ class EvidenceService
         return $evidence->custodyEvents()
             ->with('actor')
             ->oldest('event_at')
-            ->oldest()
+            ->oldest('created_at')
+            ->oldest('id')
             ->get();
     }
 

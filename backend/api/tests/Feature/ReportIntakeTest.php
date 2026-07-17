@@ -120,15 +120,18 @@ class ReportIntakeTest extends TestCase
         $this->getJson("/api/v1/reports/track/{$report->tracking_code}")
             ->assertOk()
             ->assertJsonPath('data.registration_number', $report->registration_number)
+            ->assertJsonPath('data.status', 'submitted')
             ->assertJsonMissingPath('data.chronology')
             ->assertJsonMissingPath('data.incident_location')
-            ->assertJsonMissingPath('data.reporter_phone');
+            ->assertJsonMissingPath('data.reporter_phone')
+            ->assertJsonMissingPath('data.case');
 
         $report->delete();
 
         $this->getJson("/api/v1/reports/track/{$report->tracking_code}")
             ->assertNotFound()
-            ->assertJsonPath('success', false);
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error_code', 'tracking_not_found');
     }
 
     public function test_reporter_can_read_own_reports_only(): void
@@ -222,12 +225,32 @@ class ReportIntakeTest extends TestCase
             ->assertJsonPath('success', false);
     }
 
+    public function test_incident_time_validation_uses_the_requested_api_locale(): void
+    {
+        $reporter = $this->makeUser('reporter');
+        Sanctum::actingAs($reporter, ['*']);
+
+        $this->withHeader('Accept-Language', 'id')
+            ->postJson('/api/v1/reports', $this->payload(['incident_time' => '76:76']))
+            ->assertUnprocessable()
+            ->assertHeader('Content-Language', 'id')
+            ->assertJsonPath('error_code', 'validation_failed')
+            ->assertJsonPath('errors.incident_time.0', 'Format waktu tidak valid.');
+
+        $this->withHeader('Accept-Language', 'en')
+            ->postJson('/api/v1/reports', $this->payload(['incident_time' => '76:76']))
+            ->assertUnprocessable()
+            ->assertHeader('Content-Language', 'en')
+            ->assertJsonPath('error_code', 'validation_failed')
+            ->assertJsonPath('errors.incident_time.0', 'Invalid time format.');
+    }
+
     public function test_partial_respondent_information_requires_complete_respondent_context(): void
     {
         $reporter = $this->makeUser('reporter');
         Sanctum::actingAs($reporter, ['*']);
 
-        $this->postJson('/api/v1/reports', $this->payload([
+        $this->withHeader('Accept-Language', 'id')->postJson('/api/v1/reports', $this->payload([
             'respondent_name' => 'Nama Terlapor',
             'respondent_campus_status' => null,
             'respondent_relation' => null,
@@ -238,7 +261,11 @@ class ReportIntakeTest extends TestCase
                 'respondent_campus_status',
                 'respondent_relation',
                 'respondent_details',
-            ]);
+            ])
+            ->assertJsonPath(
+                'errors.respondent_campus_status.0',
+                'Lengkapi nama, status kampus, relasi, dan detail pihak terlapor jika informasi pihak terlapor diisi.',
+            );
     }
 
     public function test_witness_information_without_respondent_context_is_allowed(): void

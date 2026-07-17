@@ -27,7 +27,7 @@ import {
 import { formatDate } from "@/lib/format";
 import { useAuth } from "@/hooks/use-auth";
 import { hasPortalAccess } from "@/lib/auth-roles";
-import { ApiError } from "@/lib/api-client";
+import { apiErrorMessage, laravelFieldErrors } from "@/lib/form-errors";
 import { useTranslation } from "react-i18next";
 import type {
   PortalProfileUpdatePayload,
@@ -47,27 +47,7 @@ export const Route = createFileRoute("/portal/account")({
   }),
 });
 
-// ---------------------------------------------------------------------------
-// Helper: extract field errors from ApiError (Laravel 422)
-// ---------------------------------------------------------------------------
-
 type FieldErrors = Record<string, string>;
-
-function extractFieldErrors(err: unknown): FieldErrors {
-  if (err instanceof ApiError && err.errors) {
-    const flat: FieldErrors = {};
-    for (const [key, messages] of Object.entries(err.errors)) {
-      if (messages.length > 0) flat[key] = messages[0];
-    }
-    return flat;
-  }
-  return {};
-}
-
-function errorMessage(err: unknown): string {
-  if (err instanceof ApiError) return err.message;
-  return "An unexpected error occurred.";
-}
 
 // ---------------------------------------------------------------------------
 // Main page
@@ -153,11 +133,11 @@ function ProfileSection({
       setFieldErrors({});
     },
     onError: (err) => {
-      const fe = extractFieldErrors(err);
+      const fe = laravelFieldErrors(err);
       if (Object.keys(fe).length > 0) {
         setFieldErrors(fe);
       } else {
-        toast.error(err instanceof ApiError ? err.message : t("common:unexpectedError"));
+        toast.error(apiErrorMessage(err, t("common:unexpectedError")));
       }
     },
   });
@@ -349,11 +329,11 @@ function ChangePasswordSection() {
       setFieldErrors({});
     },
     onError: (err) => {
-      const fe = extractFieldErrors(err);
+      const fe = laravelFieldErrors(err);
       if (Object.keys(fe).length > 0) {
         setFieldErrors(fe);
       } else {
-        toast.error(err instanceof ApiError ? err.message : t("common:unexpectedError"));
+        toast.error(apiErrorMessage(err, t("common:unexpectedError")));
       }
     },
   });

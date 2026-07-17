@@ -18,7 +18,6 @@ import {
 } from "@/lib/admin-users-api";
 import { campusQueryKeys, getFaculties, getStudyPrograms, getUniversities } from "@/lib/registration-api";
 import { useAuth } from "@/hooks/use-auth";
-import { ApiError } from "@/lib/api-client";
 import type { ApiUser } from "@/lib/api-types";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import {
@@ -127,7 +126,7 @@ function DashboardUsersPage() {
       setResetConfirmationEmail("");
       invalidate();
     },
-    onError: (error) => toast.error(error instanceof ApiError ? error.message : t("dashboard:users.passwordResetError")),
+    onError: (error) => toast.error(apiErrorMessage(error, t("dashboard:users.passwordResetError"))),
   });
 
   if (!canAccess) return <Navigate to="/dashboard" replace />;

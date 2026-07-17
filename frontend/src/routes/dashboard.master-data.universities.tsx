@@ -14,6 +14,7 @@ import {
   type UniversityPayload,
 } from "@/lib/campus-admin-api";
 import { ApiError } from "@/lib/api-client";
+import { apiErrorMessage } from "@/lib/form-errors";
 import { Inbox, SearchX } from "lucide-react";
 import {
   AlertDialog,
@@ -81,7 +82,7 @@ function UniversitiesPage() {
       toast.success(t("dashboard:masterData.universityStatusUpdated"));
       invalidate();
     },
-    onError: (error) => toast.error(error instanceof ApiError ? error.message : t("dashboard:masterData.universityStatusError")),
+    onError: (error) => toast.error(apiErrorMessage(error, t("dashboard:masterData.universityStatusError"))),
   });
 
   return (
@@ -243,7 +244,7 @@ function UniversityDialog({
     onError: (error) => {
       if (error instanceof ApiError) {
         setErrors(error.errors ?? {});
-        toast.error(error.message);
+        toast.error(apiErrorMessage(error, t("dashboard:masterData.universitySaveError")));
       }
     },
   });

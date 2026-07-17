@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\ReportStatus;
 use App\Models\Report;
 use App\Models\User;
+use App\Support\ApiErrorCode;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -23,7 +24,8 @@ class ReportService
         if (! $user instanceof User) {
             throw new HttpResponseException(response()->json([
                 'success' => false,
-                'message' => 'Unauthenticated',
+                'message' => __('api.errors.unauthenticated'),
+                'error_code' => ApiErrorCode::Unauthenticated,
                 'errors' => null,
             ], 401));
         }
@@ -33,7 +35,8 @@ class ReportService
         if (! $user->is_active) {
             throw new HttpResponseException(response()->json([
                 'success' => false,
-                'message' => 'Akun Anda telah dinonaktifkan. Hubungi admin.',
+                'message' => __('api.errors.account_inactive'),
+                'error_code' => ApiErrorCode::AccountInactive,
                 'errors' => null,
             ], 403));
         }
@@ -41,7 +44,8 @@ class ReportService
         if (! $user->hasPermission('reports.create')) {
             throw new HttpResponseException(response()->json([
                 'success' => false,
-                'message' => 'You do not have permission to perform this action',
+                'message' => __('api.errors.forbidden'),
+                'error_code' => ApiErrorCode::Forbidden,
                 'errors' => null,
             ], 403));
         }
@@ -61,14 +65,16 @@ class ReportService
         if (! $canReadAll && ! $canReadOwn) {
             throw new HttpResponseException(response()->json([
                 'success' => false,
-                'message' => 'You do not have permission to perform this action',
+                'message' => __('api.errors.forbidden'),
+                'error_code' => ApiErrorCode::Forbidden,
                 'errors' => null,
             ], 403));
         }
 
         $query = Report::query()
             ->with(['category', 'priorityLevel'])
-            ->latest('submitted_at');
+            ->latest('submitted_at')
+            ->latest('id');
 
         if (! $canReadAll) {
             $query

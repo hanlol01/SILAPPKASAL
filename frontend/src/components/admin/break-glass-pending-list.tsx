@@ -26,8 +26,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/format";
+import { apiErrorMessage } from "@/lib/form-errors";
 import {
   approveBreakGlass,
   denyBreakGlass,
@@ -131,7 +131,11 @@ export function BreakGlassPendingList({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="text-sm">{prettifyToken(request.reason_category)}</div>
+                  <div className="text-sm">
+                    {t(`dashboard:breakGlass.reasonCategories.${request.reason_category}`, {
+                      defaultValue: t("dashboard:breakGlass.reasonCategories.other"),
+                    })}
+                  </div>
                   <div className="mt-1 line-clamp-2 max-w-md text-xs text-muted-foreground">
                     {request.reason}
                   </div>
@@ -245,7 +249,7 @@ function invalidateBreakGlass(queryClient: ReturnType<typeof useQueryClient>) {
 }
 
 function errorMessage(error: unknown, fallback: string) {
-  return error instanceof ApiError ? error.message : fallback;
+  return apiErrorMessage(error, fallback);
 }
 
 function translateStatus(t: TFunction, value: string) {

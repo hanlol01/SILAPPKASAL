@@ -101,7 +101,8 @@ class DecisionService
         return Decision::query()
             ->where('recommendation_id', $recommendation->id)
             ->with($this->detailRelations())
-            ->latest()
+            ->latest('created_at')
+            ->latest('id')
             ->get();
     }
 

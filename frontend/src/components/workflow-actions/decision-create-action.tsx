@@ -42,18 +42,29 @@ import { DECISION_OUTCOMES } from "@/lib/workflow-action-options";
 import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
 const today = new Date().toISOString().slice(0, 10);
-const requiredDate = z.string().min(1, "Required").refine((value) => value <= today, "Date cannot be in the future");
-const requiredText = z.string().trim().min(1, "Required").max(10000, "Maximum 10000 characters");
 
-const decisionCreateSchema = z.object({
-  outcome_code: z.enum(DECISION_OUTCOMES),
-  decision_number: z.string().trim().max(100, "Maximum 100 characters").optional(),
-  decision_date: requiredDate,
-  decision_summary: requiredText,
-  decision_content: z.string().trim().min(1, "Required").max(20000, "Maximum 20000 characters"),
-});
+function createDecisionSchema(t: ReturnType<typeof useTranslation>["t"]) {
+  const requiredDate = z.string()
+    .min(1, t("dashboard:workflow.required"))
+    .refine((value) => value <= today, t("dashboard:workflow.dateFuture"));
+  const requiredText = z.string().trim()
+    .min(1, t("dashboard:workflow.required"))
+    .max(10000, t("dashboard:workflow.max10000"));
 
-type DecisionCreateValues = z.infer<typeof decisionCreateSchema>;
+  return z.object({
+    outcome_code: z.enum(DECISION_OUTCOMES, {
+      errorMap: () => ({ message: t("dashboard:workflow.required") }),
+    }),
+    decision_number: z.string().trim().max(100, t("dashboard:workflow.max100")).optional(),
+    decision_date: requiredDate,
+    decision_summary: requiredText,
+    decision_content: z.string().trim()
+      .min(1, t("dashboard:workflow.required"))
+      .max(20000, t("dashboard:workflow.max20000")),
+  });
+}
+
+type DecisionCreateValues = z.infer<ReturnType<typeof createDecisionSchema>>;
 
 export function DecisionCreateAction({
   recommendation,
@@ -66,7 +77,7 @@ export function DecisionCreateAction({
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const form = useForm<DecisionCreateValues>({
-    resolver: zodResolver(decisionCreateSchema),
+    resolver: zodResolver(createDecisionSchema(t)),
     defaultValues: {
       outcome_code: "accepted",
       decision_number: "",

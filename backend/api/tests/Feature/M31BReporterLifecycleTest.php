@@ -46,12 +46,18 @@ class M31BReporterLifecycleTest extends TestCase
         $faculty = $this->faculty('DEMO-UNIV', 'FT');
         $studyProgram = $this->studyProgram('DEMO-ST', 'MI');
 
-        $this->postJson('/api/v1/reporter-registrations', $this->registrationPayload([
+        $this->withHeader('Accept-Language', 'en')
+            ->postJson('/api/v1/reporter-registrations', $this->registrationPayload([
             'university_id' => $demoUniversity->id,
             'faculty_id' => $faculty->id,
             'study_program_id' => $studyProgram->id,
         ]))->assertUnprocessable()
-            ->assertJsonValidationErrors(['study_program_id']);
+            ->assertHeader('Content-Language', 'en')
+            ->assertJsonValidationErrors(['study_program_id'])
+            ->assertJsonPath(
+                'errors.study_program_id.0',
+                'The selected study program does not belong to the selected university.',
+            );
 
         $this->postJson('/api/v1/reporter-registrations', $this->registrationPayload([
             'university_id' => $demoCollege->id,
@@ -68,7 +74,7 @@ class M31BReporterLifecycleTest extends TestCase
         $this->postJson('/api/v1/reporter-registrations', $this->registrationPayload([
             'email' => 'second@example.test',
         ]))->assertUnprocessable()
-            ->assertJsonPath('message', 'A pending registration already exists for this email or NIM in the selected university');
+            ->assertJsonPath('error_code', 'registration_duplicate_pending');
 
         $otherUniversity = $this->university('DEMO-ST');
         $otherStudyProgram = $this->studyProgram('DEMO-ST', 'MI');
@@ -97,7 +103,7 @@ class M31BReporterLifecycleTest extends TestCase
             'identifier' => '230001',
             'password' => 'SecurePass123',
         ])->assertUnauthorized()
-            ->assertJsonPath('message', 'Email/NIM/NIP atau password salah');
+            ->assertJsonPath('error_code', 'invalid_credentials');
 
         $this->postJson('/api/v1/auth/login', [
             'identifier' => 'student@example.test',
@@ -142,7 +148,7 @@ class M31BReporterLifecycleTest extends TestCase
             'identifier' => '230001',
             'password' => 'SecurePass123',
         ])->assertUnauthorized()
-            ->assertJsonPath('message', 'Email/NIM/NIP atau password salah');
+            ->assertJsonPath('error_code', 'invalid_credentials');
 
         $this->patchJson('/api/v1/reporter-registrations/correct', array_merge($this->registrationPayload([
             'email' => 'student@example.test',

@@ -8,6 +8,8 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Validation\ValidationException;
+use App\Http\Middleware\SetApiLocale;
+use App\Support\ApiErrorCode;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prependToGroup('api', SetApiLocale::class);
+
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
             'permission' => \App\Http\Middleware\PermissionMiddleware::class,
@@ -30,7 +34,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed',
+                'message' => __('api.errors.validation_failed'),
+                'error_code' => ApiErrorCode::ValidationFailed,
                 'errors' => $e->errors(),
             ], 422);
         });
@@ -42,7 +47,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthenticated',
+                'message' => __('api.errors.unauthenticated'),
+                'error_code' => ApiErrorCode::Unauthenticated,
                 'errors' => null,
             ], 401);
         });
@@ -54,7 +60,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage() ?: 'You do not have permission to perform this action',
+                'message' => __('api.errors.forbidden'),
+                'error_code' => ApiErrorCode::Forbidden,
                 'errors' => null,
             ], 403);
         });
@@ -66,7 +73,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return response()->json([
                 'success' => false,
-                'message' => 'Too many requests. Please try again later.',
+                'message' => __('api.errors.too_many_requests'),
+                'error_code' => ApiErrorCode::TooManyRequests,
                 'errors' => null,
                 'retry_after' => (int) ($e->getHeaders()['Retry-After'] ?? 0),
             ], 429);

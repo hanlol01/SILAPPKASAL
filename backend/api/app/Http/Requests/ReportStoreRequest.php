@@ -103,7 +103,10 @@ class ReportStoreRequest extends FormRequest
             $hasWitnessContext = filled($this->input('witness_info'));
 
             if (! $hasRespondentContext && ! $hasWitnessContext) {
-                $validator->errors()->add('respondent_name', 'Provide respondent or witness information.');
+                $validator->errors()->add(
+                    'respondent_name',
+                    __('validation.custom.respondent_name.respondent_or_witness_required'),
+                );
 
                 return;
             }
@@ -114,7 +117,10 @@ class ReportStoreRequest extends FormRequest
 
             foreach ($respondentFields as $field) {
                 if (! filled($this->input($field))) {
-                    $validator->errors()->add($field, 'Complete respondent name, campus status, relationship, and details when respondent information is provided.');
+                    $validator->errors()->add(
+                        $field,
+                        __('validation.custom.respondent_name.respondent_context_complete'),
+                    );
                 }
             }
         });

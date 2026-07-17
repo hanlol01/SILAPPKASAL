@@ -101,6 +101,13 @@
   "trackingLoading": "Melacak...",
   "trackingError": "Laporan tidak dapat dilacak.",
   "trackingInvalidFormat": "Format kode pelacakan tidak valid.",
+  "statusCodes": {
+    "submitted": "Dikirim",
+    "under_review": "Dalam peninjauan",
+    "in_process": "Sedang diproses",
+    "completed": "Selesai",
+    "unknown": "Status laporan"
+  },
   "myReports": "Laporan Saya",
   "myReportsSubtitle": "Semua laporan yang telah Anda kirimkan.",
   "searchPlaceholder": "Cari berdasarkan nomor registrasi, status, kategori...",
@@ -154,6 +161,11 @@
     "previewImageAlt": "Pratinjau file {{name}}",
     "previewPdfTitle": "Pratinjau PDF {{name}}",
     "previewPdfFallback": "Jika PDF tidak tampil di peramban Anda, gunakan tombol Unduh.",
+    "previewZoomIn": "Perbesar",
+    "previewZoomOut": "Perkecil",
+    "previewResetZoom": "Atur ke 100%",
+    "previewFit": "Sesuaikan ke layar",
+    "previewControls": "Kontrol tampilan gambar",
     "uploadSuccess": "File pendukung berhasil diunggah.",
     "downloadSuccess": "File pendukung berhasil diunduh.",
     "loadError": "Daftar file pendukung tidak dapat dimuat.",
@@ -215,6 +227,58 @@
   "noNotifications": "Tidak ada notifikasi",
   "noNotificationsDesc": "Anda akan diberi tahu jika ada pembaruan pada laporan Anda.",
   "notificationsAdvisory": "Notifikasi ini hanya untuk dibaca dan akan ditandai otomatis saat Anda membuka laporan terkait.",
+  "notificationContent": {
+    "case_assigned": {
+      "title": "Laporan sedang ditangani",
+      "body": "Laporan Anda telah diteruskan untuk proses penanganan.",
+      "type": "Pembaruan laporan"
+    },
+    "case_status_changed": {
+      "title": "Status laporan diperbarui",
+      "body": "Terdapat perkembangan baru dalam penanganan laporan Anda.",
+      "type": "Pembaruan status"
+    },
+    "investigation_update": {
+      "title": "Proses penanganan diperbarui",
+      "body": "Terdapat perkembangan dalam proses penanganan laporan Anda.",
+      "type": "Pembaruan penanganan"
+    },
+    "recommendation_update": {
+      "title": "Proses tindak lanjut diperbarui",
+      "body": "Terdapat perkembangan dalam tindak lanjut laporan Anda.",
+      "type": "Pembaruan tindak lanjut"
+    },
+    "decision_update": {
+      "title": "Penanganan laporan diperbarui",
+      "body": "Terdapat perkembangan baru dalam penanganan laporan Anda.",
+      "type": "Pembaruan penanganan"
+    },
+    "recovery_update": {
+      "title": "Dukungan pemulihan diperbarui",
+      "body": "Terdapat perkembangan dalam dukungan pemulihan terkait laporan Anda.",
+      "type": "Pembaruan pemulihan"
+    },
+    "privacy_notice": {
+      "title": "Pemberitahuan privasi",
+      "body": "Akses identitas laporan telah dilakukan melalui prosedur resmi dan tercatat dalam audit.",
+      "type": "Privasi"
+    },
+    "break_glass_approved": {
+      "title": "Permintaan akses darurat disetujui",
+      "body": "Permintaan akses identitas telah diproses melalui prosedur resmi.",
+      "type": "Akses darurat"
+    },
+    "break_glass_denied": {
+      "title": "Permintaan akses darurat ditolak",
+      "body": "Permintaan akses identitas tidak disetujui.",
+      "type": "Akses darurat"
+    },
+    "default": {
+      "title": "Pembaruan laporan",
+      "body": "Terdapat pembaruan terkait laporan Anda.",
+      "type": "Notifikasi"
+    }
+  },
   
   "account": "Akun",
   "accountSubtitle": "Kelola profil dan pengaturan keamanan Anda.",

@@ -6,6 +6,7 @@
   "retry": "Coba Lagi",
   "signOut": "Keluar",
   "language": "Bahasa",
+  "toggleLanguage": "Ubah bahasa",
   "toggleTheme": "Ubah Tema",
   "unexpectedError": "Terjadi kesalahan yang tidak terduga.",
   "edit": "Ubah",
@@ -36,5 +37,23 @@
     "required": "Wajib diisi.",
     "email": "Masukkan alamat email yang valid.",
     "passwordConfirmationMismatch": "Konfirmasi kata sandi tidak cocok."
+  },
+  "apiErrors": {
+    "fallback": "Permintaan tidak dapat diproses. Silakan coba lagi.",
+    "validationFailed": "Periksa kembali data yang Anda masukkan.",
+    "unauthenticated": "Sesi Anda telah berakhir. Silakan masuk kembali.",
+    "forbidden": "Anda tidak memiliki izin untuk melakukan tindakan ini.",
+    "tooManyRequests": "Terlalu banyak permintaan. Silakan coba lagi nanti.",
+    "invalidCredentials": "Email, NIM, NIP, atau kata sandi salah.",
+    "accountInactive": "Akun Anda tidak aktif. Silakan hubungi administrator.",
+    "currentPasswordIncorrect": "Kata sandi saat ini salah.",
+    "registrationDuplicateActive": "Akun aktif dengan email atau NIM tersebut sudah terdaftar di universitas yang dipilih.",
+    "registrationDuplicatePending": "Pendaftaran dengan email atau NIM tersebut sedang menunggu peninjauan.",
+    "registrationInvalidCredentials": "Kredensial pendaftaran tidak valid.",
+    "registrationPasswordUnavailable": "Kata sandi pendaftaran tidak lagi tersedia untuk persetujuan.",
+    "registrationNotPending": "Pendaftaran ini tidak lagi menunggu peninjauan.",
+    "registrationNumberUnavailable": "Nomor pendaftaran tidak dapat dibuat. Silakan coba lagi.",
+    "trackingNotFound": "Kode pelacakan laporan tidak ditemukan.",
+    "portalReportNotFound": "Laporan tidak ditemukan."
   }
 }

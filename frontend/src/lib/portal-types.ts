@@ -28,7 +28,7 @@ export interface PortalReport {
   registration_number: string;
   report_type: string;
   category: string | null;
-  /** Backend-curated reporter-safe status label, e.g. "Under Review". */
+  /** Reporter-safe status code. Legacy display labels are normalized client-side. */
   portal_status: string;
   submitted_at: string | null;
 }
@@ -41,7 +41,7 @@ export interface PortalReportDetail {
   registration_number: string;
   report_type: string;
   category: string | null;
-  /** Backend-curated reporter-safe status label, e.g. "Under Review". */
+  /** Reporter-safe status code. Legacy display labels are normalized client-side. */
   portal_status: string;
   submitted_at: string | null;
 }
@@ -98,9 +98,12 @@ export interface PortalEvidenceFilesResult {
 
 export interface PortalNotification {
   id: string;
-  title: string;
-  body: string;
+  title?: string | null;
+  body?: string | null;
   type: string;
+  notification_type_code?: string | null;
+  event?: string | null;
+  data?: Record<string, unknown> | null;
   read_at: string | null;
   created_at: string;
 }

@@ -61,7 +61,10 @@ class ReportEvidenceSubmissionService
     {
         $this->authorizeReporter($actor, 'reporter_evidence.read.own');
         $report = $this->ownedReportOrFail($actor, $registrationNumber);
-        $files = $report->evidenceSubmissions()->latest('uploaded_at')->get();
+        $files = $report->evidenceSubmissions()
+            ->latest('uploaded_at')
+            ->latest('id')
+            ->get();
         $remainingSlots = max(0, self::MAX_FILES_PER_REPORT - $files->count());
 
         return [
@@ -190,6 +193,7 @@ class ReportEvidenceSubmissionService
         return ReportEvidenceSubmission::query()
             ->where('report_id', $case->report_id)
             ->latest('uploaded_at')
+            ->latest('id')
             ->get();
     }
 

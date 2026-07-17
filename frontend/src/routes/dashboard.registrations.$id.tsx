@@ -11,7 +11,7 @@ import {
   rejectReporterRegistration,
 } from "@/lib/registration-api";
 import { useAuth } from "@/hooks/use-auth";
-import { ApiError } from "@/lib/api-client";
+import { apiErrorMessage } from "@/lib/form-errors";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,7 +63,7 @@ function RegistrationDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["reporter-registrations"] });
       navigate({ to: "/dashboard/registrations" });
     },
-    onError: (error) => toast.error(error instanceof ApiError ? error.message : t("dashboard:registrations.approveError")),
+    onError: (error) => toast.error(apiErrorMessage(error, t("dashboard:registrations.approveError"))),
   });
 
   const rejectMutation = useMutation({
@@ -73,7 +73,7 @@ function RegistrationDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["reporter-registrations"] });
       navigate({ to: "/dashboard/registrations" });
     },
-    onError: (error) => toast.error(error instanceof ApiError ? error.message : t("dashboard:registrations.rejectError")),
+    onError: (error) => toast.error(apiErrorMessage(error, t("dashboard:registrations.rejectError"))),
   });
 
   if (!canAccess) return <Navigate to="/dashboard" replace />;

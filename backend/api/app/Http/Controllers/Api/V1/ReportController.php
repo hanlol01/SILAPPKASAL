@@ -14,6 +14,7 @@ use App\Http\Resources\ReportTrackingResource;
 use App\Models\Report;
 use App\Services\CaseService;
 use App\Services\ReportService;
+use App\Support\ApiErrorCode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -85,7 +86,8 @@ class ReportController extends Controller
         if (! $report) {
             return response()->json([
                 'success' => false,
-                'message' => 'Report tracking code not found',
+                'message' => __('api.errors.tracking_not_found'),
+                'error_code' => ApiErrorCode::TrackingNotFound,
                 'errors' => null,
             ], 404);
         }

@@ -1,5 +1,5 @@
-import { Download, Eye, FileWarning, Loader2, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Download, Eye, FileWarning, Loader2, Maximize2, Minus, Plus, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import type { AuthenticatedBlobResponse } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +30,16 @@ export interface SecureFilePreviewLabels {
   imageAlt: string;
   pdfTitle: string;
   pdfFallback: string;
+  zoomIn: string;
+  zoomOut: string;
+  resetZoom: string;
+  fit: string;
+  controls: string;
 }
+
+const MIN_IMAGE_ZOOM = 0.01;
+const MAX_IMAGE_ZOOM = 4;
+const IMAGE_ZOOM_STEP = 1.25;
 
 export function SecureFilePreviewDialog({
   fileKey,
@@ -53,12 +62,25 @@ export function SecureFilePreviewDialog({
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [resolvedMimeType, setResolvedMimeType] = useState<string | null>(null);
+  const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
+  const [fitScale, setFitScale] = useState(1);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [fitActive, setFitActive] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
   const objectUrlRef = useRef<string | null>(null);
   const requestRef = useRef(0);
   const openRef = useRef(false);
   const loadPreviewRef = useRef(loadPreview);
   const onPreviewLoadedRef = useRef(onPreviewLoaded);
+  const imageViewportRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+  } | null>(null);
   const normalizedExpectedMime = normalizePreviewMimeType(expectedMimeType);
 
   useEffect(() => {
@@ -85,6 +107,12 @@ export function SecureFilePreviewDialog({
     revokeObjectUrl();
     setObjectUrl(null);
     setResolvedMimeType(null);
+    setNaturalSize({ width: 0, height: 0 });
+    setFitScale(1);
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+    setFitActive(true);
+    dragRef.current = null;
     setStatus("loading");
 
     try {
@@ -175,10 +203,131 @@ export function SecureFilePreviewDialog({
       revokeObjectUrl();
       setObjectUrl(null);
       setResolvedMimeType(null);
+      setNaturalSize({ width: 0, height: 0 });
+      setFitScale(1);
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+      setFitActive(true);
+      dragRef.current = null;
       setStatus("idle");
     }
 
     setOpen(nextOpen);
+  }
+
+  const clampZoom = useCallback((value: number) => (
+    Math.min(MAX_IMAGE_ZOOM, Math.max(MIN_IMAGE_ZOOM, value))
+  ), []);
+
+  const clampPan = useCallback((nextPan: { x: number; y: number }, nextZoom = zoom) => {
+    const viewport = imageViewportRef.current;
+    if (!viewport || !naturalSize.width || !naturalSize.height) return { x: 0, y: 0 };
+
+    const bounds = viewport.getBoundingClientRect();
+    const maxX = Math.max(0, (naturalSize.width * nextZoom - bounds.width) / 2);
+    const maxY = Math.max(0, (naturalSize.height * nextZoom - bounds.height) / 2);
+
+    return {
+      x: Math.min(maxX, Math.max(-maxX, nextPan.x)),
+      y: Math.min(maxY, Math.max(-maxY, nextPan.y)),
+    };
+  }, [naturalSize.height, naturalSize.width, zoom]);
+
+  useEffect(() => {
+    const viewport = imageViewportRef.current;
+    if (!viewport || status !== "ready" || !resolvedMimeType?.startsWith("image/") || !naturalSize.width) {
+      return;
+    }
+
+    const updateFit = () => {
+      const bounds = viewport.getBoundingClientRect();
+      const nextFit = clampZoom(Math.min(
+        1,
+        Math.max(1, bounds.width - 24) / naturalSize.width,
+        Math.max(1, bounds.height - 24) / naturalSize.height,
+      ));
+      setFitScale(nextFit);
+      if (fitActive) {
+        setZoom(nextFit);
+        setPan({ x: 0, y: 0 });
+      }
+    };
+
+    updateFit();
+    const observer = new ResizeObserver(updateFit);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [clampZoom, fitActive, naturalSize.height, naturalSize.width, resolvedMimeType, status]);
+
+  useEffect(() => {
+    setPan((current) => clampPan(current, zoom));
+  }, [clampPan, zoom]);
+
+  function changeZoom(nextZoom: number) {
+    const boundedZoom = clampZoom(nextZoom);
+    setFitActive(false);
+    setZoom(boundedZoom);
+    setPan((current) => clampPan(current, boundedZoom));
+  }
+
+  function resetZoom() {
+    setFitActive(false);
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }
+
+  function fitImage() {
+    setFitActive(true);
+    setZoom(fitScale);
+    setPan({ x: 0, y: 0 });
+  }
+
+  function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (event.pointerType === "touch" || status !== "ready" || !resolvedMimeType?.startsWith("image/")) return;
+
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: pan.x,
+      originY: pan.y,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId || event.pointerType === "touch") return;
+
+    setPan(clampPan({
+      x: drag.originX + event.clientX - drag.startX,
+      y: drag.originY + event.clientY - drag.startY,
+    }));
+    event.preventDefault();
+  }
+
+  function handlePointerEnd(event: PointerEvent<HTMLDivElement>) {
+    if (dragRef.current?.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  function handleImageKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    const panStep = 24;
+    if (event.key === "+" || event.key === "=") changeZoom(zoom * IMAGE_ZOOM_STEP);
+    else if (event.key === "-") changeZoom(zoom / IMAGE_ZOOM_STEP);
+    else if (event.key === "0") resetZoom();
+    else if (event.key.toLowerCase() === "f") fitImage();
+    else if (event.key === "ArrowLeft") setPan((current) => clampPan({ ...current, x: current.x + panStep }));
+    else if (event.key === "ArrowRight") setPan((current) => clampPan({ ...current, x: current.x - panStep }));
+    else if (event.key === "ArrowUp") setPan((current) => clampPan({ ...current, y: current.y + panStep }));
+    else if (event.key === "ArrowDown") setPan((current) => clampPan({ ...current, y: current.y - panStep }));
+    else return;
+
+    event.preventDefault();
   }
 
   if (!isPreviewableMimeType(normalizedExpectedMime)) {
@@ -203,7 +352,36 @@ export function SecureFilePreviewDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex min-h-64 min-w-0 flex-1 items-center justify-center overflow-auto bg-muted/30 p-3 sm:p-5">
+        {status === "ready" && objectUrl && resolvedMimeType?.startsWith("image/") && (
+          <div className="flex min-w-0 flex-wrap items-center justify-center gap-1 border-b bg-background px-3 py-2" aria-label={labels.controls}>
+            <Button type="button" variant="ghost" size="icon" onClick={() => changeZoom(zoom / IMAGE_ZOOM_STEP)} aria-label={labels.zoomOut} title={labels.zoomOut}>
+              <Minus className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <span className="w-14 text-center text-xs tabular-nums text-muted-foreground" aria-live="polite">
+              {Math.round(zoom * 100)}%
+            </span>
+            <Button type="button" variant="ghost" size="icon" onClick={() => changeZoom(zoom * IMAGE_ZOOM_STEP)} aria-label={labels.zoomIn} title={labels.zoomIn}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={resetZoom} aria-label={labels.resetZoom} title={labels.resetZoom}>
+              100%
+            </Button>
+            <Button type="button" variant="ghost" size="icon" onClick={fitImage} aria-label={labels.fit} title={labels.fit}>
+              <Maximize2 className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </div>
+        )}
+
+        <div
+          ref={imageViewportRef}
+          className="relative flex min-h-64 min-w-0 flex-1 items-center justify-center overflow-auto bg-muted/30 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:p-5"
+          tabIndex={status === "ready" && resolvedMimeType?.startsWith("image/") ? 0 : undefined}
+          onKeyDown={handleImageKeyDown}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerEnd}
+          onPointerCancel={handlePointerEnd}
+        >
           {status === "loading" && (
             <div className="flex min-w-0 flex-col items-center gap-3 text-center text-sm text-muted-foreground" role="status">
               <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
@@ -228,7 +406,18 @@ export function SecureFilePreviewDialog({
             <img
               src={objectUrl}
               alt={labels.imageAlt}
-              className="max-h-[65dvh] max-w-full object-contain"
+              draggable={false}
+              onLoad={(event) => setNaturalSize({
+                width: event.currentTarget.naturalWidth,
+                height: event.currentTarget.naturalHeight,
+              })}
+              className="absolute left-1/2 top-1/2 max-w-none select-none object-contain motion-safe:transition-transform motion-safe:duration-150"
+              style={{
+                width: naturalSize.width || undefined,
+                height: naturalSize.height || undefined,
+                transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                touchAction: "auto",
+              }}
             />
           )}
 

@@ -72,16 +72,27 @@ class RecoveryFoundationTest extends TestCase
         $decision = $this->makeFinalizedDecision($case, $admin, $satgas);
 
         $this->actingAsApi($admin);
-        $this->postJson("/api/v1/decisions/{$decision->id}/recoveries", $this->recoveryPayload())
+        $firstRecoveryId = $this->postJson("/api/v1/decisions/{$decision->id}/recoveries", $this->recoveryPayload())
             ->assertCreated()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.status', RecoveryStatusEnum::Planned->value)
             ->assertJsonPath('data.recovery_plan', 'Rencana pendampingan korban secara berkala.')
             ->assertJsonMissingPath('data.decision.decision_content')
-            ->assertJsonMissingPath('data.recommendation.conclusion');
+            ->assertJsonMissingPath('data.recommendation.conclusion')
+            ->json('data.id');
 
-        $this->postJson("/api/v1/decisions/{$decision->id}/recoveries", $this->recoveryPayload())
-            ->assertCreated();
+        $secondRecoveryId = $this->postJson("/api/v1/decisions/{$decision->id}/recoveries", $this->recoveryPayload())
+            ->assertCreated()
+            ->json('data.id');
+
+        Recovery::query()
+            ->whereIn('id', [$firstRecoveryId, $secondRecoveryId])
+            ->update(['created_at' => now()->startOfSecond()]);
+
+        $this->getJson("/api/v1/decisions/{$decision->id}/recoveries")
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $secondRecoveryId)
+            ->assertJsonPath('data.1.id', $firstRecoveryId);
 
         $this->assertDatabaseCount('recoveries', 2);
         $this->assertDatabaseCount('recovery_status_histories', 2);

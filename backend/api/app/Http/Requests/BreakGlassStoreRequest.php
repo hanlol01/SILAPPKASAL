@@ -57,7 +57,7 @@ class BreakGlassStoreRequest extends FormRequest
                 $report = Report::query()->find($reportId);
 
                 if (! $report || $report->report_type !== 'anonymous') {
-                    $validator->errors()->add('report_id', 'Break-glass requests are only allowed for anonymous reports.');
+                    $validator->errors()->add('report_id', __('validation.custom.report_id.anonymous_only'));
 
                     return;
                 }
@@ -68,7 +68,7 @@ class BreakGlassStoreRequest extends FormRequest
                     ->exists();
 
                 if ($hasPendingRequest) {
-                    $validator->errors()->add('report_id', 'A pending break-glass request already exists for this report.');
+                    $validator->errors()->add('report_id', __('validation.custom.report_id.pending_access_exists'));
                 }
             },
         ];

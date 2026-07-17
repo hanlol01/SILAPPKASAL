@@ -41,11 +41,7 @@ import {
 import type { Decision } from "@/lib/operations-types";
 import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
-const decisionStatusSchema = z.object({
-  status: z.string().min(1, "Required"),
-});
-
-type DecisionStatusValues = z.infer<typeof decisionStatusSchema>;
+type DecisionStatusValues = { status: string };
 
 export function DecisionStatusAction({
   decision,
@@ -64,7 +60,9 @@ export function DecisionStatusAction({
     staleTime: 30_000,
   });
   const form = useForm<DecisionStatusValues>({
-    resolver: zodResolver(decisionStatusSchema),
+    resolver: zodResolver(z.object({
+      status: z.string().min(1, t("dashboard:workflow.required")),
+    })),
     defaultValues: { status: "" },
   });
 

@@ -40,11 +40,7 @@ import {
 import type { Investigation } from "@/lib/operations-types";
 import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
-const investigationStatusSchema = z.object({
-  status: z.string().min(1, "Required"),
-});
-
-type InvestigationStatusValues = z.infer<typeof investigationStatusSchema>;
+type InvestigationStatusValues = { status: string };
 
 export function InvestigationStatusAction({
   investigation,
@@ -63,7 +59,9 @@ export function InvestigationStatusAction({
     staleTime: 30_000,
   });
   const form = useForm<InvestigationStatusValues>({
-    resolver: zodResolver(investigationStatusSchema),
+    resolver: zodResolver(z.object({
+      status: z.string().min(1, t("dashboard:workflow.required")),
+    })),
     defaultValues: { status: "" },
   });
 

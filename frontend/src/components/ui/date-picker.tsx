@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { formatDate } from "@/lib/format";
 
 type DatePickerProps = Omit<ButtonProps, "value" | "onChange"> & {
   value: string;
@@ -37,7 +38,7 @@ const DatePicker = React.forwardRef<HTMLButtonElement, DatePickerProps>(
             {...props}
           >
             <CalendarIcon className="h-4 w-4" />
-            {selectedDate ? format(selectedDate, "d MMMM yyyy", { locale }) : placeholder}
+            {selectedDate ? formatDate(value, i18n.language) : placeholder}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">

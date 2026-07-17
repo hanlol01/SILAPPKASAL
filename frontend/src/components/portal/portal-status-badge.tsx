@@ -4,11 +4,12 @@ import { useTranslation } from "react-i18next";
 import {
   Clock,
   Eye,
-  Loader2,
+  LoaderCircle,
   CheckCircle2,
   HelpCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { portalStatusCode, portalStatusLabel } from "@/lib/portal-labels";
 
 /**
  * Reporter-safe status badge for the portal.
@@ -24,12 +25,12 @@ import type { LucideIcon } from "lucide-react";
  * Comparison is case-insensitive. Unknown labels get a neutral muted style.
  */
 function statusTone(portalStatus: string): string {
-  switch (portalStatus.toLowerCase()) {
+  switch (portalStatusCode(portalStatus)) {
     case "submitted":
       return "bg-info/15 text-info border-info/30";
-    case "under review":
+    case "under_review":
       return "bg-warning/15 text-warning-foreground border-warning/30 dark:text-warning";
-    case "in process":
+    case "in_process":
       return "bg-primary/15 text-primary border-primary/30";
     case "completed":
       return "bg-success/15 text-success border-success/30";
@@ -43,13 +44,13 @@ function statusTone(portalStatus: string): string {
  * Unknown labels get a generic HelpCircle icon.
  */
 function statusIcon(portalStatus: string): LucideIcon {
-  switch (portalStatus.toLowerCase()) {
+  switch (portalStatusCode(portalStatus)) {
     case "submitted":
       return Clock;
-    case "under review":
+    case "under_review":
       return Eye;
-    case "in process":
-      return Loader2;
+    case "in_process":
+      return LoaderCircle;
     case "completed":
       return CheckCircle2;
     default:
@@ -68,15 +69,19 @@ export function PortalStatusBadge({
   className,
 }: PortalStatusBadgeProps) {
   const { t } = useTranslation(["portal"]);
-  const label = t(`portal:${portalStatus}`, { defaultValue: portalStatus });
+  const label = portalStatusLabel(t, portalStatus);
   const Icon = statusIcon(portalStatus);
+  const isInProcess = portalStatusCode(portalStatus) === "in_process";
 
   return (
     <Badge
       variant="outline"
       className={cn("gap-1 font-medium", statusTone(portalStatus), className)}
     >
-      <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+      <Icon
+        className={cn("h-3 w-3 shrink-0", isInProcess && "motion-safe:animate-spin motion-reduce:animate-none")}
+        aria-hidden="true"
+      />
       {label}
     </Badge>
   );

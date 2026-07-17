@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import { toast } from "sonner";
-import { ApiError } from "@/lib/api-client";
+import { apiErrorMessage } from "@/lib/form-errors";
 import { AuthSessionLoader } from "@/components/auth-session-loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,8 +99,7 @@ function LoginPage() {
         navigate({ to: "/registration/pending", replace: true });
       }
     } catch (error) {
-      const message = error instanceof ApiError ? error.message : t("loginFailed");
-      toast.error(message);
+      toast.error(apiErrorMessage(error, t("loginFailed")));
     } finally {
       setLoading(false);
     }

@@ -1,0 +1,21 @@
+<?php
+
+return [
+    'errors' => [
+        'validation_failed' => 'The submitted data is invalid.',
+        'unauthenticated' => 'Authentication is required.',
+        'forbidden' => 'You do not have permission to perform this action.',
+        'too_many_requests' => 'Too many requests. Please try again later.',
+        'invalid_credentials' => 'The email, student ID, employee ID, or password is incorrect.',
+        'account_inactive' => 'Your account is inactive. Please contact an administrator.',
+        'current_password_incorrect' => 'The current password is incorrect.',
+        'registration_duplicate_active' => 'An active account already exists for this email or student ID at the selected university.',
+        'registration_duplicate_pending' => 'A pending registration already exists for this email or student ID at the selected university.',
+        'registration_invalid_credentials' => 'The registration credentials are invalid.',
+        'registration_password_unavailable' => 'The registration password is no longer available for approval.',
+        'registration_not_pending' => 'Only pending reporter registrations can be reviewed.',
+        'registration_number_unavailable' => 'A reporter registration number could not be generated.',
+        'tracking_not_found' => 'The report tracking code was not found.',
+        'portal_report_not_found' => 'The report was not found.',
+    ],
+];

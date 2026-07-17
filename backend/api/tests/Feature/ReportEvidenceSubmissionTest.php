@@ -347,11 +347,22 @@ class ReportEvidenceSubmissionTest extends TestCase
             $this->upload($report, "support-{$index}.pdf")->assertCreated();
         }
 
+        ReportEvidenceSubmission::query()
+            ->where('report_id', $report->id)
+            ->update(['uploaded_at' => now()->startOfSecond()]);
+
+        $expectedIds = ReportEvidenceSubmission::query()
+            ->where('report_id', $report->id)
+            ->orderByDesc('id')
+            ->pluck('uuid')
+            ->all();
+
         $this->upload($report, 'support-6.pdf')->assertConflict();
         $this->assertDatabaseCount('report_evidence_submissions', 5);
         $this->assertCount(5, Storage::disk('evidence')->allFiles());
         $this->getJson($this->reportFilesUrl($report))
             ->assertOk()
+            ->assertJsonPath('data.*.id', $expectedIds)
             ->assertJsonPath('meta.upload_allowed', false)
             ->assertJsonPath('meta.remaining_slots', 0);
     }

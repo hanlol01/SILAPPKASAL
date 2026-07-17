@@ -26,7 +26,7 @@ trait ValidatesCampusSelection
                 ->exists();
 
             if (! $facultyBelongsToUniversity) {
-                $validator->errors()->add('faculty_id', 'The selected faculty does not belong to the selected university.');
+                $validator->errors()->add('faculty_id', __('validation.custom.faculty_id.campus_selection'));
             }
         }
 
@@ -37,13 +37,13 @@ trait ValidatesCampusSelection
             ->first();
 
         if (! $studyProgram) {
-            $validator->errors()->add('study_program_id', 'The selected study program does not belong to the selected university.');
+            $validator->errors()->add('study_program_id', __('validation.custom.study_program_id.university_selection'));
 
             return;
         }
 
         if ($facultyId && (int) $studyProgram->faculty_id !== $facultyId) {
-            $validator->errors()->add('study_program_id', 'The selected study program does not belong to the selected faculty.');
+            $validator->errors()->add('study_program_id', __('validation.custom.study_program_id.faculty_selection'));
         }
     }
 }

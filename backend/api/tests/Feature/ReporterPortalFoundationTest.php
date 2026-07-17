@@ -73,9 +73,9 @@ class ReporterPortalFoundationTest extends TestCase
             ->assertOk()
             ->assertJsonCount(3, 'data')
             ->assertJsonFragment(['registration_number' => $submitted->registration_number])
-            ->assertJsonFragment(['portal_status' => 'Submitted'])
-            ->assertJsonFragment(['portal_status' => 'In Process'])
-            ->assertJsonFragment(['portal_status' => 'Completed'])
+            ->assertJsonFragment(['portal_status' => 'submitted'])
+            ->assertJsonFragment(['portal_status' => 'in_process'])
+            ->assertJsonFragment(['portal_status' => 'completed'])
             ->assertJsonMissingPath('data.0.id')
             ->assertJsonMissingPath('data.0.status')
             ->assertJsonMissingPath('data.0.reviewed_at')
@@ -130,7 +130,7 @@ class ReporterPortalFoundationTest extends TestCase
         $this->getJson("/api/v1/portal/reports/{$report->registration_number}")
             ->assertOk()
             ->assertJsonPath('data.registration_number', $report->registration_number)
-            ->assertJsonPath('data.portal_status', 'Under Review')
+            ->assertJsonPath('data.portal_status', 'under_review')
             ->assertJsonMissingPath('data.id')
             ->assertJsonMissingPath('data.status')
             ->assertJsonMissingPath('data.reviewed_at')
@@ -155,6 +155,9 @@ class ReporterPortalFoundationTest extends TestCase
             'event' => 'case_assigned',
             'title' => 'Notifikasi Reporter',
             'body' => 'Laporan Anda sedang diproses.',
+            'report_id' => 991,
+            'case_id' => 992,
+            'status_code' => 'internal_case_status',
         ]));
         $otherReporter->notify(new WorkflowDatabaseNotification([
             'notification_type_code' => 'case_assigned',
@@ -169,6 +172,11 @@ class ReporterPortalFoundationTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.title', 'Notifikasi Reporter')
+            ->assertJsonPath('data.0.data.notification_type_code', 'case_assigned')
+            ->assertJsonPath('data.0.data.event', 'case_assigned')
+            ->assertJsonMissingPath('data.0.data.report_id')
+            ->assertJsonMissingPath('data.0.data.case_id')
+            ->assertJsonMissingPath('data.0.data.status_code')
             ->assertJsonMissing(['title' => 'Notifikasi Lain']);
 
         $this->patchJson('/api/v1/portal/notifications/read-all')->assertNotFound();

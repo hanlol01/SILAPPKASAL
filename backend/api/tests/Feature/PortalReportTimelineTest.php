@@ -47,7 +47,7 @@ class PortalReportTimelineTest extends TestCase
         $response = $this->getJson("/api/v1/portal/reports/{$report->registration_number}/timeline")
             ->assertOk()
             ->assertJsonPath('data.registration_number', $report->registration_number)
-            ->assertJsonPath('data.portal_status', 'Under Review')
+            ->assertJsonPath('data.portal_status', 'under_review')
             ->assertJsonPath('data.is_completed', false)
             ->assertJsonCount(2, 'data.events')
             ->assertJsonPath('data.events.0.stage', 'laporan_dikirim')
@@ -73,7 +73,7 @@ class PortalReportTimelineTest extends TestCase
 
         $this->getJson("/api/v1/portal/reports/{$report->registration_number}/timeline")
             ->assertOk()
-            ->assertJsonPath('data.portal_status', 'Completed')
+            ->assertJsonPath('data.portal_status', 'completed')
             ->assertJsonPath('data.is_completed', true)
             ->assertJsonCount(4, 'data.events')
             ->assertJsonPath('data.events.0.stage', 'laporan_dikirim')

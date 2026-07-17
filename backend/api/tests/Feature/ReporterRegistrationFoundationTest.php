@@ -69,7 +69,7 @@ class ReporterRegistrationFoundationTest extends TestCase
 
         $this->postJson('/api/v1/reporter-registrations', $this->registrationPayload())
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'An active account already exists for this email or NIM in the selected university');
+            ->assertJsonPath('error_code', 'registration_duplicate_active');
 
         $this->assertDatabaseCount('reporter_registrations', 0);
     }
@@ -82,7 +82,7 @@ class ReporterRegistrationFoundationTest extends TestCase
         $this->postJson('/api/v1/reporter-registrations', $this->registrationPayload([
             'email' => 'other@example.test',
         ]))->assertUnprocessable()
-            ->assertJsonPath('message', 'A pending registration already exists for this email or NIM in the selected university');
+            ->assertJsonPath('error_code', 'registration_duplicate_pending');
     }
 
     public function test_admin_can_approve_registration_and_password_hash_is_cleared(): void
@@ -210,7 +210,7 @@ class ReporterRegistrationFoundationTest extends TestCase
 
         $this->patchJson("/api/v1/reporter-registrations/{$registration->id}/approve")
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'An active account already exists for this email or NIM in the selected university');
+            ->assertJsonPath('error_code', 'registration_duplicate_active');
 
         $registration->refresh();
 

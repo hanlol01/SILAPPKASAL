@@ -48,7 +48,7 @@ class StoreFacultyRequest extends FormRequest
                 }
 
                 if (! \App\Models\University::query()->whereKey($this->integer('university_id'))->where('has_faculties', true)->exists()) {
-                    $validator->errors()->add('university_id', 'The selected university does not use faculties.');
+                    $validator->errors()->add('university_id', __('validation.custom.university_id.faculties_disabled'));
                 }
             },
         ];

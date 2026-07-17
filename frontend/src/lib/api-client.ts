@@ -1,15 +1,23 @@
 import { clearAuthToken, getAuthToken } from "@/lib/auth-storage";
 import type { ApiEnvelope, PaginationMeta } from "@/lib/api-types";
+import i18n from "@/i18n";
 
 export class ApiError extends Error {
   status: number;
+  errorCode?: string | null;
   errors?: Record<string, string[]> | null;
 
-  constructor(message: string, status: number, errors?: Record<string, string[]> | null) {
+  constructor(
+    message: string,
+    status: number,
+    errors?: Record<string, string[]> | null,
+    errorCode?: string | null,
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.errors = errors;
+    this.errorCode = errorCode;
   }
 }
 
@@ -35,6 +43,10 @@ function isFormDataBody(body: BodyInit | null | undefined): body is FormData {
   return typeof FormData !== "undefined" && body instanceof FormData;
 }
 
+function activeApiLocale() {
+  return i18n.resolvedLanguage?.toLowerCase().startsWith("en") ? "en" : "id";
+}
+
 async function apiFetch<T, TMeta = PaginationMeta>(
   path: string,
   init: RequestInit & { query?: Record<string, string | number | boolean | undefined> } = {},
@@ -43,6 +55,7 @@ async function apiFetch<T, TMeta = PaginationMeta>(
   const headers = new Headers(init.headers);
 
   headers.set("Accept", "application/json");
+  headers.set("Accept-Language", activeApiLocale());
   if (init.body && !isFormDataBody(init.body) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
@@ -66,6 +79,7 @@ async function apiFetch<T, TMeta = PaginationMeta>(
       payload?.message || "Request failed",
       response.status,
       payload?.errors ?? null,
+      payload?.error_code ?? null,
     );
   }
 
@@ -94,6 +108,7 @@ export async function apiRequestEnvelope<
 export async function apiDownload(path: string, fallbackFilename: string) {
   const token = getAuthToken();
   const headers = new Headers({ Accept: "application/octet-stream" });
+  headers.set("Accept-Language", activeApiLocale());
 
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
@@ -112,6 +127,7 @@ export async function apiDownload(path: string, fallbackFilename: string) {
       payload?.message || "Request failed",
       response.status,
       payload?.errors ?? null,
+      payload?.error_code ?? null,
     );
   }
 
@@ -151,6 +167,7 @@ export async function apiFetchBlob(
 ): Promise<AuthenticatedBlobResponse> {
   const token = getAuthToken();
   const headers = new Headers({ Accept: "application/pdf, image/jpeg, image/png" });
+  headers.set("Accept-Language", activeApiLocale());
 
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
@@ -172,6 +189,7 @@ export async function apiFetchBlob(
       payload?.message || "Request failed",
       response.status,
       payload?.errors ?? null,
+      payload?.error_code ?? null,
     );
   }
 

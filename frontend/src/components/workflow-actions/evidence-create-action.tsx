@@ -91,7 +91,9 @@ export function EvidenceCreateAction({ investigation }: { investigation: Investi
       .string()
       .optional()
       .refine((value) => !value || value <= today, t("dashboard:workflow.dateFuture")),
-    classification: z.enum(EVIDENCE_CLASSIFICATIONS),
+    classification: z.enum(EVIDENCE_CLASSIFICATIONS, {
+      errorMap: () => ({ message: t("dashboard:workflow.required") }),
+    }),
   });
 
   const form = useForm<EvidenceCreateValues>({
