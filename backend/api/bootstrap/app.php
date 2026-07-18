@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Validation\ValidationException;
 use App\Http\Middleware\SetApiLocale;
+use App\Http\Middleware\GenerateRequestId;
+use App\Http\Middleware\AuditSensitiveAuthorizationDenials;
 use App\Support\ApiErrorCode;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -19,7 +21,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->prependToGroup('api', SetApiLocale::class);
+        $middleware->prependToGroup('api', [
+            GenerateRequestId::class,
+            SetApiLocale::class,
+            AuditSensitiveAuthorizationDenials::class,
+        ]);
 
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,

@@ -17,5 +17,6 @@ return [
         'registration_number_unavailable' => 'A reporter registration number could not be generated.',
         'tracking_not_found' => 'The report tracking code was not found.',
         'portal_report_not_found' => 'The report was not found.',
+        'audit_export.too_many_rows' => 'The audit export exceeds the 10,000-row limit. Narrow the date range or filters.',
     ],
 ];

@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Enums\AuditAction;
+use App\Enums\AuditCategory;
+use App\Enums\AuditSeverity;
 use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\ReportStatus;
 use App\Models\CaseAssignment;
@@ -110,10 +113,42 @@ class CaseService
 
             $this->createAssignments($case, $actor, $satgasIds, (int) $data['lead_satgas_id']);
 
+            $previousReportStatus = $report->status;
             $report->forceFill([
                 'status' => ReportStatus::Forwarded->value,
                 'forwarded_at' => $forwardedAt,
             ])->save();
+
+            $this->auditLogService->record(
+                action: AuditAction::ReportForwarded,
+                category: AuditCategory::Report,
+                severity: AuditSeverity::Info,
+                actor: $actor,
+                subject: $report,
+                metadata: [
+                    'registration_number' => $report->registration_number,
+                    'report_type' => $report->report_type,
+                    'category_code' => $report->category_code,
+                    'status' => $report->status,
+                ],
+                beforeChanges: ['status' => $previousReportStatus],
+                afterChanges: ['status' => $report->status],
+            );
+            $this->auditLogService->record(
+                action: AuditAction::CaseCreated,
+                category: AuditCategory::Case,
+                severity: AuditSeverity::Info,
+                actor: $actor,
+                subject: $case,
+                metadata: [
+                    'case_number' => $case->case_number,
+                    'registration_number' => $case->registration_number,
+                    'status_code' => $case->status_code,
+                    'assignment_count' => count($satgasIds),
+                ],
+                afterChanges: ['status_code' => $case->status_code],
+            );
+            $this->recordAssignmentAudit($case, $actor, count($satgasIds));
 
             $this->notificationService->caseAssigned($case, $satgasIds);
 
@@ -246,13 +281,15 @@ class CaseService
                 $this->notificationService->caseAssigned($case, $newlyAssignedSatgasIds);
             }
 
+            $this->recordAssignmentAudit($case, $actor, count($satgasIds));
+
             return $this->loadForUser($case, $actor);
         });
     }
 
     public function updateStatus(CaseRecord $case, User $actor, string $requestedStatus): CaseRecord
     {
-        return DB::transaction(function () use ($case, $requestedStatus): CaseRecord {
+        return DB::transaction(function () use ($case, $actor, $requestedStatus): CaseRecord {
             $case = CaseRecord::query()->with('status')->whereKey($case->id)->lockForUpdate()->firstOrFail();
 
             if ($case->status?->name === CaseStatusEnum::Closed->value) {
@@ -267,11 +304,27 @@ class CaseService
                 throw $this->unprocessable('Invalid case status transition');
             }
 
+            $previousStatusCode = $case->status_code;
             $case->forceFill([
                 'status_code' => $nextStatus->code,
                 'current_stage' => $nextStatus->workflow_stage,
                 ...$this->timestampForStatus($nextStatus->name),
             ])->save();
+
+            $this->auditLogService->record(
+                action: AuditAction::CaseStatusChanged,
+                category: AuditCategory::Case,
+                severity: AuditSeverity::Info,
+                actor: $actor,
+                subject: $case,
+                metadata: [
+                    'case_number' => $case->case_number,
+                    'registration_number' => $case->registration_number,
+                    'status_code' => $case->status_code,
+                ],
+                beforeChanges: ['status_code' => $previousStatusCode],
+                afterChanges: ['status_code' => $case->status_code],
+            );
 
             $this->notificationService->caseStatusChanged($case);
 
@@ -318,6 +371,23 @@ class CaseService
                 'assigned_at' => now(),
             ]);
         }
+    }
+
+    private function recordAssignmentAudit(CaseRecord $case, User $actor, int $assignmentCount): void
+    {
+        $this->auditLogService->record(
+            action: AuditAction::CaseAssigned,
+            category: AuditCategory::Case,
+            severity: AuditSeverity::Info,
+            actor: $actor,
+            subject: $case,
+            metadata: [
+                'case_number' => $case->case_number,
+                'registration_number' => $case->registration_number,
+                'status_code' => $case->status_code,
+                'assignment_count' => $assignmentCount,
+            ],
+        );
     }
 
     private function authorizeForward(Report $report, User $actor): void

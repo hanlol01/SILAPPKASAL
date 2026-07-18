@@ -25,11 +25,13 @@ use App\Models\RecoveryStatus;
 use App\Models\Report;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\AuditLogService;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Sanctum;
+use RuntimeException;
 use Tests\TestCase;
 
 class RecoveryFoundationTest extends TestCase
@@ -327,6 +329,31 @@ class RecoveryFoundationTest extends TestCase
         $this->assertStringNotContainsString('Catatan pemulihan rahasia', $auditJson);
         $this->assertStringNotContainsString('Kondisi korban stabil', $auditJson);
         $this->assertStringNotContainsString('Jadwalkan sesi lanjutan', $auditJson);
+    }
+
+    public function test_monitoring_creation_rolls_back_when_audit_persistence_fails(): void
+    {
+        $admin = $this->makeUser('admin', 'monitoring-admin@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'monitoring-satgas@university.ac.id');
+        $case = $this->makeDecisionCase($admin, $satgas);
+        $decision = $this->makeFinalizedDecision($case, $admin, $satgas);
+
+        $this->actingAsApi($admin);
+        $recoveryId = $this->postJson("/api/v1/decisions/{$decision->id}/recoveries", $this->recoveryPayload())
+            ->assertCreated()
+            ->json('data.id');
+        $this->patchJson("/api/v1/recoveries/{$recoveryId}/status", [
+            'status' => RecoveryStatusEnum::Ongoing->value,
+        ])->assertOk();
+
+        $this->mock(AuditLogService::class, function ($mock): void {
+            $mock->shouldReceive('record')->once()->andThrow(new RuntimeException('audit unavailable'));
+        });
+        $this->actingAsApi($satgas);
+        $this->postJson("/api/v1/recoveries/{$recoveryId}/monitoring", $this->monitoringPayload())
+            ->assertServerError();
+
+        $this->assertDatabaseCount('recovery_monitorings', 0);
     }
 
     private function recoveryPayload(array $overrides = []): array

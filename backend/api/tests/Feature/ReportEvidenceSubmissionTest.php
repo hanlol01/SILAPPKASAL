@@ -121,10 +121,10 @@ class ReportEvidenceSubmissionTest extends TestCase
             ->firstOrFail();
         $this->assertSame($uuid, $audit->metadata['attachment_uuid']);
         $this->assertSame(
-            ['attachment_uuid', 'is_elevated_access'],
+            ['attachment_uuid'],
             array_keys($audit->metadata),
         );
-        $this->assertFalse($audit->metadata['is_elevated_access']);
+        $this->assertFalse($audit->is_elevated_access);
         $this->assertArrayNotHasKey('report_id', $audit->metadata);
         $this->assertArrayNotHasKey('case_id', $audit->metadata);
         $this->assertArrayNotHasKey('filename', $audit->metadata);

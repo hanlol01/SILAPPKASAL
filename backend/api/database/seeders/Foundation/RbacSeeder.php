@@ -36,6 +36,8 @@ class RbacSeeder extends Seeder
     private array $permissions = [
         'system.configure' => ['name' => 'Configure System', 'description' => 'Mengubah konfigurasi sistem', 'module' => 'Sistem'],
         'system.audit_log.view' => ['name' => 'View Audit Log', 'description' => 'Melihat audit log', 'module' => 'Sistem'],
+        'system.audit_log.oversight' => ['name' => 'View Operational Oversight', 'description' => 'Melihat antrean perhatian operasional', 'module' => 'Sistem'],
+        'system.audit_log.export' => ['name' => 'Export Audit Log', 'description' => 'Mengekspor riwayat audit yang aman', 'module' => 'Sistem'],
         'system.break_glass_access' => ['name' => 'Break Glass Access', 'description' => 'Akses darurat ke data sensitif kasus', 'module' => 'Sistem'],
         'privacy.request_break_glass' => ['name' => 'Request Break-Glass', 'description' => 'Mengajukan permintaan akses break-glass', 'module' => 'Privasi'],
         'privacy.approve_break_glass' => ['name' => 'Approve Break-Glass', 'description' => 'Menyetujui atau menolak permintaan break-glass', 'module' => 'Privasi'],
@@ -87,6 +89,8 @@ class RbacSeeder extends Seeder
         'super_admin' => [
             'system.configure',
             'system.audit_log.view',
+            'system.audit_log.oversight',
+            'system.audit_log.export',
             'system.break_glass_access',
             'users.create',
             'users.read',

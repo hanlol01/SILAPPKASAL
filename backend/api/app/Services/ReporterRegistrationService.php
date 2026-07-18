@@ -158,12 +158,11 @@ class ReporterRegistrationService
         $newNim = $this->normalizeNim($data['nim']);
         $universityId = (int) $data['university_id'];
         $nimChanged = $newNim !== $registration->nim;
-        $previousNim = $registration->nim;
 
         $this->ensureNoActiveUserDuplicate($registration->email, $newNim, $universityId);
         $this->ensureNoPendingRegistrationDuplicate($registration->email, $newNim, $universityId, $registration->id);
 
-        return DB::transaction(function () use ($registration, $data, $newNim, $universityId, $nimChanged, $previousNim): ReporterRegistration {
+        return DB::transaction(function () use ($registration, $data, $newNim, $universityId, $nimChanged): ReporterRegistration {
             $updates = [
                 'name' => trim((string) $data['name']),
                 'nim' => $newNim,
@@ -181,14 +180,6 @@ class ReporterRegistrationService
                 $updates['password_hash'] = Hash::make((string) $data['new_password']);
             }
 
-            $before = [
-                'status' => ReporterRegistrationStatus::Rejected->value,
-                'nim' => $previousNim,
-                'university_id' => $registration->university_id,
-                'faculty_id' => $registration->faculty_id,
-                'study_program_id' => $registration->study_program_id,
-            ];
-
             $registration->forceFill($updates)->save();
 
             $this->auditLogService->record(
@@ -200,15 +191,10 @@ class ReporterRegistrationService
                     'registration_number' => $registration->registration_number,
                     'status' => ReporterRegistrationStatus::Pending->value,
                     'nim_changed' => $nimChanged,
-                    'previous_nim' => $nimChanged ? $previousNim : null,
                 ],
-                beforeChanges: $before,
+                beforeChanges: ['status' => ReporterRegistrationStatus::Rejected->value],
                 afterChanges: [
                     'status' => ReporterRegistrationStatus::Pending->value,
-                    'nim' => $newNim,
-                    'university_id' => $universityId,
-                    'faculty_id' => $data['faculty_id'] ?? null,
-                    'study_program_id' => $data['study_program_id'],
                 ]
             );
 

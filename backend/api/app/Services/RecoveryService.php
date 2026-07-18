@@ -278,36 +278,38 @@ class RecoveryService
             throw $this->unprocessable('Monitoring can only be created for ongoing recovery');
         }
 
-        $monitoring = RecoveryMonitoring::query()->create([
-            'recovery_id' => $recovery->id,
-            'monitor_id' => $actor->id,
-            'monitoring_date' => $data['monitoring_date'],
-            'condition_summary' => $data['condition_summary'],
-            'follow_up_plan' => $data['follow_up_plan'] ?? null,
-            'notes' => $data['notes'] ?? null,
-        ])->load(['monitor', 'recovery.decision.recommendation.case']);
+        return DB::transaction(function () use ($recovery, $actor, $data): RecoveryMonitoring {
+            $monitoring = RecoveryMonitoring::query()->create([
+                'recovery_id' => $recovery->id,
+                'monitor_id' => $actor->id,
+                'monitoring_date' => $data['monitoring_date'],
+                'condition_summary' => $data['condition_summary'],
+                'follow_up_plan' => $data['follow_up_plan'] ?? null,
+                'notes' => $data['notes'] ?? null,
+            ])->load(['monitor', 'recovery.decision.recommendation.case']);
 
-        $this->auditLogService->record(
-            action: AuditAction::RecoveryMonitoringCreated,
-            category: AuditCategory::Recovery,
-            severity: AuditSeverity::Info,
-            actor: $actor,
-            subject: $monitoring,
-            metadata: [
-                'recovery_monitoring_id' => $monitoring->id,
-                'recovery_id' => $monitoring->recovery_id,
-                'decision_id' => $monitoring->recovery?->decision_id,
-                'case_id' => $monitoring->recovery?->decision?->recommendation?->case_id,
-            ],
-            afterChanges: [
-                'monitoring_date' => $monitoring->monitoring_date?->toDateString(),
-                'condition_summary' => $monitoring->condition_summary,
-                'follow_up_plan' => $monitoring->follow_up_plan,
-                'notes' => $monitoring->notes,
-            ],
-        );
+            $this->auditLogService->record(
+                action: AuditAction::RecoveryMonitoringCreated,
+                category: AuditCategory::Recovery,
+                severity: AuditSeverity::Info,
+                actor: $actor,
+                subject: $monitoring,
+                metadata: [
+                    'recovery_monitoring_id' => $monitoring->id,
+                    'recovery_id' => $monitoring->recovery_id,
+                    'decision_id' => $monitoring->recovery?->decision_id,
+                    'case_id' => $monitoring->recovery?->decision?->recommendation?->case_id,
+                ],
+                afterChanges: [
+                    'monitoring_date' => $monitoring->monitoring_date?->toDateString(),
+                    'condition_summary' => $monitoring->condition_summary,
+                    'follow_up_plan' => $monitoring->follow_up_plan,
+                    'notes' => $monitoring->notes,
+                ],
+            );
 
-        return $monitoring;
+            return $monitoring;
+        });
     }
 
     /**

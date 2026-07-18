@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Enums\AuditAction;
+use App\Enums\AuditCategory;
+use App\Enums\AuditSeverity;
 use App\Enums\ReportStatus;
 use App\Models\Report;
 use App\Models\User;
@@ -14,6 +17,10 @@ use Illuminate\Support\Str;
 
 class ReportService
 {
+    public function __construct(private readonly AuditLogService $auditLogService)
+    {
+    }
+
     /**
      * @param array<string, mixed> $data
      */
@@ -157,6 +164,21 @@ class ReportService
                     'priority' => null,
                     'submitted_at' => $submittedAt,
                 ]);
+
+                $this->auditLogService->record(
+                    action: AuditAction::ReportCreated,
+                    category: AuditCategory::Report,
+                    severity: AuditSeverity::Info,
+                    actor: $user,
+                    subject: $report,
+                    metadata: [
+                        'registration_number' => $report->registration_number,
+                        'report_type' => $report->report_type,
+                        'category_code' => $report->category_code,
+                        'status' => $report->status,
+                    ],
+                    afterChanges: ['status' => $report->status],
+                );
 
                 return $report->load('category');
             });

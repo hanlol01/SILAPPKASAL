@@ -18,6 +18,7 @@ const API_ERROR_KEYS: Record<string, string> = {
   registration_number_unavailable: "common:apiErrors.registrationNumberUnavailable",
   tracking_not_found: "common:apiErrors.trackingNotFound",
   portal_report_not_found: "common:apiErrors.portalReportNotFound",
+  "audit_export.too_many_rows": "common:apiErrors.auditExportTooManyRows",
 };
 
 export function apiErrorMessage(

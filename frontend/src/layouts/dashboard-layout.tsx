@@ -13,6 +13,7 @@ import {
   Moon,
   Sun,
   Database,
+  ScrollText,
 } from "lucide-react";
 import {
   Sidebar,
@@ -53,6 +54,7 @@ const nav: {
   url: string;
   icon: React.ComponentType<{ className?: string }>;
   roles: RoleCode[];
+  permission?: string;
 }[] = [
   {
     key: "overview",
@@ -103,6 +105,13 @@ const nav: {
     roles: ["super_admin"],
   },
   {
+    key: "activityLog",
+    url: "/dashboard/activity-log",
+    icon: ScrollText,
+    roles: ["super_admin"],
+    permission: "system.audit_log.oversight",
+  },
+  {
     key: "breakGlass",
     url: "/dashboard/break-glass",
     icon: ShieldAlert,
@@ -122,9 +131,11 @@ const useBrowserLayoutEffect = typeof window === "undefined" ? useEffect : useLa
 function AppSidebar() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const { isMobile, setOpenMobile } = useSidebar();
-  const { roleCode } = useAuth();
+  const { roleCode, user } = useAuth();
   const { t } = useTranslation(["dashboard"]);
-  const items = nav.filter((item) => roleCode && item.roles.includes(roleCode));
+  const items = nav.filter((item) => roleCode
+    && item.roles.includes(roleCode)
+    && (!item.permission || user?.permissions?.includes(item.permission)));
   const closeMobileSidebar = useCallback(() => {
     if (isMobile) setOpenMobile(false);
   }, [isMobile, setOpenMobile]);

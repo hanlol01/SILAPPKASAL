@@ -54,6 +54,7 @@
     "registrationNotPending": "Pendaftaran ini tidak lagi menunggu peninjauan.",
     "registrationNumberUnavailable": "Nomor pendaftaran tidak dapat dibuat. Silakan coba lagi.",
     "trackingNotFound": "Kode pelacakan laporan tidak ditemukan.",
-    "portalReportNotFound": "Laporan tidak ditemukan."
+    "portalReportNotFound": "Laporan tidak ditemukan.",
+    "auditExportTooManyRows": "Hasil ekspor audit melebihi batas 10.000 baris. Persempit rentang tanggal atau filter."
   }
 }

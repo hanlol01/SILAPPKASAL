@@ -178,7 +178,9 @@ class M31BReporterLifecycleTest extends TestCase
             ->firstOrFail()
             ->toJson();
 
-        $this->assertStringContainsString('previous_nim', $auditJson);
+        $this->assertStringNotContainsString('previous_nim', $auditJson);
+        $this->assertStringNotContainsString('230001', $auditJson);
+        $this->assertStringNotContainsString('230777', $auditJson);
         $this->assertStringNotContainsString('NewSecurePass123', $auditJson);
     }
 

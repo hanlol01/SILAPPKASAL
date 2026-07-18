@@ -2,36 +2,40 @@
 
 namespace Database\Seeders\Demo;
 
+use App\Enums\AuditAction;
+use App\Enums\AuditCategory;
+use App\Enums\AuditSeverity;
+use App\Enums\AuditResult;
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Services\AuditLogService;
 use Illuminate\Database\Seeder;
 
 class DemoAuditSeeder extends Seeder
 {
     /**
-     * @var list<array{0: string, 1: string}>
+     * @var list<array{0: AuditAction, 1: AuditCategory}>
      */
     private array $events = [
-        ['auth.login', 'auth'],
-        ['report.created', 'report'],
-        ['report.forwarded', 'report'],
-        ['case.assigned', 'case'],
-        ['case.status_changed', 'case'],
-        ['investigation.created', 'investigation'],
-        ['investigation.activity_created', 'investigation'],
-        ['investigation.status_changed', 'investigation'],
-        ['recommendation.created', 'recommendation'],
-        ['recommendation.status_changed', 'recommendation'],
-        ['decision.created', 'decision'],
-        ['decision.status_changed', 'decision'],
-        ['recovery.created', 'recovery'],
-        ['recovery.status_changed', 'recovery'],
-        ['evidence.created', 'evidence'],
-        ['security.access_denied', 'security'],
-        ['system.seed.demo_v2', 'system'],
+        [AuditAction::AuthLogin, AuditCategory::Auth],
+        [AuditAction::ReportCreated, AuditCategory::Report],
+        [AuditAction::ReportForwarded, AuditCategory::Report],
+        [AuditAction::CaseAssigned, AuditCategory::Case],
+        [AuditAction::CaseStatusChanged, AuditCategory::Case],
+        [AuditAction::InvestigationCreated, AuditCategory::Investigation],
+        [AuditAction::InvestigationActivityCreated, AuditCategory::Investigation],
+        [AuditAction::InvestigationStatusChanged, AuditCategory::Investigation],
+        [AuditAction::RecommendationCreated, AuditCategory::Recommendation],
+        [AuditAction::RecommendationStatusChanged, AuditCategory::Recommendation],
+        [AuditAction::DecisionCreated, AuditCategory::Decision],
+        [AuditAction::DecisionStatusChanged, AuditCategory::Decision],
+        [AuditAction::RecoveryCreated, AuditCategory::Recovery],
+        [AuditAction::RecoveryStatusChanged, AuditCategory::Recovery],
+        [AuditAction::EvidenceMetadataCreated, AuditCategory::Evidence],
+        [AuditAction::SecurityAccessDenied, AuditCategory::Security],
     ];
 
-    public function run(): void
+    public function run(AuditLogService $auditLogService): void
     {
         $actors = User::query()->whereIn('email', [
             'superadmin@silappkasal.test',
@@ -43,46 +47,27 @@ class DemoAuditSeeder extends Seeder
         for ($i = 1; $i <= 120; $i++) {
             [$action, $category] = $this->events[$i % count($this->events)];
             $actor = $actors[($i - 1) % max(1, $actors->count())] ?? null;
+            $requestId = sprintf('demo-request-%03d', $i);
 
-            AuditLog::query()->updateOrCreate(
-                [
-                    'request_id' => sprintf('demo-request-%03d', $i),
-                    'action' => $action,
-                ],
-                [
-                    'actor_id' => $actor?->id,
-                    'category' => $category,
-                    'severity' => $category === 'security' ? 'warning' : 'info',
-                    'subject_type' => $this->subjectType($category),
-                    'subject_id' => $i,
-                    'metadata' => [
-                        'demo' => true,
-                        'workflow_step' => $category,
-                        'is_elevated_access' => false,
-                    ],
-                    'before_changes' => [
-                        'status' => $i % 2 === 0 ? 'previous' : null,
-                    ],
-                    'after_changes' => [
-                        'status' => 'demo_recorded',
-                    ],
-                    'created_at' => DemoSeed::date($i % 30),
-                ]
+            if (AuditLog::query()->where('request_id', $requestId)->where('action', $action->value)->exists()) {
+                continue;
+            }
+
+            $auditLog = $auditLogService->record(
+                action: $action,
+                category: $category,
+                severity: $category === AuditCategory::Security ? AuditSeverity::Warning : AuditSeverity::Info,
+                actor: $actor,
+                metadata: $action === AuditAction::SecurityAccessDenied
+                    ? ['operation_code' => 'demo.audit', 'reason_code' => 'demo_denied']
+                    : [],
+                requestId: $requestId,
+                result: $action === AuditAction::SecurityAccessDenied
+                    ? AuditResult::Denied
+                    : AuditResult::Succeeded,
             );
-        }
-    }
 
-    private function subjectType(string $category): ?string
-    {
-        return match ($category) {
-            'report' => 'reports',
-            'case' => 'cases',
-            'investigation' => 'investigations',
-            'recommendation' => 'recommendations',
-            'decision' => 'decisions',
-            'recovery' => 'recoveries',
-            'evidence' => 'evidences',
-            default => null,
-        };
+            $auditLog->forceFill(['created_at' => DemoSeed::date($i % 30)])->save();
+        }
     }
 }

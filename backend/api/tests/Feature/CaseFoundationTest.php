@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\AuditAction;
 use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\ReportStatus;
 use App\Models\CaseAssignment;
@@ -10,12 +11,14 @@ use App\Models\CaseStatus;
 use App\Models\Report;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\AuditLogService;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Sanctum;
+use RuntimeException;
 use Tests\TestCase;
 
 class CaseFoundationTest extends TestCase
@@ -73,6 +76,11 @@ class CaseFoundationTest extends TestCase
         $this->assertNotSame($report->registration_number, $case->case_number);
         $this->assertSame('CSTS-05', $case->status_code);
         $this->assertDatabaseCount('case_assignments', 1);
+        foreach ([AuditAction::ReportForwarded, AuditAction::CaseCreated, AuditAction::CaseAssigned] as $action) {
+            $events = DB::table('audit_logs')->where('action', $action->value)->get();
+            $this->assertCount(1, $events);
+            $this->assertSame($response->headers->get('X-Request-ID'), $events->first()->request_id);
+        }
     }
 
     public function test_invalid_satgas_assignment_does_not_forward_report(): void
@@ -90,6 +98,26 @@ class CaseFoundationTest extends TestCase
             ->assertJsonPath('success', false);
 
         $this->assertDatabaseCount('cases', 0);
+        $this->assertSame(ReportStatus::Submitted->value, $report->refresh()->status);
+    }
+
+    public function test_forwarding_rolls_back_case_assignments_and_report_when_audit_fails(): void
+    {
+        $admin = $this->makeUser('admin', 'audit-admin@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'audit-satgas@university.ac.id');
+        $report = $this->makeReport();
+        $this->mock(AuditLogService::class, function ($mock): void {
+            $mock->shouldReceive('record')->once()->andThrow(new RuntimeException('audit unavailable'));
+        });
+
+        $this->actingAsApi($admin);
+        $this->postJson("/api/v1/reports/{$report->id}/forward-to-case", [
+            'satgas_ids' => [$satgas->id],
+            'lead_satgas_id' => $satgas->id,
+        ])->assertServerError();
+
+        $this->assertDatabaseCount('cases', 0);
+        $this->assertDatabaseCount('case_assignments', 0);
         $this->assertSame(ReportStatus::Submitted->value, $report->refresh()->status);
     }
 
@@ -308,6 +336,11 @@ class CaseFoundationTest extends TestCase
         $this->assertSame('CSTS-06', $case->status_code);
         $this->assertNotNull($case->assessment_at);
         $this->assertSame(ReportStatus::Forwarded->value, $case->report->refresh()->status);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::CaseStatusChanged->value,
+            'actor_id' => $satgas->id,
+            'subject_id' => $case->id,
+        ]);
 
         $this->actingAsApi($satgas);
         $this->patchJson("/api/v1/cases/{$case->id}/status", [

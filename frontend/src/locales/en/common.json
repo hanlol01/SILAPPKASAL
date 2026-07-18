@@ -54,6 +54,7 @@
     "registrationNotPending": "This registration is no longer awaiting review.",
     "registrationNumberUnavailable": "A registration number could not be created. Please try again.",
     "trackingNotFound": "The report tracking code was not found.",
-    "portalReportNotFound": "The report was not found."
+    "portalReportNotFound": "The report was not found.",
+    "auditExportTooManyRows": "The audit export exceeds the 10,000-row limit. Narrow the date range or filters."
   }
 }

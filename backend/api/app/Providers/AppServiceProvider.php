@@ -30,6 +30,7 @@ use App\Policies\ReporterPortalPolicy;
 use App\Policies\ReporterSelfServicePolicy;
 use App\Policies\ReportPolicy;
 use App\Policies\UserPolicy;
+use App\Services\SecurityAccessDeniedLogger;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -70,6 +71,13 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('accessReporterPortal', fn ($user): bool => app(ReporterPortalPolicy::class)->access($user));
         Gate::define('accessReporterSelfService', fn ($user): bool => app(ReporterSelfServicePolicy::class)->access($user));
         Gate::define('manage-campus-master-data', fn ($user): bool => app(CampusMasterDataPolicy::class)->manage($user));
+        Gate::after(function ($user, string $ability, ?bool $result): void {
+            if ($result === false
+                && app()->bound('request')
+                && request()->route()?->getName() !== 'audit.export') {
+                app(SecurityAccessDeniedLogger::class)->record(request());
+            }
+        });
 
         RateLimiter::for('reports.submit', function (Request $request) {
             $accessToken = $request->bearerToken()

@@ -4,16 +4,20 @@ namespace Tests\Feature;
 
 use App\Enums\AuditAction;
 use App\Enums\AuditCategory;
+use App\Enums\AuditResult;
 use App\Enums\AuditSeverity;
 use App\Models\AuditLog;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Support\AuditSnapshot;
 use Database\Seeders\RbacSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Sanctum;
+use LogicException;
 use Tests\TestCase;
 
 class AuditLogFoundationTest extends TestCase
@@ -27,251 +31,308 @@ class AuditLogFoundationTest extends TestCase
         $this->seed(RbacSeeder::class);
     }
 
-    public function test_audit_logs_table_is_append_only_with_required_columns(): void
+    public function test_audit_schema_has_public_snapshot_and_retention_columns(): void
     {
-        $this->assertTrue(Schema::hasTable('audit_logs'));
-        $this->assertTrue(Schema::hasColumn('audit_logs', 'actor_id'));
-        $this->assertTrue(Schema::hasColumn('audit_logs', 'request_id'));
-        $this->assertTrue(Schema::hasColumn('audit_logs', 'subject_type'));
-        $this->assertTrue(Schema::hasColumn('audit_logs', 'subject_id'));
-        $this->assertTrue(Schema::hasColumn('audit_logs', 'metadata'));
-        $this->assertTrue(Schema::hasColumn('audit_logs', 'before_changes'));
-        $this->assertTrue(Schema::hasColumn('audit_logs', 'after_changes'));
-        $this->assertTrue(Schema::hasColumn('audit_logs', 'created_at'));
+        foreach ([
+            'public_id',
+            'actor_id',
+            'actor_kind',
+            'actor_role_code',
+            'actor_display_name_safe',
+            'request_id',
+            'result',
+            'subject_kind',
+            'subject_reference_safe',
+            'is_elevated_access',
+            'expires_at',
+        ] as $column) {
+            $this->assertTrue(Schema::hasColumn('audit_logs', $column));
+        }
+
         $this->assertFalse(Schema::hasColumn('audit_logs', 'updated_at'));
         $this->assertFalse(Schema::hasColumn('audit_logs', 'deleted_at'));
     }
 
-    public function test_audit_service_records_safe_deltas_and_redacts_sensitive_values(): void
+    public function test_staff_snapshot_rejects_email_and_identity_number_shaped_names(): void
     {
-        $actor = $this->makeUser('admin', 'admin@university.ac.id');
+        $snapshot = app(AuditSnapshot::class);
 
-        app(AuditLogService::class)->record(
+        $this->assertNull($snapshot->safeStaffName('staff@example.test'));
+        $this->assertNull($snapshot->safeStaffName('Petugas 123456789'));
+        $this->assertSame('Petugas Kampus Aman', $snapshot->safeStaffName('Petugas Kampus Aman'));
+    }
+
+    public function test_strict_catalog_discards_unknown_sensitive_and_non_scalar_fields(): void
+    {
+        $actor = $this->makeUser('admin', 'Admin Operasional Panjang', 'admin@university.ac.id');
+
+        $auditLog = app(AuditLogService::class)->record(
             action: AuditAction::SecurityAccessDenied,
             category: AuditCategory::Security,
             severity: AuditSeverity::Critical,
             actor: $actor,
             metadata: [
-                'reason' => 'policy_denied',
+                'operation_code' => 'break_glass.reveal',
+                'reason_code' => 'policy_denied',
                 'password' => 'SuperSecret',
-                'plain_text_token' => 'token-value',
-                'nested' => ['safe' => 'ok', 'file_content' => 'raw-file-bytes'],
+                'email' => 'person@example.test',
+                'nested' => ['unsafe' => true],
             ],
-            beforeChanges: [
-                'status' => 'submitted',
-                'chronology' => 'Sensitive chronology text',
-                'snapshot' => ['full' => 'object'],
-            ],
-            afterChanges: [
-                'status' => 'under_review',
-                'encrypted_payload' => 'cipher-text',
-            ],
-            requestId: 'req-123'
+            beforeChanges: ['status' => 'submitted', 'chronology' => 'Sensitive chronology'],
+            afterChanges: ['status' => 'under_review'],
+            requestId: 'req-123',
+            result: AuditResult::Denied,
         );
 
-        $auditLog = AuditLog::query()->firstOrFail();
+        $this->assertSame([
+            'operation_code' => 'break_glass.reveal',
+            'reason_code' => 'policy_denied',
+        ], $auditLog->metadata);
+        $this->assertSame([], $auditLog->before_changes);
+        $this->assertSame([], $auditLog->after_changes);
+        $this->assertSame('staff', $auditLog->actor_kind);
+        $this->assertSame('admin', $auditLog->actor_role_code);
+        $this->assertSame('Admin Operasional Panjang', $auditLog->actor_display_name_safe);
+        $this->assertSame(AuditResult::Denied->value, $auditLog->result);
+        $this->assertFalse($auditLog->is_elevated_access);
+        $this->assertNotNull($auditLog->public_id);
 
-        $this->assertSame(AuditAction::SecurityAccessDenied->value, $auditLog->action);
-        $this->assertSame(AuditCategory::Security->value, $auditLog->category);
-        $this->assertSame(AuditSeverity::Critical->value, $auditLog->severity);
-        $this->assertFalse($auditLog->metadata['is_elevated_access']);
-        $this->assertSame('policy_denied', $auditLog->metadata['reason']);
-        $this->assertSame('[REDACTED]', $auditLog->metadata['password']);
-        $this->assertSame('[REDACTED]', $auditLog->metadata['plain_text_token']);
-        $this->assertSame('[REDACTED]', $auditLog->metadata['nested']['file_content']);
-        $this->assertSame('submitted', $auditLog->before_changes['status']);
-        $this->assertSame('[REDACTED]', $auditLog->before_changes['chronology']);
-        $this->assertSame('[REDACTED_NON_SCALAR]', $auditLog->before_changes['snapshot']);
-        $this->assertSame('[REDACTED]', $auditLog->after_changes['encrypted_payload']);
-
-        $rawRow = DB::table('audit_logs')->first();
-        $rawJson = json_encode($rawRow);
-
+        $rawJson = json_encode(DB::table('audit_logs')->first());
         $this->assertStringNotContainsString('SuperSecret', $rawJson);
-        $this->assertStringNotContainsString('token-value', $rawJson);
-        $this->assertStringNotContainsString('Sensitive chronology text', $rawJson);
-        $this->assertStringNotContainsString('cipher-text', $rawJson);
-        $this->assertStringNotContainsString('raw-file-bytes', $rawJson);
+        $this->assertStringNotContainsString('person@example.test', $rawJson);
+        $this->assertStringNotContainsString('Sensitive chronology', $rawJson);
     }
 
-    public function test_admin_and_super_admin_can_view_all_audit_severities(): void
+    public function test_list_and_detail_serialize_only_sanitized_public_contract(): void
     {
-        $admin = $this->makeUser('admin', 'admin@university.ac.id');
-        $superAdmin = $this->makeUser('super_admin', 'super@university.ac.id');
+        $admin = $this->makeUser('admin', 'Admin Kampus', 'admin@university.ac.id');
+        $log = app(AuditLogService::class)->record(
+            action: AuditAction::SecurityAccessDenied,
+            category: AuditCategory::Security,
+            severity: AuditSeverity::Critical,
+            actor: $admin,
+            metadata: ['operation_code' => 'evidence.download', 'reason_code' => 'policy_denied'],
+            result: AuditResult::Denied,
+        );
 
-        $log = AuditLog::query()->create([
-            'actor_id' => null,
-            'request_id' => 'req-critical',
-            'action' => AuditAction::SecurityAccessDenied->value,
-            'category' => AuditCategory::Security->value,
-            'severity' => AuditSeverity::Critical->value,
-            'metadata' => ['is_elevated_access' => false],
-            'before_changes' => [],
-            'after_changes' => [],
-        ]);
+        $this->actingAsApi($admin);
+        $response = $this->getJson('/api/v1/audit-logs?severity=critical')
+            ->assertOk()
+            ->assertJsonPath('data.data.0.public_id', $log->public_id)
+            ->assertJsonPath('data.data.0.actor.kind', 'staff')
+            ->assertJsonPath('data.data.0.actor.label', 'Admin Kampus')
+            ->assertJsonPath('data.data.0.result', 'denied');
 
-        foreach ([$admin, $superAdmin] as $user) {
-            $this->actingAsApi($user);
-            $this->getJson('/api/v1/audit-logs?severity=critical')
-                ->assertOk()
-                ->assertJsonPath('success', true)
-                ->assertJsonPath('data.data.0.id', $log->id)
-                ->assertJsonPath('data.data.0.action', AuditAction::SecurityAccessDenied->value);
+        $serialized = $response->json('data.data.0');
+        $this->assertArrayNotHasKey('id', $serialized);
+        $this->assertArrayNotHasKey('actor_id', $serialized);
+        $this->assertArrayNotHasKey('subject_id', $serialized);
+        $this->assertArrayNotHasKey('subject_type', $serialized);
 
-            $this->getJson("/api/v1/audit-logs/{$log->id}")
-                ->assertOk()
-                ->assertJsonPath('data.id', $log->id)
-                ->assertJsonPath('data.severity', AuditSeverity::Critical->value);
-        }
+        $this->getJson("/api/v1/audit-logs/{$log->public_id}")
+            ->assertOk()
+            ->assertJsonPath('data.public_id', $log->public_id)
+            ->assertJsonMissingPath('data.id')
+            ->assertJsonMissingPath('data.actor_id')
+            ->assertJsonMissingPath('data.subject_id')
+            ->assertJsonMissingPath('data.subject_type');
+
+        $this->getJson("/api/v1/audit-logs/{$log->id}")->assertNotFound();
     }
 
-    public function test_satgas_and_reporter_have_no_audit_api_access(): void
+    public function test_admin_detail_outside_visibility_scope_returns_not_found(): void
     {
-        $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
-        $reporter = $this->makeUser('reporter', 'reporter@university.ac.id');
+        $admin = $this->makeUser('admin', 'Admin Kampus', 'admin@university.ac.id');
+        $privacyLog = app(AuditLogService::class)->record(
+            action: AuditAction::BreakGlassIdentityViewed,
+            category: AuditCategory::Privacy,
+            severity: AuditSeverity::Critical,
+            actor: $admin,
+            metadata: ['registration_number' => 'SLP-PRIVATE'],
+            isElevatedAccess: true,
+        );
+        app(AuditLogService::class)->record(
+            action: AuditAction::SecurityAccessDenied,
+            category: AuditCategory::Security,
+            actor: $admin,
+            metadata: ['operation_code' => 'break_glass.reveal', 'reason_code' => 'policy_denied'],
+            result: AuditResult::Denied,
+        );
 
-        $log = AuditLog::query()->create([
-            'action' => AuditAction::AuthLogin->value,
-            'category' => AuditCategory::Auth->value,
-            'severity' => AuditSeverity::Info->value,
-            'metadata' => ['is_elevated_access' => false],
-            'before_changes' => [],
-            'after_changes' => [],
-        ]);
+        $this->actingAsApi($admin);
+        $this->getJson('/api/v1/audit-logs')
+            ->assertOk()
+            ->assertJsonCount(1, 'data.data');
+        $this->getJson('/api/v1/audit-logs?category=privacy')
+            ->assertOk()
+            ->assertJsonCount(0, 'data.data');
+        $this->getJson("/api/v1/audit-logs/{$privacyLog->public_id}")->assertNotFound();
+    }
+
+    public function test_super_admin_sees_privacy_records_but_only_sanitized_data(): void
+    {
+        $superAdmin = $this->makeUser('super_admin', 'Pimpinan PPKS', 'super@university.ac.id');
+        $privacyLog = app(AuditLogService::class)->record(
+            action: AuditAction::BreakGlassApproved,
+            category: AuditCategory::Privacy,
+            severity: AuditSeverity::Critical,
+            actor: $superAdmin,
+            metadata: [
+                'registration_number' => 'SLP-20260718-0001',
+                'reason_category' => 'safety_emergency',
+                'reporter_email' => 'reporter@example.test',
+            ],
+            isElevatedAccess: true,
+        );
+
+        $this->actingAsApi($superAdmin);
+        $response = $this->getJson('/api/v1/audit-logs?category=privacy')
+            ->assertOk()
+            ->assertJsonCount(1, 'data.data')
+            ->assertJsonPath('data.data.0.public_id', $privacyLog->public_id)
+            ->assertJsonPath('data.data.0.is_elevated_access', true)
+            ->assertJsonMissingPath('data.data.0.metadata.reporter_email');
+
+        $json = json_encode($response->json());
+        $this->assertStringNotContainsString('reporter@example.test', $json);
+        $this->assertStringNotContainsString('App\\Models', $json);
+    }
+
+    public function test_reporter_and_system_actor_labels_never_expose_identity(): void
+    {
+        $reporter = $this->makeUser('reporter', 'Nama Pelapor Rahasia', 'reporter@example.test');
+        $reporterLog = app(AuditLogService::class)->record(
+            action: AuditAction::ReportCreated,
+            category: AuditCategory::Report,
+            actor: $reporter,
+            metadata: ['registration_number' => 'SLP-REPORTER', 'status' => 'submitted'],
+        );
+        $systemLog = app(AuditLogService::class)->record(
+            action: AuditAction::SecurityAccessDenied,
+            category: AuditCategory::Security,
+            metadata: ['operation_code' => 'audit.oversight', 'reason_code' => 'anonymous'],
+            result: AuditResult::Denied,
+        );
+        $superAdmin = $this->makeUser('super_admin', 'Super Admin', 'super@example.test');
+
+        $this->actingAsApi($superAdmin);
+        $response = $this->getJson('/api/v1/audit-logs')->assertOk();
+        $items = collect($response->json('data.data'))->keyBy('public_id');
+
+        $this->assertSame('Pelapor', $items[$reporterLog->public_id]['actor']['label']);
+        $this->assertNull($items[$reporterLog->public_id]['actor']['display_name_safe']);
+        $this->assertSame('Sistem', $items[$systemLog->public_id]['actor']['label']);
+        $this->assertNull($items[$systemLog->public_id]['actor']['display_name_safe']);
+
+        $json = json_encode($response->json());
+        $this->assertStringNotContainsString('Nama Pelapor Rahasia', $json);
+        $this->assertStringNotContainsString('reporter@example.test', $json);
+    }
+
+    public function test_non_audit_roles_cannot_access_audit_api(): void
+    {
+        $satgas = $this->makeUser('satgas_ppks', 'Satgas', 'satgas@university.ac.id');
+        $reporter = $this->makeUser('reporter', 'Pelapor', 'reporter@university.ac.id');
+        $log = app(AuditLogService::class)->record(
+            action: AuditAction::AuthLogin,
+            category: AuditCategory::Auth,
+        );
 
         foreach ([$satgas, $reporter] as $user) {
             $this->actingAsApi($user);
             $this->getJson('/api/v1/audit-logs')->assertForbidden();
-            $this->getJson("/api/v1/audit-logs/{$log->id}")->assertForbidden();
+            $this->getJson("/api/v1/audit-logs/{$log->public_id}")->assertForbidden();
         }
     }
 
-    public function test_audit_query_filters_by_safe_fields(): void
+    public function test_public_id_is_immutable_in_application_and_database(): void
     {
-        $admin = $this->makeUser('admin', 'admin@university.ac.id');
-
-        AuditLog::query()->create([
-            'actor_id' => $admin->id,
-            'request_id' => 'req-auth',
-            'action' => AuditAction::AuthLogin->value,
-            'category' => AuditCategory::Auth->value,
-            'severity' => AuditSeverity::Info->value,
-            'metadata' => ['is_elevated_access' => false],
-            'before_changes' => [],
-            'after_changes' => [],
-        ]);
-
-        AuditLog::query()->create([
-            'actor_id' => null,
-            'request_id' => 'req-denied',
-            'action' => AuditAction::SecurityAccessDenied->value,
-            'category' => AuditCategory::Security->value,
-            'severity' => AuditSeverity::Warning->value,
-            'metadata' => ['is_elevated_access' => false],
-            'before_changes' => [],
-            'after_changes' => [],
-        ]);
-
-        $this->actingAsApi($admin);
-        $this->getJson('/api/v1/audit-logs?category=security&request_id=req-denied')
-            ->assertOk()
-            ->assertJsonCount(1, 'data.data')
-            ->assertJsonPath('data.data.0.action', AuditAction::SecurityAccessDenied->value);
-    }
-
-    public function test_admin_audit_log_api_excludes_privacy_entries(): void
-    {
-        $admin = $this->makeUser('admin', 'admin@university.ac.id');
-
-        AuditLog::query()->create([
-            'actor_id' => $admin->id,
-            'request_id' => 'req-privacy',
-            'action' => AuditAction::BreakGlassRequested->value,
-            'category' => AuditCategory::Privacy->value,
-            'severity' => AuditSeverity::Critical->value,
-            'metadata' => ['is_elevated_access' => false],
-            'before_changes' => [],
-            'after_changes' => [],
-        ]);
-
-        AuditLog::query()->create([
-            'actor_id' => $admin->id,
-            'request_id' => 'req-security',
-            'action' => AuditAction::SecurityAccessDenied->value,
-            'category' => AuditCategory::Security->value,
-            'severity' => AuditSeverity::Warning->value,
-            'metadata' => ['is_elevated_access' => false],
-            'before_changes' => [],
-            'after_changes' => [],
-        ]);
-
-        $this->actingAsApi($admin);
-
-        $response = $this->getJson('/api/v1/audit-logs')
-            ->assertOk()
-            ->assertJsonCount(1, 'data.data');
-
-        $this->assertSame(
-            [AuditCategory::Security->value],
-            collect($response->json('data.data'))->pluck('category')->all()
+        $log = app(AuditLogService::class)->record(
+            action: AuditAction::AuthLogin,
+            category: AuditCategory::Auth,
         );
 
-        $this->getJson('/api/v1/audit-logs?category=privacy')
-            ->assertOk()
-            ->assertJsonCount(0, 'data.data');
+        try {
+            $log->forceFill(['public_id' => '00000000-0000-4000-8000-000000000000'])->save();
+            $this->fail('Application mutation should fail.');
+        } catch (LogicException) {
+            $this->assertTrue(true);
+        }
+
+        $this->expectException(QueryException::class);
+        DB::table('audit_logs')->where('id', $log->id)->update([
+            'public_id' => '00000000-0000-4000-8000-000000000000',
+        ]);
     }
 
-    public function test_super_admin_audit_log_api_includes_privacy_entries(): void
+    public function test_database_rejects_null_public_id_and_invalid_result_values(): void
     {
-        $superAdmin = $this->makeUser('super_admin', 'super@university.ac.id');
+        $log = app(AuditLogService::class)->record(
+            action: AuditAction::AuthLogin,
+            category: AuditCategory::Auth,
+        );
 
-        $privacyLog = AuditLog::query()->create([
-            'actor_id' => $superAdmin->id,
-            'request_id' => 'req-privacy',
-            'action' => AuditAction::BreakGlassApproved->value,
-            'category' => AuditCategory::Privacy->value,
-            'severity' => AuditSeverity::Critical->value,
-            'metadata' => ['is_elevated_access' => false],
-            'before_changes' => [],
-            'after_changes' => [],
-        ]);
+        try {
+            DB::table('audit_logs')->where('id', $log->id)->update(['public_id' => null]);
+            $this->fail('Database must reject a null public audit identifier.');
+        } catch (QueryException) {
+            $this->assertTrue(true);
+        }
 
-        AuditLog::query()->create([
-            'actor_id' => $superAdmin->id,
-            'request_id' => 'req-system',
-            'action' => AuditAction::SecurityAccessDenied->value,
-            'category' => AuditCategory::System->value,
+        $this->expectException(QueryException::class);
+        DB::table('audit_logs')->where('id', $log->id)->update(['result' => 'unknown']);
+    }
+
+    public function test_presentation_suppresses_malformed_reporter_identity_snapshot(): void
+    {
+        $superAdmin = $this->makeUser('super_admin', 'Super Admin', 'snapshot-viewer@example.test');
+        $log = AuditLog::query()->create([
+            'actor_kind' => 'reporter',
+            'actor_role_code' => 'reporter',
+            'actor_display_name_safe' => 'reporter@example.test',
+            'action' => AuditAction::ReportCreated->value,
+            'category' => AuditCategory::Report->value,
             'severity' => AuditSeverity::Info->value,
-            'metadata' => ['is_elevated_access' => false],
-            'before_changes' => [],
-            'after_changes' => [],
+            'result' => AuditResult::Succeeded->value,
+            'metadata' => ['registration_number' => 'SLP-SAFE', 'status' => 'submitted'],
         ]);
-
         $this->actingAsApi($superAdmin);
 
-        $response = $this->getJson('/api/v1/audit-logs')
+        $this->getJson("/api/v1/audit-logs/{$log->public_id}")
             ->assertOk()
-            ->assertJsonCount(2, 'data.data');
-
-        $this->assertContains(
-            AuditCategory::Privacy->value,
-            collect($response->json('data.data'))->pluck('category')->all()
-        );
-
-        $this->getJson('/api/v1/audit-logs?category=privacy')
-            ->assertOk()
-            ->assertJsonCount(1, 'data.data')
-            ->assertJsonPath('data.data.0.id', $privacyLog->id)
-            ->assertJsonPath('data.data.0.category', AuditCategory::Privacy->value);
+            ->assertJsonPath('data.actor.kind', 'reporter')
+            ->assertJsonPath('data.actor.label', 'Pelapor')
+            ->assertJsonPath('data.actor.display_name_safe', null);
     }
 
-    private function makeUser(string $roleCode, string $email): User
+    public function test_unknown_legacy_action_is_presented_without_unsafe_payload_or_crashing(): void
+    {
+        $superAdmin = $this->makeUser('super_admin', 'Super Admin', 'legacy-audit@example.test');
+        $log = AuditLog::query()->create([
+            'action' => 'legacy.unknown_action',
+            'category' => AuditCategory::System->value,
+            'severity' => AuditSeverity::Info->value,
+            'result' => AuditResult::Succeeded->value,
+            'metadata' => ['email' => 'secret@example.test'],
+            'before_changes' => ['password' => 'secret'],
+            'after_changes' => ['token' => 'secret'],
+        ]);
+        $this->actingAsApi($superAdmin);
+
+        $this->getJson("/api/v1/audit-logs/{$log->public_id}")
+            ->assertOk()
+            ->assertJsonPath('data.metadata', [])
+            ->assertJsonPath('data.changes.before', [])
+            ->assertJsonPath('data.changes.after', []);
+    }
+
+    private function makeUser(string $roleCode, string $name, string $email): User
     {
         $role = Role::query()->where('code', $roleCode)->firstOrFail();
 
         return User::query()->create([
             'role_id' => $role->id,
-            'name' => "{$roleCode} User",
+            'name' => $name,
             'email' => $email,
             'password' => 'SecurePass123',
             'is_active' => true,

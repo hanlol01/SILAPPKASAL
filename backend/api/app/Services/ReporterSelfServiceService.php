@@ -10,6 +10,7 @@ use App\Models\ReporterRegistration;
 use App\Models\User;
 use App\Support\ApiErrorCode;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class ReporterSelfServiceService
@@ -23,29 +24,26 @@ class ReporterSelfServiceService
      */
     public function updateProfile(User $user, array $data): User
     {
-        $before = [
-            'name' => $user->name,
-            'phone_number' => $user->phone_number,
-        ];
+        return DB::transaction(function () use ($user, $data): User {
+            $nameChanged = array_key_exists('name', $data) && $data['name'] !== $user->name;
+            $phoneChanged = array_key_exists('phone_number', $data) && $data['phone_number'] !== $user->phone_number;
 
-        $user->forceFill(collect($data)->only(['name', 'phone_number'])->all())->save();
+            $user->forceFill(collect($data)->only(['name', 'phone_number'])->all())->save();
 
-        $after = [
-            'name' => $user->name,
-            'phone_number' => $user->phone_number,
-        ];
+            $this->auditLogService->record(
+                action: AuditAction::ReporterSelfServiceProfileUpdated,
+                category: AuditCategory::System,
+                severity: AuditSeverity::Info,
+                actor: $user,
+                subject: $user,
+                afterChanges: [
+                    'name_changed' => $nameChanged,
+                    'phone_changed' => $phoneChanged,
+                ]
+            );
 
-        $this->auditLogService->record(
-            action: AuditAction::ReporterSelfServiceProfileUpdated,
-            category: AuditCategory::System,
-            severity: AuditSeverity::Info,
-            actor: $user,
-            subject: $user,
-            beforeChanges: $before,
-            afterChanges: $after
-        );
-
-        return $user->refresh()->load('role');
+            return $user->refresh()->load('role');
+        });
     }
 
     /**
@@ -64,25 +62,27 @@ class ReporterSelfServiceService
             ], 422));
         }
 
-        $user->forceFill([
-            'password' => $data['password'],
-        ])->save();
+        DB::transaction(function () use ($user, $data): void {
+            $user->forceFill([
+                'password' => $data['password'],
+            ])->save();
 
-        $currentTokenId = $user->currentAccessToken()?->id;
-        $revokedTokenCount = $currentTokenId
-            ? $user->tokens()->whereKeyNot($currentTokenId)->delete()
-            : $user->tokens()->delete();
+            $currentTokenId = $user->currentAccessToken()?->id;
+            $revokedTokenCount = $currentTokenId
+                ? $user->tokens()->whereKeyNot($currentTokenId)->delete()
+                : $user->tokens()->delete();
 
-        $this->auditLogService->record(
-            action: AuditAction::ReporterSelfServicePasswordChanged,
-            category: AuditCategory::Auth,
-            severity: AuditSeverity::Info,
-            actor: $user,
-            subject: $user,
-            metadata: [
-                'revoked_other_tokens' => $revokedTokenCount,
-            ]
-        );
+            $this->auditLogService->record(
+                action: AuditAction::ReporterSelfServicePasswordChanged,
+                category: AuditCategory::Auth,
+                severity: AuditSeverity::Info,
+                actor: $user,
+                subject: $user,
+                metadata: [
+                    'revoked_other_tokens' => $revokedTokenCount,
+                ]
+            );
+        });
     }
 
     /**

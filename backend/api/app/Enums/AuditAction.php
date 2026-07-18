@@ -83,6 +83,9 @@ enum AuditAction: string
 
     case SecurityAccessDenied = 'security.access_denied';
 
+    case AuditPrivacyScrub = 'audit.privacy_scrub';
+    case AuditExport = 'audit.export';
+
     /**
      * @return list<string>
      */

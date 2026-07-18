@@ -340,7 +340,11 @@ class RecommendationFoundationTest extends TestCase
             ->where('action', AuditAction::RecommendationCreated->value)
             ->firstOrFail();
 
-        $this->assertSame($recommendation->id, $createdLog->metadata['recommendation_id']);
+        $this->assertSame($case->case_number, $createdLog->metadata['case_number']);
+        $this->assertSame($recommendation->status_code, $createdLog->metadata['status_code']);
+        $this->assertArrayNotHasKey('recommendation_id', $createdLog->metadata);
+        $this->assertArrayNotHasKey('case_id', $createdLog->metadata);
+        $this->assertArrayNotHasKey('investigation_id', $createdLog->metadata);
         $this->assertSame(1, $admin->notifications()->where('data->notification_type_code', 'NOTIF-16')->count());
         $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'NOTIF-16')->count());
         $this->assertSame(0, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-16')->count());

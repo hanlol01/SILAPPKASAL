@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Services\AuditLogVisibilityScope;
 
 class AuditLogPolicy extends BasePolicy
 {
@@ -15,6 +16,19 @@ class AuditLogPolicy extends BasePolicy
 
     public function view(User $user, AuditLog $auditLog): bool
     {
-        return $this->viewAny($user);
+        return $this->viewAny($user)
+            && app(AuditLogVisibilityScope::class)->allows($user, $auditLog);
+    }
+
+    public function oversight(User $user): bool
+    {
+        return $user->hasRole('super_admin')
+            && $user->hasPermission('system.audit_log.oversight');
+    }
+
+    public function export(User $user): bool
+    {
+        return $user->hasRole('super_admin')
+            && $user->hasPermission('system.audit_log.export');
     }
 }

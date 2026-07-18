@@ -30,6 +30,7 @@ import { Route as DashboardMasterDataRouteImport } from './routes/dashboard.mast
 import { Route as DashboardContentRouteImport } from './routes/dashboard.content'
 import { Route as DashboardBreakGlassRouteImport } from './routes/dashboard.break-glass'
 import { Route as DashboardAnalyticsRouteImport } from './routes/dashboard.analytics'
+import { Route as DashboardActivityLogRouteImport } from './routes/dashboard.activity-log'
 import { Route as PortalReportsIndexRouteImport } from './routes/portal.reports.index'
 import { Route as DashboardReportsIndexRouteImport } from './routes/dashboard.reports.index'
 import { Route as DashboardCasesIndexRouteImport } from './routes/dashboard.cases.index'
@@ -148,6 +149,11 @@ const DashboardAnalyticsRoute = DashboardAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardActivityLogRoute = DashboardActivityLogRouteImport.update({
+  id: '/activity-log',
+  path: '/activity-log',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const PortalReportsIndexRoute = PortalReportsIndexRouteImport.update({
   id: '/reports/',
   path: '/reports/',
@@ -221,6 +227,7 @@ export interface FileRoutesByFullPath {
   '/portal': typeof PortalRouteWithChildren
   '/register': typeof RegisterRoute
   '/track': typeof TrackRoute
+  '/dashboard/activity-log': typeof DashboardActivityLogRoute
   '/dashboard/analytics': typeof DashboardAnalyticsRoute
   '/dashboard/break-glass': typeof DashboardBreakGlassRoute
   '/dashboard/content': typeof DashboardContentRoute
@@ -254,6 +261,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/track': typeof TrackRoute
+  '/dashboard/activity-log': typeof DashboardActivityLogRoute
   '/dashboard/analytics': typeof DashboardAnalyticsRoute
   '/dashboard/break-glass': typeof DashboardBreakGlassRoute
   '/dashboard/content': typeof DashboardContentRoute
@@ -290,6 +298,7 @@ export interface FileRoutesById {
   '/portal': typeof PortalRouteWithChildren
   '/register': typeof RegisterRoute
   '/track': typeof TrackRoute
+  '/dashboard/activity-log': typeof DashboardActivityLogRoute
   '/dashboard/analytics': typeof DashboardAnalyticsRoute
   '/dashboard/break-glass': typeof DashboardBreakGlassRoute
   '/dashboard/content': typeof DashboardContentRoute
@@ -327,6 +336,7 @@ export interface FileRouteTypes {
     | '/portal'
     | '/register'
     | '/track'
+    | '/dashboard/activity-log'
     | '/dashboard/analytics'
     | '/dashboard/break-glass'
     | '/dashboard/content'
@@ -360,6 +370,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/track'
+    | '/dashboard/activity-log'
     | '/dashboard/analytics'
     | '/dashboard/break-glass'
     | '/dashboard/content'
@@ -395,6 +406,7 @@ export interface FileRouteTypes {
     | '/portal'
     | '/register'
     | '/track'
+    | '/dashboard/activity-log'
     | '/dashboard/analytics'
     | '/dashboard/break-glass'
     | '/dashboard/content'
@@ -584,6 +596,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardAnalyticsRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/activity-log': {
+      id: '/dashboard/activity-log'
+      path: '/activity-log'
+      fullPath: '/dashboard/activity-log'
+      preLoaderRoute: typeof DashboardActivityLogRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/portal/reports/': {
       id: '/portal/reports/'
       path: '/reports'
@@ -701,6 +720,7 @@ const DashboardRegistrationsRouteWithChildren =
   )
 
 interface DashboardRouteChildren {
+  DashboardActivityLogRoute: typeof DashboardActivityLogRoute
   DashboardAnalyticsRoute: typeof DashboardAnalyticsRoute
   DashboardBreakGlassRoute: typeof DashboardBreakGlassRoute
   DashboardContentRoute: typeof DashboardContentRoute
@@ -718,6 +738,7 @@ interface DashboardRouteChildren {
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardActivityLogRoute: DashboardActivityLogRoute,
   DashboardAnalyticsRoute: DashboardAnalyticsRoute,
   DashboardBreakGlassRoute: DashboardBreakGlassRoute,
   DashboardContentRoute: DashboardContentRoute,

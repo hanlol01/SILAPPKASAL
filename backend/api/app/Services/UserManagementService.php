@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -55,21 +56,23 @@ class UserManagementService
 
     public function activate(User $target, User $actor): User
     {
-        $before = ['is_active' => (bool) $target->is_active];
+        return DB::transaction(function () use ($target, $actor): User {
+            $before = ['is_active' => (bool) $target->is_active];
 
-        $target->forceFill(['is_active' => true])->save();
+            $target->forceFill(['is_active' => true])->save();
 
-        $this->auditLogService->record(
-            action: AuditAction::UserActivated,
-            category: AuditCategory::System,
-            severity: AuditSeverity::Info,
-            actor: $actor,
-            subject: $target,
-            beforeChanges: $before,
-            afterChanges: ['is_active' => true]
-        );
+            $this->auditLogService->record(
+                action: AuditAction::UserActivated,
+                category: AuditCategory::System,
+                severity: AuditSeverity::Info,
+                actor: $actor,
+                subject: $target,
+                beforeChanges: $before,
+                afterChanges: ['is_active' => true]
+            );
 
-        return $target->refresh()->load(['role', 'university', 'faculty', 'studyProgram']);
+            return $target->refresh()->load(['role', 'university', 'faculty', 'studyProgram']);
+        });
     }
 
     public function deactivate(User $target, User $actor): User
@@ -80,22 +83,24 @@ class UserManagementService
 
         $this->ensureNotLastActiveSuperAdmin($target);
 
-        $before = ['is_active' => (bool) $target->is_active];
+        return DB::transaction(function () use ($target, $actor): User {
+            $before = ['is_active' => (bool) $target->is_active];
 
-        $target->forceFill(['is_active' => false])->save();
-        $target->tokens()->delete();
+            $target->forceFill(['is_active' => false])->save();
+            $target->tokens()->delete();
 
-        $this->auditLogService->record(
-            action: AuditAction::UserDeactivated,
-            category: AuditCategory::System,
-            severity: AuditSeverity::Warning,
-            actor: $actor,
-            subject: $target,
-            beforeChanges: $before,
-            afterChanges: ['is_active' => false]
-        );
+            $this->auditLogService->record(
+                action: AuditAction::UserDeactivated,
+                category: AuditCategory::System,
+                severity: AuditSeverity::Warning,
+                actor: $actor,
+                subject: $target,
+                beforeChanges: $before,
+                afterChanges: ['is_active' => false]
+            );
 
-        return $target->refresh()->load(['role', 'university', 'faculty', 'studyProgram']);
+            return $target->refresh()->load(['role', 'university', 'faculty', 'studyProgram']);
+        });
     }
 
     public function assignRole(User $target, User $actor, string $roleCode): User
@@ -111,22 +116,24 @@ class UserManagementService
             ->where('is_active', true)
             ->firstOrFail();
 
-        $beforeRoleCode = $target->role?->code;
+        return DB::transaction(function () use ($target, $actor, $role): User {
+            $beforeRoleCode = $target->role?->code;
 
-        $target->forceFill(['role_id' => $role->id])->save();
-        $target->tokens()->delete();
+            $target->forceFill(['role_id' => $role->id])->save();
+            $target->tokens()->delete();
 
-        $this->auditLogService->record(
-            action: AuditAction::UserRoleChanged,
-            category: AuditCategory::System,
-            severity: AuditSeverity::Warning,
-            actor: $actor,
-            subject: $target,
-            beforeChanges: ['role_code' => $beforeRoleCode],
-            afterChanges: ['role_code' => $role->code]
-        );
+            $this->auditLogService->record(
+                action: AuditAction::UserRoleChanged,
+                category: AuditCategory::System,
+                severity: AuditSeverity::Warning,
+                actor: $actor,
+                subject: $target,
+                beforeChanges: ['role_code' => $beforeRoleCode],
+                afterChanges: ['role_code' => $role->code]
+            );
 
-        return $target->refresh()->load(['role', 'university', 'faculty', 'studyProgram']);
+            return $target->refresh()->load(['role', 'university', 'faculty', 'studyProgram']);
+        });
     }
 
     /**
@@ -138,39 +145,36 @@ class UserManagementService
         $this->ensureActorCanManageUniversity($actor, (int) $data['university_id']);
         $this->ensureNoReporterDuplicate((string) $data['email'], (string) $data['nim'], (int) $data['university_id']);
 
-        $role = Role::query()->where('code', 'reporter')->firstOrFail();
+        return DB::transaction(function () use ($data, $actor): array {
+            $role = Role::query()->where('code', 'reporter')->firstOrFail();
 
-        $user = User::query()->create([
-            'role_id' => $role->id,
-            'university_id' => $data['university_id'],
-            'faculty_id' => $data['faculty_id'] ?? null,
-            'study_program_id' => $data['study_program_id'],
-            'name' => trim((string) $data['name']),
-            'email' => mb_strtolower(trim((string) $data['email'])),
-            'nim' => trim((string) $data['nim']),
-            'phone_number' => trim((string) $data['phone_number']),
-            'password' => $data['password'],
-            'is_active' => true,
-        ]);
+            $user = User::query()->create([
+                'role_id' => $role->id,
+                'university_id' => $data['university_id'],
+                'faculty_id' => $data['faculty_id'] ?? null,
+                'study_program_id' => $data['study_program_id'],
+                'name' => trim((string) $data['name']),
+                'email' => mb_strtolower(trim((string) $data['email'])),
+                'nim' => trim((string) $data['nim']),
+                'phone_number' => trim((string) $data['phone_number']),
+                'password' => $data['password'],
+                'is_active' => true,
+            ]);
 
-        $this->auditLogService->record(
-            action: AuditAction::UserReporterCreated,
-            category: AuditCategory::System,
-            severity: AuditSeverity::Info,
-            actor: $actor,
-            subject: $user,
-            metadata: [
-                'role_code' => 'reporter',
-                'university_id' => $user->university_id,
-                'faculty_id' => $user->faculty_id,
-                'study_program_id' => $user->study_program_id,
-            ]
-        );
+            $this->auditLogService->record(
+                action: AuditAction::UserReporterCreated,
+                category: AuditCategory::System,
+                severity: AuditSeverity::Info,
+                actor: $actor,
+                subject: $user,
+                metadata: ['role_code' => 'reporter']
+            );
 
-        return [
-            'user' => $user->refresh()->load(['role', 'university', 'faculty', 'studyProgram']),
-            'temporary_password' => (string) $data['password'],
-        ];
+            return [
+                'user' => $user->refresh()->load(['role', 'university', 'faculty', 'studyProgram']),
+                'temporary_password' => (string) $data['password'],
+            ];
+        });
     }
 
     /**
@@ -178,28 +182,30 @@ class UserManagementService
      */
     public function resetPassword(User $target, User $actor): array
     {
-        $temporaryPassword = Str::password(14);
+        return DB::transaction(function () use ($target, $actor): array {
+            $temporaryPassword = Str::password(14);
 
-        $target->forceFill([
-            'password' => Hash::make($temporaryPassword),
-        ])->save();
-        $target->tokens()->delete();
+            $target->forceFill([
+                'password' => Hash::make($temporaryPassword),
+            ])->save();
+            $target->tokens()->delete();
 
-        $this->auditLogService->record(
-            action: AuditAction::UserPasswordReset,
-            category: AuditCategory::System,
-            severity: AuditSeverity::Warning,
-            actor: $actor,
-            subject: $target,
-            metadata: [
-                'temporary_password_generated' => true,
-            ]
-        );
+            $this->auditLogService->record(
+                action: AuditAction::UserPasswordReset,
+                category: AuditCategory::System,
+                severity: AuditSeverity::Warning,
+                actor: $actor,
+                subject: $target,
+                metadata: [
+                    'temporary_password_generated' => true,
+                ]
+            );
 
-        return [
-            'user' => $target->refresh()->load(['role', 'university', 'faculty', 'studyProgram']),
-            'temporary_password' => $temporaryPassword,
-        ];
+            return [
+                'user' => $target->refresh()->load(['role', 'university', 'faculty', 'studyProgram']),
+                'temporary_password' => $temporaryPassword,
+            ];
+        });
     }
 
     private function applySearch(Builder $query, string $search): Builder

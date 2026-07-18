@@ -148,9 +148,10 @@ Route::prefix('v1')->group(function (): void {
 
     Route::middleware('auth:sanctum')->prefix('evidences')->group(function (): void {
         Route::post('/{evidence}/file', [EvidenceController::class, 'uploadFile'])
-            ->middleware('throttle:evidence.upload');
-        Route::get('/{evidence}/file', [EvidenceController::class, 'downloadFile']);
-        Route::get('/{evidence}/preview', [EvidenceController::class, 'previewFile']);
+            ->middleware('throttle:evidence.upload')
+            ->name('evidence.upload');
+        Route::get('/{evidence}/file', [EvidenceController::class, 'downloadFile'])->name('evidence.download');
+        Route::get('/{evidence}/preview', [EvidenceController::class, 'previewFile'])->name('evidence.preview');
         Route::get('/{evidence}', [EvidenceController::class, 'show']);
         Route::patch('/{evidence}', [EvidenceController::class, 'update']);
         Route::patch('/{evidence}/status', [EvidenceController::class, 'updateStatus']);
@@ -164,7 +165,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/{recommendation}', [RecommendationController::class, 'show']);
         Route::patch('/{recommendation}', [RecommendationController::class, 'update']);
         Route::post('/{recommendation}/submit', [RecommendationController::class, 'submit']);
-        Route::post('/{recommendation}/review', [RecommendationController::class, 'review']);
+        Route::post('/{recommendation}/review', [RecommendationController::class, 'review'])->name('recommendation.review');
         Route::patch('/{recommendation}/status', [RecommendationController::class, 'updateStatus']);
     });
 
@@ -188,7 +189,10 @@ Route::prefix('v1')->group(function (): void {
 
     Route::middleware('auth:sanctum')->prefix('audit-logs')->group(function (): void {
         Route::get('/', [AuditLogController::class, 'index']);
-        Route::get('/{auditLog}', [AuditLogController::class, 'show']);
+        Route::get('/summary', [AuditLogController::class, 'summary'])->name('audit.oversight');
+        Route::get('/oversight', [AuditLogController::class, 'oversight'])->name('audit.oversight.items');
+        Route::get('/export', [AuditLogController::class, 'export'])->name('audit.export');
+        Route::get('/{auditLog:public_id}', [AuditLogController::class, 'show'])->name('audit.show');
     });
 
     Route::middleware('auth:sanctum')->prefix('break-glass')->group(function (): void {
@@ -196,9 +200,9 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/pending', [BreakGlassController::class, 'pending']);
         Route::get('/history', [BreakGlassController::class, 'history']);
         Route::get('/{breakGlassRequest}', [BreakGlassController::class, 'show']);
-        Route::patch('/{breakGlassRequest}/approve', [BreakGlassController::class, 'approve']);
-        Route::patch('/{breakGlassRequest}/deny', [BreakGlassController::class, 'deny']);
-        Route::get('/{breakGlassRequest}/reveal', [BreakGlassController::class, 'reveal']);
+        Route::patch('/{breakGlassRequest}/approve', [BreakGlassController::class, 'approve'])->name('break_glass.approve');
+        Route::patch('/{breakGlassRequest}/deny', [BreakGlassController::class, 'deny'])->name('break_glass.deny');
+        Route::get('/{breakGlassRequest}/reveal', [BreakGlassController::class, 'reveal'])->name('break_glass.reveal');
     });
 
     Route::middleware('auth:sanctum')->prefix('dashboard')->group(function (): void {
@@ -229,8 +233,8 @@ Route::prefix('v1')->group(function (): void {
     });
 
     Route::middleware('auth:sanctum')->prefix('reporter-evidence-files')->group(function (): void {
-        Route::get('/{uuid}/download', [ReportEvidenceSubmissionController::class, 'downloadForSatgas']);
-        Route::get('/{uuid}/preview', [ReportEvidenceSubmissionController::class, 'previewForSatgas']);
+        Route::get('/{uuid}/download', [ReportEvidenceSubmissionController::class, 'downloadForSatgas'])->name('reporter_evidence.download');
+        Route::get('/{uuid}/preview', [ReportEvidenceSubmissionController::class, 'previewForSatgas'])->name('reporter_evidence.preview');
     });
 
     Route::middleware('auth:sanctum')->prefix('users')->group(function (): void {

@@ -7,10 +7,17 @@ use App\Models\ReporterRegistration;
 use App\Models\User;
 use App\Support\ApiErrorCode;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class AuthService
 {
+    public function __construct(
+        private readonly AuditLogService $auditLogService,
+        private readonly LoginFailureAuditService $loginFailureAuditService,
+    ) {
+    }
+
     public function login(string $identifier, string $password): array
     {
         $user = $this->findUserByIdentifier($this->normalizeIdentifier($identifier));
@@ -21,6 +28,8 @@ class AuthService
             if ($registrationResult) {
                 return $registrationResult;
             }
+
+            $this->loginFailureAuditService->record($identifier);
 
             throw new HttpResponseException(response()->json([
                 'success' => false,
@@ -39,26 +48,43 @@ class AuthService
             ], 403));
         }
 
-        $user->load('role.permissions');
+        return DB::transaction(function () use ($user): array {
+            $user->load('role.permissions');
 
-        $expirationMinutes = $this->tokenExpirationMinutes();
-        $token = $user->createToken(
-            'web-login',
-            ['*'],
-            now()->addMinutes($expirationMinutes)
-        );
+            $expirationMinutes = $this->tokenExpirationMinutes();
+            $token = $user->createToken(
+                'web-login',
+                ['*'],
+                now()->addMinutes($expirationMinutes)
+            );
 
-        return [
-            'token' => $token->plainTextToken,
-            'token_type' => 'Bearer',
-            'expires_in' => $expirationMinutes * 60,
-            'user' => $user,
-        ];
+            $this->auditLogService->record(
+                action: \App\Enums\AuditAction::AuthLogin,
+                category: \App\Enums\AuditCategory::Auth,
+                actor: $user,
+                metadata: ['authentication_method' => 'password'],
+            );
+
+            return [
+                'token' => $token->plainTextToken,
+                'token_type' => 'Bearer',
+                'expires_in' => $expirationMinutes * 60,
+                'user' => $user,
+            ];
+        });
     }
 
     public function logout(User $user): void
     {
-        $user->currentAccessToken()?->delete();
+        DB::transaction(function () use ($user): void {
+            $user->currentAccessToken()?->delete();
+            $this->auditLogService->record(
+                action: \App\Enums\AuditAction::AuthLogout,
+                category: \App\Enums\AuditCategory::Auth,
+                actor: $user,
+                metadata: ['authentication_method' => 'bearer_token'],
+            );
+        });
     }
 
     public function normalizeIdentifier(string $identifier): string

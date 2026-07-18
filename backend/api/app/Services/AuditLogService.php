@@ -3,53 +3,24 @@
 namespace App\Services;
 
 use App\Enums\AuditAction;
+use App\Enums\AuditResult;
 use App\Enums\AuditCategory;
 use App\Enums\AuditSeverity;
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Support\AuditEventCatalog;
+use App\Support\AuditSnapshot;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 class AuditLogService
 {
-    /**
-     * Keys containing these fragments are always redacted before persistence.
-     *
-     * @var list<string>
-     */
-    private array $sensitiveKeyFragments = [
-        'password',
-        'token',
-        'hash',
-        'encrypted',
-        'payload',
-        'content',
-        'file',
-        'chronology',
-        'incident_location',
-        'respondent',
-        'witness',
-        'phone',
-        'narrative',
-        'findings',
-        'conclusion',
-        'plan_summary',
-        'recommended_action',
-        'sanction_recommendation',
-        'recovery_recommendation',
-        'prevention_recommendation',
-        'revision_note',
-        'review_note',
-        'decision_summary',
-        'decision_body',
-        'recovery_plan',
-        'support_needs',
-        'condition_summary',
-        'follow_up_plan',
-        'notes',
-        'description',
-        'source',
-    ];
+    public function __construct(
+        private readonly AuditEventCatalog $catalog,
+        private readonly AuditSnapshot $snapshot,
+    ) {
+    }
 
     /**
      * @param  array<string, mixed>  $metadata
@@ -67,86 +38,36 @@ class AuditLogService
         array $afterChanges = [],
         ?string $requestId = null,
         bool $isElevatedAccess = false,
+        AuditResult $result = AuditResult::Succeeded,
+        ?\DateTimeInterface $expiresAt = null,
     ): AuditLog {
-        $metadata = $this->sanitizeMetadata($metadata);
-        $metadata['is_elevated_access'] = (bool) ($metadata['is_elevated_access'] ?? $isElevatedAccess);
+        $actionValue = $this->enumValue($action);
+        $this->assertResultMatchesAction($actionValue, $result);
+        $metadata = $this->catalog->sanitizeMetadata($actionValue, $metadata);
+        $actorSnapshot = $this->snapshot->actor($actor);
+        $subjectSnapshot = $this->snapshot->subject($subject, $metadata);
 
-        return AuditLog::query()->create([
+        $auditLog = new AuditLog([
             'actor_id' => $actor?->id,
-            'request_id' => $requestId,
-            'action' => $this->enumValue($action),
+            ...$actorSnapshot,
+            'request_id' => $requestId ?? request()?->attributes->get('request_id'),
+            'action' => $actionValue,
             'category' => $this->enumValue($category),
             'severity' => $this->enumValue($severity),
+            'result' => $result->value,
             'subject_type' => $subject ? $subject->getMorphClass() : null,
             'subject_id' => $subject?->getKey(),
+            ...$subjectSnapshot,
+            'is_elevated_access' => $isElevatedAccess,
             'metadata' => $metadata,
-            'before_changes' => $this->sanitizeDelta($beforeChanges),
-            'after_changes' => $this->sanitizeDelta($afterChanges),
+            'before_changes' => $this->catalog->sanitizeDeltas($actionValue, $beforeChanges),
+            'after_changes' => $this->catalog->sanitizeDeltas($actionValue, $afterChanges),
+            'expires_at' => $expiresAt,
         ]);
-    }
+        $auditLog->public_id = (string) Str::uuid();
+        $auditLog->save();
 
-    /**
-     * @param  array<string, mixed>  $metadata
-     * @return array<string, mixed>
-     */
-    private function sanitizeMetadata(array $metadata): array
-    {
-        $safe = [];
-
-        foreach ($metadata as $key => $value) {
-            $safe[$key] = $this->sanitizeValue((string) $key, $value, allowArrays: true);
-        }
-
-        return $safe;
-    }
-
-    /**
-     * @param  array<string, mixed>  $changes
-     * @return array<string, mixed>
-     */
-    private function sanitizeDelta(array $changes): array
-    {
-        $safe = [];
-
-        foreach ($changes as $key => $value) {
-            $safe[$key] = $this->sanitizeValue((string) $key, $value, allowArrays: false);
-        }
-
-        return $safe;
-    }
-
-    private function sanitizeValue(string $key, mixed $value, bool $allowArrays): mixed
-    {
-        if ($this->isSensitiveKey($key)) {
-            return '[REDACTED]';
-        }
-
-        if (is_null($value) || is_bool($value) || is_int($value) || is_float($value) || is_string($value)) {
-            return $value;
-        }
-
-        if ($allowArrays && is_array($value)) {
-            return collect($value)
-                ->mapWithKeys(fn (mixed $nestedValue, string|int $nestedKey): array => [
-                    $nestedKey => $this->sanitizeValue((string) $nestedKey, $nestedValue, allowArrays: false),
-                ])
-                ->all();
-        }
-
-        return '[REDACTED_NON_SCALAR]';
-    }
-
-    private function isSensitiveKey(string $key): bool
-    {
-        $normalized = Str::of($key)->lower()->replace(['-', ' '], '_')->toString();
-
-        foreach ($this->sensitiveKeyFragments as $fragment) {
-            if (str_contains($normalized, $fragment)) {
-                return true;
-            }
-        }
-
-        return false;
+        return $auditLog;
     }
 
     private function enumValue(AuditAction|AuditCategory|AuditSeverity|string $value): string
@@ -154,5 +75,18 @@ class AuditLogService
         return $value instanceof AuditAction || $value instanceof AuditCategory || $value instanceof AuditSeverity
             ? $value->value
             : $value;
+    }
+
+    private function assertResultMatchesAction(string $action, AuditResult $result): void
+    {
+        $requiredResult = match ($action) {
+            AuditAction::AuthLoginFailed->value => AuditResult::Failed,
+            AuditAction::SecurityAccessDenied->value => AuditResult::Denied,
+            default => null,
+        };
+
+        if ($requiredResult && $result !== $requiredResult) {
+            throw new InvalidArgumentException("Audit action {$action} requires result {$requiredResult->value}.");
+        }
     }
 }

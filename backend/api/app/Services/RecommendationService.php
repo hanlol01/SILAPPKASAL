@@ -545,6 +545,12 @@ class RecommendationService
         array $beforeChanges = [],
         array $afterChanges = [],
     ): void {
+        $metadata = [
+            ...$metadata,
+            'case_number' => $subject->case?->case_number,
+            'status_code' => $subject->status_code,
+        ];
+
         $this->auditLogService->record(
             action: $action,
             category: AuditCategory::Recommendation,

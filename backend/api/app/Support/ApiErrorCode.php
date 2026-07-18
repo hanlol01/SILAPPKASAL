@@ -19,6 +19,7 @@ final class ApiErrorCode
     public const RegistrationNumberUnavailable = 'registration_number_unavailable';
     public const TrackingNotFound = 'tracking_not_found';
     public const PortalReportNotFound = 'portal_report_not_found';
+    public const AuditExportTooManyRows = 'audit_export.too_many_rows';
 
     private function __construct()
     {

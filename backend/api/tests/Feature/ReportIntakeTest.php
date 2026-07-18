@@ -2,15 +2,18 @@
 
 namespace Tests\Feature;
 
+use App\Enums\AuditAction;
 use App\Enums\ReportStatus;
 use App\Models\Report;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\AuditLogService;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\Sanctum;
+use RuntimeException;
 use Tests\TestCase;
 
 class ReportIntakeTest extends TestCase
@@ -65,6 +68,26 @@ class ReportIntakeTest extends TestCase
         $this->assertNull($report->reporter_phone_encrypted);
         $this->assertArrayNotHasKey('ip_address', $report->getAttributes());
         $this->assertArrayNotHasKey('device_data', $report->getAttributes());
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::ReportCreated->value,
+            'actor_id' => $reporter->id,
+            'subject_id' => $report->id,
+        ]);
+    }
+
+    public function test_report_creation_rolls_back_when_audit_persistence_fails(): void
+    {
+        $reporter = $this->makeUser('reporter', 'audit-rollback@university.ac.id');
+        $this->mock(AuditLogService::class, function ($mock): void {
+            $mock->shouldReceive('record')->once()->andThrow(new RuntimeException('audit unavailable'));
+        });
+        Sanctum::actingAs($reporter, ['*']);
+
+        $this->postJson('/api/v1/reports', $this->payload(['report_type' => 'open']))
+            ->assertServerError();
+
+        $this->assertDatabaseCount('reports', 0);
+        $this->assertDatabaseCount('audit_logs', 0);
     }
 
     public function test_identified_report_requires_authentication(): void

@@ -41,11 +41,13 @@ class CampusMasterDataService
      */
     public function createUniversity(array $data, User $actor): University
     {
-        $university = University::query()->create($this->universityPayload($data));
+        return DB::transaction(function () use ($data, $actor): University {
+            $university = University::query()->create($this->universityPayload($data));
 
-        $this->audit(AuditAction::CampusUniversityCreated, $actor, $university, after: $this->universityDelta($university));
+            $this->audit(AuditAction::CampusUniversityCreated, $actor, $university, after: $this->universityDelta($university));
 
-        return $university->refresh()->loadCount(['faculties', 'studyPrograms']);
+            return $university->refresh()->loadCount(['faculties', 'studyPrograms']);
+        });
     }
 
     /**
@@ -53,13 +55,15 @@ class CampusMasterDataService
      */
     public function updateUniversity(University $university, array $data, User $actor): University
     {
-        $before = $this->universityDelta($university);
+        return DB::transaction(function () use ($university, $data, $actor): University {
+            $before = $this->universityDelta($university);
 
-        $university->forceFill($this->universityPayload($data))->save();
+            $university->forceFill($this->universityPayload($data))->save();
 
-        $this->audit(AuditAction::CampusUniversityUpdated, $actor, $university, before: $before, after: $this->universityDelta($university));
+            $this->audit(AuditAction::CampusUniversityUpdated, $actor, $university, before: $before, after: $this->universityDelta($university));
 
-        return $university->refresh()->loadCount(['faculties', 'studyPrograms']);
+            return $university->refresh()->loadCount(['faculties', 'studyPrograms']);
+        });
     }
 
     public function toggleUniversityActive(University $university, User $actor): University
@@ -109,11 +113,13 @@ class CampusMasterDataService
      */
     public function createFaculty(array $data, User $actor): Faculty
     {
-        $faculty = Faculty::query()->create($this->facultyPayload($data));
+        return DB::transaction(function () use ($data, $actor): Faculty {
+            $faculty = Faculty::query()->create($this->facultyPayload($data));
 
-        $this->audit(AuditAction::CampusFacultyCreated, $actor, $faculty, after: $this->facultyDelta($faculty));
+            $this->audit(AuditAction::CampusFacultyCreated, $actor, $faculty, after: $this->facultyDelta($faculty));
 
-        return $faculty->refresh()->load(['university'])->loadCount('studyPrograms');
+            return $faculty->refresh()->load(['university'])->loadCount('studyPrograms');
+        });
     }
 
     /**
@@ -121,13 +127,15 @@ class CampusMasterDataService
      */
     public function updateFaculty(Faculty $faculty, array $data, User $actor): Faculty
     {
-        $before = $this->facultyDelta($faculty);
+        return DB::transaction(function () use ($faculty, $data, $actor): Faculty {
+            $before = $this->facultyDelta($faculty);
 
-        $faculty->forceFill($this->facultyPayload($data))->save();
+            $faculty->forceFill($this->facultyPayload($data))->save();
 
-        $this->audit(AuditAction::CampusFacultyUpdated, $actor, $faculty, before: $before, after: $this->facultyDelta($faculty));
+            $this->audit(AuditAction::CampusFacultyUpdated, $actor, $faculty, before: $before, after: $this->facultyDelta($faculty));
 
-        return $faculty->refresh()->load(['university'])->loadCount('studyPrograms');
+            return $faculty->refresh()->load(['university'])->loadCount('studyPrograms');
+        });
     }
 
     public function toggleFacultyActive(Faculty $faculty, User $actor): Faculty
@@ -181,11 +189,13 @@ class CampusMasterDataService
      */
     public function createStudyProgram(array $data, User $actor): StudyProgram
     {
-        $studyProgram = StudyProgram::query()->create($this->studyProgramPayload($data));
+        return DB::transaction(function () use ($data, $actor): StudyProgram {
+            $studyProgram = StudyProgram::query()->create($this->studyProgramPayload($data));
 
-        $this->audit(AuditAction::CampusStudyProgramCreated, $actor, $studyProgram, after: $this->studyProgramDelta($studyProgram));
+            $this->audit(AuditAction::CampusStudyProgramCreated, $actor, $studyProgram, after: $this->studyProgramDelta($studyProgram));
 
-        return $studyProgram->refresh()->load(['university', 'faculty']);
+            return $studyProgram->refresh()->load(['university', 'faculty']);
+        });
     }
 
     /**
@@ -193,40 +203,44 @@ class CampusMasterDataService
      */
     public function updateStudyProgram(StudyProgram $studyProgram, array $data, User $actor): StudyProgram
     {
-        $before = $this->studyProgramDelta($studyProgram);
+        return DB::transaction(function () use ($studyProgram, $data, $actor): StudyProgram {
+            $before = $this->studyProgramDelta($studyProgram);
 
-        $studyProgram->forceFill($this->studyProgramPayload($data))->save();
+            $studyProgram->forceFill($this->studyProgramPayload($data))->save();
 
-        $this->audit(AuditAction::CampusStudyProgramUpdated, $actor, $studyProgram, before: $before, after: $this->studyProgramDelta($studyProgram));
+            $this->audit(AuditAction::CampusStudyProgramUpdated, $actor, $studyProgram, before: $before, after: $this->studyProgramDelta($studyProgram));
 
-        return $studyProgram->refresh()->load(['university', 'faculty']);
+            return $studyProgram->refresh()->load(['university', 'faculty']);
+        });
     }
 
     public function toggleStudyProgramActive(StudyProgram $studyProgram, User $actor): StudyProgram
     {
-        $studyProgram->loadMissing(['university', 'faculty']);
-        $nextState = ! $studyProgram->is_active;
+        return DB::transaction(function () use ($studyProgram, $actor): StudyProgram {
+            $studyProgram->loadMissing(['university', 'faculty']);
+            $nextState = ! $studyProgram->is_active;
 
-        if ($nextState && ! $studyProgram->university->is_active) {
-            throw $this->unprocessable('Cannot activate a study program while its university is inactive');
-        }
+            if ($nextState && ! $studyProgram->university->is_active) {
+                throw $this->unprocessable('Cannot activate a study program while its university is inactive');
+            }
 
-        if ($nextState && $studyProgram->faculty && ! $studyProgram->faculty->is_active) {
-            throw $this->unprocessable('Cannot activate a study program while its faculty is inactive');
-        }
+            if ($nextState && $studyProgram->faculty && ! $studyProgram->faculty->is_active) {
+                throw $this->unprocessable('Cannot activate a study program while its faculty is inactive');
+            }
 
-        $before = ['is_active' => (bool) $studyProgram->is_active];
-        $studyProgram->forceFill(['is_active' => $nextState])->save();
+            $before = ['is_active' => (bool) $studyProgram->is_active];
+            $studyProgram->forceFill(['is_active' => $nextState])->save();
 
-        $this->audit(
-            $nextState ? AuditAction::CampusStudyProgramActivated : AuditAction::CampusStudyProgramDeactivated,
-            $actor,
-            $studyProgram,
-            before: $before,
-            after: ['is_active' => $nextState]
-        );
+            $this->audit(
+                $nextState ? AuditAction::CampusStudyProgramActivated : AuditAction::CampusStudyProgramDeactivated,
+                $actor,
+                $studyProgram,
+                before: $before,
+                after: ['is_active' => $nextState]
+            );
 
-        return $studyProgram->refresh()->load(['university', 'faculty']);
+            return $studyProgram->refresh()->load(['university', 'faculty']);
+        });
     }
 
     private function applySearch(Builder $query, string $search): Builder

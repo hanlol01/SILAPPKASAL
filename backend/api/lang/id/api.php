@@ -17,5 +17,6 @@ return [
         'registration_number_unavailable' => 'Nomor pendaftaran pelapor tidak dapat dibuat.',
         'tracking_not_found' => 'Kode pelacakan laporan tidak ditemukan.',
         'portal_report_not_found' => 'Laporan tidak ditemukan.',
+        'audit_export.too_many_rows' => 'Hasil ekspor audit melebihi batas 10.000 baris. Persempit rentang tanggal atau filter.',
     ],
 ];
