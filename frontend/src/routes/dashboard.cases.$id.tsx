@@ -25,12 +25,18 @@ import { ReporterEvidenceFiles } from "@/components/reporter-evidence-files";
 import { EmptyState } from "@/components/empty-state";
 import { EvidenceCustodyDisclosure } from "@/components/evidence-custody-disclosure";
 import { EvidenceFileAttachment } from "@/components/evidence-file-attachment";
-import { PriorityLevelBadge, RiskLevelBadge, StatusBadge, WorkflowStatusBadge } from "@/components/status-badge";
+import {
+  PriorityLevelBadge,
+  RiskLevelBadge,
+  StatusBadge,
+  WorkflowStatusBadge,
+} from "@/components/status-badge";
 import {
   ProgressTimeline,
   ProgressTimelineSkeleton,
   type ProgressTimelineEvent,
 } from "@/components/progress-timeline";
+import { CollapsibleDataCard } from "@/components/collapsible-data-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Breadcrumb,
@@ -96,11 +102,18 @@ import type {
   Recovery,
 } from "@/lib/operations-types";
 
-const WORKFLOW_TABS = ["investigation", "recommendation", "decision", "recovery", "evidence"] as const;
+const WORKFLOW_TABS = [
+  "investigation",
+  "recommendation",
+  "decision",
+  "recovery",
+  "evidence",
+] as const;
 type WorkflowTab = (typeof WORKFLOW_TABS)[number];
 
 const WORKFLOW_TAB_FALLBACK: WorkflowTab = "investigation";
-const CASE_WORKFLOW_TAB_CLASS = "relative shrink-0 whitespace-nowrap rounded-none bg-transparent px-3 py-2 shadow-none after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:origin-center after:scale-x-0 after:rounded-full after:bg-primary after:transition-transform hover:bg-muted/60 hover:text-foreground motion-reduce:transition-none motion-reduce:after:transition-none data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:after:scale-x-100";
+const CASE_WORKFLOW_TAB_CLASS =
+  "relative min-w-28 flex-1 shrink-0 whitespace-nowrap rounded-none bg-transparent px-3 py-2 shadow-none after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:origin-center after:scale-x-0 after:rounded-full after:bg-primary after:transition-transform hover:bg-muted/60 hover:text-foreground motion-reduce:transition-none motion-reduce:after:transition-none data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:after:scale-x-100";
 const WORKFLOW_TAB_BY_TOKEN: Record<string, WorkflowTab> = {
   "4": "investigation",
   csts_07: "investigation",
@@ -179,12 +192,12 @@ function CaseDetail() {
   const canViewEvidence =
     isAssignedSatgas && Boolean(user?.permissions?.includes("evidence.view.case"));
   const canViewReporterEvidence =
-    isAssignedSatgas
-    && user?.is_active === true
-    && Boolean(user.permissions?.includes("reporter_evidence.read.assigned"));
+    isAssignedSatgas &&
+    user?.is_active === true &&
+    Boolean(user.permissions?.includes("reporter_evidence.read.assigned"));
   const canDownloadReporterEvidence =
-    canViewReporterEvidence
-    && Boolean(user?.permissions?.includes("reporter_evidence.download.assigned"));
+    canViewReporterEvidence &&
+    Boolean(user?.permissions?.includes("reporter_evidence.download.assigned"));
   const investigationsQuery = useQuery({
     queryKey: operationsQueryKeys.investigations(id),
     queryFn: () => getCaseInvestigations(id),
@@ -226,7 +239,12 @@ function CaseDetail() {
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [caseQuery.data?.id, caseQuery.data?.status, caseQuery.data?.status_code, workflowTabSelection]);
+  }, [
+    caseQuery.data?.id,
+    caseQuery.data?.status,
+    caseQuery.data?.status_code,
+    workflowTabSelection,
+  ]);
 
   useEffect(() => {
     setCaseStatusAvailable(true);
@@ -241,14 +259,17 @@ function CaseDetail() {
   }
 
   if (caseQuery.isError || !caseQuery.data) {
-    return <QueryErrorState message={t("dashboard:cases.error")} onRetry={() => caseQuery.refetch()} />;
+    return (
+      <QueryErrorState message={t("dashboard:cases.error")} onRetry={() => caseQuery.refetch()} />
+    );
   }
 
   const c = caseQuery.data;
   const workflowTabContext = `${c.id}:${normalizeWorkflowToken(c.status ?? c.status_code)}`;
-  const activeWorkflowTab = workflowTabSelection?.context === workflowTabContext
-    ? workflowTabSelection.value
-    : defaultWorkflowTabForCase(c);
+  const activeWorkflowTab =
+    workflowTabSelection?.context === workflowTabContext
+      ? workflowTabSelection.value
+      : defaultWorkflowTabForCase(c);
 
   function handleWorkflowTabChange(value: string) {
     if (!isWorkflowTab(value)) return;
@@ -258,31 +279,36 @@ function CaseDetail() {
   const canManageAssignments =
     isAdminRole && Boolean(user?.permissions?.includes("cases.assign_satgas"));
   const canUseSatgasActions = isAssignedSatgas && !c.closed_at;
-  const canInvestigate = canUseSatgasActions && Boolean(user?.permissions?.includes("cases.investigate"));
-  const canRecommend = canUseSatgasActions && Boolean(user?.permissions?.includes("cases.recommend"));
+  const canInvestigate =
+    canUseSatgasActions && Boolean(user?.permissions?.includes("cases.investigate"));
+  const canRecommend =
+    canUseSatgasActions && Boolean(user?.permissions?.includes("cases.recommend"));
   const canReviewRecommendation =
-    roleCode === "super_admin"
-    && user?.is_active === true
-    && Boolean(user.permissions?.includes("cases.review_recommendation"));
+    roleCode === "super_admin" &&
+    user?.is_active === true &&
+    Boolean(user.permissions?.includes("cases.review_recommendation"));
   const canManageDecisionActions =
-    roleCode === "admin"
-    && user?.is_active === true
-    && Boolean(user.permissions?.includes("cases.record_decision"));
-  const canManageRecoveryActions = isAdminRole && Boolean(user?.permissions?.includes("cases.monitor"));
+    roleCode === "admin" &&
+    user?.is_active === true &&
+    Boolean(user.permissions?.includes("cases.record_decision"));
+  const canManageRecoveryActions =
+    isAdminRole && Boolean(user?.permissions?.includes("cases.monitor"));
   const canAddRecoveryMonitoring = canManageRecoveryActions || canUseSatgasActions;
   const activeAssignments = (c.assignments ?? []).filter((assignment) => assignment.is_active);
   const evidenceInvestigation = selectEvidenceInvestigation(investigationsQuery.data ?? []);
   const canUpdateEvidence =
-    canViewEvidence &&
-    Boolean(user?.permissions?.includes("evidence.upload")) &&
-    !c.closed_at;
+    canViewEvidence && Boolean(user?.permissions?.includes("evidence.upload")) && !c.closed_at;
   const canDownloadEvidence =
     canViewEvidence && Boolean(user?.permissions?.includes("evidence.download"));
-  const canCreateEvidence =
-    canUpdateEvidence && evidenceInvestigation !== null;
-  const latestCompletedInvestigation = mostRecentCompletedInvestigation(investigationsQuery.data ?? []);
-  const acceptedDecisionRecommendation = acceptedRecommendationForDecision(recommendationsQuery.data ?? []);
-  const decisionsLoaded = recommendationsQuery.isSuccess && decisionQueries.every((query) => query.isSuccess);
+  const canCreateEvidence = canUpdateEvidence && evidenceInvestigation !== null;
+  const latestCompletedInvestigation = mostRecentCompletedInvestigation(
+    investigationsQuery.data ?? [],
+  );
+  const acceptedDecisionRecommendation = acceptedRecommendationForDecision(
+    recommendationsQuery.data ?? [],
+  );
+  const decisionsLoaded =
+    recommendationsQuery.isSuccess && decisionQueries.every((query) => query.isSuccess);
   const finalizedDecisionForRecovery = finalizedDecision(decisions);
   const canCreateInvestigation =
     canInvestigate &&
@@ -314,10 +340,10 @@ function CaseDetail() {
   );
   const canUseGenericCaseStatus = canUseSatgasActions && !isLifecycleControlledCase;
   const hasGeneralActions =
-    (canUseGenericCaseStatus && caseStatusAvailable)
-    || (canUseSatgasActions && c.status === "assessment")
-    || canCreateInvestigation
-    || canCreateRecovery;
+    (canUseGenericCaseStatus && caseStatusAvailable) ||
+    (canUseSatgasActions && c.status === "assessment") ||
+    canCreateInvestigation ||
+    canCreateRecovery;
   const restrictedLabel = restrictedRoleLabel(t, roleCode);
   const nextStepText = nextStepMessage(
     t,
@@ -378,56 +404,69 @@ function CaseDetail() {
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <div className="min-w-0 space-y-4 lg:col-span-2">
-          <Card className="min-w-0">
-            <CardHeader>
-              <CardTitle className="text-base">{t("dashboard:cases.metadata")}</CardTitle>
-              <CardDescription>{t("dashboard:cases.metadataDesc")}</CardDescription>
-            </CardHeader>
-            <CardContent className="grid min-w-0 gap-4 text-sm sm:grid-cols-2">
-              <Field label={t("dashboard:cases.caseNumber")}>{c.case_number}</Field>
-              <Field label={t("dashboard:reports.registration")}>{c.registration_number}</Field>
-              <Field label={t("dashboard:common.status")}>{formatCaseStatus(t, c.status ?? c.status_code)}</Field>
-              <Field label={t("dashboard:common.stage")}>{c.current_stage_label ?? formatCaseStatus(t, c.current_stage ?? "-")}</Field>
-              <Field label={t("dashboard:common.risk")}>
-                {(c.risk_level ?? c.risk_level_code) ? (
-                  <RiskLevelBadge value={c.risk_level ?? c.risk_level_code} />
-                ) : (
-                  formatRiskValue(t, c.risk_level ?? c.risk_level_code)
-                )}
-              </Field>
-              <Field label={t("dashboard:common.priority")}>
-                {c.priority ? <PriorityLevelBadge value={c.priority} /> : formatPriorityValue(t, c.priority)}
-              </Field>
-              <Field label={t("dashboard:common.forwarded")}>{formatDateTime(c.forwarded_at, i18n.language)}</Field>
-              <Field label={t("dashboard:common.closed")}>{formatDateTime(c.closed_at, i18n.language)}</Field>
-            </CardContent>
-          </Card>
-
-          <Card className="min-w-0">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <History className="h-4 w-4" /> {t("dashboard:cases.progress.title")}
-              </CardTitle>
-              <CardDescription>{t("dashboard:cases.progress.desc")}</CardDescription>
-            </CardHeader>
-            <CardContent className="min-w-0">
-              {timelineLoading ? (
-                <ProgressTimelineSkeleton rows={4} />
-              ) : timelineEvents.length === 0 ? (
-                <EmptyText>{t("dashboard:cases.progress.empty")}</EmptyText>
+          <CollapsibleDataCard
+            title={t("dashboard:cases.metadata")}
+            description={t("dashboard:cases.metadataDesc")}
+            contentClassName="grid gap-4 text-sm sm:grid-cols-2"
+          >
+            <Field label={t("dashboard:cases.caseNumber")}>{c.case_number}</Field>
+            <Field label={t("dashboard:reports.registration")}>{c.registration_number}</Field>
+            <Field label={t("dashboard:common.status")}>
+              {formatCaseStatus(t, c.status ?? c.status_code)}
+            </Field>
+            <Field label={t("dashboard:common.stage")}>
+              {c.current_stage_label ?? formatCaseStatus(t, c.current_stage ?? "-")}
+            </Field>
+            <Field label={t("dashboard:common.risk")}>
+              {(c.risk_level ?? c.risk_level_code) ? (
+                <RiskLevelBadge value={c.risk_level ?? c.risk_level_code} />
               ) : (
-                <ProgressTimeline
-                  events={timelineEvents}
-                  className="min-w-0 [&_li]:min-w-0 [&_li>div>div]:break-words [&_li>div>div]:[overflow-wrap:anywhere] [&_li>div>div]:whitespace-pre-wrap"
-                />
+                formatRiskValue(t, c.risk_level ?? c.risk_level_code)
               )}
-            </CardContent>
-          </Card>
+            </Field>
+            <Field label={t("dashboard:common.priority")}>
+              {c.priority ? (
+                <PriorityLevelBadge value={c.priority} />
+              ) : (
+                formatPriorityValue(t, c.priority)
+              )}
+            </Field>
+            <Field label={t("dashboard:common.forwarded")}>
+              {formatDateTime(c.forwarded_at, i18n.language)}
+            </Field>
+            <Field label={t("dashboard:common.closed")}>
+              {formatDateTime(c.closed_at, i18n.language)}
+            </Field>
+          </CollapsibleDataCard>
+
+          <CollapsibleDataCard
+            icon={History}
+            title={t("dashboard:cases.progress.title")}
+            description={t("dashboard:cases.progress.desc")}
+          >
+            {timelineLoading ? (
+              <ProgressTimelineSkeleton rows={4} />
+            ) : timelineEvents.length === 0 ? (
+              <EmptyText>{t("dashboard:cases.progress.empty")}</EmptyText>
+            ) : (
+              <ProgressTimeline
+                events={timelineEvents}
+                className="min-w-0 [&_li]:min-w-0 [&_li>div>div]:break-words [&_li>div>div]:[overflow-wrap:anywhere] [&_li>div>div]:whitespace-pre-wrap"
+              />
+            )}
+          </CollapsibleDataCard>
 
           <SensitiveReportSection report={c.report} roleLabel={restrictedLabel} t={t} />
-          <Tabs value={activeWorkflowTab} onValueChange={handleWorkflowTabChange} className="w-full min-w-0">
-            <div className="w-full min-w-0 overscroll-x-contain overflow-x-auto" ref={workflowTabListRef}>
-              <TabsList className="h-auto min-w-max flex-nowrap justify-start rounded-none border-b border-border bg-transparent p-0">
+          <Tabs
+            value={activeWorkflowTab}
+            onValueChange={handleWorkflowTabChange}
+            className="w-full min-w-0"
+          >
+            <div
+              className="w-full min-w-0 overscroll-x-contain overflow-x-auto"
+              ref={workflowTabListRef}
+            >
+              <TabsList className="h-auto w-full min-w-[36rem] flex-nowrap justify-start rounded-none border-b border-border bg-transparent p-0 sm:min-w-full">
                 <TabsTrigger value="investigation" className={CASE_WORKFLOW_TAB_CLASS}>
                   {t("dashboard:cases.tabInvestigation")}
                 </TabsTrigger>
@@ -465,9 +504,12 @@ function CaseDetail() {
                 canSubmit={canRecommend}
                 canReview={canReviewRecommendation}
                 createAction={
-                  canCreateRecommendation && latestCompletedInvestigation
-                    ? <RecommendationCreateAction caseId={c.id} investigation={latestCompletedInvestigation} />
-                    : null
+                  canCreateRecommendation && latestCompletedInvestigation ? (
+                    <RecommendationCreateAction
+                      caseId={c.id}
+                      investigation={latestCompletedInvestigation}
+                    />
+                  ) : null
                 }
                 caseId={c.id}
                 language={i18n.language}
@@ -483,9 +525,12 @@ function CaseDetail() {
                 canUpdate={canManageDecisionActions}
                 canTransitionStatus={canManageDecisionActions}
                 createAction={
-                  canCreateDecision && acceptedDecisionRecommendation
-                    ? <DecisionCreateAction caseId={c.id} recommendation={acceptedDecisionRecommendation} />
-                    : null
+                  canCreateDecision && acceptedDecisionRecommendation ? (
+                    <DecisionCreateAction
+                      caseId={c.id}
+                      recommendation={acceptedDecisionRecommendation}
+                    />
+                  ) : null
                 }
                 caseId={c.id}
                 language={i18n.language}
@@ -548,7 +593,10 @@ function CaseDetail() {
                     {assignment.satgas_name ?? t("dashboard:common.metadataUnavailable")}
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {assignment.is_lead ? t("dashboard:cases.leadSatgas") : t("dashboard:cases.assignedSatgas")} - {formatDateTime(assignment.assigned_at, i18n.language)}
+                    {assignment.is_lead
+                      ? t("dashboard:cases.leadSatgas")
+                      : t("dashboard:cases.assignedSatgas")}{" "}
+                    - {formatDateTime(assignment.assigned_at, i18n.language)}
                   </div>
                 </div>
               ))}
@@ -590,12 +638,12 @@ function CaseDetail() {
                   />
                 )}
                 {canUseSatgasActions && c.status === "assessment" && (
-                <CaseAssessmentAction
-                  caseId={c.id}
-                  currentRiskCode={c.risk_level_code}
-                  currentPriorityCode={c.priority}
-                  hasAssessment={Boolean(c.assessment_at || c.risk_level_code || c.priority)}
-                />
+                  <CaseAssessmentAction
+                    caseId={c.id}
+                    currentRiskCode={c.risk_level_code}
+                    currentPriorityCode={c.priority}
+                    hasAssessment={Boolean(c.assessment_at || c.risk_level_code || c.priority)}
+                  />
                 )}
                 {canCreateInvestigation && (
                   <InvestigationCreateAction caseId={c.id} assignments={activeAssignments} />
@@ -623,7 +671,9 @@ function CaseDetail() {
                 </div>
               )}
               <div className="min-w-0 break-words text-xs text-muted-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">
-                {t("dashboard:common.stage")}: {c.current_stage_label ?? formatCaseStatus(t, c.current_stage ?? c.status ?? c.status_code)}
+                {t("dashboard:common.stage")}:{" "}
+                {c.current_stage_label ??
+                  formatCaseStatus(t, c.current_stage ?? c.status ?? c.status_code)}
               </div>
             </CardContent>
           </Card>
@@ -639,14 +689,21 @@ function CaseDetail() {
               </p>
             </CardContent>
           </Card>
-
         </div>
       </div>
     </div>
   );
 }
 
-function SensitiveReportSection({ report, roleLabel, t }: { report: unknown; roleLabel: string; t: TFunction }) {
+function SensitiveReportSection({
+  report,
+  roleLabel,
+  t,
+}: {
+  report: unknown;
+  roleLabel: string;
+  t: TFunction;
+}) {
   if (!report || typeof report !== "object") {
     return (
       <Card className="min-w-0">
@@ -661,29 +718,31 @@ function SensitiveReportSection({ report, roleLabel, t }: { report: unknown; rol
   }
 
   const data = report as Record<string, unknown>;
-  const respondent = data.respondent as { name?: string | null; details?: string | null } | undefined;
+  const respondent = data.respondent as
+    | { name?: string | null; details?: string | null }
+    | undefined;
 
   return (
-    <Card className="min-w-0">
-      <CardHeader>
-        <CardTitle className="text-base">{t("dashboard:cases.sensitiveReport")}</CardTitle>
-        <CardDescription>{t("dashboard:cases.sensitiveDesc")}</CardDescription>
-      </CardHeader>
-      <CardContent className="min-w-0 space-y-4 text-sm">
-        <Field label={t("dashboard:cases.chronology")}>{asText(data.chronology)}</Field>
-        <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-          <Field label={t("dashboard:cases.incidentDate")}>{asText(data.incident_date)}</Field>
-          <Field label={t("dashboard:cases.incidentTime")}>{asText(data.incident_time)}</Field>
-          <Field label={t("dashboard:cases.incidentLocation")}>{asText(data.incident_location)}</Field>
-          <Field label={t("dashboard:cases.witnessInfo")}>{asText(data.witness_info)}</Field>
-        </div>
-        <Separator />
-        <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-          <Field label={t("dashboard:cases.respondentName")}>{respondent?.name ?? "-"}</Field>
-          <Field label={t("dashboard:cases.respondentDetails")}>{respondent?.details ?? "-"}</Field>
-        </div>
-      </CardContent>
-    </Card>
+    <CollapsibleDataCard
+      title={t("dashboard:cases.sensitiveReport")}
+      description={t("dashboard:cases.sensitiveDesc")}
+      contentClassName="space-y-4 text-sm"
+    >
+      <Field label={t("dashboard:cases.chronology")}>{asText(data.chronology)}</Field>
+      <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+        <Field label={t("dashboard:cases.incidentDate")}>{asText(data.incident_date)}</Field>
+        <Field label={t("dashboard:cases.incidentTime")}>{asText(data.incident_time)}</Field>
+        <Field label={t("dashboard:cases.incidentLocation")}>
+          {asText(data.incident_location)}
+        </Field>
+        <Field label={t("dashboard:cases.witnessInfo")}>{asText(data.witness_info)}</Field>
+      </div>
+      <Separator />
+      <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+        <Field label={t("dashboard:cases.respondentName")}>{respondent?.name ?? "-"}</Field>
+        <Field label={t("dashboard:cases.respondentDetails")}>{respondent?.details ?? "-"}</Field>
+      </div>
+    </CollapsibleDataCard>
   );
 }
 
@@ -707,28 +766,49 @@ function InvestigationsSection({
   t: TFunction;
 }) {
   return (
-    <SectionCard icon={FileSearch} title={t("dashboard:sections.investigations")} loading={loading} empty={investigations.length === 0} t={t}>
+    <SectionCard
+      icon={FileSearch}
+      title={t("dashboard:sections.investigations")}
+      loading={loading}
+      empty={investigations.length === 0}
+      t={t}
+    >
       {investigations.map((item) => (
         <div key={item.id} className="min-w-0 rounded-lg border p-3 text-sm">
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.investigationNumber")}</div>
+            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">
+              {t("dashboard:sections.investigationNumber")}
+            </div>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <WorkflowStatusBadge family="investigation" status={item.status} />
-              {canAddActivity && <InvestigationActivityAction investigation={item} caseId={caseId} />}
+              {canAddActivity && (
+                <InvestigationActivityAction investigation={item} caseId={caseId} />
+              )}
               {canTransitionStatus && item.status !== "completed" && (
                 <InvestigationStatusAction investigation={item} caseId={caseId} />
               )}
             </div>
           </div>
           <div className="mt-2 grid min-w-0 gap-2 text-muted-foreground sm:grid-cols-2">
-            <div className="min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.lead")}: {item.lead_investigator?.name ?? t("dashboard:common.metadataUnavailable")}</div>
-            <div className="min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.started")}: {formatDateTime(item.started_at, language)}</div>
+            <div className="min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+              {t("dashboard:sections.lead")}:{" "}
+              {item.lead_investigator?.name ?? t("dashboard:common.metadataUnavailable")}
+            </div>
+            <div className="min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+              {t("dashboard:sections.started")}: {formatDateTime(item.started_at, language)}
+            </div>
           </div>
           {item.plan_summary || item.findings || item.conclusion ? (
             <div className="mt-3 min-w-0 space-y-2">
-              {item.plan_summary && <Field label={t("dashboard:sections.planSummary")}>{item.plan_summary}</Field>}
-              {item.findings && <Field label={t("dashboard:sections.findings")}>{item.findings}</Field>}
-              {item.conclusion && <Field label={t("dashboard:sections.conclusion")}>{item.conclusion}</Field>}
+              {item.plan_summary && (
+                <Field label={t("dashboard:sections.planSummary")}>{item.plan_summary}</Field>
+              )}
+              {item.findings && (
+                <Field label={t("dashboard:sections.findings")}>{item.findings}</Field>
+              )}
+              {item.conclusion && (
+                <Field label={t("dashboard:sections.conclusion")}>{item.conclusion}</Field>
+              )}
             </div>
           ) : (
             <MetadataOnlyText roleLabel={roleLabel} t={t} />
@@ -776,7 +856,9 @@ function RecommendationsSection({
       {recommendations.map((item) => (
         <div key={item.id} className="min-w-0 rounded-lg border p-3 text-sm">
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.recommendationNumber")}</div>
+            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">
+              {t("dashboard:sections.recommendationNumber")}
+            </div>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <WorkflowStatusBadge family="recommendation" status={item.status} />
               {canUpdate && canEditRecommendation(item) && hasRecommendationDetail(item) && (
@@ -790,14 +872,35 @@ function RecommendationsSection({
               )}
             </div>
           </div>
-          <div className="mt-2 min-w-0 break-words text-muted-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.author")}: {item.author?.name ?? t("dashboard:common.metadataUnavailable")}</div>
+          <div className="mt-2 min-w-0 break-words text-muted-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">
+            {t("dashboard:sections.author")}:{" "}
+            {item.author?.name ?? t("dashboard:common.metadataUnavailable")}
+          </div>
           {item.conclusion || item.recommended_actions ? (
             <div className="mt-3 min-w-0 space-y-2">
-              {item.conclusion && <Field label={t("dashboard:sections.conclusion")}>{item.conclusion}</Field>}
-              {item.recommended_actions && <Field label={t("dashboard:sections.recommendedActions")}>{item.recommended_actions}</Field>}
-              {item.sanction_recommendation && <Field label={t("dashboard:sections.sanction")}>{item.sanction_recommendation}</Field>}
-              {item.recovery_recommendation && <Field label={t("dashboard:sections.recovery")}>{item.recovery_recommendation}</Field>}
-              {item.prevention_recommendation && <Field label={t("dashboard:sections.prevention")}>{item.prevention_recommendation}</Field>}
+              {item.conclusion && (
+                <Field label={t("dashboard:sections.conclusion")}>{item.conclusion}</Field>
+              )}
+              {item.recommended_actions && (
+                <Field label={t("dashboard:sections.recommendedActions")}>
+                  {item.recommended_actions}
+                </Field>
+              )}
+              {item.sanction_recommendation && (
+                <Field label={t("dashboard:sections.sanction")}>
+                  {item.sanction_recommendation}
+                </Field>
+              )}
+              {item.recovery_recommendation && (
+                <Field label={t("dashboard:sections.recovery")}>
+                  {item.recovery_recommendation}
+                </Field>
+              )}
+              {item.prevention_recommendation && (
+                <Field label={t("dashboard:sections.prevention")}>
+                  {item.prevention_recommendation}
+                </Field>
+              )}
               {item.leadership_review?.revision_note && (
                 <Field label={t("dashboard:workflow.revisionNote")}>
                   {item.leadership_review.revision_note}
@@ -806,7 +909,9 @@ function RecommendationsSection({
               {item.leadership_review?.approved_at && (
                 <Field label={t("dashboard:workflow.approvalRecord")}>
                   {t("dashboard:workflow.approvedByAt", {
-                    name: item.leadership_review.approved_by?.name ?? t("dashboard:common.metadataUnavailable"),
+                    name:
+                      item.leadership_review.approved_by?.name ??
+                      t("dashboard:common.metadataUnavailable"),
                     date: formatDateTime(item.leadership_review.approved_at, language),
                   })}
                 </Field>
@@ -859,23 +964,35 @@ function DecisionsSection({
       {decisions.map((item) => (
         <div key={item.id} className="min-w-0 rounded-lg border p-3 text-sm">
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{item.decision_number?.trim() || t("dashboard:sections.decisionNumber")}</div>
+            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">
+              {item.decision_number?.trim() || t("dashboard:sections.decisionNumber")}
+            </div>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <WorkflowStatusBadge family="decision" status={item.status} />
-              {canUpdate && canEditDecision(item) && <DecisionUpdateAction decision={item} caseId={caseId} />}
+              {canUpdate && canEditDecision(item) && (
+                <DecisionUpdateAction decision={item} caseId={caseId} />
+              )}
               {canTransitionStatus && item.status !== "finalized" && (
                 <DecisionStatusAction decision={item} caseId={caseId} />
               )}
             </div>
           </div>
           <div className="mt-2 grid min-w-0 gap-2 text-muted-foreground sm:grid-cols-2">
-            <div className="min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.outcome")}: {formatDecisionOutcome(t, item.outcome_code)}</div>
-            <div className="min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{t("dashboard:sections.date")}: {formatDate(item.decision_date, language)}</div>
+            <div className="min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+              {t("dashboard:sections.outcome")}: {formatDecisionOutcome(t, item.outcome_code)}
+            </div>
+            <div className="min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+              {t("dashboard:sections.date")}: {formatDate(item.decision_date, language)}
+            </div>
           </div>
           {item.decision_summary || item.decision_content ? (
             <div className="mt-3 min-w-0 space-y-2">
-              {item.decision_summary && <Field label={t("dashboard:sections.summary")}>{item.decision_summary}</Field>}
-              {item.decision_content && <Field label={t("dashboard:sections.content")}>{item.decision_content}</Field>}
+              {item.decision_summary && (
+                <Field label={t("dashboard:sections.summary")}>{item.decision_summary}</Field>
+              )}
+              {item.decision_content && (
+                <Field label={t("dashboard:sections.content")}>{item.decision_content}</Field>
+              )}
             </div>
           ) : (
             <MetadataOnlyText roleLabel={roleLabel} t={t} />
@@ -907,11 +1024,19 @@ function RecoveriesSection({
   t: TFunction;
 }) {
   return (
-    <SectionCard icon={BriefcaseMedical} title={t("dashboard:sections.recoveries")} loading={loading} empty={recoveries.length === 0} t={t}>
+    <SectionCard
+      icon={BriefcaseMedical}
+      title={t("dashboard:sections.recoveries")}
+      loading={loading}
+      empty={recoveries.length === 0}
+      t={t}
+    >
       {recoveries.map((item) => (
         <div key={item.id} className="min-w-0 rounded-lg border p-3 text-sm">
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{recoveryDisplayLabel(t, item, recoveries)}</div>
+            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">
+              {recoveryDisplayLabel(t, item, recoveries)}
+            </div>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <WorkflowStatusBadge family="recovery" status={item.status} />
               {canAddMonitoring && item.status === "ongoing" && (
@@ -924,8 +1049,12 @@ function RecoveriesSection({
           </div>
           {item.recovery_plan || item.support_needs || item.notes ? (
             <div className="mt-3 min-w-0 space-y-2">
-              {item.recovery_plan && <Field label={t("dashboard:sections.plan")}>{item.recovery_plan}</Field>}
-              {item.support_needs && <Field label={t("dashboard:sections.supportNeeds")}>{item.support_needs}</Field>}
+              {item.recovery_plan && (
+                <Field label={t("dashboard:sections.plan")}>{item.recovery_plan}</Field>
+              )}
+              {item.support_needs && (
+                <Field label={t("dashboard:sections.supportNeeds")}>{item.support_needs}</Field>
+              )}
               {item.notes && <Field label={t("dashboard:sections.notes")}>{item.notes}</Field>}
             </div>
           ) : (
@@ -980,90 +1109,97 @@ function EvidenceSection({
   ) : null;
 
   return (
-    <Card className="min-w-0 overflow-hidden">
-      <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 space-y-1.5">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <FileArchive className="h-4 w-4 shrink-0" /> {t("dashboard:sections.evidenceTitle")}
-          </CardTitle>
-          <CardDescription>{t("dashboard:sections.evidenceCount", { count: evidences.length })}</CardDescription>
+    <CollapsibleDataCard
+      icon={FileArchive}
+      title={t("dashboard:sections.evidenceTitle")}
+      description={t("dashboard:sections.evidenceCount", { count: evidences.length })}
+      headerAction={evidences.length > 0 ? createAction : null}
+      contentClassName="space-y-4"
+    >
+      {loading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
         </div>
-        {evidences.length > 0 ? createAction : null}
-      </CardHeader>
-      <CardContent className="min-w-0 space-y-4">
-        {loading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
+      ) : error ? (
+        <div className="flex flex-col items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" aria-hidden="true" />
+            <p className="break-words text-sm text-destructive">
+              {t("dashboard:sections.evidenceLoadError")}
+            </p>
           </div>
-        ) : error ? (
-          <div className="flex flex-col items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
-              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" aria-hidden="true" />
-              <p className="break-words text-sm text-destructive">{t("dashboard:sections.evidenceLoadError")}</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={onRetry}>
-              <RefreshCw className="h-4 w-4" aria-hidden="true" />
-              {t("dashboard:sections.custodyRetry")}
-            </Button>
-          </div>
-        ) : evidences.length === 0 ? (
-          <EmptyState
-            icon={FileArchive}
-            title={t("dashboard:sections.evidenceEmptyTitle")}
-            description={t("dashboard:sections.evidenceEmptyDesc")}
-            action={createInvestigation ? <EvidenceCreateAction investigation={createInvestigation} /> : undefined}
-          />
-        ) : (
-          <div className="space-y-3">
-            {evidences.map((item) => (
-              <div key={item.id} className="min-w-0 space-y-4 rounded-lg border p-4 text-sm">
-                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">{item.title}</div>
-                    <div className="mt-1 min-w-0 break-words text-xs text-muted-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">
-                      {formatEvidenceType(t, item.evidence_type?.code ?? item.evidence_type?.name)}
-                    </div>
+          <Button variant="outline" size="sm" onClick={onRetry}>
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            {t("dashboard:sections.custodyRetry")}
+          </Button>
+        </div>
+      ) : evidences.length === 0 ? (
+        <EmptyState
+          icon={FileArchive}
+          title={t("dashboard:sections.evidenceEmptyTitle")}
+          description={t("dashboard:sections.evidenceEmptyDesc")}
+          action={
+            createInvestigation ? (
+              <EvidenceCreateAction investigation={createInvestigation} />
+            ) : undefined
+          }
+        />
+      ) : (
+        <div className="space-y-3">
+          {evidences.map((item) => (
+            <div key={item.id} className="min-w-0 space-y-4 rounded-lg border p-4 text-sm">
+              <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">
+                    {item.title}
                   </div>
-                  <WorkflowStatusBadge family="evidence" status={item.status} className="w-fit shrink-0" />
+                  <div className="mt-1 min-w-0 break-words text-xs text-muted-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">
+                    {formatEvidenceType(t, item.evidence_type?.code ?? item.evidence_type?.name)}
+                  </div>
                 </div>
-                <div className="grid min-w-0 gap-3 text-muted-foreground sm:grid-cols-2">
-                  <Field label={t("dashboard:sections.classification")}>
-                    {formatEvidenceClassification(t, item.classification ?? "-")}
-                  </Field>
-                  <Field label={t("dashboard:sections.collected")}>
-                    {formatDate(item.collected_at, language)}
-                  </Field>
-                  {item.source && (
-                    <div className="min-w-0 sm:col-span-2">
-                      <Field label={t("dashboard:sections.source")}>{item.source}</Field>
-                    </div>
-                  )}
-                  {item.description && (
-                    <div className="min-w-0 sm:col-span-2">
-                      <Field label={t("dashboard:sections.description")}>{item.description}</Field>
-                    </div>
-                  )}
-                </div>
-                {canUpdate && (
-                  <div className="flex min-w-0 flex-wrap gap-2">
-                    {item.status !== "archived" && <EvidenceMetadataAction evidence={item} />}
-                    <EvidenceStatusAction evidence={item} />
+                <WorkflowStatusBadge
+                  family="evidence"
+                  status={item.status}
+                  className="w-fit shrink-0"
+                />
+              </div>
+              <div className="grid min-w-0 gap-3 text-muted-foreground sm:grid-cols-2">
+                <Field label={t("dashboard:sections.classification")}>
+                  {formatEvidenceClassification(t, item.classification ?? "-")}
+                </Field>
+                <Field label={t("dashboard:sections.collected")}>
+                  {formatDate(item.collected_at, language)}
+                </Field>
+                {item.source && (
+                  <div className="min-w-0 sm:col-span-2">
+                    <Field label={t("dashboard:sections.source")}>{item.source}</Field>
                   </div>
                 )}
-                <EvidenceFileAttachment
-                  evidence={item}
-                  canUpload={canUpdate}
-                  canDownload={canDownload}
-                  language={language}
-                />
-                <EvidenceCustodyDisclosure evidenceId={item.id} language={language} />
+                {item.description && (
+                  <div className="min-w-0 sm:col-span-2">
+                    <Field label={t("dashboard:sections.description")}>{item.description}</Field>
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              {canUpdate && (
+                <div className="flex min-w-0 flex-wrap gap-2">
+                  {item.status !== "archived" && <EvidenceMetadataAction evidence={item} />}
+                  <EvidenceStatusAction evidence={item} />
+                </div>
+              )}
+              <EvidenceFileAttachment
+                evidence={item}
+                canUpload={canUpdate}
+                canDownload={canDownload}
+                language={language}
+              />
+              <EvidenceCustodyDisclosure evidenceId={item.id} language={language} />
+            </div>
+          ))}
+        </div>
+      )}
+    </CollapsibleDataCard>
   );
 }
 
@@ -1085,24 +1221,23 @@ function SectionCard({
   t: TFunction;
 }) {
   return (
-    <Card className="min-w-0">
-      <CardHeader className="min-w-0">
-        <CardTitle className="flex min-w-0 items-center gap-2 text-base">
-          <Icon className="h-4 w-4" /> {title}
-        </CardTitle>
-        <CardDescription>{t("dashboard:common.readOnlyOperationalData")}</CardDescription>
-      </CardHeader>
-      <CardContent className="min-w-0 space-y-3">
-        {loading && <EmptyText>{t("dashboard:sections.loading", { name: title.toLowerCase() })}</EmptyText>}
-        {!loading && empty && (
-          <>
-            <EmptyText>{t("dashboard:sections.empty", { name: title.toLowerCase() })}</EmptyText>
-            {emptyAction && <div className="flex min-w-0 justify-end">{emptyAction}</div>}
-          </>
-        )}
-        {!loading && !empty && children}
-      </CardContent>
-    </Card>
+    <CollapsibleDataCard
+      icon={Icon}
+      title={title}
+      description={t("dashboard:common.readOnlyOperationalData")}
+      contentClassName="space-y-3"
+    >
+      {loading && (
+        <EmptyText>{t("dashboard:sections.loading", { name: title.toLowerCase() })}</EmptyText>
+      )}
+      {!loading && empty && (
+        <>
+          <EmptyText>{t("dashboard:sections.empty", { name: title.toLowerCase() })}</EmptyText>
+          {emptyAction && <div className="flex min-w-0 justify-end">{emptyAction}</div>}
+        </>
+      )}
+      {!loading && !empty && children}
+    </CollapsibleDataCard>
   );
 }
 
@@ -1110,7 +1245,9 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return (
     <div className="min-w-0">
       <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-1 min-w-0 break-words text-sm [overflow-wrap:anywhere] whitespace-pre-wrap">{children}</div>
+      <div className="mt-1 min-w-0 break-words text-sm [overflow-wrap:anywhere] whitespace-pre-wrap">
+        {children}
+      </div>
     </div>
   );
 }
@@ -1124,7 +1261,11 @@ function MetadataOnlyText({ roleLabel, t }: { roleLabel: string; t: TFunction })
 }
 
 function EmptyText({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">{children}</div>;
+  return (
+    <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+      {children}
+    </div>
+  );
 }
 
 function defaultWorkflowTabForCase(caseRecord: CaseRecord): WorkflowTab {
@@ -1179,9 +1320,12 @@ function nextStepMessage(
   }
 
   if (recommendation?.status === "submitted_to_leader") {
-    if (isAssignedSatgas) return t("dashboard:cases.nextStep.context.recommendationSubmittedSatgas");
-    if (roleCode === "super_admin") return t("dashboard:cases.nextStep.context.recommendationSubmittedSuperAdmin");
-    if (roleCode === "admin") return t("dashboard:cases.nextStep.context.recommendationPendingAdmin");
+    if (isAssignedSatgas)
+      return t("dashboard:cases.nextStep.context.recommendationSubmittedSatgas");
+    if (roleCode === "super_admin")
+      return t("dashboard:cases.nextStep.context.recommendationSubmittedSuperAdmin");
+    if (roleCode === "admin")
+      return t("dashboard:cases.nextStep.context.recommendationPendingAdmin");
   }
 
   if (recommendation?.status === "revised" && isAssignedSatgas) {
@@ -1189,7 +1333,8 @@ function nextStepMessage(
   }
 
   if (recommendation?.status === "accepted") {
-    if (roleCode === "admin" && !decision) return t("dashboard:cases.nextStep.context.recommendationAcceptedAdmin");
+    if (roleCode === "admin" && !decision)
+      return t("dashboard:cases.nextStep.context.recommendationAcceptedAdmin");
     if (isAssignedSatgas) return t("dashboard:cases.nextStep.context.recommendationAcceptedSatgas");
   }
 
@@ -1258,11 +1403,15 @@ function hasRecommendationDetail(item: Recommendation) {
 }
 
 function canEditRecommendation(item: Recommendation) {
-  return item.status === "drafting" || item.status === "internal_review" || item.status === "revised";
+  return (
+    item.status === "drafting" || item.status === "internal_review" || item.status === "revised"
+  );
 }
 
 function canSubmitRecommendation(item: Recommendation) {
-  return item.status === "drafting" || item.status === "internal_review" || item.status === "revised";
+  return (
+    item.status === "drafting" || item.status === "internal_review" || item.status === "revised"
+  );
 }
 
 function canEditDecision(item: Decision) {
@@ -1292,18 +1441,21 @@ function selectEvidenceInvestigation(items: Investigation[]) {
   return (
     [...items]
       .filter((item) => {
-      const status = normalizeWorkflowToken(item.status ?? item.status_code);
-      return status !== "completed" && status !== "invs_08";
+        const status = normalizeWorkflowToken(item.status ?? item.status_code);
+        return status !== "completed" && status !== "invs_08";
       })
-      .sort((a, b) => compareNewest(a.started_at ?? a.created_at, a.id, b.started_at ?? b.created_at, b.id))[0]
-    ?? null
+      .sort((a, b) =>
+        compareNewest(a.started_at ?? a.created_at, a.id, b.started_at ?? b.created_at, b.id),
+      )[0] ?? null
   );
 }
 
 function acceptedRecommendationForDecision(items: Recommendation[]) {
-  return [...items]
-    .filter((item) => item.status === "accepted")
-    .sort((a, b) => compareNewest(a.created_at, a.id, b.created_at, b.id))[0] ?? null;
+  return (
+    [...items]
+      .filter((item) => item.status === "accepted")
+      .sort((a, b) => compareNewest(a.created_at, a.id, b.created_at, b.id))[0] ?? null
+  );
 }
 
 function recommendationGuidance(
@@ -1312,20 +1464,18 @@ function recommendationGuidance(
   roleCode: string | null | undefined,
 ) {
   const status = normalizeWorkflowToken(recommendation.status ?? recommendation.status_code);
-  const role = roleCode === "super_admin" ? "superAdmin" : roleCode === "satgas_ppks" ? "satgas" : "admin";
+  const role =
+    roleCode === "super_admin" ? "superAdmin" : roleCode === "satgas_ppks" ? "satgas" : "admin";
 
   return t(`dashboard:workflow.recommendationGuidance.${status}.${role}`, {
     defaultValue: t("dashboard:workflow.recommendationGuidance.fallback"),
   });
 }
 
-function decisionGuidance(
-  t: TFunction,
-  decision: Decision,
-  roleCode: string | null | undefined,
-) {
+function decisionGuidance(t: TFunction, decision: Decision, roleCode: string | null | undefined) {
   const status = normalizeWorkflowToken(decision.status ?? decision.status_code);
-  const role = roleCode === "satgas_ppks" ? "satgas" : roleCode === "admin" ? "admin" : "superAdmin";
+  const role =
+    roleCode === "satgas_ppks" ? "satgas" : roleCode === "admin" ? "admin" : "superAdmin";
 
   return t(`dashboard:workflow.decisionGuidance.${status}.${role}`, {
     defaultValue: t("dashboard:workflow.decisionGuidance.fallback"),
@@ -1333,9 +1483,11 @@ function decisionGuidance(
 }
 
 function finalizedDecision(items: Decision[]) {
-  return [...items]
-    .filter((item) => item.status === "finalized")
-    .sort((a, b) => compareNewest(a.created_at, a.id, b.created_at, b.id))[0] ?? null;
+  return (
+    [...items]
+      .filter((item) => item.status === "finalized")
+      .sort((a, b) => compareNewest(a.created_at, a.id, b.created_at, b.id))[0] ?? null
+  );
 }
 
 function compareNewest(
@@ -1352,9 +1504,11 @@ function compareNewest(
 function recoveryDisplayLabel(t: TFunction, item: Recovery, items: Recovery[]) {
   const typeValue = item.recovery_type?.code ?? item.recovery_type?.name;
   const typeKey = normalizeWorkflowToken(typeValue) || "recovery";
-  const matchingItems = items.filter((candidate) => (
-    (normalizeWorkflowToken(candidate.recovery_type?.code ?? candidate.recovery_type?.name) || "recovery") === typeKey
-  ));
+  const matchingItems = items.filter(
+    (candidate) =>
+      (normalizeWorkflowToken(candidate.recovery_type?.code ?? candidate.recovery_type?.name) ||
+        "recovery") === typeKey,
+  );
   const typeLabel = typeValue
     ? formatRecoveryType(t, typeValue)
     : t("dashboard:sections.recoveryNumber");
@@ -1445,7 +1599,9 @@ function caseProgressEvents(
   ];
 
   return candidates
-    .flatMap((candidate, order) => (candidate.at ? [{ ...candidate, at: candidate.at, order }] : []))
+    .flatMap((candidate, order) =>
+      candidate.at ? [{ ...candidate, at: candidate.at, order }] : [],
+    )
     .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime() || a.order - b.order)
     .map((candidate) => ({
       id: candidate.id,

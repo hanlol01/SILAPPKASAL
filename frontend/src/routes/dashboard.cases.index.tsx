@@ -24,11 +24,6 @@ import { ListPagination } from "@/components/list-pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/list-controls";
 import { StatusBadge } from "@/components/status-badge";
 
-export const Route = createFileRoute("/dashboard/cases/")({
-  component: CasesPage,
-  head: () => ({ meta: [{ title: "Cases - SILAPPKASAL Admin" }] }),
-});
-
 const CASE_STATUSES = [
   "forwarded",
   "assessment",
@@ -41,33 +36,76 @@ const CASE_STATUSES = [
   "monitoring",
   "closed",
   "escalated",
-];
+] as const;
+
+const CASE_QUICK_FILTERS = ["active", "pending_decision", "with_evidence"] as const;
+
+type CaseStatusFilter = (typeof CASE_STATUSES)[number];
+type CaseQuickFilter = (typeof CASE_QUICK_FILTERS)[number];
+
+type CasesSearch = {
+  status?: CaseStatusFilter;
+  quick_filter?: CaseQuickFilter;
+};
+
+export const Route = createFileRoute("/dashboard/cases/")({
+  validateSearch: (search: Record<string, unknown>): CasesSearch => ({
+    status: CASE_STATUSES.find((status) => status === search.status),
+    quick_filter: CASE_QUICK_FILTERS.find((filter) => filter === search.quick_filter),
+  }),
+  component: CasesPage,
+  head: () => ({ meta: [{ title: "Cases - SILAPPKASAL Admin" }] }),
+});
 
 function CasesPage() {
   const { t, i18n } = useTranslation(["dashboard"]);
+  const navigate = Route.useNavigate();
+  const search = Route.useSearch();
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
-  const filtersActive = q !== "" || status !== "all";
+  const status = search.status ?? "all";
+  const quickFilter = search.quick_filter ?? "all";
+  const filtersActive = q !== "" || status !== "all" || quickFilter !== "all";
 
   const resetFilters = () => {
     setQ("");
-    setStatus("all");
     setPage(1);
+    void navigate({ search: {}, replace: true });
+  };
+
+  const setStatus = (nextStatus: string) => {
+    void navigate({
+      search: (current) => ({
+        ...current,
+        status: nextStatus === "all" ? undefined : nextStatus as CaseStatusFilter,
+      }),
+      replace: true,
+    });
+  };
+
+  const setQuickFilter = (nextFilter: string) => {
+    void navigate({
+      search: (current) => ({
+        ...current,
+        quick_filter: nextFilter === "all" ? undefined : nextFilter as CaseQuickFilter,
+      }),
+      replace: true,
+    });
   };
 
   useEffect(() => {
     setPage(1);
-  }, [status, pageSize]);
+  }, [status, quickFilter, pageSize]);
 
   const query = useMemo(
     () => ({
       status: status === "all" ? undefined : status,
+      quick_filter: quickFilter === "all" ? undefined : quickFilter,
       per_page: pageSize,
       page,
     }),
-    [status, pageSize, page],
+    [status, quickFilter, pageSize, page],
   );
   const casesQuery = useQuery({
     queryKey: operationsQueryKeys.cases(query),
@@ -110,6 +148,19 @@ function CasesPage() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={quickFilter} onValueChange={setQuickFilter}>
+              <SelectTrigger className="w-[210px]">
+                <SelectValue placeholder={t("dashboard:cases.quickFilters.label")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("dashboard:cases.quickFilters.all")}</SelectItem>
+                {CASE_QUICK_FILTERS.map((item) => (
+                  <SelectItem key={item} value={item}>
+                    {t(`dashboard:cases.quickFilters.${item}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <FilterResetButton active={filtersActive} onReset={resetFilters} />
           </div>
 
@@ -145,7 +196,7 @@ function CasesPage() {
                   </div>
                 ))}
                 {filtered.length === 0 && (
-                  status !== "all" || q ? (
+                  filtersActive ? (
                     <EmptyState icon={SearchX} title={t("dashboard:cases.filteredEmptyTitle")} description={t("dashboard:cases.filteredEmptyDesc")} />
                   ) : (
                     <EmptyState icon={Inbox} title={t("dashboard:cases.emptyTitle")} description={t("dashboard:cases.emptyDesc")} />
@@ -187,7 +238,7 @@ function CasesPage() {
                     {filtered.length === 0 && (
                       <tr>
                         <td colSpan={7} className="p-0">
-                          {status !== "all" || q ? (
+                          {filtersActive ? (
                             <EmptyState icon={SearchX} title={t("dashboard:cases.filteredEmptyTitle")} description={t("dashboard:cases.filteredEmptyDesc")} />
                           ) : (
                             <EmptyState icon={Inbox} title={t("dashboard:cases.emptyTitle")} description={t("dashboard:cases.emptyDesc")} />

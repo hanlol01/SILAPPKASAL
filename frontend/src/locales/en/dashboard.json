@@ -75,7 +75,9 @@
     "closed": "Closed",
     "noValidNextStatus": "No valid next status is available.",
     "backendRules": "System rules remain authoritative.",
-    "readOnlyOperationalData": "Read-only operational data based on your access."
+    "readOnlyOperationalData": "Read-only operational data based on your access.",
+    "collapseSection": "Collapse section",
+    "expandSection": "Expand section"
   },
   "overview": {
     "title": "Dashboard overview",
@@ -98,7 +100,16 @@
     "noCategoryData": "No category data available.",
     "currentScope": "Current scope",
     "currentScopeDesc": "Dashboard data shown according to your authorization scope",
-    "unavailable": "Dashboard analytics are unavailable."
+    "unavailable": "Dashboard analytics are unavailable.",
+    "actions": {
+      "viewReports": "View reports",
+      "viewAssignedCases": "View assigned cases",
+      "viewCases": "View all cases",
+      "viewActiveCases": "View active cases",
+      "viewInvestigations": "View investigation cases",
+      "viewPendingDecisions": "View pending decisions",
+      "viewEvidenceCases": "View cases with evidence"
+    }
   },
   "reports": {
     "title": "Reports",
@@ -215,6 +226,13 @@
     "emptyDesc": "No cases have been forwarded yet.",
     "filteredEmptyTitle": "No matching cases",
     "filteredEmptyDesc": "Try adjusting filters or search terms.",
+    "quickFilters": {
+      "label": "Quick filter",
+      "all": "All case groups",
+      "active": "Active cases",
+      "pending_decision": "Pending decisions",
+      "with_evidence": "Has evidence records"
+    },
     "showing": "Showing {{shown}} of {{total}} cases.",
     "case": "Case",
     "caseNumber": "Case number",

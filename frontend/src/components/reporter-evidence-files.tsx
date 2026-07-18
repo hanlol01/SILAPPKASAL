@@ -3,10 +3,10 @@ import { Download, FileText, Loader2, Paperclip, RefreshCw } from "lucide-react"
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { toast } from "sonner";
+import { CollapsibleDataCard } from "@/components/collapsible-data-card";
 import { EmptyState } from "@/components/empty-state";
 import { SecureFilePreviewDialog } from "@/components/secure-file-preview-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api-client";
 import { isPreviewableMimeType } from "@/lib/file-preview";
@@ -41,58 +41,51 @@ export function ReporterEvidenceFiles({
   });
 
   return (
-    <Card className="min-w-0">
-      <CardHeader>
-        <CardTitle className="flex min-w-0 items-center gap-2 text-base">
-          <Paperclip className="h-4 w-4 shrink-0" aria-hidden="true" />
-          <span className="min-w-0 break-words [overflow-wrap:anywhere]">
-            {t("dashboard:cases.reporterEvidence.title")}
-          </span>
-        </CardTitle>
-        <CardDescription>{t("dashboard:cases.reporterEvidence.description")}</CardDescription>
-      </CardHeader>
-      <CardContent className="min-w-0">
-        {filesQuery.isPending ? (
-          <div className="space-y-3" aria-busy="true">
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-20 w-full" />
-          </div>
-        ) : filesQuery.isError ? (
-          <div className="flex min-w-0 flex-col items-start gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="min-w-0 break-words text-sm text-destructive [overflow-wrap:anywhere] whitespace-pre-wrap">
-              {t("dashboard:cases.reporterEvidence.loadError")}
-            </p>
-            <Button type="button" variant="outline" size="sm" onClick={() => filesQuery.refetch()}>
-              <RefreshCw className="h-4 w-4" aria-hidden="true" />
-              {t("dashboard:cases.reporterEvidence.retry")}
-            </Button>
-          </div>
-        ) : filesQuery.data.length === 0 ? (
-          <EmptyState
-            icon={FileText}
-            title={t("dashboard:cases.reporterEvidence.emptyTitle")}
-            description={t("dashboard:cases.reporterEvidence.emptyDescription")}
-          />
-        ) : (
-          <div className="min-w-0 space-y-3">
-            <p className="text-xs text-muted-foreground">
-              {t("dashboard:cases.reporterEvidence.count", { count: filesQuery.data.length })}
-            </p>
-            {filesQuery.data.map((file) => (
-              <ReporterFileRow
-                key={file.id}
-                file={file}
-                language={language}
-                canDownload={canDownload}
-                downloading={downloadMutation.isPending && downloadMutation.variables === file.id}
-                onDownload={() => downloadMutation.mutate(file.id)}
-                t={t}
-              />
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <CollapsibleDataCard
+      icon={Paperclip}
+      title={t("dashboard:cases.reporterEvidence.title")}
+      description={t("dashboard:cases.reporterEvidence.description")}
+    >
+      {filesQuery.isPending ? (
+        <div className="space-y-3" aria-busy="true">
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" />
+        </div>
+      ) : filesQuery.isError ? (
+        <div className="flex min-w-0 flex-col items-start gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="min-w-0 break-words text-sm text-destructive [overflow-wrap:anywhere] whitespace-pre-wrap">
+            {t("dashboard:cases.reporterEvidence.loadError")}
+          </p>
+          <Button type="button" variant="outline" size="sm" onClick={() => filesQuery.refetch()}>
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            {t("dashboard:cases.reporterEvidence.retry")}
+          </Button>
+        </div>
+      ) : filesQuery.data.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title={t("dashboard:cases.reporterEvidence.emptyTitle")}
+          description={t("dashboard:cases.reporterEvidence.emptyDescription")}
+        />
+      ) : (
+        <div className="min-w-0 space-y-3">
+          <p className="text-xs text-muted-foreground">
+            {t("dashboard:cases.reporterEvidence.count", { count: filesQuery.data.length })}
+          </p>
+          {filesQuery.data.map((file) => (
+            <ReporterFileRow
+              key={file.id}
+              file={file}
+              language={language}
+              canDownload={canDownload}
+              downloading={downloadMutation.isPending && downloadMutation.variables === file.id}
+              onDownload={() => downloadMutation.mutate(file.id)}
+              t={t}
+            />
+          ))}
+        </div>
+      )}
+    </CollapsibleDataCard>
   );
 }
 
@@ -120,7 +113,8 @@ function ReporterFileRow({
             {file.original_filename}
           </p>
           <p className="min-w-0 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
-            {formatMimeType(file.mime_type, t)} | {formatByteSize(file.file_size, language)} | {formatDateTime(file.uploaded_at, language)}
+            {formatMimeType(file.mime_type, t)} | {formatByteSize(file.file_size, language)} |{" "}
+            {formatDateTime(file.uploaded_at, language)}
           </p>
         </div>
       </div>
@@ -135,7 +129,9 @@ function ReporterFileRow({
               downloadPending={downloading}
               labels={{
                 preview: t("dashboard:cases.reporterEvidence.preview"),
-                title: t("dashboard:cases.reporterEvidence.previewTitle", { name: file.original_filename }),
+                title: t("dashboard:cases.reporterEvidence.previewTitle", {
+                  name: file.original_filename,
+                }),
                 description: t("dashboard:cases.reporterEvidence.previewDescription"),
                 loading: t("dashboard:cases.reporterEvidence.previewLoading"),
                 error: t("dashboard:cases.reporterEvidence.previewError"),
@@ -143,8 +139,12 @@ function ReporterFileRow({
                 close: t("dashboard:cases.reporterEvidence.previewClose"),
                 download: t("dashboard:cases.reporterEvidence.download"),
                 downloading: t("dashboard:cases.reporterEvidence.downloading"),
-                imageAlt: t("dashboard:cases.reporterEvidence.previewImageAlt", { name: file.original_filename }),
-                pdfTitle: t("dashboard:cases.reporterEvidence.previewPdfTitle", { name: file.original_filename }),
+                imageAlt: t("dashboard:cases.reporterEvidence.previewImageAlt", {
+                  name: file.original_filename,
+                }),
+                pdfTitle: t("dashboard:cases.reporterEvidence.previewPdfTitle", {
+                  name: file.original_filename,
+                }),
                 pdfFallback: t("dashboard:cases.reporterEvidence.previewPdfFallback"),
                 zoomIn: t("dashboard:cases.reporterEvidence.previewZoomIn"),
                 zoomOut: t("dashboard:cases.reporterEvidence.previewZoomOut"),

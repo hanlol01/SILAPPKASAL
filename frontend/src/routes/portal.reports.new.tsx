@@ -8,13 +8,14 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { PendingReportEvidence } from "@/components/portal/pending-report-evidence";
 import { ApiError } from "@/lib/api-client";
 import { hasPortalAccess } from "@/lib/auth-roles";
 import { formatLocationType, formatRespondentCampusStatus, formatRespondentRelation } from "@/lib/format-labels";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import { getMasterData, masterDataQueryKeys } from "@/lib/master-data-api";
-import { submitReport } from "@/lib/portal-api";
-import type { ReportSubmissionPayload } from "@/lib/portal-types";
+import { submitReport, uploadPortalReportEvidenceFile } from "@/lib/portal-api";
+import type { ReportSubmissionPayload, ReportSubmissionResult } from "@/lib/portal-types";
 import { useAuth } from "@/hooks/use-auth";
 import { SelectFormField, TextInputField, type SelectOption } from "@/components/form-fields";
 import { Button } from "@/components/ui/button";
@@ -64,12 +65,17 @@ const DEFAULT_VALUES = {
 };
 
 type WizardValues = z.infer<ReturnType<typeof createWizardSchema>>;
+type SubmissionSuccess = ReportSubmissionResult & {
+  evidenceUpload?: { requested: number; uploaded: number };
+};
 
 function NewPortalReportPage() {
   const { t } = useTranslation(["portal", "common"]);
   const { roleCode } = useAuth();
   const [step, setStep] = useState<WizardStep>(1);
-  const [success, setSuccess] = useState<{ registration_number: string; tracking_code?: string | null } | null>(null);
+  const [success, setSuccess] = useState<SubmissionSuccess | null>(null);
+  const [pendingEvidenceFiles, setPendingEvidenceFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
 
   const wizardSchema = createWizardSchema({
     required: t("common:validation.required"),
@@ -105,13 +111,37 @@ function NewPortalReportPage() {
   };
 
   const mutation = useMutation({
-    mutationFn: (values: WizardValues) => submitReport(toReportPayload(values)),
+    mutationFn: async (values: WizardValues) => {
+      const report = await submitReport(toReportPayload(values));
+      const files = [...pendingEvidenceFiles];
+
+      if (files.length === 0) return { ...report } satisfies SubmissionSuccess;
+
+      let uploaded = 0;
+      for (const [index, file] of files.entries()) {
+        setUploadProgress({ current: index + 1, total: files.length });
+        try {
+          await uploadPortalReportEvidenceFile(report.registration_number, file);
+          uploaded += 1;
+        } catch {
+          // The report remains valid; failed files can be uploaded again from its detail page.
+        }
+      }
+
+      return {
+        ...report,
+        evidenceUpload: { requested: files.length, uploaded },
+      } satisfies SubmissionSuccess;
+    },
     onSuccess: (data) => {
       setSuccess(data);
       form.reset(DEFAULT_VALUES);
+      setPendingEvidenceFiles([]);
+      setUploadProgress(null);
       toast.success(t("portal:reportSubmittedSuccess"));
     },
     onError: (error) => {
+      setUploadProgress(null);
       applyLaravelErrors(form, error);
       const errorStep = stepForLaravelErrors(error);
       if (errorStep) setStep(errorStep);
@@ -168,7 +198,34 @@ function NewPortalReportPage() {
                 <p className="mt-2 text-xs text-muted-foreground">{t("portal:saveTrackingCode")}</p>
               </div>
             )}
+            {success.evidenceUpload && (
+              <div
+                className={cn(
+                  "rounded-md border p-3 text-sm",
+                  success.evidenceUpload.uploaded === success.evidenceUpload.requested
+                    ? "border-success/30 bg-success/10 text-success"
+                    : "border-warning/40 bg-warning/10 text-foreground",
+                )}
+              >
+                {success.evidenceUpload.uploaded === success.evidenceUpload.requested
+                  ? t("portal:evidenceFiles.uploadedWithReport", {
+                      count: success.evidenceUpload.uploaded,
+                    })
+                  : t("portal:evidenceFiles.partiallyUploadedWithReport", {
+                      uploaded: success.evidenceUpload.uploaded,
+                      total: success.evidenceUpload.requested,
+                    })}
+              </div>
+            )}
             <Button asChild className="w-full">
+              <Link
+                to="/portal/reports/$registrationNumber"
+                params={{ registrationNumber: success.registration_number }}
+              >
+                {t("portal:evidenceFiles.viewReportAndEvidence")}
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full">
               <Link to="/portal/reports">{t("portal:myReports")}</Link>
             </Button>
           </CardContent>
@@ -355,6 +412,11 @@ function NewPortalReportPage() {
                       disabled={mutation.isPending}
                     />
                   )}
+                  <PendingReportEvidence
+                    files={pendingEvidenceFiles}
+                    onChange={setPendingEvidenceFiles}
+                    disabled={mutation.isPending}
+                  />
                 </div>
               )}
 
@@ -369,7 +431,11 @@ function NewPortalReportPage() {
                 ) : (
                   <Button type="submit" disabled={mutation.isPending}>
                     {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {mutation.isPending ? t("portal:submittingReport") : t("portal:submitReport")}
+                    {uploadProgress
+                      ? t("portal:evidenceFiles.uploadingWithReport", uploadProgress)
+                      : mutation.isPending
+                        ? t("portal:submittingReport")
+                        : t("portal:submitReport")}
                   </Button>
                 )}
               </div>

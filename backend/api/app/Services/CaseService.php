@@ -146,6 +146,26 @@ class CaseService
             $query->where('status_code', $status->code);
         }
 
+        if (! empty($filters['quick_filter'])) {
+            match ($filters['quick_filter']) {
+                'active' => $query->whereNull('cases.closed_at'),
+                'pending_decision' => $query->whereExists(function ($query): void {
+                    $query->selectRaw('1')
+                        ->from('recommendations')
+                        ->join('decisions', 'decisions.recommendation_id', '=', 'recommendations.id')
+                        ->whereColumn('recommendations.case_id', 'cases.id')
+                        ->whereNull('decisions.finalized_at');
+                }),
+                'with_evidence' => $query->whereExists(function ($query): void {
+                    $query->selectRaw('1')
+                        ->from('investigations')
+                        ->join('evidences', 'evidences.investigation_id', '=', 'investigations.id')
+                        ->whereColumn('investigations.case_id', 'cases.id')
+                        ->whereNull('evidences.deleted_at');
+                }),
+            };
+        }
+
         if (! empty($filters['risk_level'])) {
             $query->where('risk_level_code', $filters['risk_level']);
         }

@@ -13,6 +13,7 @@ use App\Models\User;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -146,6 +147,93 @@ class CaseFoundationTest extends TestCase
         $this->actingAsApi($reporter);
         $this->getJson('/api/v1/cases')
             ->assertForbidden();
+    }
+
+    public function test_case_index_supports_validated_dashboard_quick_filters(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-filters@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-filters@university.ac.id');
+        $activeCase = $this->forwardedCase($admin, [$satgas], $satgas);
+        $pendingDecisionCase = $this->forwardedCase($admin, [$satgas], $satgas);
+        $evidenceCase = $this->forwardedCase($admin, [$satgas], $satgas);
+        $closedCase = $this->forwardedCase($admin, [$satgas], $satgas);
+        $closedCase->forceFill(['closed_at' => now()])->save();
+
+        $investigationStatus = DB::table('investigation_statuses')->value('code');
+        $recommendationStatus = DB::table('recommendation_statuses')->value('code');
+        $decisionStatus = DB::table('decision_statuses')->value('code');
+        $evidenceType = DB::table('evidence_types')->value('code');
+
+        $pendingInvestigationId = DB::table('investigations')->insertGetId([
+            'case_id' => $pendingDecisionCase->id,
+            'lead_investigator_id' => $satgas->id,
+            'status_code' => $investigationStatus,
+            'started_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $recommendationId = DB::table('recommendations')->insertGetId([
+            'case_id' => $pendingDecisionCase->id,
+            'investigation_id' => $pendingInvestigationId,
+            'author_id' => $satgas->id,
+            'status_code' => $recommendationStatus,
+            'conclusion' => 'encrypted-test-value',
+            'recommended_actions' => 'encrypted-test-value',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('decisions')->insert([
+            'recommendation_id' => $recommendationId,
+            'recorder_id' => $admin->id,
+            'status_code' => $decisionStatus,
+            'outcome_code' => 'accepted',
+            'decision_date' => now()->toDateString(),
+            'decision_summary' => 'encrypted-test-value',
+            'decision_content' => 'encrypted-test-value',
+            'recorded_at' => now(),
+            'finalized_at' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $evidenceInvestigationId = DB::table('investigations')->insertGetId([
+            'case_id' => $evidenceCase->id,
+            'lead_investigator_id' => $satgas->id,
+            'status_code' => $investigationStatus,
+            'started_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('evidences')->insert([
+            'investigation_id' => $evidenceInvestigationId,
+            'evidence_type_code' => $evidenceType,
+            'submitted_by' => $satgas->id,
+            'title' => 'Dashboard quick-filter evidence',
+            'classification' => 'confidential',
+            'status' => 'registered',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAsApi($admin);
+        $this->getJson('/api/v1/cases?quick_filter=active')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 3)
+            ->assertJsonFragment(['id' => $activeCase->id])
+            ->assertJsonMissing(['id' => $closedCase->id]);
+
+        $this->getJson('/api/v1/cases?quick_filter=pending_decision')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $pendingDecisionCase->id);
+
+        $this->getJson('/api/v1/cases?quick_filter=with_evidence')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $evidenceCase->id);
+
+        $this->getJson('/api/v1/cases?quick_filter=not-supported')
+            ->assertUnprocessable();
     }
 
     public function test_reassignment_preserves_assignment_history(): void

@@ -75,7 +75,9 @@
     "closed": "Ditutup",
     "noValidNextStatus": "Tidak ada status lanjutan yang valid.",
     "backendRules": "Aturan sistem tetap menjadi acuan utama.",
-    "readOnlyOperationalData": "Data operasional baca-saja sesuai izin pengguna."
+    "readOnlyOperationalData": "Data operasional baca-saja sesuai izin pengguna.",
+    "collapseSection": "Minimalkan bagian",
+    "expandSection": "Maksimalkan bagian"
   },
   "overview": {
     "title": "Ringkasan Dashboard",
@@ -98,7 +100,16 @@
     "noCategoryData": "Tidak ada data kategori.",
     "currentScope": "Cakupan saat ini",
     "currentScopeDesc": "Data dashboard yang ditampilkan sesuai cakupan otorisasi pengguna",
-    "unavailable": "Analitik dashboard belum tersedia."
+    "unavailable": "Analitik dashboard belum tersedia.",
+    "actions": {
+      "viewReports": "Lihat",
+      "viewAssignedCases": "Lihat",
+      "viewCases": "Lihat",
+      "viewActiveCases": "Lihat",
+      "viewInvestigations": "Lihat",
+      "viewPendingDecisions": "Lihat",
+      "viewEvidenceCases": "Lihat"
+    }
   },
   "reports": {
     "title": "Laporan",
@@ -215,6 +226,13 @@
     "emptyDesc": "Belum ada kasus yang diteruskan.",
     "filteredEmptyTitle": "Tidak ada kasus cocok",
     "filteredEmptyDesc": "Coba ubah filter atau kata kunci pencarian.",
+    "quickFilters": {
+      "label": "Filter cepat",
+      "all": "Semua kelompok kasus",
+      "active": "Kasus aktif",
+      "pending_decision": "Putusan tertunda",
+      "with_evidence": "Memiliki catatan bukti"
+    },
     "showing": "Menampilkan {{shown}} dari {{total}} kasus.",
     "case": "Kasus",
     "caseNumber": "Nomor kasus",

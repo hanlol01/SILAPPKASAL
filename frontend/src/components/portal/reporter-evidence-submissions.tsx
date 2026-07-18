@@ -14,6 +14,10 @@ import { ApiError } from "@/lib/api-client";
 import { isPreviewableMimeType } from "@/lib/file-preview";
 import { formatDateTime } from "@/lib/format";
 import {
+  REPORT_EVIDENCE_FILE_ACCEPT,
+  validateReportEvidenceFile,
+} from "@/lib/report-evidence-file";
+import {
   downloadPortalReportEvidenceFile,
   getPortalReportEvidenceFiles,
   portalQueryKeys,
@@ -21,10 +25,6 @@ import {
   uploadPortalReportEvidenceFile,
 } from "@/lib/portal-api";
 import type { PortalEvidenceFile } from "@/lib/portal-types";
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const ALLOWED_EXTENSIONS = new Set(["pdf", "jpg", "jpeg", "png"]);
-const ALLOWED_MIME_TYPES = new Set(["application/pdf", "image/jpeg", "image/png"]);
 
 export function ReporterEvidenceSubmissions({ registrationNumber }: { registrationNumber: string }) {
   const { t, i18n } = useTranslation(["portal"]);
@@ -66,7 +66,7 @@ export function ReporterEvidenceSubmissions({ registrationNumber }: { registrati
       return;
     }
 
-    const validationKey = validateFile(file);
+    const validationKey = validateReportEvidenceFile(file);
     if (validationKey) {
       setSelectedFile(null);
       setClientError(t(`evidenceFiles.${validationKey}`));
@@ -118,7 +118,7 @@ export function ReporterEvidenceSubmissions({ registrationNumber }: { registrati
                   <CompactFileUpload
                     inputId={`report-evidence-${registrationNumber}`}
                     inputRef={inputRef}
-                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                    accept={REPORT_EVIDENCE_FILE_ACCEPT}
                     title={t("evidenceFiles.chooseFile")}
                     instructions={t("evidenceFiles.formatsHelp")}
                     chooseLabel={t("evidenceFiles.chooseFile")}
@@ -294,24 +294,6 @@ function EvidenceFilesSkeleton() {
       <Skeleton className="h-20 w-full" />
     </div>
   );
-}
-
-function validateFile(file: File) {
-  const parts = file.name.split(".");
-  const extension = parts.pop()?.toLowerCase() ?? "";
-
-  if (
-    parts.length !== 1
-    || !parts[0]
-    || !ALLOWED_EXTENSIONS.has(extension)
-    || (file.type && !ALLOWED_MIME_TYPES.has(file.type))
-  ) {
-    return "invalidFormat";
-  }
-  if (file.size < 1) return "emptyFile";
-  if (file.size > MAX_FILE_SIZE) return "fileTooLarge";
-
-  return null;
 }
 
 function fileActionError(error: unknown, action: "upload" | "download", t: TFunction) {
