@@ -11,6 +11,7 @@ use App\Services\AuditLogService;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\Sanctum;
 use RuntimeException;
@@ -125,15 +126,15 @@ class ReportIntakeTest extends TestCase
 
         $response = $this->postJson('/api/v1/reports', $this->payload([
                 'report_type' => 'confidential',
-                'reporter_phone' => '6281234567890',
+                'reporter_phone' => '+6281234567890',
         ]));
 
         $response->assertCreated();
 
         $report = Report::query()->firstOrFail();
 
-        $this->assertSame('6281234567890', $report->reporter_phone_encrypted);
-        $this->assertNotSame('6281234567890', $report->getRawOriginal('reporter_phone_encrypted'));
+        $this->assertSame('+6281234567890', $report->reporter_phone_encrypted);
+        $this->assertNotSame('+6281234567890', $report->getRawOriginal('reporter_phone_encrypted'));
     }
 
     public function test_tracking_endpoint_returns_limited_metadata_and_excludes_soft_deleted_reports(): void
@@ -289,6 +290,65 @@ class ReportIntakeTest extends TestCase
                 'errors.respondent_campus_status.0',
                 'Lengkapi nama, status kampus, relasi, dan detail pihak terlapor jika informasi pihak terlapor diisi.',
             );
+    }
+
+    public function test_each_partial_respondent_combination_requires_the_other_fields(): void
+    {
+        $this->withoutMiddleware(ThrottleRequests::class);
+
+        $reporter = $this->makeUser('reporter');
+        Sanctum::actingAs($reporter, ['*']);
+
+        $respondentValues = [
+            'respondent_name' => 'Nama Terlapor',
+            'respondent_campus_status' => 'CAMP-01',
+            'respondent_relation' => 'REL-02',
+            'respondent_details' => 'Detail singkat mengenai terlapor.',
+        ];
+
+        foreach (array_keys($respondentValues) as $onlyField) {
+            $partial = array_fill_keys(array_keys($respondentValues), null);
+            $partial[$onlyField] = $respondentValues[$onlyField];
+
+            $expectedErrors = array_values(array_diff(array_keys($respondentValues), [$onlyField]));
+
+            $this->postJson('/api/v1/reports', $this->payload(array_merge($partial, [
+                'witness_info' => null,
+            ])))->assertUnprocessable()
+                ->assertJsonValidationErrors($expectedErrors);
+        }
+    }
+
+    public function test_complete_respondent_group_persists_and_optional_report_phone_remains_nullable(): void
+    {
+        $reporter = $this->makeUser('reporter');
+        Sanctum::actingAs($reporter, ['*']);
+
+        $response = $this->postJson('/api/v1/reports', $this->payload([
+            'report_type' => 'confidential',
+            'witness_info' => null,
+            'reporter_phone' => null,
+        ]))->assertCreated();
+
+        $report = Report::query()->findOrFail($response->json('data.id'));
+
+        $this->assertSame('Nama Terlapor', $report->respondent_name);
+        $this->assertSame('CAMP-01', $report->respondent_campus_status);
+        $this->assertSame('REL-02', $report->respondent_relation);
+        $this->assertSame('Detail singkat mengenai terlapor.', $report->respondent_details);
+        $this->assertNull($report->reporter_phone_encrypted);
+    }
+
+    public function test_confidential_report_rejects_invalid_phone_when_supplied(): void
+    {
+        $reporter = $this->makeUser('reporter');
+        Sanctum::actingAs($reporter, ['*']);
+
+        $this->postJson('/api/v1/reports', $this->payload([
+            'report_type' => 'confidential',
+            'reporter_phone' => '0812-3456',
+        ]))->assertUnprocessable()
+            ->assertJsonValidationErrors(['reporter_phone']);
     }
 
     public function test_witness_information_without_respondent_context_is_allowed(): void

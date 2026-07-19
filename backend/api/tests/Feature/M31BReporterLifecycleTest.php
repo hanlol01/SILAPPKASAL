@@ -154,12 +154,14 @@ class M31BReporterLifecycleTest extends TestCase
             'email' => 'student@example.test',
             'password' => 'SecurePass123',
             'password_confirmation' => null,
-            'nim' => '230777',
+            'nim' => 'DEMO-2026-001',
+            'phone_number' => '+6281234567890',
             'new_password' => 'NewSecurePass123',
             'new_password_confirmation' => 'NewSecurePass123',
         ]), ['password_confirmation' => null]))->assertOk()
             ->assertJsonPath('data.status', ReporterRegistrationStatus::Pending->value)
-            ->assertJsonPath('data.nim', '230777')
+            ->assertJsonPath('data.nim', 'DEMO-2026-001')
+            ->assertJsonPath('data.phone_number', '+6281234567890')
             ->assertJsonPath('data.rejection_reason', null);
 
         $registration->refresh();
@@ -180,7 +182,7 @@ class M31BReporterLifecycleTest extends TestCase
 
         $this->assertStringNotContainsString('previous_nim', $auditJson);
         $this->assertStringNotContainsString('230001', $auditJson);
-        $this->assertStringNotContainsString('230777', $auditJson);
+        $this->assertStringNotContainsString('DEMO-2026-001', $auditJson);
         $this->assertStringNotContainsString('NewSecurePass123', $auditJson);
     }
 
@@ -260,6 +262,27 @@ class M31BReporterLifecycleTest extends TestCase
             'study_program_id' => $this->studyProgram('DEMO-ST', 'MI')->id,
         ]))->assertUnprocessable()
             ->assertJsonPath('message', 'You cannot manage users for this university');
+    }
+
+    public function test_correction_and_manual_reporter_reject_invalid_phone_numbers(): void
+    {
+        $this->patchJson('/api/v1/reporter-registrations/correct', array_merge($this->registrationPayload([
+            'password_confirmation' => null,
+            'phone_number' => '0812 3456',
+        ]), ['password_confirmation' => null]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone_number']);
+
+        $university = $this->university('DEMO-UNIV');
+        $admin = $this->makeUser('admin', 'phone-admin@example.test', $university->id);
+        Sanctum::actingAs($admin, ['*']);
+
+        $this->postJson('/api/v1/users/reporters', $this->manualReporterPayload([
+            'email' => 'invalid-phone@example.test',
+            'nim' => 'DEMO-MANUAL-001',
+            'phone_number' => '0812-3456',
+        ]))->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone_number']);
     }
 
     /**

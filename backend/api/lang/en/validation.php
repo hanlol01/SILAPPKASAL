@@ -154,6 +154,7 @@ return [
     'url' => 'The :attribute field must be a valid URL.',
     'ulid' => 'The :attribute field must be a valid ULID.',
     'uuid' => 'The :attribute field must be a valid UUID.',
+    'phone_number' => 'The phone number may contain digits and an optional leading + only.',
     'custom' => [
         'incident_time' => [
             'date_format' => 'Invalid time format.',
@@ -189,6 +190,7 @@ return [
         'email' => 'email',
         'nim' => 'student ID',
         'phone_number' => 'phone number',
+        'reporter_phone' => 'reporter phone number',
         'university_id' => 'university',
         'faculty_id' => 'faculty',
         'study_program_id' => 'study program',

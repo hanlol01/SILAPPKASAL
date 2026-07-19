@@ -43,7 +43,7 @@ class ReporterRegistrationService
                 'name' => trim((string) $data['name']),
                 'email' => $email,
                 'nim' => $nim,
-                'phone_number' => trim((string) $data['phone_number']),
+                'phone_number' => (string) $data['phone_number'],
                 'password_hash' => Hash::make($data['password']),
                 'status' => ReporterRegistrationStatus::Pending->value,
             ]);
@@ -166,7 +166,7 @@ class ReporterRegistrationService
             $updates = [
                 'name' => trim((string) $data['name']),
                 'nim' => $newNim,
-                'phone_number' => trim((string) $data['phone_number']),
+                'phone_number' => (string) $data['phone_number'],
                 'university_id' => $universityId,
                 'faculty_id' => $data['faculty_id'] ?? null,
                 'study_program_id' => $data['study_program_id'],

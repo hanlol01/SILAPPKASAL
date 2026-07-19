@@ -16,6 +16,7 @@ use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class ReporterRegistrationFoundationTest extends TestCase
@@ -61,6 +62,55 @@ class ReporterRegistrationFoundationTest extends TestCase
         $this->assertDatabaseHas('audit_logs', [
             'action' => AuditAction::ReporterRegistrationSubmitted->value,
         ]);
+    }
+
+    public function test_registration_accepts_canonical_phone_numbers_and_preserves_identifiers(): void
+    {
+        foreach ([
+            ['phone' => '081234567890', 'email' => 'zero@example.test', 'nim' => 'DEMO-2026-001'],
+            ['phone' => '+6281234567890', 'email' => 'plus@example.test', 'nim' => 'DEMO-2026-002'],
+        ] as $example) {
+            $this->postJson('/api/v1/reporter-registrations', $this->registrationPayload([
+                'phone_number' => $example['phone'],
+                'email' => $example['email'],
+                'nim' => $example['nim'],
+            ]))->assertCreated();
+
+            $this->assertDatabaseHas('reporter_registrations', [
+                'phone_number' => $example['phone'],
+                'nim' => $example['nim'],
+            ]);
+        }
+    }
+
+    #[DataProvider('invalidPhoneNumbers')]
+    public function test_registration_rejects_invalid_phone_numbers(string $phoneNumber): void
+    {
+        $this->withHeader('Accept-Language', 'en')
+            ->postJson('/api/v1/reporter-registrations', $this->registrationPayload([
+                'phone_number' => $phoneNumber,
+            ]))->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone_number'])
+            ->assertJsonPath(
+                'errors.phone_number.0',
+                'The phone number may contain digits and an optional leading + only.',
+            );
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function invalidPhoneNumbers(): array
+    {
+        return [
+            'letters' => ['0812ABC'],
+            'spaces' => ['0812 3456'],
+            'hyphens' => ['0812-3456'],
+            'parentheses' => ['(0812)3456'],
+            'multiple plus signs' => ['++628123'],
+            'misplaced plus sign' => ['62+8123'],
+            'longer than 30 characters' => [str_repeat('1', 31)],
+        ];
     }
 
     public function test_registration_rejects_duplicate_active_user_email_or_nim(): void

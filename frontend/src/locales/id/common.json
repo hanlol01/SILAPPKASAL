@@ -36,7 +36,8 @@
   "validation": {
     "required": "Wajib diisi.",
     "email": "Masukkan alamat email yang valid.",
-    "passwordConfirmationMismatch": "Konfirmasi kata sandi tidak cocok."
+    "passwordConfirmationMismatch": "Konfirmasi kata sandi tidak cocok.",
+    "phoneNumber": "Nomor telepon hanya boleh berisi angka dan dapat diawali tanda +."
   },
   "apiErrors": {
     "fallback": "Permintaan tidak dapat diproses. Silakan coba lagi.",

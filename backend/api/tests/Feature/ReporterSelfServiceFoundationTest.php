@@ -48,16 +48,16 @@ class ReporterSelfServiceFoundationTest extends TestCase
 
         $this->patchJson('/api/v1/me/profile', [
             'name' => 'Nama Reporter Baru',
-            'phone_number' => '08129990001',
+            'phone_number' => '+628129990001',
         ])->assertOk()
             ->assertJsonPath('data.name', 'Nama Reporter Baru')
-            ->assertJsonPath('data.phone_number', '08129990001')
+            ->assertJsonPath('data.phone_number', '+628129990001')
             ->assertJsonMissingPath('data.permissions');
 
         $this->assertDatabaseHas('users', [
             'id' => $reporter->id,
             'name' => 'Nama Reporter Baru',
-            'phone_number' => '08129990001',
+            'phone_number' => '+628129990001',
             'email' => 'reporter@example.test',
             'nim' => '230001',
         ]);
@@ -66,6 +66,20 @@ class ReporterSelfServiceFoundationTest extends TestCase
             'action' => AuditAction::ReporterSelfServiceProfileUpdated->value,
             'actor_id' => $reporter->id,
         ]);
+    }
+
+    public function test_profile_phone_is_nullable_and_rejects_invalid_values(): void
+    {
+        $reporter = $this->makeUser('reporter', 'phone-profile@example.test', 'DEMO-PROFILE-001');
+        Sanctum::actingAs($reporter, ['*']);
+
+        $this->patchJson('/api/v1/me/profile', ['phone_number' => '0812 3456'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone_number']);
+
+        $this->patchJson('/api/v1/me/profile', ['phone_number' => null])
+            ->assertOk()
+            ->assertJsonPath('data.phone_number', null);
     }
 
     public function test_reporter_cannot_update_identity_or_privilege_fields(): void

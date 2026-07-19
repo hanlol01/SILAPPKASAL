@@ -154,6 +154,7 @@ return [
     'url' => ':attribute harus berupa URL yang valid.',
     'ulid' => ':attribute harus berupa ULID yang valid.',
     'uuid' => ':attribute harus berupa UUID yang valid.',
+    'phone_number' => 'Nomor telepon hanya boleh berisi angka dan dapat diawali tanda +.',
     'custom' => [
         'incident_time' => [
             'date_format' => 'Format waktu tidak valid.',
@@ -189,6 +190,7 @@ return [
         'email' => 'email',
         'nim' => 'NIM',
         'phone_number' => 'nomor telepon',
+        'reporter_phone' => 'nomor telepon pelapor',
         'university_id' => 'universitas',
         'faculty_id' => 'fakultas',
         'study_program_id' => 'program studi',

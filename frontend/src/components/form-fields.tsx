@@ -31,6 +31,7 @@ type BaseFieldProps<T extends FieldValues> = {
   name: Path<T>;
   label: string;
   className?: string;
+  required?: boolean;
 };
 
 type TextInputFieldProps<T extends FieldValues> = BaseFieldProps<T> & {
@@ -39,6 +40,10 @@ type TextInputFieldProps<T extends FieldValues> = BaseFieldProps<T> & {
   disabled?: boolean;
   readOnly?: boolean;
   transformValue?: (value: string) => string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  autoComplete?: string;
+  pattern?: string;
+  maxLength?: number;
 };
 
 export function TextInputField<T extends FieldValues>({
@@ -50,6 +55,11 @@ export function TextInputField<T extends FieldValues>({
   disabled,
   readOnly,
   transformValue,
+  inputMode,
+  autoComplete,
+  pattern,
+  maxLength,
+  required,
   className,
 }: TextInputFieldProps<T>) {
   return (
@@ -58,7 +68,10 @@ export function TextInputField<T extends FieldValues>({
       name={name}
       render={({ field }) => (
         <FormItem className={className}>
-          <FormLabel>{label}</FormLabel>
+          <FormLabel>
+            {label}
+            {required && <span aria-hidden="true" className="text-destructive"> *</span>}
+          </FormLabel>
           <FormControl>
             <Input
               {...field}
@@ -66,6 +79,11 @@ export function TextInputField<T extends FieldValues>({
               placeholder={placeholder}
               disabled={disabled}
               readOnly={readOnly}
+              inputMode={inputMode}
+              autoComplete={autoComplete}
+              pattern={pattern}
+              maxLength={maxLength}
+              aria-required={required}
               value={field.value ?? ""}
               onChange={(event) => field.onChange(transformValue ? transformValue(event.target.value) : event.target.value)}
             />
@@ -122,6 +140,7 @@ export function SelectFormField<T extends FieldValues>({
   placeholder,
   disabled,
   onValueChange,
+  required,
   className,
 }: SelectFieldProps<T>) {
   return (
@@ -130,7 +149,10 @@ export function SelectFormField<T extends FieldValues>({
       name={name}
       render={({ field }) => (
         <FormItem className={className}>
-          <FormLabel>{label}</FormLabel>
+          <FormLabel>
+            {label}
+            {required && <span aria-hidden="true" className="text-destructive"> *</span>}
+          </FormLabel>
           <Select
             disabled={disabled}
             value={toSelectValue(field.value)}
@@ -141,7 +163,7 @@ export function SelectFormField<T extends FieldValues>({
             }}
           >
             <FormControl>
-              <SelectTrigger>
+              <SelectTrigger aria-required={required}>
                 <SelectValue placeholder={placeholder} />
               </SelectTrigger>
             </FormControl>

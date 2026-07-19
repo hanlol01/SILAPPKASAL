@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { Check, Loader2 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { type Control, type FieldPath, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import { ApiError } from "@/lib/api-client";
 import { hasPortalAccess } from "@/lib/auth-roles";
 import { formatLocationType, formatRespondentCampusStatus, formatRespondentRelation } from "@/lib/format-labels";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
+import { optionalPhoneNumberSchema, phoneInputAttributes } from "@/lib/phone-validation";
 import { getMasterData, masterDataQueryKeys } from "@/lib/master-data-api";
 import { submitReport, uploadPortalReportEvidenceFile } from "@/lib/portal-api";
 import type { ReportSubmissionPayload, ReportSubmissionResult } from "@/lib/portal-types";
@@ -65,6 +66,12 @@ const DEFAULT_VALUES = {
 };
 
 type WizardValues = z.infer<ReturnType<typeof createWizardSchema>>;
+const RESPONDENT_FIELD_NAMES = [
+  "respondent_name",
+  "respondent_campus_status",
+  "respondent_relation",
+  "respondent_details",
+] as const;
 type SubmissionSuccess = ReportSubmissionResult & {
   evidenceUpload?: { requested: number; uploaded: number };
 };
@@ -86,6 +93,7 @@ function NewPortalReportPage() {
     chronologyMax: t("portal:reportWizard.chronologyMax"),
     respondentRequired: t("portal:reportWizard.respondentRequired"),
     respondentIncomplete: t("portal:reportWizard.respondentIncomplete"),
+    phone: t("common:validation.phoneNumber"),
   });
   const form = useForm<WizardValues>({
     resolver: zodResolver(wizardSchema),
@@ -94,6 +102,13 @@ function NewPortalReportPage() {
   });
 
   const reportType = form.watch("report_type");
+  const respondentName = form.watch("respondent_name");
+  const respondentCampusStatus = form.watch("respondent_campus_status");
+  const respondentRelation = form.watch("respondent_relation");
+  const respondentDetails = form.watch("respondent_details");
+  const respondentContextStarted = [respondentName, respondentCampusStatus, respondentRelation, respondentDetails]
+    .some((value) => typeof value === "string" && value.trim().length > 0);
+  const hasRespondentErrors = RESPONDENT_FIELD_NAMES.some((field) => Boolean(form.formState.errors[field]));
   const chronology = form.watch("chronology") ?? "";
   const incidentDate = form.watch("incident_date") ?? "";
   const maxIncidentTime = incidentDate === formatDateValue(new Date()) ? formatTimeValue(new Date()) : undefined;
@@ -103,6 +118,12 @@ function NewPortalReportPage() {
   const locationTypesQuery = useQuery({ queryKey: masterDataQueryKeys.list("location-types"), queryFn: () => getMasterData("location-types") });
   const campusStatusesQuery = useQuery({ queryKey: masterDataQueryKeys.list("campus-statuses"), queryFn: () => getMasterData("campus-statuses") });
   const relationsQuery = useQuery({ queryKey: masterDataQueryKeys.list("relations"), queryFn: () => getMasterData("relations") });
+
+  useEffect(() => {
+    if (hasRespondentErrors) {
+      void form.trigger([...RESPONDENT_FIELD_NAMES]);
+    }
+  }, [form, hasRespondentErrors, respondentName, respondentCampusStatus, respondentRelation, respondentDetails]);
 
   const stepFields: Record<WizardStep, FieldPath<WizardValues>[]> = {
     1: ["report_type", "category_code"],
@@ -159,8 +180,10 @@ function NewPortalReportPage() {
     : [];
   const categoryOptions = toMasterDataOptions(categoriesQuery.data);
   const locationTypeOptions = withOptionalOption(toLocationTypeOptions(locationTypesQuery.data, t), t("portal:optional"));
-  const campusStatusOptions = withOptionalOption(toRespondentCampusStatusOptions(campusStatusesQuery.data, t), t("portal:optional"));
-  const relationOptions = withOptionalOption(toRespondentRelationOptions(relationsQuery.data, t), t("portal:optional"));
+  const campusStatusPlaceholder = t("portal:reportWizard.selectRespondentCampusStatus");
+  const relationPlaceholder = t("portal:reportWizard.selectRespondentRelation");
+  const campusStatusOptions = withOptionalOption(toRespondentCampusStatusOptions(campusStatusesQuery.data, t), campusStatusPlaceholder);
+  const relationOptions = withOptionalOption(toRespondentRelationOptions(relationsQuery.data, t), relationPlaceholder);
   const timeQuickPicks = [
     { label: t("portal:reportWizard.timeMorning"), value: "08:00" },
     { label: t("portal:reportWizard.timeAfternoon"), value: "13:00" },
@@ -368,28 +391,34 @@ function NewPortalReportPage() {
 
               {step === 3 && (
                 <div className="grid gap-4">
+                  <p className="whitespace-pre-line text-sm text-muted-foreground">
+                    {t("portal:reportWizard.respondentGroupGuidance")}
+                  </p>
                   <TextInputField
                     control={form.control}
                     name="respondent_name"
                     label={t("portal:respondentName")}
                     disabled={mutation.isPending}
+                    required={respondentContextStarted}
                   />
                   <div className="grid gap-4 md:grid-cols-2">
                     <SelectFormField
                       control={form.control}
                       name="respondent_campus_status"
                       label={t("portal:respondentCampusStatus")}
-                      placeholder={t("portal:optional")}
+                      placeholder={campusStatusPlaceholder}
                       disabled={campusStatusesQuery.isLoading || mutation.isPending}
                       options={campusStatusOptions}
+                      required={respondentContextStarted}
                     />
                     <SelectFormField
                       control={form.control}
                       name="respondent_relation"
                       label={t("portal:respondentRelation")}
-                      placeholder={t("portal:optional")}
+                      placeholder={relationPlaceholder}
                       disabled={relationsQuery.isLoading || mutation.isPending}
                       options={relationOptions}
+                      required={respondentContextStarted}
                     />
                   </div>
                   <TextareaField
@@ -397,6 +426,7 @@ function NewPortalReportPage() {
                     name="respondent_details"
                     label={t("portal:respondentDetails")}
                     disabled={mutation.isPending}
+                    required={respondentContextStarted}
                   />
                   <TextareaField
                     control={form.control}
@@ -410,6 +440,7 @@ function NewPortalReportPage() {
                       name="reporter_phone"
                       label={t("portal:reporterPhone")}
                       disabled={mutation.isPending}
+                      {...phoneInputAttributes}
                     />
                   )}
                   <PendingReportEvidence
@@ -456,6 +487,7 @@ function createWizardSchema(messages: {
   chronologyMax: string;
   respondentRequired: string;
   respondentIncomplete: string;
+  phone: string;
 }) {
   const today = formatDateValue(new Date());
 
@@ -488,7 +520,7 @@ function createWizardSchema(messages: {
     respondent_relation: z.string().optional(),
     respondent_details: z.string().optional(),
     witness_info: z.string().optional(),
-    reporter_phone: z.string().optional(),
+    reporter_phone: optionalPhoneNumberSchema(messages.phone),
   });
 
   return stepOneSchema
@@ -546,11 +578,13 @@ function TextareaField({
   name,
   label,
   disabled,
+  required,
 }: {
   control: Control<WizardValues>;
   name: FieldPath<WizardValues>;
   label: string;
   disabled?: boolean;
+  required?: boolean;
 }) {
   return (
     <FormField
@@ -558,9 +592,12 @@ function TextareaField({
       name={name}
       render={({ field }) => (
         <FormItem>
-          <FormLabel>{label}</FormLabel>
+          <FormLabel>
+            {label}
+            {required && <span aria-hidden="true" className="text-destructive"> *</span>}
+          </FormLabel>
           <FormControl>
-            <Textarea {...field} value={field.value ?? ""} disabled={disabled} />
+            <Textarea {...field} value={field.value ?? ""} disabled={disabled} aria-required={required} />
           </FormControl>
           <FormMessage />
         </FormItem>

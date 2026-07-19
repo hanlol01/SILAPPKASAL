@@ -156,7 +156,7 @@ class UserManagementService
                 'name' => trim((string) $data['name']),
                 'email' => mb_strtolower(trim((string) $data['email'])),
                 'nim' => trim((string) $data['nim']),
-                'phone_number' => trim((string) $data['phone_number']),
+                'phone_number' => (string) $data['phone_number'],
                 'password' => $data['password'],
                 'is_active' => true,
             ]);

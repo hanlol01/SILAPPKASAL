@@ -28,6 +28,7 @@ import { formatDate } from "@/lib/format";
 import { useAuth } from "@/hooks/use-auth";
 import { hasPortalAccess } from "@/lib/auth-roles";
 import { apiErrorMessage, laravelFieldErrors } from "@/lib/form-errors";
+import { optionalPhoneNumberError, phoneInputAttributes } from "@/lib/phone-validation";
 import { useTranslation } from "react-i18next";
 import type {
   PortalProfileUpdatePayload,
@@ -155,9 +156,16 @@ function ProfileSection({
   }
 
   function handleSave() {
+    const phoneError = optionalPhoneNumberError(phoneNumber, t("common:validation.phoneNumber"));
+
+    if (phoneError) {
+      setFieldErrors((current) => ({ ...current, phone_number: phoneError }));
+      return;
+    }
+
     mutation.mutate({
       name: name.trim(),
-      phone_number: phoneNumber.trim() || null,
+      phone_number: phoneNumber || null,
     });
   }
 
@@ -203,9 +211,12 @@ function ProfileSection({
                 <Label htmlFor="profile-phone">{t("phoneNumber")}</Label>
                 <Input
                   id="profile-phone"
-                  type="tel"
+                  {...phoneInputAttributes}
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  onChange={(e) => {
+                    setPhoneNumber(e.target.value);
+                    setFieldErrors((current) => ({ ...current, phone_number: "" }));
+                  }}
                   placeholder={t("optional")}
                   disabled={mutation.isPending}
                 />

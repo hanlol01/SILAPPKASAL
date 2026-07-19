@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\ValidatesCampusSelection;
+use App\Rules\PhoneNumber;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -22,7 +23,6 @@ class ManualReporterStoreRequest extends FormRequest
             'email' => mb_strtolower(trim((string) $this->input('email'))),
             'name' => trim((string) $this->input('name')),
             'nim' => trim((string) $this->input('nim')),
-            'phone_number' => trim((string) $this->input('phone_number')),
             'faculty_id' => $this->filled('faculty_id') ? $this->integer('faculty_id') : null,
         ]);
     }
@@ -36,7 +36,7 @@ class ManualReporterStoreRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
             'nim' => ['required', 'string', 'max:50'],
-            'phone_number' => ['required', 'string', 'max:30'],
+            'phone_number' => ['required', 'string', new PhoneNumber],
             'university_id' => ['required', 'integer', Rule::exists('universities', 'id')->where('is_active', true)],
             'faculty_id' => ['nullable', 'integer', Rule::exists('faculties', 'id')->where('is_active', true)],
             'study_program_id' => ['required', 'integer', Rule::exists('study_programs', 'id')->where('is_active', true)],

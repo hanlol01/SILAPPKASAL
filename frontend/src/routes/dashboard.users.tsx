@@ -20,6 +20,7 @@ import { campusQueryKeys, getFaculties, getStudyPrograms, getUniversities } from
 import { useAuth } from "@/hooks/use-auth";
 import type { ApiUser } from "@/lib/api-types";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
+import { phoneInputAttributes, requiredPhoneNumberSchema } from "@/lib/phone-validation";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -418,7 +419,7 @@ function CreateReporterCard({ onCreated }: { onCreated: (temporaryPassword: stri
             <TextInputField control={form.control} name="name" label={t("dashboard:users.name")} />
             <TextInputField control={form.control} name="email" label={t("dashboard:users.email")} type="email" />
             <TextInputField control={form.control} name="nim" label="NIM" />
-            <TextInputField control={form.control} name="phone_number" label={t("portal:phoneNumber")} />
+            <TextInputField control={form.control} name="phone_number" label={t("portal:phoneNumber")} {...phoneInputAttributes} required />
             <SelectFormField
               control={form.control}
               name="university_id"
@@ -471,7 +472,7 @@ function createCreateReporterSchema(messages: ValidationMessages) {
     name: z.string().min(1, messages.required),
     email: z.string().min(1, messages.required).email(messages.email),
     nim: z.string().min(1, messages.required),
-    phone_number: z.string().min(1, messages.required),
+    phone_number: requiredPhoneNumberSchema({ required: messages.required, invalid: messages.phone }),
     university_id: z.string().min(1, messages.required),
     faculty_id: z.string().optional(),
     study_program_id: z.string().min(1, messages.required),
@@ -484,11 +485,13 @@ type CreateReporterValues = z.infer<ReturnType<typeof createCreateReporterSchema
 type ValidationMessages = {
   required: string;
   email: string;
+  phone: string;
 };
 
 function validationMessages(t: ReturnType<typeof useTranslation>["t"]): ValidationMessages {
   return {
     required: t("common:validation.required"),
     email: t("common:validation.email"),
+    phone: t("common:validation.phoneNumber"),
   };
 }

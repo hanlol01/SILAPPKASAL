@@ -36,7 +36,8 @@
   "validation": {
     "required": "This field is required.",
     "email": "Enter a valid email address.",
-    "passwordConfirmationMismatch": "Password confirmation does not match."
+    "passwordConfirmationMismatch": "Password confirmation does not match.",
+    "phoneNumber": "The phone number may contain digits and an optional leading + only."
   },
   "apiErrors": {
     "fallback": "The request could not be completed. Please try again.",

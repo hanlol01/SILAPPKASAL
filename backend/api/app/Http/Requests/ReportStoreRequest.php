@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\PhoneNumber;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -27,7 +28,6 @@ class ReportStoreRequest extends FormRequest
             'respondent_relation',
             'respondent_details',
             'witness_info',
-            'reporter_phone',
         ];
 
         $normalized = [];
@@ -82,7 +82,7 @@ class ReportStoreRequest extends FormRequest
             'reporter_phone' => [
                 'nullable',
                 'string',
-                'max:30',
+                new PhoneNumber,
                 Rule::prohibitedIf(fn (): bool => $this->input('report_type') !== 'confidential'),
             ],
         ];

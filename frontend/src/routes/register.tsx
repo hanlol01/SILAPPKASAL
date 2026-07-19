@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { ApiError } from "@/lib/api-client";
+import { phoneInputAttributes, requiredPhoneNumberSchema } from "@/lib/phone-validation";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import {
   campusQueryKeys,
@@ -37,7 +38,7 @@ function createRegistrationSchema(messages: ValidationMessages) {
       name: z.string().min(1, messages.required),
       nim: z.string().min(1, messages.required),
       email: z.string().min(1, messages.required).email(messages.email),
-      phone_number: z.string().min(1, messages.required),
+      phone_number: requiredPhoneNumberSchema({ required: messages.required, invalid: messages.phone }),
       university_id: z.string().min(1, messages.required),
       faculty_id: z.string().optional(),
       study_program_id: z.string().min(1, messages.required),
@@ -162,7 +163,7 @@ function RegisterPage() {
               <TextInputField control={form.control} name="name" label={t("auth:fullName")} />
               <TextInputField control={form.control} name="nim" label={t("auth:nim")} />
               <TextInputField control={form.control} name="email" label={t("auth:emailAddress")} type="email" />
-              <TextInputField control={form.control} name="phone_number" label={t("portal:phoneNumber")} />
+              <TextInputField control={form.control} name="phone_number" label={t("portal:phoneNumber")} {...phoneInputAttributes} required />
               <SelectFormField
                 control={form.control}
                 name="university_id"
@@ -229,6 +230,7 @@ type ValidationMessages = {
   required: string;
   email: string;
   passwordConfirmationMismatch: string;
+  phone: string;
 };
 
 function validationMessages(t: ReturnType<typeof useTranslation>["t"]): ValidationMessages {
@@ -236,6 +238,7 @@ function validationMessages(t: ReturnType<typeof useTranslation>["t"]): Validati
     required: t("common:validation.required"),
     email: t("common:validation.email"),
     passwordConfirmationMismatch: t("common:validation.passwordConfirmationMismatch"),
+    phone: t("common:validation.phoneNumber"),
   };
 }
 

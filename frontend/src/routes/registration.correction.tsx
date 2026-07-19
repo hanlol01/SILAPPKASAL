@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
+import { phoneInputAttributes, requiredPhoneNumberSchema } from "@/lib/phone-validation";
 import {
   campusQueryKeys,
   correctReporterRegistration,
@@ -121,7 +122,7 @@ function RegistrationCorrectionPage() {
               <PasswordField control={form.control} name="password" label={t("auth:currentPassword")} />
               <TextInputField control={form.control} name="name" label={t("auth:fullName")} />
               <TextInputField control={form.control} name="nim" label={t("auth:nim")} />
-              <TextInputField control={form.control} name="phone_number" label={t("portal:phoneNumber")} />
+              <TextInputField control={form.control} name="phone_number" label={t("portal:phoneNumber")} {...phoneInputAttributes} required />
               <SelectFormField
                 control={form.control}
                 name="university_id"
@@ -188,7 +189,7 @@ function createCorrectionSchema(messages: ValidationMessages) {
       password: z.string().min(1, messages.required),
       name: z.string().min(1, messages.required),
       nim: z.string().min(1, messages.required),
-      phone_number: z.string().min(1, messages.required),
+      phone_number: requiredPhoneNumberSchema({ required: messages.required, invalid: messages.phone }),
       university_id: z.string().min(1, messages.required),
       faculty_id: z.string().optional(),
       study_program_id: z.string().min(1, messages.required),
@@ -229,6 +230,7 @@ type ValidationMessages = {
   required: string;
   email: string;
   passwordConfirmationMismatch: string;
+  phone: string;
 };
 
 function validationMessages(t: ReturnType<typeof useTranslation>["t"]): ValidationMessages {
@@ -236,5 +238,6 @@ function validationMessages(t: ReturnType<typeof useTranslation>["t"]): Validati
     required: t("common:validation.required"),
     email: t("common:validation.email"),
     passwordConfirmationMismatch: t("common:validation.passwordConfirmationMismatch"),
+    phone: t("common:validation.phoneNumber"),
   };
 }
