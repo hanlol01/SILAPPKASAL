@@ -6,6 +6,7 @@ type LabelNamespace =
   | "reportType"
   | "caseStatus"
   | "investigationStatus"
+  | "investigationActivityType"
   | "recommendationStatus"
   | "decisionStatus"
   | "decisionOutcome"
