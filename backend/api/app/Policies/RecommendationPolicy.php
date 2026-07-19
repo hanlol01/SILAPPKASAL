@@ -5,12 +5,17 @@ namespace App\Policies;
 use App\Models\CaseAssignment;
 use App\Models\Recommendation;
 use App\Models\User;
+use App\Support\CaseCampusScope;
 
 class RecommendationPolicy extends BasePolicy
 {
+    public function __construct(private readonly CaseCampusScope $campusScope)
+    {
+    }
+
     public function view(User $user, Recommendation $recommendation): bool
     {
-        return $this->canReadMetadata($user) || $this->canReadSensitive($user, $recommendation);
+        return $this->canReadMetadata($user, $recommendation) || $this->canReadSensitive($user, $recommendation);
     }
 
     public function update(User $user, Recommendation $recommendation): bool
@@ -30,25 +35,28 @@ class RecommendationPolicy extends BasePolicy
 
     public function review(User $user, Recommendation $recommendation): bool
     {
-        return $this->canReview($user);
+        return $this->canReview($user, $recommendation);
     }
 
-    public function canReadMetadata(User $user): bool
+    public function canReadMetadata(User $user, Recommendation $recommendation): bool
     {
-        return ($this->allowPermission($user, 'cases.read.metadata') && $this->allowRole($user, 'admin', 'super_admin'))
+        return ($this->allowPermission($user, 'cases.read.metadata') && $this->allowRole($user, 'admin') && $this->campusScope->sameCampus($user, $recommendation))
             || ($this->allowPermission($user, 'cases.read.all') && $this->allowRole($user, 'super_admin'));
     }
 
     public function canReadSensitive(User $user, Recommendation $recommendation): bool
     {
-        return $this->canReview($user) || $this->canReadAssignedSensitive($user, $recommendation);
+        return $this->canReview($user, $recommendation)
+            || $this->campusScope->canSensitiveOversight($user)
+            || $this->canReadAssignedSensitive($user, $recommendation);
     }
 
-    private function canReview(User $user): bool
+    private function canReview(User $user, Recommendation $recommendation): bool
     {
         return $user->is_active
             && $this->allowPermission($user, 'cases.review_recommendation')
-            && $this->allowRole($user, 'super_admin');
+            && $this->allowRole($user, 'admin')
+            && $this->campusScope->sameCampus($user, $recommendation);
     }
 
     private function canReadAssignedSensitive(User $user, Recommendation $recommendation): bool

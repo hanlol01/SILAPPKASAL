@@ -78,10 +78,10 @@ const TABS = ["attention", "history"] as const;
 const QUEUES: AuditQueue[] = [
   "waiting_admin",
   "waiting_satgas",
-  "waiting_leader",
   "emergency_access",
   "critical_security",
 ];
+const QUEUE_FILTERS: AuditQueue[] = [...QUEUES, "waiting_leader"];
 const URGENCIES: AuditUrgency[] = ["normal", "attention", "overdue"];
 const CATEGORIES = [
   "auth",
@@ -120,7 +120,7 @@ type ActivitySearch = {
 export const Route = createFileRoute("/dashboard/activity-log")({
   validateSearch: (search: Record<string, unknown>): ActivitySearch => ({
     tab: TABS.find((value) => value === search.tab),
-    queue: QUEUES.find((value) => value === search.queue),
+    queue: QUEUE_FILTERS.find((value) => value === search.queue),
     urgency: URGENCIES.find((value) => value === search.urgency),
     category: CATEGORIES.find((value) => value === search.category),
     severity: SEVERITIES.find((value) => value === search.severity),
@@ -842,7 +842,9 @@ function queueIcon(queue: AuditQueue) {
 }
 
 function oversightStatusLabel(t: ReturnType<typeof useTranslation>["t"], item: OversightItem) {
-  if (item.work_type === "report_verification") return formatReportStatus(t, item.status);
+  if (item.work_type === "report_forwarding" || item.work_type === "report_verification") {
+    return formatReportStatus(t, item.status);
+  }
   if (item.work_type === "case_assignment" || item.work_type === "satgas_case") return formatCaseStatus(t, item.status);
   if (item.work_type === "recommendation_review") return formatRecommendationStatus(t, item.status);
   if (item.work_type === "decision_handoff") return formatDecisionStatus(t, item.status);

@@ -14,6 +14,7 @@ import { formatDateTime } from "@/lib/format";
 import {
   downloadCaseReporterEvidenceFile,
   getCaseReporterEvidenceFiles,
+  getReportReporterEvidenceFiles,
   operationsQueryKeys,
   previewCaseReporterEvidenceFile,
 } from "@/lib/operations-api";
@@ -21,17 +22,26 @@ import type { ReporterEvidenceFile } from "@/lib/operations-types";
 
 export function ReporterEvidenceFiles({
   caseId,
+  reportId,
   canDownload,
   language,
 }: {
-  caseId: string | number;
+  caseId?: string | number;
+  reportId?: string | number;
   canDownload: boolean;
   language: string;
 }) {
   const { t } = useTranslation(["dashboard"]);
   const filesQuery = useQuery({
-    queryKey: operationsQueryKeys.reporterEvidenceFiles(caseId),
-    queryFn: () => getCaseReporterEvidenceFiles(caseId),
+    queryKey:
+      caseId !== undefined
+        ? operationsQueryKeys.reporterEvidenceFiles(caseId)
+        : operationsQueryKeys.reportReporterEvidenceFiles(reportId ?? ""),
+    queryFn: () =>
+      caseId !== undefined
+        ? getCaseReporterEvidenceFiles(caseId)
+        : getReportReporterEvidenceFiles(reportId ?? ""),
+    enabled: caseId !== undefined || reportId !== undefined,
     retry: false,
   });
   const downloadMutation = useMutation({

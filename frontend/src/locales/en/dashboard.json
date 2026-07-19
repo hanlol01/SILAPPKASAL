@@ -132,6 +132,8 @@
     "identityHidden": "Reporter identity hidden",
     "detailTitle": "Report summary",
     "detailDesc": "Only a summary is shown for operational report detail.",
+    "sensitiveDetails": "Sensitive report details",
+    "sensitiveDetailsDesc": "Shown only when audited sensitive oversight is enabled.",
     "actionsDesc": "Choose the Satgas members who will handle this report.",
     "generalActionsDesc": "Additional actions available for this report.",
     "satgasHint": "Select one or more Satgas users and choose a lead from the selected users.",
@@ -162,10 +164,10 @@
       "desc": "Short guidance based on the case status and your role.",
       "fallback": "Follow the workflow actions available in the action panel.",
       "context": {
-        "recommendationSubmittedSatgas": "The recommendation has been submitted. Wait for the PPKS Leadership review.",
-        "recommendationSubmittedSuperAdmin": "Review the recommendation, then approve it or return it to Satgas for revision.",
-        "recommendationPendingAdmin": "The recommendation is awaiting PPKS Leadership approval. A decision cannot be created yet.",
-        "recommendationRevisedSatgas": "Read the revision note, update the recommendation, then resubmit it to the PPKS Leadership.",
+        "recommendationSubmittedSatgas": "The Recommendation was submitted. Wait for Campus Admin review.",
+        "recommendationSubmittedSuperAdmin": "Read-only oversight mode; the Campus Admin performs the review.",
+        "recommendationPendingAdmin": "The Recommendation is waiting for Campus Admin review.",
+        "recommendationRevisedSatgas": "Read the revision note, update the Recommendation, then resubmit it to the Campus Admin.",
         "recommendationAcceptedAdmin": "The recommendation has been approved. Create the decision in the Decision tab.",
         "recommendationAcceptedSatgas": "The recommendation has been approved. Wait for Admin to record the decision.",
         "decisionDraftAdmin": "Complete the decision draft, then move it to recorded status.",
@@ -193,7 +195,7 @@
       },
       "recommendation": {
         "all": "Waiting for the recommendation to be prepared.",
-        "satgas": "Prepare the recommendation in the Recommendation tab, then submit it to the leadership.",
+        "satgas": "Prepare the recommendation in the Recommendation tab, then submit it to the Campus Admin.",
         "admin": "Waiting for the recommendation from the assigned Satgas."
       },
       "decision": {
@@ -276,7 +278,7 @@
         "investigationCreated": "Investigation created",
         "investigationCreatedDesc": "The case investigation has started.",
         "recommendationSubmitted": "Recommendation submitted",
-        "recommendationSubmittedDesc": "The recommendation was submitted to the leadership.",
+        "recommendationSubmittedDesc": "The Recommendation was submitted to the Campus Admin for review.",
         "decisionFinalized": "Final decision",
         "decisionFinalizedDesc": "The institutional decision has been finalized.",
         "recoveryCompleted": "Recovery completed",
@@ -554,9 +556,9 @@
     "recommendationUpdateError": "Recommendation could not be updated",
     "recommendationStatusUpdated": "Recommendation status updated",
     "recommendationStatusError": "Recommendation status could not be updated",
-    "submitRecommendation": "Submit to Leadership",
-    "submitRecommendationDesc": "After submission, the recommendation cannot be edited unless the PPKS Leadership returns it for revision.",
-    "recommendationSubmitted": "Recommendation submitted to the PPKS Leadership",
+    "submitRecommendation": "Submit to Campus Admin",
+    "submitRecommendationDesc": "After submission, the recommendation cannot be edited unless the Campus Admin returns it for revision.",
+    "recommendationSubmitted": "Recommendation submitted for Campus Admin review",
     "recommendationSubmitError": "Recommendation could not be submitted",
     "approveRecommendation": "Approve Recommendation",
     "approveRecommendationDesc": "Approval will advance the case to the decision stage and hand it off to Admin.",
@@ -573,29 +575,34 @@
     "recommendationGuidance": {
       "fallback": "This recommendation status is read-only for your role.",
       "drafting": {
-        "satgas": "Complete the recommendation, then submit it to the PPKS Leadership.",
+        "satgas": "Complete the recommendation, then submit it to the Campus Admin.",
         "admin": "The recommendation is still being prepared by Satgas.",
-        "superAdmin": "The recommendation has not been submitted for review."
+        "superAdmin": "Read-only oversight mode."
       },
       "internal_review": {
-        "satgas": "Complete the internal review, then submit it to the PPKS Leadership.",
+        "satgas": "Complete the internal review, then submit it to the Campus Admin.",
         "admin": "The recommendation is still under Satgas internal review.",
-        "superAdmin": "The recommendation has not been submitted for review."
+        "superAdmin": "Read-only oversight mode."
       },
       "submitted_to_leader": {
-        "satgas": "Waiting for the PPKS Leadership review.",
-        "admin": "Waiting for PPKS Leadership approval before a decision can be created.",
-        "superAdmin": "Review the recommendation, then approve it or return it for revision."
+        "satgas": "Waiting for Campus Admin review.",
+        "admin": "Review the recommendation, then approve it or return it for revision.",
+        "superAdmin": "Read-only oversight mode."
+      },
+      "submitted_for_review": {
+        "satgas": "Waiting for Campus Admin review.",
+        "admin": "Review the recommendation, then approve it or return it for revision.",
+        "superAdmin": "Read-only oversight mode."
       },
       "revised": {
         "satgas": "Update the recommendation using the revision note, then resubmit it.",
         "admin": "The recommendation is being revised by Satgas.",
-        "superAdmin": "The recommendation was returned and is awaiting resubmission."
+        "superAdmin": "Read-only oversight mode."
       },
       "accepted": {
         "satgas": "The recommendation has been approved and is awaiting the Admin decision.",
         "admin": "The recommendation is ready for decision creation.",
-        "superAdmin": "The recommendation has been approved and handed off to Admin."
+        "superAdmin": "Read-only oversight mode."
       },
       "partially_accepted": {
         "satgas": "This legacy status is shown as a read-only record.",
@@ -678,6 +685,11 @@
       "case_assessment_required": "Record the risk level and priority before advancing the case to investigation.",
       "case_investigation_completion_required": "Complete the investigation before advancing the case to mediation or recommendation.",
       "investigation_stage_activity_required": "Add at least one activity in the {{stage}} stage before continuing.",
+      "campus_access_denied": "This operational record is outside your campus scope.",
+      "oversight_read_only": "Read-only oversight mode. Operational changes are performed by the authorized Campus Admin or assigned Task Force.",
+      "recovery_not_ongoing": "Monitoring can only be added while Recovery is ongoing.",
+      "recovery_monitoring_required": "Add at least one monitoring entry before Recovery can be completed.",
+      "case_recovery_completion_required": "Complete Recovery and record at least one monitoring entry before advancing the Case.",
       "action_unavailable": "The action is unavailable for the current workflow state."
     },
     "tips": {
@@ -690,6 +702,29 @@
       "current_stage_activity_completed": "The {{stage}} stage has an activity. Investigation status can now advance.",
       "move_case_after_investigation": "The Investigation is complete. Advance the Case to mediation or recommendation.",
       "create_recommendation": "Create the Recommendation from the Case Action card.",
+      "recommendation_waiting_campus_admin": "The Recommendation is waiting for Campus Admin review.",
+      "recommendation_returned": "The Recommendation was returned. Revise it using the Campus Admin note.",
+      "recommendation_waiting_satgas_revision": "The Recommendation was returned. Wait for the Task Force to revise and resubmit it.",
+      "review_recommendation": "The Recommendation was submitted for review. Approve it or return it for revision.",
+      "recommendation_approved_create_decision": "The Recommendation is approved. The Campus Admin can create the Decision.",
+      "wait_for_campus_admin_decision": "Wait for the Campus Admin to record and finalize the Decision.",
+      "decision_draft": "Complete the Decision draft, then record it when ready.",
+      "decision_recorded": "The Decision is recorded and can be finalized by the Campus Admin.",
+      "advance_case_to_recovery": "The Decision is final. Satgas can advance the Case to Recovery.",
+      "wait_for_satgas_recovery_stage": "The Decision is final. Wait for the Task Force to advance the Case to Recovery.",
+      "create_recovery": "Create a Recovery plan for the finalized Decision.",
+      "wait_for_campus_admin_recovery": "Wait for the Campus Admin to create and start the Recovery plan.",
+      "recovery_needs_monitoring": "Add at least one monitoring entry before Recovery can be completed.",
+      "wait_for_satgas_monitoring": "Recovery is ongoing. Wait for the Task Force to add a monitoring entry.",
+      "recovery_can_complete": "Monitoring has been recorded. The Campus Admin can complete Recovery.",
+      "wait_for_campus_admin_recovery_completion": "Monitoring has been recorded. Wait for the Campus Admin to complete Recovery.",
+      "recovery_completed_advance_monitoring": "Recovery is complete. Satgas can advance the Case to Monitoring.",
+      "wait_for_satgas_monitoring_stage": "Recovery is complete. Wait for the Task Force to advance the Case to Monitoring.",
+      "case_monitoring_close": "The prerequisites are complete. Satgas can close the Case.",
+      "wait_for_satgas_case_closure": "The Case is in Monitoring. Wait for the Task Force to close it.",
+      "case_closed": "The Case is complete and the Reporter sees Completed.",
+      "oversight_read_only": "Read-only oversight mode. Operational changes are performed by the authorized Campus Admin or assigned Task Force.",
+      "campus_access_denied": "This Case is outside the Admin campus scope.",
       "read_only_no_assignment": "This data is read-only because you are not an active Satgas member assigned to the case.",
       "permission_missing": "The permission required for the next step is unavailable.",
       "follow_available_case_action": "Follow the available Case actions for your current role and workflow state."
@@ -720,7 +755,9 @@
     "createDecisionNeedsStatus": "Case must be in decision status before creating a decision.",
     "createDecisionLoading": "Recommendation or decision data is still loading.",
     "createDecisionExists": "This case already has a decision.",
-    "createDecisionNeedsRecommendation": "A recommendation approved by PPKS Leadership is required before creating a decision.",
+    "createDecisionNeedsRecommendation": "A recommendation approved by the Campus Admin is required before creating a decision.",
+    "oversightReadOnly": "Read-only oversight mode. Operational changes are performed by the authorized Campus Admin or assigned Task Force.",
+    "sensitiveOversightUnavailable": "Sensitive content is unavailable because sensitive oversight access is not enabled.",
     "createDecisionUnavailable": "Decision creation is not available for this case.",
     "createRecoveryClosed": "Closed cases cannot receive recovery actions.",
     "createRecoveryLoading": "Decision data is still loading.",
@@ -1035,21 +1072,22 @@
       "history": "Activity History"
     },
     "queues": {
-      "waiting_admin": "Waiting for Admin",
+      "waiting_admin": "Waiting for Campus Admin",
       "waiting_satgas": "Waiting for PPKS Task Force",
-      "waiting_leader": "Waiting for PPKS Leader",
+      "waiting_leader": "Waiting for Campus Admin (legacy filter)",
       "emergency_access": "Emergency Access Requests",
       "critical_security": "Critical Security"
     },
     "queueDescriptions": {
-      "waiting_admin": "Verification, assignment, or decision work requiring Admin action.",
+      "waiting_admin": "Report forwarding, Recommendation review, assignment, or Decision work requiring Campus Admin action.",
       "waiting_satgas": "Active cases requiring PPKS Task Force follow-up.",
-      "waiting_leader": "Recommendations awaiting PPKS Leader review.",
+      "waiting_leader": "Legacy compatibility filter routed to the Campus Admin queue.",
       "emergency_access": "Exceptional access requests awaiting a decision.",
       "critical_security": "Critical security events requiring attention."
     },
     "workTypes": {
-      "report_verification": "Report verification",
+      "report_verification": "Report awaiting forwarding (legacy term)",
+      "report_forwarding": "Report awaiting forwarding",
       "case_assignment": "Case assignment",
       "satgas_case": "Case follow-up",
       "recommendation_review": "Recommendation review",
@@ -1280,11 +1318,15 @@
       "evidence_file_uploaded": "Evidence file uploaded",
       "evidence_file_downloaded": "Evidence file downloaded",
       "evidence_file_previewed": "Evidence file previewed",
+      "evidence_file_downloaded_by_oversight": "Evidence file downloaded in oversight",
+      "evidence_file_previewed_by_oversight": "Evidence file previewed in oversight",
       "reporter_evidence_uploaded": "Reporter evidence uploaded",
       "reporter_evidence_downloaded_by_reporter": "Evidence downloaded by reporter",
       "reporter_evidence_downloaded_by_satgas": "Evidence downloaded by PPKS Task Force",
       "reporter_evidence_previewed_by_reporter": "Evidence previewed by reporter",
       "reporter_evidence_previewed_by_satgas": "Evidence previewed by PPKS Task Force",
+      "reporter_evidence_downloaded_by_oversight": "Supporting evidence downloaded in oversight",
+      "reporter_evidence_previewed_by_oversight": "Supporting evidence previewed in oversight",
       "break_glass_request": "Emergency access requested",
       "break_glass_approve": "Emergency access approved",
       "break_glass_deny": "Emergency access denied",
@@ -1410,7 +1452,8 @@
       "drafting": "Drafting",
       "internal_review": "Internal review",
       "revised": "Revised",
-      "submitted_to_leader": "Submitted to leader",
+      "submitted_to_leader": "Submitted for Review",
+      "submitted_for_review": "Submitted for Review",
       "accepted": "Accepted",
       "partially_accepted": "Partially accepted",
       "rejected": "Rejected"

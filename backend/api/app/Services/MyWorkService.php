@@ -9,12 +9,17 @@ use App\Models\CaseRecord;
 use App\Models\Investigation;
 use App\Models\Recommendation;
 use App\Models\User;
+use App\Support\CaseCampusScope;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class MyWorkService
 {
+    public function __construct(private readonly CaseCampusScope $campusScope)
+    {
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -25,6 +30,8 @@ class MyWorkService
             'assigned_active_cases' => $this->casesQuery($user)->whereNull('closed_at')->count(),
             'pending_investigations' => $this->pendingInvestigationsQuery($user)->count(),
             'pending_recommendations' => $this->pendingRecommendationsCount($user),
+            'pending_decisions' => $this->pendingDecisionCount($user),
+            'pending_recoveries' => $this->pendingRecoveryCount($user),
             'unread_notifications' => $user->unreadNotifications()->count(),
         ];
     }
@@ -98,7 +105,11 @@ class MyWorkService
     {
         $query = CaseRecord::query();
 
-        if ($this->isSatgas($user)) {
+        if ($user->hasRole('super_admin')) {
+            $query->whereRaw('1 = 0');
+        } elseif ($user->hasRole('admin')) {
+            $this->campusScope->scopeCases($query, $user);
+        } elseif ($this->isSatgas($user)) {
             $query->whereHas('activeAssignments', fn (Builder $query): Builder => $query->where('satgas_id', $user->id));
         }
 
@@ -113,7 +124,11 @@ class MyWorkService
             ->whereHas('case', function (Builder $query) use ($user): void {
                 $query->whereNull('closed_at');
 
-                if ($this->isSatgas($user)) {
+                if ($user->hasRole('super_admin')) {
+                    $query->whereRaw('1 = 0');
+                } elseif ($user->hasRole('admin')) {
+                    $this->campusScope->scopeCases($query, $user);
+                } elseif ($this->isSatgas($user)) {
                     $query->whereHas('activeAssignments', fn (Builder $assignmentQuery): Builder => $assignmentQuery->where('satgas_id', $user->id));
                 }
             });
@@ -121,21 +136,63 @@ class MyWorkService
 
     private function pendingRecommendationsQuery(User $user): Builder
     {
-        return CaseRecord::query()
+        $query = CaseRecord::query()
             ->with(['status', 'recommendation.status', 'activeAssignments.satgas'])
             ->whereHas('status', fn (Builder $query): Builder => $query->where('name', CaseStatusEnum::Recommendation->value))
             ->whereNull('closed_at')
+            ->latest('recommendation_at');
+
+        if ($user->hasRole('super_admin')) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->hasRole('admin')) {
+            $this->campusScope->scopeCases($query, $user);
+
+            return $query->whereHas('recommendation.status', fn (Builder $statusQuery): Builder => $statusQuery
+                ->whereIn('name', RecommendationStatusEnum::submittedReviewValues()));
+        }
+
+        return $query
             ->where(function (Builder $query): void {
                 $query->whereDoesntHave('recommendation')
-                    ->orWhereHas('recommendation.status', fn (Builder $statusQuery): Builder => $statusQuery->where('name', '!=', RecommendationStatusEnum::SubmittedToLeader->value));
+                    ->orWhereHas('recommendation.status', fn (Builder $statusQuery): Builder => $statusQuery
+                        ->whereNotIn('name', RecommendationStatusEnum::submittedReviewValues())
+                        ->whereNotIn('name', RecommendationStatusEnum::decisionOnlyValues()));
             })
-            ->when($this->isSatgas($user), fn (Builder $query): Builder => $query->whereHas('activeAssignments', fn (Builder $assignmentQuery): Builder => $assignmentQuery->where('satgas_id', $user->id)))
-            ->latest('recommendation_at');
+            ->when($this->isSatgas($user), fn (Builder $query): Builder => $query->whereHas('activeAssignments', fn (Builder $assignmentQuery): Builder => $assignmentQuery->where('satgas_id', $user->id)));
     }
 
     private function pendingRecommendationsCount(User $user): int
     {
         return $this->pendingRecommendationsQuery($user)->count();
+    }
+
+    private function pendingDecisionCount(User $user): int
+    {
+        if (! $user->hasRole('admin')) {
+            return 0;
+        }
+
+        $query = CaseRecord::query()
+            ->whereHas('status', fn (Builder $status): Builder => $status->where('name', CaseStatusEnum::Decision->value))
+            ->whereHas('recommendation.status', fn (Builder $status): Builder => $status->where('name', RecommendationStatusEnum::Accepted->value));
+        $this->campusScope->scopeCases($query, $user);
+
+        return $query->count();
+    }
+
+    private function pendingRecoveryCount(User $user): int
+    {
+        if (! $user->hasRole('admin')) {
+            return 0;
+        }
+
+        $query = CaseRecord::query()->whereHas('status', fn (Builder $status): Builder => $status
+            ->whereIn('name', [CaseStatusEnum::Decided->value, CaseStatusEnum::Recovery->value]));
+        $this->campusScope->scopeCases($query, $user);
+
+        return $query->count();
     }
 
     private function caseItem(CaseRecord $case, User $user): array
@@ -229,7 +286,9 @@ class MyWorkService
 
     private function scopeName(User $user): string
     {
-        return $this->isSatgas($user) ? 'assigned_cases' : 'global';
+        return $this->isSatgas($user)
+            ? 'assigned_cases'
+            : ($user->hasRole('admin') ? 'campus' : 'oversight_read_only');
     }
 
     /**

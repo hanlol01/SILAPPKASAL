@@ -25,7 +25,9 @@ use App\Models\RecoveryStatus;
 use App\Models\Report;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\University;
 use App\Services\AuditLogService;
+use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -44,6 +46,7 @@ class RecoveryFoundationTest extends TestCase
 
         $this->seed(RbacSeeder::class);
         $this->seed(MasterDataSeeder::class);
+        $this->seed(CampusMasterDataSeeder::class);
     }
 
     public function test_recovery_foundation_tables_and_master_data_exist(): void
@@ -98,7 +101,7 @@ class RecoveryFoundationTest extends TestCase
 
         $this->assertDatabaseCount('recoveries', 2);
         $this->assertDatabaseCount('recovery_status_histories', 2);
-        $this->assertSame(CaseStatusEnum::Decision->value, $case->refresh()->status->name);
+        $this->assertSame(CaseStatusEnum::Recovery->value, $case->refresh()->status->name);
         $this->assertNull($case->closed_at);
         $this->assertSame(DecisionStatusEnum::Finalized->value, $decision->refresh()->status->name);
     }
@@ -108,13 +111,59 @@ class RecoveryFoundationTest extends TestCase
         $admin = $this->makeUser('admin', 'admin@university.ac.id');
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
         $case = $this->makeDecisionCase($admin, $satgas);
-        $decision = $this->makeDecision($this->makeSubmittedRecommendation($case, $satgas), $admin, DecisionStatusEnum::Recorded);
+        $decision = $this->makeDecision($this->makeAcceptedRecommendation($case, $satgas), $admin, DecisionStatusEnum::Recorded);
 
         $this->actingAsApi($admin);
         $this->postJson("/api/v1/decisions/{$decision->id}/recoveries", $this->recoveryPayload())
             ->assertUnprocessable();
 
         $this->assertDatabaseCount('recoveries', 0);
+    }
+
+    public function test_recovery_management_is_same_campus_admin_only_and_monitoring_is_assigned_satgas_only(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-owner@university.ac.id');
+        $otherAdmin = $this->makeUser('admin', 'admin-other@university.ac.id', 'DEMO-ST');
+        $superAdmin = $this->makeUser('super_admin', 'super-readonly@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-owner@university.ac.id');
+        $case = $this->makeDecisionCase($admin, $satgas);
+        $decision = $this->makeFinalizedDecision($case, $admin, $satgas);
+        $recovery = $this->makeRecovery($decision, $admin);
+
+        $this->actingAsApi($admin);
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}/status", [
+            'status' => RecoveryStatusEnum::Ongoing->value,
+        ])->assertOk();
+        $this->postJson("/api/v1/recoveries/{$recovery->id}/monitoring", $this->monitoringPayload())
+            ->assertForbidden();
+
+        $this->actingAsApi($otherAdmin);
+        $this->getJson("/api/v1/decisions/{$decision->id}/recoveries")->assertForbidden();
+        $this->getJson("/api/v1/recoveries/{$recovery->id}")->assertForbidden();
+        $this->postJson("/api/v1/decisions/{$decision->id}/recoveries", $this->recoveryPayload())
+            ->assertForbidden();
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}", [
+            'recovery_plan' => 'Admin kampus lain tidak boleh mengubah rencana pemulihan ini.',
+        ])->assertForbidden();
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}/status", [
+            'status' => RecoveryStatusEnum::Completed->value,
+        ])->assertForbidden();
+
+        config()->set('oversight.cross_campus_sensitive_read', true);
+        $this->actingAsApi($superAdmin);
+        $this->getJson("/api/v1/recoveries/{$recovery->id}")
+            ->assertOk()
+            ->assertJsonPath('data.recovery_plan', 'Rencana pendampingan korban secara berkala.');
+        $this->postJson("/api/v1/decisions/{$decision->id}/recoveries", $this->recoveryPayload())
+            ->assertForbidden();
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}", [
+            'recovery_plan' => 'Super Admin tetap hanya-baca meskipun flag sensitif aktif.',
+        ])->assertForbidden();
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}/status", [
+            'status' => RecoveryStatusEnum::Completed->value,
+        ])->assertForbidden();
+        $this->postJson("/api/v1/recoveries/{$recovery->id}/monitoring", $this->monitoringPayload())
+            ->assertForbidden();
     }
 
     public function test_assigned_satgas_can_read_recovery_and_create_monitoring_but_cannot_complete(): void
@@ -192,6 +241,17 @@ class RecoveryFoundationTest extends TestCase
         $this->patchJson("/api/v1/recoveries/{$recovery->id}/status", [
             'status' => RecoveryStatusEnum::Completed->value,
         ])
+            ->assertUnprocessable()
+            ->assertJsonPath('error_code', 'recovery_monitoring_required');
+
+        $this->actingAsApi($satgas);
+        $this->postJson("/api/v1/recoveries/{$recovery->id}/monitoring", $this->monitoringPayload())
+            ->assertCreated();
+
+        $this->actingAsApi($admin);
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}/status", [
+            'status' => RecoveryStatusEnum::Completed->value,
+        ])
             ->assertOk()
             ->assertJsonPath('data.status', RecoveryStatusEnum::Completed->value);
 
@@ -201,10 +261,108 @@ class RecoveryFoundationTest extends TestCase
 
         $recovery->refresh();
         $this->assertNotNull($recovery->completed_at);
-        $this->assertSame(CaseStatusEnum::Decision->value, $case->refresh()->status->name);
+        $this->assertSame(CaseStatusEnum::Recovery->value, $case->refresh()->status->name);
         $this->assertNull($case->closed_at);
         $this->assertSame(DecisionStatusEnum::Finalized->value, $decision->refresh()->status->name);
         $this->assertDatabaseCount('recovery_status_histories', 3);
+    }
+
+    public function test_case_monitoring_and_closure_require_completed_recovery_with_monitoring(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-gates@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-gates@university.ac.id');
+        $case = $this->makeDecisionCase($admin, $satgas);
+        $decision = $this->makeFinalizedDecision($case, $admin, $satgas);
+        $recovery = $this->makeRecovery($decision, $admin);
+
+        $this->actingAsApi($satgas);
+        $this->patchJson("/api/v1/cases/{$case->id}/status", [
+            'status' => CaseStatusEnum::Monitoring->value,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('error_code', 'case_recovery_completion_required');
+
+        $this->actingAsApi($admin);
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}/status", [
+            'status' => RecoveryStatusEnum::Ongoing->value,
+        ])->assertOk();
+
+        $this->actingAsApi($satgas);
+        $this->getJson("/api/v1/cases/{$case->id}")
+            ->assertOk()
+            ->assertJsonPath('data.workflow_context.primary_tip_code', 'recovery_needs_monitoring');
+        $this->postJson("/api/v1/recoveries/{$recovery->id}/monitoring", $this->monitoringPayload())
+            ->assertCreated();
+        $this->getJson("/api/v1/cases/{$case->id}")
+            ->assertOk()
+            ->assertJsonPath('data.workflow_context.primary_tip_code', 'wait_for_campus_admin_recovery_completion');
+        $this->patchJson("/api/v1/cases/{$case->id}/status", [
+            'status' => CaseStatusEnum::Monitoring->value,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('error_code', 'case_recovery_completion_required');
+
+        $this->actingAsApi($admin);
+        $this->getJson("/api/v1/cases/{$case->id}")
+            ->assertOk()
+            ->assertJsonPath('data.workflow_context.primary_tip_code', 'recovery_can_complete');
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}/status", [
+            'status' => RecoveryStatusEnum::Completed->value,
+        ])->assertOk();
+        $this->getJson("/api/v1/cases/{$case->id}")
+            ->assertOk()
+            ->assertJsonPath('data.workflow_context.primary_tip_code', 'wait_for_satgas_monitoring_stage');
+
+        $this->actingAsApi($satgas);
+        $this->getJson("/api/v1/cases/{$case->id}")
+            ->assertOk()
+            ->assertJsonPath('data.workflow_context.primary_tip_code', 'recovery_completed_advance_monitoring');
+        $this->patchJson("/api/v1/cases/{$case->id}/status", [
+            'status' => CaseStatusEnum::Monitoring->value,
+        ])->assertOk()->assertJsonPath('data.status', CaseStatusEnum::Monitoring->value);
+
+        $ongoing = RecoveryStatus::query()->where('name', RecoveryStatusEnum::Ongoing->value)->firstOrFail();
+        $recovery->forceFill([
+            'status_code' => $ongoing->code,
+            'completed_at' => null,
+        ])->save();
+
+        $this->patchJson("/api/v1/cases/{$case->id}/status", [
+            'status' => CaseStatusEnum::Closed->value,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('error_code', 'case_recovery_completion_required');
+
+        $completed = RecoveryStatus::query()->where('name', RecoveryStatusEnum::Completed->value)->firstOrFail();
+        $recovery->forceFill([
+            'status_code' => $completed->code,
+            'completed_at' => now(),
+        ])->save();
+
+        $this->patchJson("/api/v1/cases/{$case->id}/status", [
+            'status' => CaseStatusEnum::Closed->value,
+        ])->assertOk()->assertJsonPath('data.status', CaseStatusEnum::Closed->value);
+    }
+
+    public function test_discontinued_recovery_does_not_satisfy_case_progression_gate(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-discontinued@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-discontinued@university.ac.id');
+        $case = $this->makeDecisionCase($admin, $satgas);
+        $decision = $this->makeFinalizedDecision($case, $admin, $satgas);
+        $recovery = $this->makeRecovery($decision, $admin);
+
+        $this->actingAsApi($admin);
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}/status", [
+            'status' => RecoveryStatusEnum::Discontinued->value,
+        ])->assertOk();
+
+        $this->actingAsApi($satgas);
+        $this->patchJson("/api/v1/cases/{$case->id}/status", [
+            'status' => CaseStatusEnum::Monitoring->value,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('error_code', 'case_recovery_completion_required');
     }
 
     public function test_recovery_status_options_follow_access_scope_and_soft_warning_metadata(): void
@@ -402,7 +560,7 @@ class RecoveryFoundationTest extends TestCase
 
     private function makeFinalizedDecision(CaseRecord $case, User $admin, User $satgas): Decision
     {
-        return $this->makeDecision($this->makeSubmittedRecommendation($case, $satgas), $admin, DecisionStatusEnum::Finalized);
+        return $this->makeDecision($this->makeAcceptedRecommendation($case, $satgas), $admin, DecisionStatusEnum::Finalized);
     }
 
     private function makeDecision(Recommendation $recommendation, User $admin, DecisionStatusEnum $statusName): Decision
@@ -432,9 +590,9 @@ class RecoveryFoundationTest extends TestCase
         return $decision;
     }
 
-    private function makeSubmittedRecommendation(CaseRecord $case, User $satgas): Recommendation
+    private function makeAcceptedRecommendation(CaseRecord $case, User $satgas): Recommendation
     {
-        $status = RecommendationStatus::query()->where('name', RecommendationStatusEnum::SubmittedToLeader->value)->firstOrFail();
+        $status = RecommendationStatus::query()->where('name', RecommendationStatusEnum::Accepted->value)->firstOrFail();
         $investigation = $this->makeCompletedInvestigation($case, $satgas);
 
         return Recommendation::query()->create([
@@ -470,7 +628,7 @@ class RecoveryFoundationTest extends TestCase
     private function makeDecisionCase(User $admin, User $satgas): CaseRecord
     {
         $report = $this->makeReport();
-        $status = CaseStatus::query()->where('name', CaseStatusEnum::Decision->value)->firstOrFail();
+        $status = CaseStatus::query()->where('name', CaseStatusEnum::Recovery->value)->firstOrFail();
 
         $case = CaseRecord::query()->create([
             'report_id' => $report->id,
@@ -497,7 +655,10 @@ class RecoveryFoundationTest extends TestCase
 
     private function makeReport(): Report
     {
+        $reporter = $this->makeUser('reporter', 'recovery-reporter-'.(Report::query()->count() + 1).'@university.ac.id');
+
         return Report::query()->create([
+            'reporter_id' => $reporter->id,
             'registration_number' => 'SLP-'.now()->format('Ymd').'-'.str_pad((string) (Report::query()->count() + 1), 4, '0', STR_PAD_LEFT),
             'tracking_code' => null,
             'report_type' => 'confidential',
@@ -519,7 +680,11 @@ class RecoveryFoundationTest extends TestCase
         ]);
     }
 
-    private function makeUser(string $roleCode, string $email): User
+    private function makeUser(
+        string $roleCode,
+        string $email,
+        string $universityCode = 'DEMO-UNIV',
+    ): User
     {
         $role = Role::query()->where('code', $roleCode)->firstOrFail();
 
@@ -529,6 +694,7 @@ class RecoveryFoundationTest extends TestCase
             'email' => $email,
             'password' => 'SecurePass123',
             'is_active' => true,
+            'university_id' => University::query()->where('code', $universityCode)->firstOrFail()->id,
         ]);
     }
 

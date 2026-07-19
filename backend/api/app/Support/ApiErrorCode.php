@@ -24,6 +24,8 @@ final class ApiErrorCode
     public const CaseInvestigationCompletionRequired = 'case_investigation_completion_required';
     public const InvestigationStageActivityRequired = 'investigation_stage_activity_required';
     public const InvestigationActivityStageIncompatible = 'investigation_activity_stage_incompatible';
+    public const RecoveryMonitoringRequired = 'recovery_monitoring_required';
+    public const CaseRecoveryCompletionRequired = 'case_recovery_completion_required';
 
     private function __construct()
     {

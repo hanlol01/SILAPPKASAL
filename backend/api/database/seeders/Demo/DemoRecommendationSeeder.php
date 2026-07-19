@@ -15,8 +15,8 @@ class DemoRecommendationSeeder extends Seeder
      */
     private array $statuses = [
         'CASE-DEMO-202606-0103' => RecommendationStatusEnum::Drafting->value,
-        'CASE-DEMO-202606-0104' => RecommendationStatusEnum::SubmittedToLeader->value,
-        'CASE-DEMO-202606-0105' => RecommendationStatusEnum::SubmittedToLeader->value,
+        'CASE-DEMO-202606-0104' => RecommendationStatusEnum::SubmittedForReview->value,
+        'CASE-DEMO-202606-0105' => RecommendationStatusEnum::SubmittedForReview->value,
         'CASE-DEMO-202606-0106' => RecommendationStatusEnum::Accepted->value,
         'CASE-DEMO-202606-0107' => RecommendationStatusEnum::PartiallyAccepted->value,
         'CASE-DEMO-202606-0108' => RecommendationStatusEnum::Rejected->value,

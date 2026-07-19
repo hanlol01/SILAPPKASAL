@@ -6,8 +6,10 @@ use App\Enums\AuditAction;
 use App\Enums\ReportStatus;
 use App\Models\Report;
 use App\Models\Role;
+use App\Models\University;
 use App\Models\User;
 use App\Services\AuditLogService;
+use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,6 +29,7 @@ class ReportIntakeTest extends TestCase
 
         $this->seed(RbacSeeder::class);
         $this->seed(MasterDataSeeder::class);
+        $this->seed(CampusMasterDataSeeder::class);
         Cache::clear();
     }
 
@@ -226,6 +229,31 @@ class ReportIntakeTest extends TestCase
             ->assertJsonMissingPath('data.reporter.email');
     }
 
+    public function test_super_admin_sensitive_flag_never_reveals_anonymous_reporter_identity(): void
+    {
+        $reporter = $this->makeUser('reporter', 'anonymous-sensitive-owner@university.ac.id');
+        $superAdmin = $this->makeUser('super_admin', 'oversight@university.ac.id');
+        $report = $this->createAnonymousReport($reporter);
+        Sanctum::actingAs($superAdmin, ['*']);
+
+        config()->set('oversight.cross_campus_sensitive_read', false);
+        $this->getJson("/api/v1/reports/{$report->id}")
+            ->assertOk()
+            ->assertJsonPath('data.reporter.masked', true)
+            ->assertJsonMissingPath('data.sensitive_details')
+            ->assertJsonMissingPath('data.reporter.id')
+            ->assertJsonMissingPath('data.reporter.name');
+
+        config()->set('oversight.cross_campus_sensitive_read', true);
+        $this->getJson("/api/v1/reports/{$report->id}")
+            ->assertOk()
+            ->assertJsonPath('data.reporter.masked', true)
+            ->assertJsonPath('data.sensitive_details.chronology', $report->chronology)
+            ->assertJsonMissingPath('data.reporter.id')
+            ->assertJsonMissingPath('data.reporter.name')
+            ->assertJsonMissingPath('data.reporter.email');
+    }
+
     public function test_satgas_cannot_access_anonymous_report_identity_through_report_api(): void
     {
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
@@ -393,6 +421,7 @@ class ReportIntakeTest extends TestCase
 
         return User::query()->create([
             'role_id' => $role->id,
+            'university_id' => University::query()->where('code', 'DEMO-UNIV')->firstOrFail()->id,
             'name' => "{$roleCode} User",
             'email' => $email ?? "{$roleCode}@university.ac.id",
             'password' => 'SecurePass123',

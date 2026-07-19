@@ -15,6 +15,7 @@ use App\Models\Decision;
 use App\Models\DecisionStatus;
 use App\Models\Recommendation;
 use App\Models\User;
+use App\Support\CaseCampusScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -25,8 +26,8 @@ class DecisionService
     public function __construct(
         private readonly NotificationService $notificationService,
         private readonly AuditLogService $auditLogService,
-    )
-    {
+        private readonly CaseCampusScope $campusScope,
+    ) {
     }
 
     /**
@@ -34,16 +35,18 @@ class DecisionService
      */
     public function createForRecommendation(Recommendation $recommendation, User $actor, array $data): Decision
     {
-        $this->authorizeDecisionRecorder($actor);
+        $this->authorizeDecisionRecorder($actor, $recommendation);
         $this->ensureRecommendationCanReceiveDecision($recommendation);
 
         return DB::transaction(function () use ($recommendation, $actor, $data): Decision {
             $recommendation = Recommendation::query()
-                ->with(['case.status', 'status', 'decision'])
+                ->with(['case.status', 'case.report.reporter:id,university_id', 'status', 'decision'])
                 ->whereKey($recommendation->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
+            $this->authorizeDecisionRecorder($actor, $recommendation);
             $this->ensureRecommendationCanReceiveDecision($recommendation);
             $status = $this->statusByName(DecisionStatusEnum::Draft);
 
@@ -122,10 +125,10 @@ class DecisionService
      */
     public function update(Decision $decision, User $actor, array $data): Decision
     {
-        $this->authorizeDecisionRecorder($actor);
-
         return DB::transaction(function () use ($decision, $actor, $data): Decision {
-            $decision = Decision::query()->with('status')->whereKey($decision->id)->lockForUpdate()->firstOrFail();
+            $decision = Decision::query()->with(['status', 'recommendation.case.report.reporter:id,university_id'])->whereKey($decision->id)->lockForUpdate()->firstOrFail();
+            $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
+            $this->authorizeDecisionRecorder($actor, $decision->recommendation);
 
             $this->ensureDecisionEditable($decision);
 
@@ -168,10 +171,10 @@ class DecisionService
 
     public function updateStatus(Decision $decision, User $actor, string $requestedStatus): Decision
     {
-        $this->authorizeDecisionRecorder($actor);
-
         return DB::transaction(function () use ($decision, $actor, $requestedStatus): Decision {
-            $decision = Decision::query()->with('status')->whereKey($decision->id)->lockForUpdate()->firstOrFail();
+            $decision = Decision::query()->with(['status', 'recommendation.case.report.reporter:id,university_id'])->whereKey($decision->id)->lockForUpdate()->firstOrFail();
+            $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
+            $this->authorizeDecisionRecorder($actor, $decision->recommendation);
 
             $this->ensureDecisionOpen($decision);
 
@@ -245,11 +248,11 @@ class DecisionService
      */
     public function statusOptions(Decision $decision, User $user): array
     {
-        $decision->loadMissing('status');
+        $decision->loadMissing(['status', 'recommendation.case.report.reporter:id,university_id']);
 
         $statuses = [];
 
-        if ($this->canManageDecision($user)) {
+        if ($this->canManageDecision($user, $decision->recommendation)) {
             $transitionNames = $decision->status?->valid_transitions ?? [];
 
             $statuses = DecisionStatus::query()
@@ -307,25 +310,35 @@ class DecisionService
         }
     }
 
-    private function authorizeDecisionRecorder(User $actor): void
+    private function authorizeDecisionRecorder(User $actor, Recommendation $recommendation): void
     {
-        if (! $this->canManageDecision($actor)) {
+        if (! $this->canManageDecision($actor, $recommendation)) {
             throw $this->forbidden();
         }
     }
 
-    private function canManageDecision(User $user): bool
+    private function canManageDecision(User $user, Recommendation $recommendation): bool
     {
         return $user->is_active
             && $user->hasPermission('cases.record_decision')
-            && $user->hasRole('admin');
+            && $user->hasRole('admin')
+            && $this->campusScope->sameCampus($user, $recommendation);
     }
 
     private function canReadDecision(User $user, Recommendation $recommendation): bool
     {
-        return $this->canManageDecision($user)
+        return $this->canManageDecision($user, $recommendation)
             || ($user->is_active && $user->hasPermission('cases.read.all') && $user->hasRole('super_admin'))
             || $this->isAssignedToRecommendationCase($recommendation, $user);
+    }
+
+    public function canReadSensitive(Decision $decision, User $user): bool
+    {
+        $decision->loadMissing('recommendation.case.report.reporter:id,university_id');
+
+        return $this->canManageDecision($user, $decision->recommendation)
+            || $this->campusScope->canSensitiveOversight($user)
+            || $this->isAssignedToRecommendationCase($decision->recommendation, $user);
     }
 
     private function isAssignedToRecommendationCase(Recommendation $recommendation, User $user): bool

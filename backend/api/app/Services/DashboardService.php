@@ -155,7 +155,14 @@ class DashboardService
             ->whereNull('reports.deleted_at')
             ->whereBetween('reports.submitted_at', [$filters['date_from'], $filters['date_to']]);
 
-        if (! $this->isGlobalScope($user)) {
+        if ($user->hasRole('admin')) {
+            if ($user->university_id === null) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->join('users as report_reporters', 'report_reporters.id', '=', 'reports.reporter_id')
+                    ->where('report_reporters.university_id', $user->university_id);
+            }
+        } elseif (! $this->isGlobalScope($user)) {
             $query->join('cases', 'cases.report_id', '=', 'reports.id')
                 ->join('case_assignments', 'case_assignments.case_id', '=', 'cases.id')
                 ->whereNull('cases.deleted_at')
@@ -298,6 +305,18 @@ class DashboardService
             return $query;
         }
 
+        if ($user->hasRole('admin')) {
+            if ($user->university_id === null) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            return $query
+                ->join('reports as campus_reports', 'campus_reports.id', '=', 'cases.report_id')
+                ->join('users as campus_reporters', 'campus_reporters.id', '=', 'campus_reports.reporter_id')
+                ->whereColumn('campus_reports.registration_number', 'cases.registration_number')
+                ->where('campus_reporters.university_id', $user->university_id);
+        }
+
         return $query
             ->join('case_assignments', 'case_assignments.case_id', '=', 'cases.id')
             ->where('case_assignments.satgas_id', $user->id)
@@ -311,7 +330,7 @@ class DashboardService
 
     private function unassignedCaseCount(User $user, array $filters): int
     {
-        if (! $this->isGlobalScope($user)) {
+        if (! ($user->hasRole('admin') || $this->isGlobalScope($user))) {
             return 0;
         }
 
@@ -334,7 +353,16 @@ class DashboardService
             ->where('case_assignments.is_active', true)
             ->whereBetween('cases.forwarded_at', [$filters['date_from'], $filters['date_to']]);
 
-        if (! $this->isGlobalScope($user)) {
+        if ($user->hasRole('admin')) {
+            if ($user->university_id === null) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->join('reports as assignment_reports', 'assignment_reports.id', '=', 'cases.report_id')
+                    ->join('users as assignment_reporters', 'assignment_reporters.id', '=', 'assignment_reports.reporter_id')
+                    ->whereColumn('assignment_reports.registration_number', 'cases.registration_number')
+                    ->where('assignment_reporters.university_id', $user->university_id);
+            }
+        } elseif (! $this->isGlobalScope($user)) {
             $query->where('case_assignments.satgas_id', $user->id);
         }
 
@@ -408,12 +436,14 @@ class DashboardService
 
     private function isGlobalScope(User $user): bool
     {
-        return $user->hasRole('admin') || $user->hasRole('super_admin');
+        return $user->hasRole('super_admin');
     }
 
     private function scopeName(User $user): string
     {
-        return $this->isGlobalScope($user) ? 'global' : 'assigned_cases';
+        return $this->isGlobalScope($user)
+            ? 'global'
+            : ($user->hasRole('admin') ? 'campus' : 'assigned_cases');
     }
 
     /**

@@ -6,9 +6,14 @@ use App\Models\CaseAssignment;
 use App\Models\Evidence;
 use App\Models\Investigation;
 use App\Models\User;
+use App\Support\CaseCampusScope;
 
 class EvidencePolicy extends BasePolicy
 {
+    public function __construct(private readonly CaseCampusScope $campusScope)
+    {
+    }
+
     public function create(User $user, Investigation $investigation): bool
     {
         return $this->canManageInvestigationEvidence($user, $investigation);
@@ -16,7 +21,7 @@ class EvidencePolicy extends BasePolicy
 
     public function view(User $user, Evidence $evidence): bool
     {
-        return $this->canManageInvestigationEvidence($user, $evidence->investigation);
+        return $this->canReadOversightEvidence($user) || $this->canManageInvestigationEvidence($user, $evidence->investigation);
     }
 
     public function update(User $user, Evidence $evidence): bool
@@ -41,7 +46,8 @@ class EvidencePolicy extends BasePolicy
 
     public function downloadFile(User $user, Evidence $evidence): bool
     {
-        return $this->canAccessAssignedEvidence($user, $evidence->investigation, 'evidence.download');
+        return $this->canReadOversightEvidence($user)
+            || $this->canAccessAssignedEvidence($user, $evidence->investigation, 'evidence.download');
     }
 
     public function previewFile(User $user, Evidence $evidence): bool
@@ -65,5 +71,10 @@ class EvidencePolicy extends BasePolicy
                 ->where('satgas_id', $user->id)
                 ->where('is_active', true)
                 ->exists();
+    }
+
+    private function canReadOversightEvidence(User $user): bool
+    {
+        return $this->campusScope->canSensitiveOversight($user);
     }
 }

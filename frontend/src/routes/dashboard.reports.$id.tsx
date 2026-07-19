@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { AccessDenied } from "@/components/access-denied";
 import { BreakGlassRequestDialog } from "@/components/admin/break-glass-request-dialog";
 import { QueryErrorState } from "@/components/query-state";
+import { ReporterEvidenceFiles } from "@/components/reporter-evidence-files";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { ReportStatusBadge } from "@/components/status-badge";
@@ -60,8 +61,10 @@ function ReportDetailPage() {
   const activeAssignments = reportCase?.active_assignments ?? [];
   const assignmentMode = reportCase ? "assign-case" : "forward-report";
   const canManageAssignment = reportCase
-    ? Boolean(user?.permissions?.includes("cases.assign_satgas"))
-    : Boolean(user?.permissions?.includes("reports.forward"));
+    ? roleCode === "admin" && Boolean(user?.permissions?.includes("cases.assign_satgas"))
+    : roleCode === "admin" && Boolean(user?.permissions?.includes("reports.forward"));
+  const sensitiveOversightEnabled =
+    roleCode === "super_admin" && report.sensitive_details !== undefined;
 
   return (
     <div className="space-y-6">
@@ -101,6 +104,18 @@ function ReportDetailPage() {
         </div>
       </div>
 
+      {roleCode === "super_admin" && (
+        <Alert>
+          <Lock className="h-4 w-4" />
+          <AlertTitle>{t("dashboard:workflow.oversightReadOnly")}</AlertTitle>
+          {!sensitiveOversightEnabled && (
+            <AlertDescription>
+              {t("dashboard:workflow.sensitiveOversightUnavailable")}
+            </AlertDescription>
+          )}
+        </Alert>
+      )}
+
       {report.status === "forwarded" && (
         <Alert className="border-info/30 bg-info/10 [&>svg]:text-info">
           <CheckCircle2 className="h-4 w-4" />
@@ -126,6 +141,34 @@ function ReportDetailPage() {
             <Field label={t("dashboard:common.created")}>{formatDateTime(report.created_at, i18n.language)}</Field>
           </CardContent>
         </Card>
+
+        {sensitiveOversightEnabled && report.sensitive_details && (
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-base">{t("dashboard:reports.sensitiveDetails")}</CardTitle>
+              <CardDescription>{t("dashboard:reports.sensitiveDetailsDesc")}</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
+              <Field label={t("dashboard:sections.chronology")}>
+                {report.sensitive_details.chronology ?? "-"}
+              </Field>
+              <Field label={t("dashboard:sections.incidentDate")}>
+                {report.sensitive_details.incident_date ?? "-"}
+              </Field>
+              <Field label={t("dashboard:sections.incidentLocation")}>
+                {report.sensitive_details.incident_location ?? "-"}
+              </Field>
+              <Field label={t("dashboard:sections.respondentName")}>
+                {report.sensitive_details.respondent_name ??
+                  report.sensitive_details.respondent?.name ??
+                  "-"}
+              </Field>
+              <Field label={t("dashboard:sections.witnessInfo")}>
+                {report.sensitive_details.witness_info ?? "-"}
+              </Field>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="min-w-0 space-y-4">
           <Card className="min-w-0">
@@ -195,6 +238,9 @@ function ReportDetailPage() {
           )}
         </div>
       </div>
+      {sensitiveOversightEnabled && (
+        <ReporterEvidenceFiles reportId={report.id} canDownload language={i18n.language} />
+      )}
     </div>
   );
 }

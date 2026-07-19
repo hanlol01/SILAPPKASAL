@@ -15,6 +15,7 @@ use App\Models\InvestigationActivity;
 use App\Models\InvestigationStatus;
 use App\Models\User;
 use App\Support\ApiErrorCode;
+use App\Support\CaseCampusScope;
 use App\Notifications\WorkflowDatabaseNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -24,8 +25,10 @@ use Illuminate\Support\Facades\Notification;
 
 class InvestigationService
 {
-    public function __construct(private readonly AuditLogService $auditLogService)
-    {
+    public function __construct(
+        private readonly AuditLogService $auditLogService,
+        private readonly CaseCampusScope $campusScope,
+    ) {
     }
 
     /**
@@ -79,7 +82,7 @@ class InvestigationService
      */
     public function listForCase(CaseRecord $case, User $user): Collection
     {
-        if (! $this->canReadMetadata($user) && ! $this->isAssignedInvestigator($case, $user)) {
+        if (! $this->canReadMetadata($user, $case) && ! $this->isAssignedInvestigator($case, $user)) {
             throw $this->forbidden();
         }
 
@@ -265,13 +268,13 @@ class InvestigationService
 
     public function canReadSensitive(Investigation $investigation, User $user): bool
     {
-        return $user->hasPermission('cases.investigate')
+        return $this->campusScope->canSensitiveOversight($user) || ($user->hasPermission('cases.investigate')
             && $user->hasRole('satgas_ppks')
             && CaseAssignment::query()
                 ->where('case_id', $investigation->case_id)
                 ->where('satgas_id', $user->id)
                 ->where('is_active', true)
-                ->exists();
+                ->exists());
     }
 
     private function authorizeAssignedInvestigator(CaseRecord $case, User $actor): void
@@ -344,9 +347,9 @@ class InvestigationService
             ->exists();
     }
 
-    private function canReadMetadata(User $user): bool
+    private function canReadMetadata(User $user, CaseRecord $case): bool
     {
-        return ($user->hasPermission('cases.read.metadata') && ($user->hasRole('admin') || $user->hasRole('super_admin')))
+        return ($user->hasPermission('cases.read.metadata') && $user->hasRole('admin') && $this->campusScope->sameCampus($user, $case))
             || ($user->hasPermission('cases.read.all') && $user->hasRole('super_admin'));
     }
 
@@ -379,7 +382,7 @@ class InvestigationService
     {
         $investigation->loadMissing(['case', 'leadInvestigator']);
 
-        $this->notifyAdmins([
+        $this->notifyAdmins($investigation->case, [
             'notification_type_code' => 'investigation_created',
             'event' => 'investigation_created',
             'title' => 'Investigation created',
@@ -397,7 +400,7 @@ class InvestigationService
     {
         $investigation->loadMissing('case');
 
-        $this->notifyAdmins([
+        $this->notifyAdmins($investigation->case, [
             'notification_type_code' => 'investigation_completed',
             'event' => 'investigation_completed',
             'title' => 'Investigation completed',
@@ -437,11 +440,18 @@ class InvestigationService
     /**
      * @param array<string, mixed> $payload
      */
-    private function notifyAdmins(array $payload): void
+    private function notifyAdmins(?CaseRecord $case, array $payload): void
     {
+        $universityId = $case ? $this->campusScope->caseUniversityId($case) : null;
+
+        if ($universityId === null) {
+            return;
+        }
+
         $recipients = User::query()
             ->where('is_active', true)
-            ->whereHas('role', fn (Builder $query): Builder => $query->whereIn('code', ['admin', 'super_admin']))
+            ->where('university_id', $universityId)
+            ->whereHas('role', fn (Builder $query): Builder => $query->where('code', 'admin'))
             ->get();
 
         Notification::send($recipients, new WorkflowDatabaseNotification($payload));

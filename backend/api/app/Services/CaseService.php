@@ -13,8 +13,10 @@ use App\Models\CaseRecord;
 use App\Models\CaseStatus;
 use App\Models\Investigation;
 use App\Models\Report;
+use App\Models\Recovery;
 use App\Models\User;
 use App\Support\ApiErrorCode;
+use App\Support\CaseCampusScope;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -26,6 +28,7 @@ class CaseService
         private readonly NotificationService $notificationService,
         private readonly AuditLogService $auditLogService,
         private readonly CaseWorkflowContextService $workflowContextService,
+        private readonly CaseCampusScope $campusScope,
     ) {
     }
 
@@ -92,15 +95,26 @@ class CaseService
     public function forwardReport(Report $report, User $actor, array $data): CaseRecord
     {
         $this->authorizeForward($report, $actor);
-        $satgasIds = $this->validatedSatgasIds($data['satgas_ids'], (int) $data['lead_satgas_id']);
+        $satgasIds = $this->validatedSatgasIds(
+            $data['satgas_ids'],
+            (int) $data['lead_satgas_id'],
+            $this->campusScope->reportUniversityId($report),
+        );
 
         return DB::transaction(function () use ($report, $actor, $satgasIds, $data): CaseRecord {
             $report = Report::query()
+                ->with('reporter:id,university_id')
                 ->whereKey($report->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $this->ensureForwardable($report);
+            $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
+            $this->authorizeForward($report, $actor);
+            $satgasIds = $this->validatedSatgasIds(
+                $satgasIds,
+                (int) $data['lead_satgas_id'],
+                $this->campusScope->reportUniversityId($report),
+            );
             $status = $this->statusByName(CaseStatusEnum::Forwarded);
             $forwardedAt = now();
 
@@ -171,7 +185,9 @@ class CaseService
             ->latest('forwarded_at');
 
         if ($this->canReadMetadata($user)) {
-            // Metadata readers see all non-deleted cases.
+            if ($user->hasRole('admin')) {
+                $this->campusScope->scopeCases($query, $user);
+            }
         } elseif ($this->canReadAssigned($user)) {
             $query
                 ->with('reportSensitive')
@@ -220,7 +236,7 @@ class CaseService
     {
         $relations = ['status', 'riskLevel', 'priorityLevel', 'activeAssignments.satgas'];
 
-        if ($this->canReadAssigned($user) && $this->isAssignedTo($case, $user)) {
+        if (($this->canReadAssigned($user) && $this->isAssignedTo($case, $user)) || $this->campusScope->canSensitiveOversight($user)) {
             $relations[] = 'reportSensitive';
         } else {
             $relations[] = 'report';
@@ -237,10 +253,29 @@ class CaseService
      */
     public function assignSatgas(CaseRecord $case, User $actor, array $data): CaseRecord
     {
-        $satgasIds = $this->validatedSatgasIds($data['satgas_ids'], (int) $data['lead_satgas_id']);
+        $satgasIds = $this->validatedSatgasIds(
+            $data['satgas_ids'],
+            (int) $data['lead_satgas_id'],
+            $this->campusScope->caseUniversityId($case),
+        );
 
         return DB::transaction(function () use ($case, $actor, $satgasIds, $data): CaseRecord {
-            $case = CaseRecord::query()->with('status')->whereKey($case->id)->lockForUpdate()->firstOrFail();
+            $case = CaseRecord::query()->with(['status', 'report.reporter:id,university_id'])->whereKey($case->id)->lockForUpdate()->firstOrFail();
+            $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
+
+            if (
+                ! $actor->is_active
+                || ! $actor->hasRole('admin')
+                || ! $actor->hasPermission('cases.assign_satgas')
+                || ! $this->campusScope->sameCampus($actor, $case)
+            ) {
+                throw $this->forbidden();
+            }
+            $satgasIds = $this->validatedSatgasIds(
+                $satgasIds,
+                (int) $data['lead_satgas_id'],
+                $this->campusScope->caseUniversityId($case),
+            );
             $previousActiveSatgasIds = $case->activeAssignments()
                 ->pluck('satgas_id')
                 ->map(fn ($id): int => (int) $id)
@@ -320,6 +355,25 @@ class CaseService
             }
 
             if (
+                ($case->status?->name === CaseStatusEnum::Recovery->value && $nextStatus->name === CaseStatusEnum::Monitoring->value)
+                || ($case->status?->name === CaseStatusEnum::Monitoring->value && $nextStatus->name === CaseStatusEnum::Closed->value)
+            ) {
+                $recovery = Recovery::query()
+                    ->with('status')
+                    ->whereHas('decision.recommendation', fn (Builder $query): Builder => $query->where('case_id', $case->id))
+                    ->latest('id')
+                    ->lockForUpdate()
+                    ->first();
+
+                if (
+                    $recovery?->status?->name !== \App\Enums\RecoveryStatus::Completed->value
+                    || ! $recovery->monitorings()->exists()
+                ) {
+                    throw $this->unprocessableCode(ApiErrorCode::CaseRecoveryCompletionRequired);
+                }
+            }
+
+            if (
                 $case->status?->name === CaseStatusEnum::Investigation->value
                 && in_array($nextStatus->name, [CaseStatusEnum::Mediation->value, CaseStatusEnum::Recommendation->value], true)
             ) {
@@ -366,7 +420,7 @@ class CaseService
      * @param list<int|string> $satgasIds
      * @return list<int>
      */
-    private function validatedSatgasIds(array $satgasIds, int $leadSatgasId): array
+    private function validatedSatgasIds(array $satgasIds, int $leadSatgasId, ?int $universityId): array
     {
         $ids = array_values(array_unique(array_map('intval', $satgasIds)));
 
@@ -374,9 +428,14 @@ class CaseService
             throw $this->unprocessable('Lead Satgas must be included in satgas_ids');
         }
 
+        if ($universityId === null) {
+            throw $this->forbidden();
+        }
+
         $validCount = User::query()
             ->whereIn('id', $ids)
             ->where('is_active', true)
+            ->where('university_id', $universityId)
             ->whereHas('role', fn (Builder $query): Builder => $query->where('code', 'satgas_ppks'))
             ->count();
 
@@ -422,7 +481,7 @@ class CaseService
 
     private function authorizeForward(Report $report, User $actor): void
     {
-        if (! $actor->hasPermission('reports.forward') || ! ($actor->hasRole('admin') || $actor->hasRole('super_admin'))) {
+        if (! $actor->is_active || ! $actor->hasPermission('reports.forward') || ! $actor->hasRole('admin') || ! $this->campusScope->sameCampus($actor, $report)) {
             throw $this->forbidden();
         }
 

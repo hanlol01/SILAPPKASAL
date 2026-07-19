@@ -23,6 +23,8 @@ use App\Models\RecommendationStatus;
 use App\Models\Report;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\University;
+use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -40,6 +42,7 @@ class DecisionFoundationTest extends TestCase
 
         $this->seed(RbacSeeder::class);
         $this->seed(MasterDataSeeder::class);
+        $this->seed(CampusMasterDataSeeder::class);
     }
 
     public function test_decision_foundation_tables_and_master_data_exist(): void
@@ -107,7 +110,7 @@ class DecisionFoundationTest extends TestCase
         $submittedRecommendation = $this->makeRecommendation(
             $this->makeDecisionCase($admin, $satgas),
             $satgas,
-            RecommendationStatusEnum::SubmittedToLeader,
+            RecommendationStatusEnum::SubmittedForReview,
         );
         $this->postJson("/api/v1/recommendations/{$submittedRecommendation->id}/decisions", $this->decisionPayload())
             ->assertUnprocessable();
@@ -157,9 +160,11 @@ class DecisionFoundationTest extends TestCase
 
     public function test_super_admin_is_read_only_and_only_active_admin_can_manage_decisions(): void
     {
+        config()->set('oversight.cross_campus_sensitive_read', true);
         $admin = $this->makeUser('admin', 'admin-manager@university.ac.id');
         $inactiveAdmin = $this->makeUser('admin', 'inactive-admin@university.ac.id');
         $inactiveAdmin->forceFill(['is_active' => false])->save();
+        $otherAdmin = $this->makeUser('admin', 'other-campus-admin@university.ac.id', 'DEMO-ST');
         $superAdmin = $this->makeUser('super_admin', 'super-readonly@university.ac.id');
         $satgas = $this->makeUser('satgas_ppks', 'satgas-manager@university.ac.id');
         $case = $this->makeDecisionCase($admin, $satgas);
@@ -190,6 +195,16 @@ class DecisionFoundationTest extends TestCase
         $this->actingAsApi($inactiveAdmin);
         $this->postJson("/api/v1/recommendations/{$otherRecommendation->id}/decisions", $this->decisionPayload())
             ->assertForbidden();
+
+        $this->actingAsApi($otherAdmin);
+        $this->postJson("/api/v1/recommendations/{$otherRecommendation->id}/decisions", $this->decisionPayload())
+            ->assertForbidden();
+        $this->patchJson("/api/v1/decisions/{$decision->id}", [
+            'decision_summary' => 'Admin kampus lain tidak boleh mengubah.',
+        ])->assertForbidden();
+        $this->patchJson("/api/v1/decisions/{$decision->id}/status", [
+            'status' => DecisionStatusEnum::Recorded->value,
+        ])->assertForbidden();
     }
 
     public function test_decision_status_options_follow_view_policy_and_actor_authority(): void
@@ -502,7 +517,10 @@ class DecisionFoundationTest extends TestCase
             'sanction_recommendation' => 'Rekomendasi sanksi.',
             'recovery_recommendation' => 'Rekomendasi pemulihan.',
             'prevention_recommendation' => 'Rekomendasi pencegahan.',
-            'submitted_at' => $statusName === RecommendationStatusEnum::SubmittedToLeader ? now() : null,
+            'submitted_at' => in_array($statusName, [
+                RecommendationStatusEnum::SubmittedForReview,
+                RecommendationStatusEnum::SubmittedToLeader,
+            ], true) ? now() : null,
         ]);
     }
 
@@ -557,7 +575,10 @@ class DecisionFoundationTest extends TestCase
 
     private function makeReport(): Report
     {
+        $reporter = $this->makeUser('reporter', 'decision-reporter-'.(Report::query()->count() + 1).'@university.ac.id');
+
         return Report::query()->create([
+            'reporter_id' => $reporter->id,
             'registration_number' => 'SLP-'.now()->format('Ymd').'-'.str_pad((string) (Report::query()->count() + 1), 4, '0', STR_PAD_LEFT),
             'tracking_code' => null,
             'report_type' => 'confidential',
@@ -579,7 +600,11 @@ class DecisionFoundationTest extends TestCase
         ]);
     }
 
-    private function makeUser(string $roleCode, string $email): User
+    private function makeUser(
+        string $roleCode,
+        string $email,
+        string $universityCode = 'DEMO-UNIV',
+    ): User
     {
         $role = Role::query()->where('code', $roleCode)->firstOrFail();
 
@@ -589,6 +614,7 @@ class DecisionFoundationTest extends TestCase
             'email' => $email,
             'password' => 'SecurePass123',
             'is_active' => true,
+            'university_id' => University::query()->where('code', $universityCode)->firstOrFail()->id,
         ]);
     }
 

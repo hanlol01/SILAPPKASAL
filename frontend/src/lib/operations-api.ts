@@ -85,6 +85,8 @@ export const operationsQueryKeys = {
     ["operations", "evidence", normalizeOperationId(id), "custody"] as const,
   reporterEvidenceFiles: (caseId: string | number) =>
     ["operations", "case", normalizeOperationId(caseId), "reporter-evidence-files"] as const,
+  reportReporterEvidenceFiles: (reportId: string | number) =>
+    ["operations", "report", normalizeOperationId(reportId), "reporter-evidence-files"] as const,
   userLookup: (role: string, search?: string) => ["operations", "users", "lookup", role, search ?? ""] as const,
 };
 
@@ -348,6 +350,10 @@ export function previewEvidenceFile(id: string | number, signal?: AbortSignal) {
 
 export function getCaseReporterEvidenceFiles(caseId: string | number) {
   return apiRequest<ReporterEvidenceFile[]>(`/cases/${caseId}/reporter-evidence-files`);
+}
+
+export function getReportReporterEvidenceFiles(reportId: string | number) {
+  return apiRequest<ReporterEvidenceFile[]>(`/reports/${reportId}/reporter-evidence-files`);
 }
 
 export function downloadCaseReporterEvidenceFile(id: string) {

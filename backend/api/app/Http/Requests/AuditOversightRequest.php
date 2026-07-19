@@ -20,7 +20,7 @@ class AuditOversightRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'queue' => ['nullable', 'string', Rule::in(OversightProjection::QUEUES)],
+            'queue' => ['nullable', 'string', Rule::in(OversightProjection::FILTER_QUEUES)],
             'urgency' => ['nullable', 'string', Rule::in(OversightProjection::URGENCIES)],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],

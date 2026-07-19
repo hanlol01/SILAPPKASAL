@@ -18,8 +18,10 @@ use App\Models\Recommendation;
 use App\Models\RecommendationStatus;
 use App\Models\Report;
 use App\Models\Role;
+use App\Models\University;
 use App\Models\User;
 use App\Services\NotificationService;
+use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -38,6 +40,7 @@ class NotificationFoundationTest extends TestCase
 
         $this->seed(RbacSeeder::class);
         $this->seed(MasterDataSeeder::class);
+        $this->seed(CampusMasterDataSeeder::class);
     }
 
     public function test_notifications_table_uses_laravel_database_notification_shape(): void
@@ -111,7 +114,7 @@ class NotificationFoundationTest extends TestCase
         $decision = $this->makeFinalizedDecision($recommendation, $admin);
 
         app(NotificationService::class)->caseStatusChanged($case);
-        app(NotificationService::class)->recommendationSubmittedToLeader($recommendation);
+        app(NotificationService::class)->recommendationSubmittedForReview($recommendation);
         app(NotificationService::class)->decisionFinalized($decision);
 
         $satgasPayloads = $satgas->notifications()->get()->pluck('data')->all();
@@ -119,10 +122,10 @@ class NotificationFoundationTest extends TestCase
         $superAdminPayloads = $superAdmin->notifications()->get()->pluck('data')->all();
 
         $this->assertNotEmpty($satgasPayloads);
-        $this->assertEmpty($adminPayloads);
-        $this->assertNotEmpty($superAdminPayloads);
+        $this->assertNotEmpty($adminPayloads);
+        $this->assertEmpty($superAdminPayloads);
 
-        foreach (array_merge($satgasPayloads, $superAdminPayloads) as $payload) {
+        foreach (array_merge($satgasPayloads, $adminPayloads) as $payload) {
             $this->assertArrayHasKey('notification_type_code', $payload);
             $json = json_encode($payload);
             $this->assertStringNotContainsString('chronology', $json);
@@ -164,7 +167,7 @@ class NotificationFoundationTest extends TestCase
             'completed_at' => now()->subDay(),
         ]);
 
-        $status = RecommendationStatus::query()->where('name', RecommendationStatusEnum::SubmittedToLeader->value)->firstOrFail();
+        $status = RecommendationStatus::query()->where('name', RecommendationStatusEnum::SubmittedForReview->value)->firstOrFail();
 
         return Recommendation::query()->create([
             'case_id' => $case->id,
@@ -198,8 +201,13 @@ class NotificationFoundationTest extends TestCase
     {
         $admin = User::query()->whereHas('role', fn ($query) => $query->where('code', 'admin'))->first()
             ?? $this->makeUser('admin', 'admin-seed@university.ac.id');
+        $reporter = $this->makeUser(
+            'reporter',
+            'reporter-'.(Report::query()->count() + 1).'@university.ac.id',
+        );
 
         $report = Report::query()->create([
+            'reporter_id' => $reporter->id,
             'registration_number' => 'SLP-'.now()->format('Ymd').'-'.str_pad((string) (Report::query()->count() + 1), 4, '0', STR_PAD_LEFT),
             'tracking_code' => null,
             'report_type' => 'confidential',
@@ -248,6 +256,7 @@ class NotificationFoundationTest extends TestCase
 
         return User::query()->create([
             'role_id' => $role->id,
+            'university_id' => University::query()->where('code', 'DEMO-UNIV')->firstOrFail()->id,
             'name' => "{$roleCode} User",
             'email' => $email,
             'password' => 'SecurePass123',

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\DecisionStatus as DecisionStatusEnum;
 use App\Enums\RecommendationStatus as RecommendationStatusEnum;
+use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Models\CaseRecord;
 use App\Models\Decision;
 use App\Models\Recommendation;
@@ -13,12 +14,15 @@ use App\Notifications\WorkflowDatabaseNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
+use App\Support\CaseCampusScope;
 
 class NotificationService
 {
     public const TYPE_CASE_ASSIGNED = 'NOTIF-12';
     public const TYPE_CASE_STATUS_CHANGED = 'NOTIF-13';
-    public const TYPE_RECOMMENDATION_SUBMITTED_TO_LEADER = 'NOTIF-14';
+    public const TYPE_RECOMMENDATION_SUBMITTED_FOR_REVIEW = 'NOTIF-14';
+    /** @deprecated One-release compatibility alias. */
+    public const TYPE_RECOMMENDATION_SUBMITTED_TO_LEADER = self::TYPE_RECOMMENDATION_SUBMITTED_FOR_REVIEW;
     public const TYPE_DECISION_FINALIZED = 'NOTIF-15';
     public const TYPE_RECOMMENDATION_CREATED = 'NOTIF-16';
     public const TYPE_RECOMMENDATION_STATUS_CHANGED = 'NOTIF-17';
@@ -30,9 +34,13 @@ class NotificationService
     public const TYPE_RECOMMENDATION_RETURNED = 'NOTIF-23';
     public const TYPE_RECOMMENDATION_APPROVED = 'NOTIF-24';
 
+    public function __construct(private readonly CaseCampusScope $campusScope)
+    {
+    }
+
     public function caseAssessmentRecorded(CaseRecord $case): void
     {
-        $case->loadMissing('activeAssignments.satgas');
+        $case->loadMissing(['activeAssignments.satgas', 'status', 'report.reporter']);
 
         $this->send($this->activeAssignedSatgas($case), [
             'notification_type_code' => self::TYPE_CASE_ASSESSMENT_RECORDED,
@@ -83,21 +91,34 @@ class NotificationService
             'case_id' => $case->id,
             'status_code' => $case->status_code,
         ]);
+
+        if ($case->status?->name === CaseStatusEnum::Closed->value && $case->report?->reporter?->is_active) {
+            $this->send(collect([$case->report->reporter]), [
+                'notification_type_code' => self::TYPE_CASE_STATUS_CHANGED,
+                'event' => 'case_completed',
+                'title' => 'Report completed',
+                'body' => 'Your report process has been completed.',
+                'subject_type' => 'case',
+                'subject_id' => $case->id,
+                'case_id' => $case->id,
+                'status_code' => $case->status_code,
+            ]);
+        }
     }
 
-    public function recommendationSubmittedToLeader(Recommendation $recommendation): void
+    public function recommendationSubmittedForReview(Recommendation $recommendation, ?User $actor = null): void
     {
-        $recommendation->loadMissing('status');
+        $recommendation->loadMissing(['status', 'case.report.reporter:id,university_id']);
 
-        if ($recommendation->status?->name !== RecommendationStatusEnum::SubmittedToLeader->value) {
+        if (! in_array($recommendation->status?->name, RecommendationStatusEnum::submittedReviewValues(), true) || ! $recommendation->case) {
             return;
         }
 
-        $this->send($this->leadershipReviewers(), [
-            'notification_type_code' => self::TYPE_RECOMMENDATION_SUBMITTED_TO_LEADER,
-            'event' => 'recommendation_submitted_to_leader',
-            'title' => 'Recommendation submitted',
-            'body' => 'A recommendation has been submitted for decision review.',
+        $this->send($this->campusAdminsForCase($recommendation->case, 'cases.review_recommendation', $actor?->id), [
+            'notification_type_code' => self::TYPE_RECOMMENDATION_SUBMITTED_FOR_REVIEW,
+            'event' => 'recommendation_submitted_for_review',
+            'title' => 'Recommendation submitted for review',
+            'body' => 'A recommendation is waiting for Campus Admin review.',
             'subject_type' => 'recommendation',
             'subject_id' => $recommendation->id,
             'case_id' => $recommendation->case_id,
@@ -106,11 +127,18 @@ class NotificationService
         ]);
     }
 
+    /** One-release compatibility alias for callers outside this repository. */
+    public function recommendationSubmittedToLeader(Recommendation $recommendation): void
+    {
+        $this->recommendationSubmittedForReview($recommendation);
+    }
+
     public function recommendationCreated(Recommendation $recommendation): void
     {
         $recommendation->loadMissing('status');
 
-        $this->send($this->decisionManagers(), [
+        // Draft creation remains an assigned-Satgas concern until submission.
+        $this->send(collect(), [
             'notification_type_code' => self::TYPE_RECOMMENDATION_CREATED,
             'event' => 'recommendation_created',
             'title' => 'Recommendation created',
@@ -127,7 +155,7 @@ class NotificationService
     {
         $recommendation->loadMissing(['status', 'case.activeAssignments.satgas']);
 
-        if ($recommendation->status?->name === RecommendationStatusEnum::SubmittedToLeader->value || ! $recommendation->case) {
+        if (in_array($recommendation->status?->name, RecommendationStatusEnum::submittedReviewValues(), true) || ! $recommendation->case) {
             return;
         }
 
@@ -165,15 +193,17 @@ class NotificationService
         ]);
     }
 
-    public function recommendationApproved(Recommendation $recommendation): void
+    public function recommendationApproved(Recommendation $recommendation, ?User $actor = null): void
     {
-        $recommendation->loadMissing('status');
+        $recommendation->loadMissing(['status', 'case.report.reporter:id,university_id']);
 
         if ($recommendation->status?->name !== RecommendationStatusEnum::Accepted->value) {
             return;
         }
 
-        $this->send($this->decisionManagers(), [
+        $this->send($recommendation->case
+            ? $this->campusAdminsForCase($recommendation->case, 'cases.record_decision', $actor?->id)
+            : collect(), [
             'notification_type_code' => self::TYPE_RECOMMENDATION_APPROVED,
             'event' => 'recommendation_approved',
             'title' => 'Recommendation approved',
@@ -301,6 +331,29 @@ class NotificationService
         ]);
     }
 
+    public function recoveryMonitoringCreated(Recovery $recovery, User $actor): void
+    {
+        $recovery->loadMissing('decision.recommendation.case.report.reporter:id,university_id');
+        $case = $recovery->decision?->recommendation?->case;
+
+        if (! $case) {
+            return;
+        }
+
+        $this->send($this->campusAdminsForCase($case, 'cases.monitor', $actor->id), [
+            'notification_type_code' => self::TYPE_RECOVERY_STATUS_CHANGED,
+            'event' => 'recovery_monitoring_added',
+            'title' => 'Recovery monitoring added',
+            'body' => 'A monitoring entry has been added to a Recovery plan.',
+            'subject_type' => 'recovery',
+            'subject_id' => $recovery->id,
+            'case_id' => $case->id,
+            'decision_id' => $recovery->decision_id,
+            'recovery_id' => $recovery->id,
+            'status_code' => $recovery->status_code,
+        ]);
+    }
+
     /**
      * @param iterable<int, User> $recipients
      * @param array<string, mixed> $payload
@@ -309,7 +362,8 @@ class NotificationService
     {
         $safePayload = $this->safePayload($payload);
 
-        Notification::send($recipients, new WorkflowDatabaseNotification($safePayload));
+        $uniqueRecipients = collect($recipients)->filter()->unique('id')->values();
+        Notification::send($uniqueRecipients, new WorkflowDatabaseNotification($safePayload));
     }
 
     /**
@@ -326,26 +380,21 @@ class NotificationService
     /**
      * @return Collection<int, User>
      */
-    private function decisionManagers(): Collection
+    private function campusAdminsForCase(CaseRecord $case, string $permission, ?int $excludeUserId = null): Collection
     {
+        $universityId = $this->campusScope->caseUniversityId($case);
+
+        if ($universityId === null) {
+            return collect();
+        }
+
         return User::query()
             ->where('is_active', true)
+            ->where('university_id', $universityId)
+            ->when($excludeUserId !== null, fn (Builder $query): Builder => $query->where('id', '!=', $excludeUserId))
             ->whereHas('role', fn (Builder $query): Builder => $query->where('code', 'admin'))
             ->get()
-            ->filter(fn (User $user): bool => $user->hasPermission('cases.record_decision'))
-            ->values();
-    }
-
-    /**
-     * @return Collection<int, User>
-     */
-    private function leadershipReviewers(): Collection
-    {
-        return User::query()
-            ->where('is_active', true)
-            ->whereHas('role', fn (Builder $query): Builder => $query->where('code', 'super_admin'))
-            ->get()
-            ->filter(fn (User $user): bool => $user->hasPermission('cases.review_recommendation'))
+            ->filter(fn (User $user): bool => $user->hasPermission($permission))
             ->values();
     }
 

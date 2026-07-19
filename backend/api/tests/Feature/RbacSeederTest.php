@@ -35,6 +35,7 @@ class RbacSeederTest extends TestCase
         $this->assertDatabaseHas('permissions', ['code' => 'reporter_evidence.read.assigned']);
         $this->assertDatabaseHas('permissions', ['code' => 'reporter_evidence.download.assigned']);
         $this->assertDatabaseHas('permissions', ['code' => 'cases.review_recommendation']);
+        $this->assertDatabaseHas('permissions', ['code' => 'cases.read.sensitive_oversight']);
 
         $reporter = Role::query()->where('code', 'reporter')->with('permissions')->firstOrFail();
         $this->assertTrue($reporter->permissions->contains('code', 'reports.create'));
@@ -69,13 +70,16 @@ class RbacSeederTest extends TestCase
         $this->assertTrue($admin->permissions->contains('code', 'cases.record_decision'));
         $this->assertFalse($superAdmin->permissions->contains('code', 'cases.record_decision'));
         $this->assertFalse($satgas->permissions->contains('code', 'cases.record_decision'));
-        $this->assertTrue($superAdmin->permissions->contains('code', 'cases.review_recommendation'));
-        $this->assertFalse($admin->permissions->contains('code', 'cases.review_recommendation'));
+        $this->assertFalse($superAdmin->permissions->contains('code', 'cases.review_recommendation'));
+        $this->assertTrue($admin->permissions->contains('code', 'cases.review_recommendation'));
         $this->assertFalse($satgas->permissions->contains('code', 'cases.review_recommendation'));
         $this->assertFalse($reporter->permissions->contains('code', 'cases.review_recommendation'));
         $this->assertTrue($admin->permissions->contains('code', 'cases.monitor'));
-        $this->assertTrue($superAdmin->permissions->contains('code', 'cases.monitor'));
+        $this->assertFalse($superAdmin->permissions->contains('code', 'cases.monitor'));
         $this->assertTrue($satgas->permissions->contains('code', 'cases.monitor'));
+        $this->assertTrue($superAdmin->permissions->contains('code', 'cases.read.sensitive_oversight'));
+        $this->assertFalse($superAdmin->permissions->contains('code', 'reports.forward'));
+        $this->assertFalse($superAdmin->permissions->contains('code', 'cases.assign_satgas'));
     }
 
     public function test_database_seeder_creates_demo_dataset_v2_users(): void
@@ -113,5 +117,61 @@ class RbacSeederTest extends TestCase
         $this->assertTrue($satgas->fresh()->permissions()->where('permissions.id', $customPermission->id)->exists());
         $this->assertFalse($reporter->fresh()->permissions()->where('permissions.code', 'evidence.upload')->exists());
         $this->assertFalse($reporter->fresh()->permissions()->where('permissions.code', 'reporter_evidence.download.assigned')->exists());
+    }
+
+    public function test_m3_migration_reconciles_existing_pivots_and_preserves_super_admin_platform_authorities(): void
+    {
+        $this->seed(RbacSeeder::class);
+
+        $admin = Role::query()->where('code', 'admin')->firstOrFail();
+        $superAdmin = Role::query()->where('code', 'super_admin')->firstOrFail();
+        $operationalCodes = [
+            'reports.forward',
+            'cases.assign_satgas',
+            'cases.review_recommendation',
+            'cases.monitor',
+            'cases.record_decision',
+            'cases.assess_risk',
+            'cases.investigate',
+            'cases.recommend',
+            'cases.close',
+            'evidence.upload',
+        ];
+
+        $superAdmin->permissions()->syncWithoutDetaching(
+            Permission::query()->whereIn('code', $operationalCodes)->pluck('id')->all(),
+        );
+        $superAdmin->permissions()->detach(
+            Permission::query()->where('code', 'cases.read.sensitive_oversight')->value('id'),
+        );
+        $admin->permissions()->detach(
+            Permission::query()->where('code', 'cases.review_recommendation')->value('id'),
+        );
+
+        $migration = require database_path('migrations/2026_07_19_030000_reconcile_m3_operational_permissions.php');
+        $migration->up();
+
+        foreach ($operationalCodes as $permissionCode) {
+            $this->assertFalse(
+                $superAdmin->fresh()->permissions()->where('permissions.code', $permissionCode)->exists(),
+                "Super Admin retained operational permission {$permissionCode}.",
+            );
+        }
+
+        $this->assertTrue($superAdmin->fresh()->permissions()->where('permissions.code', 'cases.read.sensitive_oversight')->exists());
+        $this->assertTrue($admin->fresh()->permissions()->where('permissions.code', 'cases.review_recommendation')->exists());
+
+        foreach ([
+            'system.configure',
+            'system.audit_log.oversight',
+            'system.audit_log.export',
+            'system.break_glass_access',
+            'users.assign_role',
+        ] as $platformPermission) {
+            $this->assertTrue(
+                $superAdmin->fresh()->permissions()->where('permissions.code', $platformPermission)->exists(),
+                "Super Admin lost platform permission {$platformPermission}.",
+            );
+        }
     }
 }

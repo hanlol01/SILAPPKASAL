@@ -14,6 +14,8 @@ use App\Models\InvestigationStatus;
 use App\Models\Report;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\University;
+use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -30,6 +32,7 @@ class DashboardFoundationTest extends TestCase
 
         $this->seed(RbacSeeder::class);
         $this->seed(MasterDataSeeder::class);
+        $this->seed(CampusMasterDataSeeder::class);
     }
 
     public function test_admin_receives_global_metadata_only_dashboard_aggregates(): void
@@ -45,7 +48,7 @@ class DashboardFoundationTest extends TestCase
         $this->getJson('/api/v1/dashboard/summary')
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.scope', 'global')
+            ->assertJsonPath('data.scope', 'campus')
             ->assertJsonPath('data.totals.reports', 2)
             ->assertJsonPath('data.totals.cases', 2)
             ->assertJsonMissingPath('data.totals.monitoring');
@@ -151,7 +154,9 @@ class DashboardFoundationTest extends TestCase
 
     private function makeDashboardCase(User $admin, User $satgas): CaseRecord
     {
+        $reporter = $this->makeUser('reporter', 'dashboard-reporter-'.(Report::query()->count() + 1).'@university.ac.id');
         $report = Report::query()->create([
+            'reporter_id' => $reporter->id,
             'registration_number' => 'SLP-'.now()->format('Ymd').'-'.str_pad((string) (Report::query()->count() + 1), 4, '0', STR_PAD_LEFT),
             'tracking_code' => null,
             'report_type' => 'confidential',
@@ -217,6 +222,7 @@ class DashboardFoundationTest extends TestCase
             'email' => $email,
             'password' => 'SecurePass123',
             'is_active' => true,
+            'university_id' => University::query()->where('code', 'DEMO-UNIV')->firstOrFail()->id,
         ]);
     }
 

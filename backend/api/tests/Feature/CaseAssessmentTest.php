@@ -9,6 +9,8 @@ use App\Models\CaseStatus;
 use App\Models\Report;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\University;
+use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -25,6 +27,7 @@ class CaseAssessmentTest extends TestCase
 
         $this->seed(RbacSeeder::class);
         $this->seed(MasterDataSeeder::class);
+        $this->seed(CampusMasterDataSeeder::class);
     }
 
     public function test_assigned_satgas_can_record_assessment_while_case_is_in_assessment(): void
@@ -196,7 +199,10 @@ class CaseAssessmentTest extends TestCase
 
     private function makeReport(): Report
     {
+        $reporter = $this->makeUser('reporter', 'assessment-reporter-'.(Report::query()->count() + 1).'@university.ac.id');
+
         return Report::query()->create([
+            'reporter_id' => $reporter->id,
             'registration_number' => 'SLP-'.now()->format('Y-md').'-'.str_pad((string) (Report::query()->count() + 1), 4, '0', STR_PAD_LEFT),
             'tracking_code' => null,
             'report_type' => 'confidential',
@@ -227,6 +233,7 @@ class CaseAssessmentTest extends TestCase
             'email' => $email,
             'password' => 'secret-password',
             'is_active' => true,
+            'university_id' => University::query()->where('code', 'DEMO-UNIV')->firstOrFail()->id,
         ]);
     }
 

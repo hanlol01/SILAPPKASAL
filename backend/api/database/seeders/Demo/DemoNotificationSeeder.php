@@ -14,7 +14,7 @@ class DemoNotificationSeeder extends Seeder
             $roleCode = $user->role?->code;
             $items = match ($roleCode) {
                 'super_admin' => [
-                    ['NOTIF-14', 'recommendation_submitted_to_leader', 'Ada rekomendasi demo menunggu perhatian pimpinan.'],
+                    ['NOTIF-14', 'recommendation_submitted_for_review', 'Ada rekomendasi demo menunggu peninjauan Admin Kampus.'],
                     ['NOTIF-15', 'decision_finalized', 'Keputusan demo telah difinalisasi.'],
                 ],
                 'admin' => [

@@ -8,7 +8,9 @@ use App\Models\CaseRecord;
 use App\Models\CaseStatus;
 use App\Models\Report;
 use App\Models\Role;
+use App\Models\University;
 use App\Models\User;
+use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,6 +34,7 @@ class PortalReportTimelineTest extends TestCase
 
         $this->seed(RbacSeeder::class);
         $this->seed(MasterDataSeeder::class);
+        $this->seed(CampusMasterDataSeeder::class);
     }
 
     public function test_reporter_can_view_own_report_timeline_with_safe_ordered_stages(): void
@@ -183,6 +186,7 @@ class PortalReportTimelineTest extends TestCase
 
         return User::query()->create([
             'role_id' => $role->id,
+            'university_id' => University::query()->where('code', 'DEMO-UNIV')->firstOrFail()->id,
             'name' => $name ?? "{$roleCode} User",
             'email' => $email,
             'password' => 'secret-password',

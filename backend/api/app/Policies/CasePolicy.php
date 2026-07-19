@@ -6,9 +6,14 @@ use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Models\CaseAssignment;
 use App\Models\CaseRecord;
 use App\Models\User;
+use App\Support\CaseCampusScope;
 
 class CasePolicy extends BasePolicy
 {
+    public function __construct(private readonly CaseCampusScope $campusScope)
+    {
+    }
+
     public function viewAny(User $user): bool
     {
         return $this->canReadMetadata($user) || $this->canReadAssigned($user);
@@ -16,8 +21,12 @@ class CasePolicy extends BasePolicy
 
     public function view(User $user, CaseRecord $case): bool
     {
-        if ($this->canReadMetadata($user)) {
+        if ($user->hasRole('super_admin') && $this->canReadMetadata($user)) {
             return true;
+        }
+
+        if ($user->hasRole('admin') && $this->canReadMetadata($user)) {
+            return $this->campusScope->sameCampus($user, $case);
         }
 
         return $this->canReadAssigned($user) && $this->isAssignedTo($case, $user);
@@ -27,7 +36,8 @@ class CasePolicy extends BasePolicy
     {
         return ! $this->isClosed($case)
             && $this->allowPermission($user, 'cases.assign_satgas')
-            && $this->allowRole($user, 'admin', 'super_admin');
+            && $this->allowRole($user, 'admin')
+            && $this->campusScope->sameCampus($user, $case);
     }
 
     public function updateStatus(User $user, CaseRecord $case): bool

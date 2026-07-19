@@ -237,19 +237,19 @@ class MasterDataSeeder extends Seeder
         $rows = [
             ['RECS-01', RecommendationStatusEnum::Drafting->value, 'Satgas sedang menyusun rekomendasi.', [
                 RecommendationStatusEnum::InternalReview->value,
-                RecommendationStatusEnum::SubmittedToLeader->value,
+                RecommendationStatusEnum::SubmittedForReview->value,
             ]],
             ['RECS-02', RecommendationStatusEnum::InternalReview->value, 'Rekomendasi direview oleh sesama Satgas.', [
-                RecommendationStatusEnum::SubmittedToLeader->value,
+                RecommendationStatusEnum::SubmittedForReview->value,
                 RecommendationStatusEnum::Revised->value,
             ]],
-            ['RECS-03', RecommendationStatusEnum::SubmittedToLeader->value, 'Rekomendasi diajukan ke pimpinan PT.', []],
-            ['RECS-04', RecommendationStatusEnum::Accepted->value, 'Rekomendasi diterima oleh pimpinan.', []],
+            ['RECS-03', RecommendationStatusEnum::SubmittedForReview->value, 'Rekomendasi diajukan untuk peninjauan Admin Kampus.', []],
+            ['RECS-04', RecommendationStatusEnum::Accepted->value, 'Rekomendasi disetujui oleh Admin Kampus.', []],
             ['RECS-05', RecommendationStatusEnum::PartiallyAccepted->value, 'Rekomendasi diterima dengan modifikasi.', []],
             ['RECS-06', RecommendationStatusEnum::Rejected->value, 'Rekomendasi ditolak, perlu revisi.', []],
             ['RECS-07', RecommendationStatusEnum::Revised->value, 'Rekomendasi direvisi setelah feedback.', [
                 RecommendationStatusEnum::InternalReview->value,
-                RecommendationStatusEnum::SubmittedToLeader->value,
+                RecommendationStatusEnum::SubmittedForReview->value,
             ]],
         ];
 
@@ -338,7 +338,7 @@ class MasterDataSeeder extends Seeder
             ['NOTIF-11', 'Kasus ditutup', 'Pelapor', 'whatsapp', 'case.closed', 'mvp_extended'],
             ['NOTIF-12', 'Kasus ditugaskan ke Satgas', 'Satgas', 'in_app', 'case.assigned', 'mvp_extended'],
             ['NOTIF-13', 'Status kasus berubah untuk Satgas', 'Satgas', 'in_app', 'case.status_changed.internal', 'mvp_extended'],
-            ['NOTIF-14', 'Rekomendasi dikirim ke pimpinan', 'Super Admin', 'in_app', 'recommendation.submitted_to_leader', 'mvp_extended'],
+            ['NOTIF-14', 'Rekomendasi diajukan untuk peninjauan', 'Admin Kampus', 'in_app', 'recommendation.submitted_for_review', 'mvp_extended'],
             ['NOTIF-15', 'Keputusan final untuk kasus', 'Satgas', 'in_app', 'decision.finalized', 'mvp_extended'],
             ['NOTIF-16', 'Rekomendasi dibuat', 'Admin/Super Admin', 'in_app', 'recommendation.created', 'mvp_extended'],
             ['NOTIF-17', 'Status rekomendasi berubah untuk Satgas', 'Satgas', 'in_app', 'recommendation.status_changed.internal', 'mvp_extended'],

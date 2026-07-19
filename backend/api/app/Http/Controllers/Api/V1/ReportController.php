@@ -72,6 +72,11 @@ class ReportController extends Controller
             $report->load('reporter');
         }
 
+        $report->setAttribute(
+            'sensitive_oversight',
+            $this->reportService->canReadSensitiveOversight($request->user()),
+        );
+
         return response()->json([
             'success' => true,
             'message' => 'Report retrieved successfully',

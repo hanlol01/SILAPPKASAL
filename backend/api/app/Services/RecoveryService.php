@@ -15,6 +15,8 @@ use App\Models\RecoveryMonitoring;
 use App\Models\RecoveryStatus;
 use App\Models\RecoveryType;
 use App\Models\User;
+use App\Support\ApiErrorCode;
+use App\Support\CaseCampusScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -25,6 +27,7 @@ class RecoveryService
     public function __construct(
         private readonly NotificationService $notificationService,
         private readonly AuditLogService $auditLogService,
+        private readonly CaseCampusScope $campusScope,
     ) {
     }
 
@@ -33,16 +36,18 @@ class RecoveryService
      */
     public function createForDecision(Decision $decision, User $actor, array $data): Recovery
     {
-        $this->authorizeRecoveryManager($actor);
+        $this->authorizeRecoveryManager($actor, $decision);
         $this->ensureDecisionCanReceiveRecovery($decision);
 
         return DB::transaction(function () use ($decision, $actor, $data): Recovery {
             $decision = Decision::query()
-                ->with(['status', 'recommendation.case.status'])
+                ->with(['status', 'recommendation.case.status', 'recommendation.case.report.reporter:id,university_id'])
                 ->whereKey($decision->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
+            $this->authorizeRecoveryManager($actor, $decision);
             $this->ensureDecisionCanReceiveRecovery($decision);
             $recoveryType = $this->activeRecoveryType($data['recovery_type_code']);
             $status = $this->statusByName(RecoveryStatusEnum::Planned);
@@ -93,7 +98,7 @@ class RecoveryService
     {
         $decision->loadMissing('recommendation.case.status');
 
-        if (! $this->canManageRecovery($user) && ! $this->isAssignedToDecisionCase($decision, $user)) {
+        if (! $this->canReadRecovery($user, $decision)) {
             throw $this->forbidden();
         }
 
@@ -109,7 +114,7 @@ class RecoveryService
     {
         $recovery->loadMissing('decision.recommendation.case.status');
 
-        if (! $this->canManageRecovery($user) && ! $this->isAssignedToDecisionCase($recovery->decision, $user)) {
+        if (! $this->canReadRecovery($user, $recovery->decision)) {
             throw $this->forbidden();
         }
 
@@ -121,10 +126,10 @@ class RecoveryService
      */
     public function update(Recovery $recovery, User $actor, array $data): Recovery
     {
-        $this->authorizeRecoveryManager($actor);
-
         return DB::transaction(function () use ($recovery, $actor, $data): Recovery {
-            $recovery = Recovery::query()->with('status')->whereKey($recovery->id)->lockForUpdate()->firstOrFail();
+            $recovery = Recovery::query()->with(['status', 'decision.recommendation.case.report.reporter:id,university_id'])->whereKey($recovery->id)->lockForUpdate()->firstOrFail();
+            $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
+            $this->authorizeRecoveryManager($actor, $recovery);
             $this->ensureRecoveryOpen($recovery);
 
             if (isset($data['recovery_type_code'])) {
@@ -169,10 +174,10 @@ class RecoveryService
 
     public function updateStatus(Recovery $recovery, User $actor, string $requestedStatus): Recovery
     {
-        $this->authorizeRecoveryManager($actor);
-
         return DB::transaction(function () use ($recovery, $actor, $requestedStatus): Recovery {
-            $recovery = Recovery::query()->with('status')->whereKey($recovery->id)->lockForUpdate()->firstOrFail();
+            $recovery = Recovery::query()->with(['status', 'decision.recommendation.case.report.reporter:id,university_id'])->whereKey($recovery->id)->lockForUpdate()->firstOrFail();
+            $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
+            $this->authorizeRecoveryManager($actor, $recovery);
             $this->ensureRecoveryOpen($recovery);
 
             $nextStatus = $this->resolveStatus($requestedStatus);
@@ -180,6 +185,10 @@ class RecoveryService
 
             if (! in_array($nextStatus->name, $allowedTransitions, true)) {
                 throw $this->unprocessable('Invalid recovery status transition');
+            }
+
+            if ($nextStatus->name === RecoveryStatusEnum::Completed->value && ! $recovery->monitorings()->exists()) {
+                throw $this->unprocessableCode(ApiErrorCode::RecoveryMonitoringRequired);
             }
 
             $fromStatusCode = $recovery->status_code;
@@ -231,11 +240,11 @@ class RecoveryService
      */
     public function statusOptions(Recovery $recovery, User $user): array
     {
-        $recovery->loadMissing('status');
+        $recovery->loadMissing(['status', 'decision.recommendation.case.report.reporter:id,university_id']);
 
         $statuses = [];
 
-        if ($this->canManageRecovery($user)) {
+        if ($this->canManageRecovery($user, $recovery)) {
             $transitionNames = $recovery->status?->valid_transitions ?? [];
 
             $statuses = RecoveryStatus::query()
@@ -268,17 +277,18 @@ class RecoveryService
      */
     public function createMonitoring(Recovery $recovery, User $actor, array $data): RecoveryMonitoring
     {
-        $recovery = $this->loadForUser($recovery, $actor);
-
-        if (! $this->canManageRecovery($actor) && ! $this->isAssignedToDecisionCase($recovery->decision, $actor)) {
-            throw $this->forbidden();
-        }
-
-        if ($recovery->status?->name !== RecoveryStatusEnum::Ongoing->value) {
-            throw $this->unprocessable('Monitoring can only be created for ongoing recovery');
-        }
-
         return DB::transaction(function () use ($recovery, $actor, $data): RecoveryMonitoring {
+            $recovery = Recovery::query()->with(['status', 'decision.recommendation.case'])->whereKey($recovery->id)->lockForUpdate()->firstOrFail();
+            $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
+
+            if (! $this->isAssignedToDecisionCase($recovery->decision, $actor)) {
+                throw $this->forbidden();
+            }
+
+            if ($recovery->status?->name !== RecoveryStatusEnum::Ongoing->value) {
+                throw $this->unprocessable('Monitoring can only be created for ongoing recovery');
+            }
+
             $monitoring = RecoveryMonitoring::query()->create([
                 'recovery_id' => $recovery->id,
                 'monitor_id' => $actor->id,
@@ -307,6 +317,8 @@ class RecoveryService
                     'notes' => $monitoring->notes,
                 ],
             );
+
+            $this->notificationService->recoveryMonitoringCreated($recovery, $actor);
 
             return $monitoring;
         });
@@ -341,6 +353,10 @@ class RecoveryService
 
         if ($decision->recommendation?->case?->status?->name === CaseStatusEnum::Closed->value) {
             throw $this->unprocessable('Recovery cannot be created for a closed case');
+        }
+
+        if ($decision->recommendation?->case?->status?->name !== CaseStatusEnum::Recovery->value) {
+            throw $this->unprocessable('Case must be in recovery status before creating Recovery');
         }
     }
 
@@ -428,18 +444,35 @@ class RecoveryService
         return 'SOP recommends 3-6 months of monitoring before completing recovery. This is advisory and does not block completion.';
     }
 
-    private function authorizeRecoveryManager(User $actor): void
+    private function authorizeRecoveryManager(User $actor, Decision|Recovery $subject): void
     {
-        if (! $this->canManageRecovery($actor)) {
+        if (! $this->canManageRecovery($actor, $subject)) {
             throw $this->forbidden();
         }
     }
 
-    private function canManageRecovery(User $user): bool
+    private function canManageRecovery(User $user, Decision|Recovery $subject): bool
     {
         return $user->is_active
             && $user->hasPermission('cases.monitor')
-            && ($user->hasRole('admin') || $user->hasRole('super_admin'));
+            && $user->hasRole('admin')
+            && $this->campusScope->sameCampus($user, $subject);
+    }
+
+    private function canReadRecovery(User $user, Decision $decision): bool
+    {
+        return $this->canManageRecovery($user, $decision)
+            || ($user->is_active && $user->hasRole('super_admin') && $user->hasPermission('cases.read.all'))
+            || $this->isAssignedToDecisionCase($decision, $user);
+    }
+
+    public function canReadSensitive(Recovery $recovery, User $user): bool
+    {
+        $recovery->loadMissing('decision.recommendation.case.report.reporter:id,university_id');
+
+        return $this->canManageRecovery($user, $recovery)
+            || $this->campusScope->canSensitiveOversight($user)
+            || $this->isAssignedToDecisionCase($recovery->decision, $user);
     }
 
     private function isAssignedToDecisionCase(Decision $decision, User $user): bool
@@ -485,6 +518,16 @@ class RecoveryService
         return new HttpResponseException(response()->json([
             'success' => false,
             'message' => $message,
+            'errors' => null,
+        ], 422));
+    }
+
+    private function unprocessableCode(string $errorCode): HttpResponseException
+    {
+        return new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => __("api.errors.{$errorCode}"),
+            'error_code' => $errorCode,
             'errors' => null,
         ], 422));
     }

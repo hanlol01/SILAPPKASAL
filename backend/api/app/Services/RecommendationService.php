@@ -15,6 +15,7 @@ use App\Models\Investigation;
 use App\Models\Recommendation;
 use App\Models\RecommendationStatus;
 use App\Models\User;
+use App\Support\CaseCampusScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -25,8 +26,8 @@ class RecommendationService
     public function __construct(
         private readonly NotificationService $notificationService,
         private readonly AuditLogService $auditLogService,
-    )
-    {
+        private readonly CaseCampusScope $campusScope,
+    ) {
     }
 
     /**
@@ -83,7 +84,7 @@ class RecommendationService
      */
     public function listForCase(CaseRecord $case, User $user): Collection
     {
-        if (! $this->canReadMetadata($user) && ! $this->isAssignedToCase($case, $user)) {
+        if (! $this->canReadMetadata($case, $user) && ! $this->isAssignedToCase($case, $user)) {
             throw $this->forbidden();
         }
 
@@ -173,7 +174,7 @@ class RecommendationService
                 throw $this->unprocessable('Case must remain in recommendation status during submission');
             }
 
-            $nextStatus = $this->statusByName(RecommendationStatusEnum::SubmittedToLeader);
+            $nextStatus = $this->submittedForReviewStatus();
             $fromStatusCode = $recommendation->status_code;
             $fromStatusName = $recommendation->status?->name;
 
@@ -204,7 +205,7 @@ class RecommendationService
                 afterChanges: ['status_code' => $recommendation->status_code],
             );
 
-            $this->notificationService->recommendationSubmittedToLeader($recommendation);
+            $this->notificationService->recommendationSubmittedForReview($recommendation, $actor);
 
             return $recommendation;
         });
@@ -217,20 +218,21 @@ class RecommendationService
     {
         return DB::transaction(function () use ($recommendation, $actor, $data): Recommendation {
             $recommendation = Recommendation::query()
-                ->with(['status'])
+                ->with(['status', 'case.report.reporter:id,university_id'])
                 ->whereKey($recommendation->id)
                 ->lockForUpdate()
                 ->firstOrFail();
             $case = CaseRecord::query()
-                ->with('status')
+                ->with(['status', 'report.reporter:id,university_id'])
                 ->whereKey($recommendation->case_id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $this->authorizeRecommendationReviewer($actor);
+            $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
+            $this->authorizeRecommendationReviewer($case, $actor);
 
-            if ($recommendation->status?->name !== RecommendationStatusEnum::SubmittedToLeader->value) {
-                throw $this->unprocessable('Recommendation is no longer awaiting leadership review');
+            if (! in_array($recommendation->status?->name, RecommendationStatusEnum::submittedReviewValues(), true)) {
+                throw $this->unprocessable('Recommendation is no longer awaiting Campus Admin review');
             }
 
             if ($case->status?->name !== CaseStatusEnum::Recommendation->value) {
@@ -289,7 +291,7 @@ class RecommendationService
             );
 
             if ($data['action'] === 'approve') {
-                $this->notificationService->recommendationApproved($recommendation);
+                $this->notificationService->recommendationApproved($recommendation, $actor);
             } else {
                 $this->notificationService->recommendationReturnedForRevision($recommendation);
             }
@@ -350,11 +352,17 @@ class RecommendationService
      */
     public function statusOptions(Recommendation $recommendation, User $user): array
     {
-        $recommendation->loadMissing('status');
+        $recommendation->loadMissing(['status', 'case']);
 
         $statuses = [];
 
-        if ($this->canReadSensitive($recommendation, $user)) {
+        if (
+            $user->is_active
+            && $user->hasRole('satgas_ppks')
+            && $user->hasPermission('cases.recommend')
+            && $recommendation->case !== null
+            && $this->isAssignedToCase($recommendation->case, $user)
+        ) {
             $transitionNames = collect($recommendation->status?->valid_transitions ?? [])
                 ->filter(fn (string $name): bool => $name === RecommendationStatusEnum::InternalReview->value)
                 ->values()
@@ -386,7 +394,16 @@ class RecommendationService
 
     public function canReadSensitive(Recommendation $recommendation, User $user): bool
     {
-        if ($user->is_active && $user->hasPermission('cases.review_recommendation') && $user->hasRole('super_admin')) {
+        if (
+            $user->is_active
+            && $user->hasRole('admin')
+            && $user->hasPermission('cases.review_recommendation')
+            && $this->campusScope->sameCampus($user, $recommendation)
+        ) {
+            return true;
+        }
+
+        if ($this->campusScope->canSensitiveOversight($user)) {
             return true;
         }
 
@@ -407,9 +424,9 @@ class RecommendationService
         }
     }
 
-    private function authorizeRecommendationReviewer(User $actor): void
+    private function authorizeRecommendationReviewer(CaseRecord $case, User $actor): void
     {
-        if (! $actor->is_active || ! $actor->hasPermission('cases.review_recommendation') || ! $actor->hasRole('super_admin')) {
+        if (! $actor->is_active || ! $actor->hasPermission('cases.review_recommendation') || ! $actor->hasRole('admin') || ! $this->campusScope->sameCampus($actor, $case)) {
             throw $this->forbidden();
         }
     }
@@ -526,9 +543,9 @@ class RecommendationService
             ->exists();
     }
 
-    private function canReadMetadata(User $user): bool
+    private function canReadMetadata(CaseRecord $case, User $user): bool
     {
-        return ($user->hasPermission('cases.read.metadata') && ($user->hasRole('admin') || $user->hasRole('super_admin')))
+        return ($user->hasPermission('cases.read.metadata') && $user->hasRole('admin') && $this->campusScope->sameCampus($user, $case))
             || ($user->hasPermission('cases.read.all') && $user->hasRole('super_admin'));
     }
 
@@ -567,6 +584,14 @@ class RecommendationService
     {
         return RecommendationStatus::query()
             ->where('name', $status->value)
+            ->where('is_active', true)
+            ->firstOrFail();
+    }
+
+    private function submittedForReviewStatus(): RecommendationStatus
+    {
+        return RecommendationStatus::query()
+            ->where('code', 'RECS-03')
             ->where('is_active', true)
             ->firstOrFail();
     }

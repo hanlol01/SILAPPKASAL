@@ -106,6 +106,7 @@ Route::prefix('v1')->group(function (): void {
         Route::middleware('auth:sanctum')->group(function (): void {
             Route::get('/', [ReportController::class, 'index']);
             Route::post('/{report}/forward-to-case', [ReportController::class, 'forwardToCase']);
+            Route::get('/{report}/reporter-evidence-files', [ReportEvidenceSubmissionController::class, 'indexForOversightReport']);
             Route::get('/{report}', [ReportController::class, 'show']);
         });
     });

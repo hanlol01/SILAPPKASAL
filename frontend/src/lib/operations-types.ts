@@ -39,6 +39,7 @@ export interface ReportSummary {
   reviewed_at: string | null;
   forwarded_at: string | null;
   created_at: string | null;
+  sensitive_details?: CaseSensitiveReport;
 }
 
 export interface CaseAssignment {
@@ -61,6 +62,10 @@ export interface CaseSensitiveReport {
     name?: string | null;
     details?: string | null;
   };
+  respondent_name?: string | null;
+  respondent_campus_status?: string | null;
+  respondent_relation?: string | null;
+  respondent_details?: string | null;
   witness_info?: string | null;
 }
 
@@ -104,6 +109,15 @@ export interface WorkflowContext {
     recommendation_exists: boolean;
     active_assignment: boolean;
     active_lead_assignment: boolean;
+    recommendation_status: string | null;
+    decision_exists: boolean;
+    decision_status: string | null;
+    recovery_exists: boolean;
+    recovery_status: string | null;
+    monitoring_count: number;
+    same_campus_admin: boolean;
+    oversight_read_only: boolean;
+    sensitive_oversight_enabled: boolean;
   };
   actions: {
     update_case_status: WorkflowActionCapability;
@@ -112,6 +126,10 @@ export interface WorkflowContext {
     update_investigation_status: WorkflowActionCapability;
     add_evidence: WorkflowActionCapability;
     create_recommendation: WorkflowActionCapability;
+    review_recommendation: WorkflowActionCapability;
+    create_decision: WorkflowActionCapability;
+    manage_recovery: WorkflowActionCapability;
+    add_monitoring: WorkflowActionCapability;
   };
   primary_tip_code: string;
   primary_tip_params?: Record<string, string | number | null>;
@@ -189,13 +207,15 @@ export interface Recommendation {
   sanction_recommendation?: string | null;
   recovery_recommendation?: string | null;
   prevention_recommendation?: string | null;
-  leadership_review?: {
+  review?: {
     revision_note?: string | null;
     returned_by?: PersonRef | null;
     returned_at?: string | null;
     approved_by?: PersonRef | null;
     approved_at?: string | null;
   };
+  /** @deprecated Legacy API alias retained for one release. */
+  leadership_review?: Recommendation["review"];
   submitted_at: string | null;
   created_at: string | null;
   updated_at: string | null;
@@ -219,7 +239,7 @@ export interface Decision {
   status?: string | null;
   status_code: string;
   status_label?: string | null;
-  outcome_code: string;
+  outcome_code?: string | null;
   decision_number?: string | null;
   decision_date: string | null;
   decision_summary?: string | null;

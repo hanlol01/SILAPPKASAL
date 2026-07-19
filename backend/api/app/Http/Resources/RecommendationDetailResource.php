@@ -30,7 +30,7 @@ class RecommendationDetailResource extends JsonResource
             'sanction_recommendation' => $this->sanction_recommendation,
             'recovery_recommendation' => $this->recovery_recommendation,
             'prevention_recommendation' => $this->prevention_recommendation,
-            'leadership_review' => [
+            'review' => $review = [
                 'revision_note' => $this->revision_note,
                 'returned_by' => $this->whenLoaded('returnedBy', fn (): ?array => $this->returnedBy ? [
                     'id' => $this->returnedBy->id,
@@ -43,6 +43,8 @@ class RecommendationDetailResource extends JsonResource
                 ] : null),
                 'approved_at' => $this->approved_at?->toJSON(),
             ],
+            // One-release response compatibility for clients deployed before REV-WF-02C.
+            'leadership_review' => $review,
             'status_history' => RecommendationStatusHistoryResource::collection($this->whenLoaded('statusHistories')),
             'submitted_at' => $this->submitted_at?->toJSON(),
             'created_at' => $this->created_at?->toJSON(),

@@ -11,7 +11,9 @@ use App\Models\CaseStatus;
 use App\Models\Report;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\University;
 use App\Services\AuditLogService;
+use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,6 +33,7 @@ class CaseFoundationTest extends TestCase
 
         $this->seed(RbacSeeder::class);
         $this->seed(MasterDataSeeder::class);
+        $this->seed(CampusMasterDataSeeder::class);
     }
 
     public function test_case_foundation_tables_exist_without_out_of_scope_tables(): void
@@ -81,6 +84,66 @@ class CaseFoundationTest extends TestCase
             $this->assertCount(1, $events);
             $this->assertSame($response->headers->get('X-Request-ID'), $events->first()->request_id);
         }
+    }
+
+    public function test_campus_scope_denies_other_and_missing_campus_but_super_admin_is_metadata_read_only(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-campus@university.ac.id');
+        $otherAdmin = $this->makeUser('admin', 'other-admin@university.ac.id', 'DEMO-ST');
+        $adminWithoutCampus = $this->makeUser('admin', 'no-campus-admin@university.ac.id', null);
+        $superAdmin = $this->makeUser('super_admin', 'oversight@university.ac.id', null);
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-campus@university.ac.id');
+        $report = $this->makeReport();
+        $payload = [
+            'satgas_ids' => [$satgas->id],
+            'lead_satgas_id' => $satgas->id,
+        ];
+
+        foreach ([$otherAdmin, $adminWithoutCampus] as $deniedAdmin) {
+            $this->actingAsApi($deniedAdmin);
+            $this->getJson('/api/v1/reports')->assertOk()->assertJsonPath('meta.total', 0);
+            $this->getJson("/api/v1/reports/{$report->id}")->assertForbidden();
+            $this->postJson("/api/v1/reports/{$report->id}/forward-to-case", $payload)->assertForbidden();
+        }
+
+        $this->actingAsApi($admin);
+        $this->getJson('/api/v1/reports')->assertOk()->assertJsonPath('meta.total', 1);
+        $this->getJson("/api/v1/reports/{$report->id}")->assertOk();
+        $caseId = $this->postJson("/api/v1/reports/{$report->id}/forward-to-case", $payload)
+            ->assertOk()
+            ->json('data.case.id');
+
+        foreach ([$otherAdmin, $adminWithoutCampus] as $deniedAdmin) {
+            $this->actingAsApi($deniedAdmin);
+            $this->getJson('/api/v1/cases')->assertOk()->assertJsonPath('meta.total', 0);
+            $this->getJson("/api/v1/cases/{$caseId}")->assertForbidden();
+            $this->patchJson("/api/v1/cases/{$caseId}/assign", $payload)->assertForbidden();
+        }
+
+        config()->set('oversight.cross_campus_sensitive_read', false);
+        $this->actingAsApi($superAdmin);
+        $this->getJson('/api/v1/reports')->assertOk()->assertJsonPath('meta.total', 1);
+        $this->getJson("/api/v1/reports/{$report->id}")
+            ->assertOk()
+            ->assertJsonMissingPath('data.sensitive_details');
+        $this->getJson('/api/v1/cases')->assertOk()->assertJsonPath('meta.total', 1);
+        $this->getJson("/api/v1/cases/{$caseId}")->assertOk();
+        $unforwardedReport = $this->makeReport();
+        $this->postJson("/api/v1/reports/{$unforwardedReport->id}/forward-to-case", $payload)
+            ->assertForbidden();
+        $this->patchJson("/api/v1/cases/{$caseId}/assign", $payload)->assertForbidden();
+        $this->patchJson("/api/v1/cases/{$caseId}/status", [
+            'status' => CaseStatusEnum::Assessment->value,
+        ])->assertForbidden();
+        $this->patchJson("/api/v1/cases/{$caseId}/assessment", [
+            'risk_level_code' => 'RISK-02',
+            'priority_level_code' => 'PRIO-02',
+        ])->assertForbidden();
+
+        CaseRecord::query()->whereKey($caseId)->update(['registration_number' => 'INCONSISTENT-CAMPUS-RELATION']);
+        $this->actingAsApi($admin);
+        $this->getJson('/api/v1/cases')->assertOk()->assertJsonPath('meta.total', 0);
+        $this->getJson("/api/v1/cases/{$caseId}")->assertForbidden();
     }
 
     public function test_invalid_satgas_assignment_does_not_forward_report(): void
@@ -397,19 +460,13 @@ class CaseFoundationTest extends TestCase
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
         $otherSatgas = $this->makeUser('satgas_ppks', 'other@university.ac.id');
         $case = $this->forwardedCase($admin, [$satgas], $satgas);
-        $monitoring = CaseStatus::query()->where('name', CaseStatusEnum::Monitoring->value)->firstOrFail();
+        $closed = CaseStatus::query()->where('name', CaseStatusEnum::Closed->value)->firstOrFail();
 
         $case->forceFill([
-            'status_code' => $monitoring->code,
-            'current_stage' => $monitoring->workflow_stage,
+            'status_code' => $closed->code,
+            'current_stage' => $closed->workflow_stage,
+            'closed_at' => now(),
         ])->save();
-
-        $this->actingAsApi($satgas);
-        $this->patchJson("/api/v1/cases/{$case->id}/status", [
-            'status' => CaseStatusEnum::Closed->value,
-        ])
-            ->assertOk()
-            ->assertJsonPath('data.status', CaseStatusEnum::Closed->value);
 
         $this->actingAsApi($satgas);
         $this->patchJson("/api/v1/cases/{$case->id}/status", [
@@ -430,7 +487,10 @@ class CaseFoundationTest extends TestCase
      */
     private function makeReport(array $overrides = []): Report
     {
+        $reporter = $this->makeUser('reporter', 'reporter-'.(Report::query()->count() + 1).'@university.ac.id');
+
         return Report::query()->create(array_merge([
+            'reporter_id' => $reporter->id,
             'registration_number' => 'SLP-'.now()->format('Y-md').'-'.str_pad((string) (Report::query()->count() + 1), 4, '0', STR_PAD_LEFT),
             'tracking_code' => null,
             'report_type' => 'confidential',
@@ -470,7 +530,11 @@ class CaseFoundationTest extends TestCase
         return CaseRecord::query()->with('report')->findOrFail($response->json('data.case.id'));
     }
 
-    private function makeUser(string $roleCode, string $email): User
+    private function makeUser(
+        string $roleCode,
+        string $email,
+        ?string $universityCode = 'DEMO-UNIV',
+    ): User
     {
         $role = Role::query()->where('code', $roleCode)->firstOrFail();
 
@@ -480,6 +544,9 @@ class CaseFoundationTest extends TestCase
             'email' => $email,
             'password' => 'SecurePass123',
             'is_active' => true,
+            'university_id' => $universityCode === null
+                ? null
+                : University::query()->where('code', $universityCode)->firstOrFail()->id,
         ]);
     }
 

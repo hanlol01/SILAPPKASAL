@@ -62,7 +62,7 @@ const LABEL_ALIASES: Partial<Record<LabelNamespace, Record<string, string>>> = {
   recommendationStatus: {
     "RECS-01": "drafting",
     "RECS-02": "internal_review",
-    "RECS-03": "submitted_to_leader",
+    "RECS-03": "submitted_for_review",
     "RECS-04": "accepted",
     "RECS-05": "partially_accepted",
     "RECS-06": "rejected",

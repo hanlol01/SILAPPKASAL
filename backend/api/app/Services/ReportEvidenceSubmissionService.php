@@ -12,6 +12,7 @@ use App\Models\CaseStatus as CaseStatusModel;
 use App\Models\Report;
 use App\Models\ReportEvidenceSubmission;
 use App\Models\User;
+use App\Support\CaseCampusScope;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\UploadedFile;
@@ -50,8 +51,10 @@ class ReportEvidenceSubmissionService
         ReportStatus::Forwarded->value,
     ];
 
-    public function __construct(private readonly AuditLogService $auditLogService)
-    {
+    public function __construct(
+        private readonly AuditLogService $auditLogService,
+        private readonly CaseCampusScope $campusScope,
+    ) {
     }
 
     /**
@@ -188,7 +191,9 @@ class ReportEvidenceSubmissionService
      */
     public function listForAssignedSatgas(User $actor, CaseRecord $case): Collection
     {
-        $this->authorizeAssignedSatgasForCase($actor, $case, 'reporter_evidence.read.assigned');
+        if (! $this->campusScope->canSensitiveOversight($actor)) {
+            $this->authorizeAssignedSatgasForCase($actor, $case, 'reporter_evidence.read.assigned');
+        }
 
         return ReportEvidenceSubmission::query()
             ->where('report_id', $case->report_id)
@@ -197,8 +202,31 @@ class ReportEvidenceSubmissionService
             ->get();
     }
 
+    /**
+     * @return Collection<int, ReportEvidenceSubmission>
+     */
+    public function listForOversightReport(User $actor, Report $report): Collection
+    {
+        if (! $this->campusScope->canSensitiveOversight($actor)) {
+            throw $this->forbidden();
+        }
+
+        return $report->evidenceSubmissions()
+            ->latest('uploaded_at')
+            ->latest('id')
+            ->get();
+    }
+
     public function downloadForAssignedSatgas(User $actor, string $uuid): StreamedResponse
     {
+        if ($this->campusScope->canSensitiveOversight($actor)) {
+            return $this->download(
+                $this->oversightSubmissionOrFail($uuid),
+                $actor,
+                AuditAction::ReporterEvidenceDownloadedByOversight,
+            );
+        }
+
         $this->authorizeSatgasIdentity($actor, 'reporter_evidence.download.assigned');
 
         return $this->download(
@@ -210,6 +238,14 @@ class ReportEvidenceSubmissionService
 
     public function previewForAssignedSatgas(User $actor, string $uuid): StreamedResponse
     {
+        if ($this->campusScope->canSensitiveOversight($actor)) {
+            return $this->preview(
+                $this->oversightSubmissionOrFail($uuid),
+                $actor,
+                AuditAction::ReporterEvidencePreviewedByOversight,
+            );
+        }
+
         $this->authorizeSatgasIdentity($actor, 'reporter_evidence.download.assigned');
 
         return $this->preview(
@@ -383,6 +419,14 @@ class ReportEvidenceSubmissionService
             ->first() ?? throw $this->notFound();
     }
 
+    private function oversightSubmissionOrFail(string $uuid): ReportEvidenceSubmission
+    {
+        return ReportEvidenceSubmission::query()
+            ->with('report')
+            ->where('uuid', $uuid)
+            ->first() ?? throw $this->notFound();
+    }
+
     private function ownedReportOrFail(User $actor, string $registrationNumber): Report
     {
         return Report::query()
@@ -548,13 +592,23 @@ class ReportEvidenceSubmissionService
         ReportEvidenceSubmission $submission,
         User $actor,
     ): void {
+        $submission->loadMissing('report');
+        $isOversight = $this->campusScope->canSensitiveOversight($actor);
+        $metadata = ['attachment_uuid' => $submission->uuid];
+
+        if ($isOversight) {
+            $metadata['registration_number'] = $submission->report?->registration_number;
+            $metadata['cross_campus_read'] = true;
+        }
+
         $this->auditLogService->record(
             action: $action,
             category: AuditCategory::Evidence,
             severity: AuditSeverity::Info,
             actor: $actor,
             subject: $submission,
-            metadata: ['attachment_uuid' => $submission->uuid],
+            metadata: $metadata,
+            isElevatedAccess: $isOversight,
         );
     }
 

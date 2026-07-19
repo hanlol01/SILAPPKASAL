@@ -14,7 +14,7 @@ class ReportMetadataResource extends JsonResource
     {
         $isAnonymous = $this->report_type === 'anonymous';
 
-        return [
+        $data = [
             'id' => $this->id,
             'registration_number' => $this->registration_number,
             'report_type' => $this->report_type,
@@ -49,5 +49,21 @@ class ReportMetadataResource extends JsonResource
             'forwarded_at' => $this->forwarded_at?->toJSON(),
             'created_at' => $this->created_at?->toJSON(),
         ];
+
+        if ($this->resource->getAttribute('sensitive_oversight') === true) {
+            $data['sensitive_details'] = [
+                'chronology' => $this->chronology,
+                'incident_date' => $this->incident_date?->toDateString(),
+                'incident_time' => $this->incident_time,
+                'incident_location' => $this->incident_location,
+                'respondent_name' => $this->respondent_name,
+                'respondent_campus_status' => $this->respondent_campus_status,
+                'respondent_relation' => $this->respondent_relation,
+                'respondent_details' => $this->respondent_details,
+                'witness_info' => $this->witness_info,
+            ];
+        }
+
+        return $data;
     }
 }

@@ -9,6 +9,7 @@ use App\Enums\ReportStatus;
 use App\Models\Report;
 use App\Models\User;
 use App\Support\ApiErrorCode;
+use App\Support\CaseCampusScope;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -17,8 +18,10 @@ use Illuminate\Support\Str;
 
 class ReportService
 {
-    public function __construct(private readonly AuditLogService $auditLogService)
-    {
+    public function __construct(
+        private readonly AuditLogService $auditLogService,
+        private readonly CaseCampusScope $campusScope,
+    ) {
     }
 
     /**
@@ -88,6 +91,8 @@ class ReportService
                 ->whereNotNull('reporter_id')
                 ->where('reporter_id', $user->id)
                 ->where('report_type', '!=', 'anonymous');
+        } elseif ($user->hasRole('admin')) {
+            $this->campusScope->scopeReports($query, $user);
         }
 
         foreach (['status', 'category_code', 'report_type'] as $filter) {
@@ -109,6 +114,11 @@ class ReportService
     {
         return $user->hasPermission('reports.read.all')
             && ($user->hasRole('admin') || $user->hasRole('super_admin'));
+    }
+
+    public function canReadSensitiveOversight(User $user): bool
+    {
+        return $this->campusScope->canSensitiveOversight($user);
     }
 
     public function findByTrackingCode(string $trackingCode): ?Report

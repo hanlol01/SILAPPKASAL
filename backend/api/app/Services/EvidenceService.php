@@ -14,6 +14,7 @@ use App\Models\Evidence;
 use App\Models\EvidenceType;
 use App\Models\Investigation;
 use App\Models\User;
+use App\Support\CaseCampusScope;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\UploadedFile;
@@ -34,8 +35,10 @@ class EvidenceService
         'image/png' => 'png',
     ];
 
-    public function __construct(private readonly AuditLogService $auditLogService)
-    {
+    public function __construct(
+        private readonly AuditLogService $auditLogService,
+        private readonly CaseCampusScope $campusScope,
+    ) {
     }
 
     /**
@@ -81,7 +84,7 @@ class EvidenceService
      */
     public function listForInvestigation(Investigation $investigation, User $user): Collection
     {
-        $this->authorizeAssignedSatgas($investigation, $user);
+        $this->authorizeEvidenceRead($investigation, $user, 'evidence.view.case');
 
         return Evidence::query()
             ->where('investigation_id', $investigation->id)
@@ -94,7 +97,7 @@ class EvidenceService
     public function loadForUser(Evidence $evidence, User $user): Evidence
     {
         $evidence->loadMissing('investigation.case');
-        $this->authorizeAssignedSatgas($evidence->investigation, $user);
+        $this->authorizeEvidenceRead($evidence->investigation, $user, 'evidence.view.case');
 
         return $evidence->load($this->detailRelations());
     }
@@ -286,7 +289,7 @@ class EvidenceService
     public function downloadFile(Evidence $evidence, User $actor): StreamedResponse
     {
         $evidence->loadMissing('investigation.case');
-        $this->authorizeAssignedSatgas($evidence->investigation, $actor, 'evidence.download');
+        $this->authorizeEvidenceRead($evidence->investigation, $actor, 'evidence.download');
 
         $file = $this->openEvidenceFile($evidence);
         $response = $this->streamEvidenceFile(
@@ -303,7 +306,13 @@ class EvidenceService
                     'mime_type' => $evidence->mime_type,
                     'file_size' => $evidence->file_size,
                 ]);
-                $this->recordFileAudit(AuditAction::EvidenceFileDownloaded, $evidence, $actor);
+                $this->recordFileAudit(
+                    $this->campusScope->canSensitiveOversight($actor)
+                        ? AuditAction::EvidenceFileDownloadedByOversight
+                        : AuditAction::EvidenceFileDownloaded,
+                    $evidence,
+                    $actor,
+                );
             });
         } catch (Throwable $exception) {
             if (is_resource($file['stream'])) {
@@ -319,7 +328,7 @@ class EvidenceService
     public function previewFile(Evidence $evidence, User $actor): StreamedResponse
     {
         $evidence->loadMissing('investigation.case');
-        $this->authorizeAssignedSatgas($evidence->investigation, $actor, 'evidence.download');
+        $this->authorizeEvidenceRead($evidence->investigation, $actor, 'evidence.download');
 
         $file = $this->openEvidenceFile($evidence, preview: true);
         return $this->streamEvidenceFile(
@@ -332,7 +341,13 @@ class EvidenceService
             afterStream: function () use ($evidence, $actor): void {
                 DB::transaction(function () use ($evidence, $actor): void {
                     $this->recordCustodyEvent($evidence, EvidenceCustodyEventType::FilePreviewed, $actor);
-                    $this->recordFileAudit(AuditAction::EvidenceFilePreviewed, $evidence, $actor);
+                    $this->recordFileAudit(
+                        $this->campusScope->canSensitiveOversight($actor)
+                            ? AuditAction::EvidenceFilePreviewedByOversight
+                            : AuditAction::EvidenceFilePreviewed,
+                        $evidence,
+                        $actor,
+                    );
                 });
             },
         );
@@ -494,6 +509,15 @@ class EvidenceService
         }
     }
 
+    private function authorizeEvidenceRead(Investigation $investigation, User $actor, string $capability): void
+    {
+        if ($this->campusScope->canSensitiveOversight($actor)) {
+            return;
+        }
+
+        $this->authorizeAssignedSatgas($investigation, $actor, $capability);
+    }
+
     private function recordStatusHistory(Evidence $evidence, ?string $fromStatus, string $toStatus, User $actor): void
     {
         $evidence->statusHistories()->create([
@@ -568,6 +592,8 @@ class EvidenceService
 
     private function recordFileAudit(AuditAction $action, Evidence $evidence, User $actor): void
     {
+        $isOversight = $this->campusScope->canSensitiveOversight($actor);
+
         $this->auditLogService->record(
             action: $action,
             category: AuditCategory::Evidence,
@@ -577,7 +603,10 @@ class EvidenceService
             metadata: [
                 'evidence_id' => $evidence->id,
                 'case_id' => $evidence->investigation->case_id,
+                'case_number' => $evidence->investigation?->case?->case_number,
+                'cross_campus_read' => $isOversight,
             ],
+            isElevatedAccess: $isOversight,
         );
     }
 

@@ -6,6 +6,7 @@ enum RecommendationStatus: string
 {
     case Drafting = 'drafting';
     case InternalReview = 'internal_review';
+    case SubmittedForReview = 'submitted_for_review';
     case SubmittedToLeader = 'submitted_to_leader';
     case Accepted = 'accepted';
     case PartiallyAccepted = 'partially_accepted';
@@ -33,5 +34,11 @@ enum RecommendationStatus: string
             self::PartiallyAccepted->value,
             self::Rejected->value,
         ];
+    }
+
+    /** @return list<string> */
+    public static function submittedReviewValues(): array
+    {
+        return [self::SubmittedForReview->value, self::SubmittedToLeader->value];
     }
 }

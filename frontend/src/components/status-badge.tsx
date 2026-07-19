@@ -267,6 +267,7 @@ const workflowFamilies: Record<WorkflowFamily, WorkflowFamilyConfig> = {
       internal_review: { tone: "warning", icon: Search },
       revised: { tone: "warning", icon: ClipboardList },
       submitted_to_leader: { tone: "primary", icon: ClipboardCheck },
+      submitted_for_review: { tone: "primary", icon: ClipboardCheck },
       accepted: { tone: "success", icon: CheckCircle2 },
       partially_accepted: { tone: "warning", icon: AlertTriangle },
       rejected: { tone: "destructive", icon: AlertTriangle },

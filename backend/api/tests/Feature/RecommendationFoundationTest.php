@@ -20,6 +20,8 @@ use App\Models\RecommendationStatus as RecommendationStatusModel;
 use App\Models\Report;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\University;
+use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -38,6 +40,7 @@ class RecommendationFoundationTest extends TestCase
 
         $this->seed(RbacSeeder::class);
         $this->seed(MasterDataSeeder::class);
+        $this->seed(CampusMasterDataSeeder::class);
     }
 
     public function test_recommendation_foundation_tables_and_transition_metadata_exist(): void
@@ -59,7 +62,7 @@ class RecommendationFoundationTest extends TestCase
             ->where('name', RecommendationStatusEnum::Drafting->value)
             ->firstOrFail();
 
-        $this->assertContains(RecommendationStatusEnum::SubmittedToLeader->value, $drafting->valid_transitions);
+        $this->assertContains(RecommendationStatusEnum::SubmittedForReview->value, $drafting->valid_transitions);
         $this->assertDatabaseHas('permissions', ['code' => 'cases.recommend']);
         $this->assertDatabaseHas('permissions', ['code' => 'cases.review_recommendation']);
         $this->assertDatabaseHas('notification_types', ['code' => 'NOTIF-16']);
@@ -140,8 +143,8 @@ class RecommendationFoundationTest extends TestCase
         $this->getJson("/api/v1/recommendations/{$recommendation->id}")
             ->assertOk()
             ->assertJsonPath('data.status', RecommendationStatusEnum::Drafting->value)
-            ->assertJsonMissingPath('data.conclusion')
-            ->assertJsonMissingPath('data.recommended_actions')
+            ->assertJsonPath('data.conclusion', 'Kesimpulan rekomendasi rahasia.')
+            ->assertJsonPath('data.recommended_actions', 'Tindakan rekomendasi untuk penanganan kasus.')
             ->assertJsonMissingPath('data.investigation.conclusion');
 
         $this->actingAsApi($satgas);
@@ -167,7 +170,7 @@ class RecommendationFoundationTest extends TestCase
             ->assertJsonPath('data.recommended_actions', 'Tindakan rekomendasi yang sudah diperbarui.');
 
         $recommendation->forceFill([
-            'status_code' => RecommendationStatusModel::query()->where('name', RecommendationStatusEnum::SubmittedToLeader->value)->firstOrFail()->code,
+            'status_code' => RecommendationStatusModel::query()->where('name', RecommendationStatusEnum::SubmittedForReview->value)->firstOrFail()->code,
             'submitted_at' => now(),
         ])->save();
 
@@ -190,9 +193,9 @@ class RecommendationFoundationTest extends TestCase
         $this->actingAsApi($satgas);
         $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")
             ->assertOk()
-            ->assertJsonPath('data.status', RecommendationStatusEnum::SubmittedToLeader->value);
+            ->assertJsonPath('data.status', RecommendationStatusEnum::SubmittedForReview->value);
 
-        $this->actingAsApi($superAdmin);
+        $this->actingAsApi($admin);
         $this->postJson("/api/v1/recommendations/{$recommendation->id}/review", [
             'action' => 'return_for_revision',
             'revision_note' => 'Perjelas dasar rekomendasi dan tindakan tindak lanjut.',
@@ -207,7 +210,7 @@ class RecommendationFoundationTest extends TestCase
         ])->assertOk();
         $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")
             ->assertOk()
-            ->assertJsonPath('data.status', RecommendationStatusEnum::SubmittedToLeader->value);
+            ->assertJsonPath('data.status', RecommendationStatusEnum::SubmittedForReview->value);
 
         $this->assertNotNull($recommendation->refresh()->submitted_at);
         $this->assertSame(CaseStatusEnum::Recommendation->value, $case->refresh()->status->name);
@@ -215,7 +218,7 @@ class RecommendationFoundationTest extends TestCase
 
         $this->actingAsApi($satgas);
         $this->patchJson("/api/v1/recommendations/{$recommendation->id}/status", [
-            'status' => RecommendationStatusEnum::SubmittedToLeader->value,
+            'status' => RecommendationStatusEnum::SubmittedForReview->value,
         ])
             ->assertUnprocessable();
     }
@@ -256,7 +259,7 @@ class RecommendationFoundationTest extends TestCase
             ->forceFill([
                 'valid_transitions' => [
                     RecommendationStatusEnum::InternalReview->value,
-                    RecommendationStatusEnum::SubmittedToLeader->value,
+                    RecommendationStatusEnum::SubmittedForReview->value,
                     RecommendationStatusEnum::Accepted->value,
                 ],
             ])
@@ -272,7 +275,7 @@ class RecommendationFoundationTest extends TestCase
                 'name' => RecommendationStatusEnum::InternalReview->value,
             ])
             ->assertJsonMissing([
-                'name' => RecommendationStatusEnum::SubmittedToLeader->value,
+                'name' => RecommendationStatusEnum::SubmittedForReview->value,
             ])
             ->assertJsonMissing([
                 'name' => RecommendationStatusEnum::Accepted->value,
@@ -290,7 +293,7 @@ class RecommendationFoundationTest extends TestCase
 
         $recommendation->forceFill([
             'status_code' => RecommendationStatusModel::query()
-                ->where('name', RecommendationStatusEnum::SubmittedToLeader->value)
+                ->where('name', RecommendationStatusEnum::SubmittedForReview->value)
                 ->firstOrFail()
                 ->code,
             'submitted_at' => now(),
@@ -299,7 +302,7 @@ class RecommendationFoundationTest extends TestCase
         $this->actingAsApi($satgas);
         $this->getJson("/api/v1/recommendations/{$recommendation->id}/status-options")
             ->assertOk()
-            ->assertJsonPath('data.current_status.name', RecommendationStatusEnum::SubmittedToLeader->value)
+            ->assertJsonPath('data.current_status.name', RecommendationStatusEnum::SubmittedForReview->value)
             ->assertJsonCount(0, 'data.valid_transitions');
     }
 
@@ -345,7 +348,7 @@ class RecommendationFoundationTest extends TestCase
         $this->assertArrayNotHasKey('recommendation_id', $createdLog->metadata);
         $this->assertArrayNotHasKey('case_id', $createdLog->metadata);
         $this->assertArrayNotHasKey('investigation_id', $createdLog->metadata);
-        $this->assertSame(1, $admin->notifications()->where('data->notification_type_code', 'NOTIF-16')->count());
+        $this->assertSame(0, $admin->notifications()->where('data->notification_type_code', 'NOTIF-16')->count());
         $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'NOTIF-16')->count());
         $this->assertSame(0, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-16')->count());
 
@@ -381,11 +384,11 @@ class RecommendationFoundationTest extends TestCase
         $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")
             ->assertOk();
 
-        $this->assertSame(0, $admin->notifications()->where('data->notification_type_code', 'NOTIF-14')->count());
-        $this->assertSame(1, $superAdmin->notifications()->where('data->notification_type_code', 'NOTIF-14')->count());
+        $this->assertSame(1, $admin->notifications()->where('data->notification_type_code', 'NOTIF-14')->count());
+        $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'NOTIF-14')->count());
         $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-17')->count());
 
-        $this->actingAsApi($superAdmin);
+        $this->actingAsApi($admin);
         $revisionNote = 'Perbaiki dasar analisis sebelum rekomendasi dikirim kembali.';
         $this->postJson("/api/v1/recommendations/{$recommendation->id}/review", [
             'action' => 'return_for_revision',
@@ -417,12 +420,16 @@ class RecommendationFoundationTest extends TestCase
         $this->assertArrayNotHasKey('recommended_actions', $payload);
     }
 
-    public function test_only_active_super_admin_can_review_and_approval_advances_case_atomically(): void
+    public function test_only_active_same_campus_admin_can_review_and_approval_advances_case_atomically(): void
     {
         $admin = $this->makeUser('admin', 'admin-review@university.ac.id');
         $superAdmin = $this->makeUser('super_admin', 'super-review@university.ac.id');
-        $inactiveSuperAdmin = $this->makeUser('super_admin', 'inactive-super@university.ac.id');
-        $inactiveSuperAdmin->forceFill(['is_active' => false])->save();
+        $inactiveAdmin = $this->makeUser('admin', 'inactive-admin@university.ac.id');
+        $inactiveAdmin->forceFill(['is_active' => false])->save();
+        $otherCampusAdmin = $this->makeUser('admin', 'other-campus-admin@university.ac.id');
+        $otherCampusAdmin->forceFill([
+            'university_id' => University::query()->where('code', 'DEMO-ST')->firstOrFail()->id,
+        ])->save();
         $satgas = $this->makeUser('satgas_ppks', 'satgas-review@university.ac.id');
         $otherSatgas = $this->makeUser('satgas_ppks', 'other-review@university.ac.id');
         $case = $this->makeRecommendationCase($admin, $satgas);
@@ -435,19 +442,14 @@ class RecommendationFoundationTest extends TestCase
         $this->actingAsApi($satgas);
         $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")->assertOk();
 
-        $admin->role->permissions()->syncWithoutDetaching([
-            Permission::query()->where('code', 'cases.review_recommendation')->firstOrFail()->id,
-        ]);
-        $admin->unsetRelation('role');
-
-        foreach ([$admin, $satgas, $inactiveSuperAdmin] as $unauthorizedReviewer) {
+        foreach ([$superAdmin, $satgas, $inactiveAdmin, $otherCampusAdmin] as $unauthorizedReviewer) {
             $this->actingAsApi($unauthorizedReviewer);
             $this->postJson("/api/v1/recommendations/{$recommendation->id}/review", [
                 'action' => 'approve',
             ])->assertForbidden();
         }
 
-        $this->actingAsApi($superAdmin);
+        $this->actingAsApi($admin);
         $this->postJson("/api/v1/recommendations/{$recommendation->id}/review", [
             'action' => 'return_for_revision',
         ])->assertUnprocessable();
@@ -456,11 +458,11 @@ class RecommendationFoundationTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('data.status', RecommendationStatusEnum::Accepted->value)
-            ->assertJsonPath('data.leadership_review.approved_by.id', $superAdmin->id);
+            ->assertJsonPath('data.review.approved_by.id', $admin->id);
 
         $this->assertSame(CaseStatusEnum::Decision->value, $case->refresh()->status->name);
         $this->assertNotNull($recommendation->refresh()->approved_at);
-        $this->assertSame(1, $admin->notifications()->where('data->notification_type_code', 'NOTIF-24')->count());
+        $this->assertSame(0, $admin->notifications()->where('data->notification_type_code', 'NOTIF-24')->count());
         $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'NOTIF-24')->count());
         $this->assertDatabaseHas('audit_logs', [
             'action' => AuditAction::RecommendationApproved->value,
@@ -479,6 +481,7 @@ class RecommendationFoundationTest extends TestCase
 
     public function test_review_detail_privacy_and_legacy_terminal_status_compatibility(): void
     {
+        config()->set('oversight.cross_campus_sensitive_read', true);
         $admin = $this->makeUser('admin', 'admin-privacy@university.ac.id');
         $superAdmin = $this->makeUser('super_admin', 'super-privacy@university.ac.id');
         $satgas = $this->makeUser('satgas_ppks', 'satgas-privacy@university.ac.id');
@@ -496,19 +499,34 @@ class RecommendationFoundationTest extends TestCase
         $this->postJson("/api/v1/recommendations/{$recommendation->id}/review", [
             'action' => 'return_for_revision',
             'revision_note' => 'Catatan revisi rahasia hanya untuk reviewer dan Satgas.',
-        ])->assertOk();
+        ])->assertForbidden();
+        $this->patchJson("/api/v1/recommendations/{$recommendation->id}", [
+            'recommended_actions' => 'Super Admin tidak dapat mengubah rekomendasi.',
+        ])->assertForbidden();
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")->assertForbidden();
+        $this->patchJson("/api/v1/recommendations/{$recommendation->id}/status", [
+            'status' => RecommendationStatusEnum::InternalReview->value,
+        ])->assertForbidden();
+        $this->postJson("/api/v1/cases/{$case->id}/recommendations", [
+            'investigation_id' => $investigation->id,
+            'conclusion' => 'Super Admin tidak dapat membuat rekomendasi baru.',
+            'recommended_actions' => 'Mutasi operasional tetap ditolak.',
+        ])->assertForbidden();
 
         $this->actingAsApi($admin);
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/review", [
+            'action' => 'return_for_revision',
+            'revision_note' => 'Catatan revisi rahasia hanya untuk reviewer dan Satgas.',
+        ])->assertOk();
         $this->getJson("/api/v1/recommendations/{$recommendation->id}")
             ->assertOk()
-            ->assertJsonMissingPath('data.conclusion')
-            ->assertJsonMissingPath('data.leadership_review')
-            ->assertJsonMissingPath('data.revision_note');
+            ->assertJsonPath('data.conclusion', 'Kesimpulan rekomendasi rahasia.')
+            ->assertJsonPath('data.review.revision_note', 'Catatan revisi rahasia hanya untuk reviewer dan Satgas.');
 
         $this->actingAsApi($satgas);
         $this->getJson("/api/v1/recommendations/{$recommendation->id}")
             ->assertOk()
-            ->assertJsonPath('data.leadership_review.revision_note', 'Catatan revisi rahasia hanya untuk reviewer dan Satgas.');
+            ->assertJsonPath('data.review.revision_note', 'Catatan revisi rahasia hanya untuk reviewer dan Satgas.');
 
         $legacyStatus = RecommendationStatusModel::query()
             ->where('name', RecommendationStatusEnum::PartiallyAccepted->value)
@@ -519,6 +537,78 @@ class RecommendationFoundationTest extends TestCase
         $this->getJson("/api/v1/recommendations/{$recommendation->id}/status-options")
             ->assertOk()
             ->assertJsonCount(0, 'data.valid_transitions');
+    }
+
+    public function test_legacy_submitted_to_leader_status_remains_readable_and_actionable(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-legacy-review@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-legacy-review@university.ac.id');
+        $case = $this->makeRecommendationCase($admin, $satgas);
+        $investigation = $this->makeCompletedInvestigation($case, $satgas);
+        $recommendation = $this->makeRecommendation($case, $investigation, $satgas);
+
+        RecommendationStatusModel::query()
+            ->where('code', 'RECS-03')
+            ->firstOrFail()
+            ->forceFill([
+                'name' => RecommendationStatusEnum::SubmittedToLeader->value,
+                'description' => 'Legacy deployed review status retained for compatibility testing.',
+            ])
+            ->save();
+
+        $this->actingAsApi($satgas);
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")
+            ->assertOk()
+            ->assertJsonPath('data.status', RecommendationStatusEnum::SubmittedToLeader->value);
+
+        $this->actingAsApi($admin);
+        $this->getJson("/api/v1/recommendations/{$recommendation->id}")
+            ->assertOk()
+            ->assertJsonPath('data.status', RecommendationStatusEnum::SubmittedToLeader->value);
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/review", [
+            'action' => 'approve',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.status', RecommendationStatusEnum::Accepted->value);
+
+        $this->assertSame(CaseStatusEnum::Decision->value, $case->refresh()->status->name);
+    }
+
+    public function test_neutral_status_migration_round_trip_preserves_stable_code_and_recommendation_fk(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-migration@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-migration@university.ac.id');
+        $case = $this->makeRecommendationCase($admin, $satgas);
+        $investigation = $this->makeCompletedInvestigation($case, $satgas);
+        $recommendation = $this->makeRecommendation($case, $investigation, $satgas);
+
+        $this->actingAsApi($satgas);
+        $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")
+            ->assertOk()
+            ->assertJsonPath('data.status', RecommendationStatusEnum::SubmittedForReview->value);
+
+        $statusCount = RecommendationStatusModel::query()->count();
+        $migration = require database_path('migrations/2026_07_19_020000_rename_recommendation_review_status.php');
+        $migration->down();
+
+        $this->assertDatabaseHas('recommendation_statuses', [
+            'code' => 'RECS-03',
+            'name' => RecommendationStatusEnum::SubmittedToLeader->value,
+        ]);
+        $this->assertSame('RECS-03', $recommendation->refresh()->status_code);
+        $this->assertSame(
+            RecommendationStatusEnum::SubmittedToLeader->value,
+            $recommendation->load('status')->status->name,
+        );
+
+        $migration->up();
+
+        $this->assertDatabaseHas('recommendation_statuses', [
+            'code' => 'RECS-03',
+            'name' => RecommendationStatusEnum::SubmittedForReview->value,
+        ]);
+        $this->assertSame('RECS-03', $recommendation->refresh()->status_code);
+        $this->assertDatabaseCount('recommendation_statuses', $statusCount);
     }
 
     public function test_review_metadata_is_consistent_across_return_edit_and_resubmission(): void
@@ -534,18 +624,18 @@ class RecommendationFoundationTest extends TestCase
         $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")->assertOk();
 
         $recommendation->forceFill([
-            'approved_by' => $superAdmin->id,
+            'approved_by' => $admin->id,
             'approved_at' => now(),
         ])->save();
 
-        $this->actingAsApi($superAdmin);
+        $this->actingAsApi($admin);
         $this->postJson("/api/v1/recommendations/{$recommendation->id}/review", [
             'action' => 'return_for_revision',
             'revision_note' => 'Lengkapi dasar analisis sebelum rekomendasi dikirim kembali.',
         ])
             ->assertOk()
-            ->assertJsonPath('data.leadership_review.approved_by', null)
-            ->assertJsonPath('data.leadership_review.approved_at', null);
+            ->assertJsonPath('data.review.approved_by', null)
+            ->assertJsonPath('data.review.approved_at', null);
 
         $recommendation->refresh();
         $this->assertNotNull($recommendation->returned_by);
@@ -565,11 +655,11 @@ class RecommendationFoundationTest extends TestCase
 
         $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")
             ->assertOk()
-            ->assertJsonPath('data.leadership_review.returned_by', null)
-            ->assertJsonPath('data.leadership_review.returned_at', null)
-            ->assertJsonPath('data.leadership_review.revision_note', null)
-            ->assertJsonPath('data.leadership_review.approved_by', null)
-            ->assertJsonPath('data.leadership_review.approved_at', null);
+            ->assertJsonPath('data.review.returned_by', null)
+            ->assertJsonPath('data.review.returned_at', null)
+            ->assertJsonPath('data.review.revision_note', null)
+            ->assertJsonPath('data.review.approved_by', null)
+            ->assertJsonPath('data.review.approved_at', null);
 
         $recommendation->refresh();
         $this->assertNull($recommendation->returned_by);
@@ -623,12 +713,12 @@ class RecommendationFoundationTest extends TestCase
         $auditCount = AuditLog::query()->count();
         $notificationCount = $admin->notifications()->count();
 
-        $this->actingAsApi($superAdmin);
+        $this->actingAsApi($admin);
         $this->postJson("/api/v1/recommendations/{$recommendation->id}/review", [
             'action' => 'approve',
         ])->assertUnprocessable();
 
-        $this->assertSame(RecommendationStatusEnum::SubmittedToLeader->value, $recommendation->refresh()->status->name);
+        $this->assertSame(RecommendationStatusEnum::SubmittedForReview->value, $recommendation->refresh()->status->name);
         $this->assertSame(CaseStatusEnum::Decision->value, $case->refresh()->status->name);
         $this->assertSame($historyCount, $recommendation->statusHistories()->count());
         $this->assertSame($auditCount, AuditLog::query()->count());
@@ -738,7 +828,10 @@ class RecommendationFoundationTest extends TestCase
 
     private function makeReport(): Report
     {
+        $reporter = $this->makeUser('reporter', 'recommendation-reporter-'.(Report::query()->count() + 1).'@university.ac.id');
+
         return Report::query()->create([
+            'reporter_id' => $reporter->id,
             'registration_number' => 'SLP-'.now()->format('Ymd').'-'.str_pad((string) (Report::query()->count() + 1), 4, '0', STR_PAD_LEFT),
             'tracking_code' => null,
             'report_type' => 'confidential',
@@ -770,6 +863,7 @@ class RecommendationFoundationTest extends TestCase
             'email' => $email,
             'password' => 'SecurePass123',
             'is_active' => true,
+            'university_id' => University::query()->where('code', 'DEMO-UNIV')->firstOrFail()->id,
         ]);
     }
 

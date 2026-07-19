@@ -22,6 +22,8 @@ return [
         'case_investigation_completion_required' => 'Complete the investigation before advancing the case to mediation or recommendation.',
         'investigation_stage_activity_required' => 'Add at least one activity in the :stage stage before continuing.',
         'investigation_activity_stage_incompatible' => 'That activity type cannot be recorded in the :stage stage.',
+        'recovery_monitoring_required' => 'Add at least one monitoring entry before Recovery can be completed.',
+        'case_recovery_completion_required' => 'Complete Recovery and record at least one monitoring entry before advancing the Case.',
     ],
     'investigation_stages' => [
         'planning' => 'Planning',

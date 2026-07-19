@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreReportEvidenceSubmissionRequest;
 use App\Http\Resources\ReportEvidenceSubmissionResource;
 use App\Models\CaseRecord;
+use App\Models\Report;
 use App\Services\ReportEvidenceSubmissionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -63,6 +64,17 @@ class ReportEvidenceSubmissionController extends Controller
     public function indexForCase(Request $request, CaseRecord $case): JsonResponse
     {
         $files = $this->service->listForAssignedSatgas($request->user(), $case);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Reporter supporting files retrieved successfully',
+            'data' => ReportEvidenceSubmissionResource::collection($files),
+        ]);
+    }
+
+    public function indexForOversightReport(Request $request, Report $report): JsonResponse
+    {
+        $files = $this->service->listForOversightReport($request->user(), $report);
 
         return response()->json([
             'success' => true,

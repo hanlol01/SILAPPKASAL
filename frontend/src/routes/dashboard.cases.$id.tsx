@@ -178,15 +178,21 @@ function CaseDetail() {
     (caseQuery.data?.assignments ?? []).some(
       (assignment) => assignment.is_active && assignment.satgas_id === user?.id,
     );
+  const isSensitiveOversight =
+    roleCode === "super_admin" &&
+    caseQuery.data?.workflow_context?.facts.sensitive_oversight_enabled === true;
   const canViewEvidence =
-    isAssignedSatgas && Boolean(user?.permissions?.includes("evidence.view.case"));
+    isSensitiveOversight ||
+    (isAssignedSatgas && Boolean(user?.permissions?.includes("evidence.view.case")));
   const canViewReporterEvidence =
-    isAssignedSatgas &&
-    user?.is_active === true &&
-    Boolean(user.permissions?.includes("reporter_evidence.read.assigned"));
+    isSensitiveOversight ||
+    (isAssignedSatgas &&
+      user?.is_active === true &&
+      Boolean(user.permissions?.includes("reporter_evidence.read.assigned")));
   const canDownloadReporterEvidence =
-    canViewReporterEvidence &&
-    Boolean(user?.permissions?.includes("reporter_evidence.download.assigned"));
+    isSensitiveOversight ||
+    (canViewReporterEvidence &&
+      Boolean(user?.permissions?.includes("reporter_evidence.download.assigned")));
   const investigationsQuery = useQuery({
     queryKey: operationsQueryKeys.investigations(id),
     queryFn: () => getCaseInvestigations(id),
@@ -265,29 +271,38 @@ function CaseDetail() {
     if (!isWorkflowTab(value)) return;
     setWorkflowTabSelection({ context: workflowTabContext, value });
   }
-  const isAdminRole = roleCode === "super_admin" || roleCode === "admin";
   const canManageAssignments =
-    isAdminRole && Boolean(user?.permissions?.includes("cases.assign_satgas"));
+    roleCode === "admin" &&
+    workflowContext?.facts.same_campus_admin === true &&
+    Boolean(user?.permissions?.includes("cases.assign_satgas"));
   const canUseSatgasActions = isAssignedSatgas && !c.closed_at;
   const canRecommend =
     canUseSatgasActions && Boolean(user?.permissions?.includes("cases.recommend"));
   const canReviewRecommendation =
-    roleCode === "super_admin" &&
+    roleCode === "admin" &&
     user?.is_active === true &&
-    Boolean(user.permissions?.includes("cases.review_recommendation"));
+    Boolean(user.permissions?.includes("cases.review_recommendation")) &&
+    workflowContext?.actions.review_recommendation.allowed === true;
   const canManageDecisionActions =
     roleCode === "admin" &&
     user?.is_active === true &&
     Boolean(user.permissions?.includes("cases.record_decision"));
   const canManageRecoveryActions =
-    isAdminRole && Boolean(user?.permissions?.includes("cases.monitor"));
-  const canAddRecoveryMonitoring = canManageRecoveryActions || canUseSatgasActions;
+    roleCode === "admin" &&
+    Boolean(user?.permissions?.includes("cases.monitor")) &&
+    workflowContext?.actions.manage_recovery.allowed === true;
+  const canAddRecoveryMonitoring =
+    roleCode === "satgas_ppks" &&
+    workflowContext?.actions.add_monitoring.allowed === true;
   const activeAssignments = (c.assignments ?? []).filter((assignment) => assignment.is_active);
   const evidenceInvestigation = selectEvidenceInvestigation(investigationsQuery.data ?? []);
   const canUpdateEvidence =
-    canViewEvidence && Boolean(user?.permissions?.includes("evidence.upload")) && !c.closed_at;
+    isAssignedSatgas &&
+    Boolean(user?.permissions?.includes("evidence.upload")) &&
+    !c.closed_at;
   const canDownloadEvidence =
-    canViewEvidence && Boolean(user?.permissions?.includes("evidence.download"));
+    isSensitiveOversight ||
+    (isAssignedSatgas && Boolean(user?.permissions?.includes("evidence.download")));
   const canCreateEvidence =
     workflowContext?.actions.add_evidence.allowed === true && evidenceInvestigation !== null;
   const latestCompletedInvestigation = mostRecentCompletedInvestigation(
@@ -308,6 +323,7 @@ function CaseDetail() {
     latestCompletedInvestigation !== null;
   const canCreateDecision =
     canManageDecisionActions &&
+    workflowContext?.actions.create_decision.allowed === true &&
     recommendationsQuery.isSuccess &&
     decisionsLoaded &&
     c.status === "decision" &&
@@ -317,6 +333,7 @@ function CaseDetail() {
     canManageRecoveryActions &&
     decisionsLoaded &&
     finalizedDecisionForRecovery !== null &&
+    recoveries.length === 0 &&
     !c.closed_at;
   const caseStatusToken = normalizeWorkflowToken(c.status ?? c.status_code);
   const isLifecycleControlledCase = ["recommendation", "csts_09", "decision", "csts_10"].includes(
@@ -378,6 +395,21 @@ function CaseDetail() {
           <StatusBadge status={c.status ?? c.status_code} />
         </div>
       </div>
+      {roleCode === "super_admin" && (
+        <div className="rounded-lg border border-primary/25 bg-primary/5 p-4 text-sm">
+          <div className="flex items-start gap-3">
+            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <div className="min-w-0">
+              <p className="font-medium">{t("dashboard:workflow.oversightReadOnly")}</p>
+              {!isSensitiveOversight && (
+                <p className="mt-1 text-muted-foreground">
+                  {t("dashboard:workflow.sensitiveOversightUnavailable")}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <div className="min-w-0 space-y-4 lg:col-span-2">
@@ -876,7 +908,10 @@ function RecommendationsSection({
               {canSubmit && canSubmitRecommendation(item) && (
                 <RecommendationSubmitAction recommendation={item} caseId={caseId} />
               )}
-              {canReview && item.status === "submitted_to_leader" && (
+              {canReview &&
+                ["submitted_for_review", "submitted_to_leader"].includes(
+                  normalizeWorkflowToken(item.status ?? item.status_code),
+                ) && (
                 <RecommendationReviewActions recommendation={item} caseId={caseId} />
               )}
             </div>
@@ -910,18 +945,21 @@ function RecommendationsSection({
                   {item.prevention_recommendation}
                 </Field>
               )}
-              {item.leadership_review?.revision_note && (
+              {(item.review ?? item.leadership_review)?.revision_note && (
                 <Field label={t("dashboard:workflow.revisionNote")}>
-                  {item.leadership_review.revision_note}
+                  {(item.review ?? item.leadership_review)?.revision_note}
                 </Field>
               )}
-              {item.leadership_review?.approved_at && (
+              {(item.review ?? item.leadership_review)?.approved_at && (
                 <Field label={t("dashboard:workflow.approvalRecord")}>
                   {t("dashboard:workflow.approvedByAt", {
                     name:
-                      item.leadership_review.approved_by?.name ??
+                      (item.review ?? item.leadership_review)?.approved_by?.name ??
                       t("dashboard:common.metadataUnavailable"),
-                    date: formatDateTime(item.leadership_review.approved_at, language),
+                    date: formatDateTime(
+                      (item.review ?? item.leadership_review)?.approved_at ?? null,
+                      language,
+                    ),
                   })}
                 </Field>
               )}

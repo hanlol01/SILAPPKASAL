@@ -19,10 +19,11 @@ final class OversightProjection
     public const QUEUES = [
         'waiting_admin',
         'waiting_satgas',
-        'waiting_leader',
         'emergency_access',
         'critical_security',
     ];
+
+    public const FILTER_QUEUES = [...self::QUEUES, 'waiting_leader'];
 
     public const URGENCIES = ['normal', 'attention', 'overdue'];
 
@@ -110,7 +111,7 @@ final class OversightProjection
         $query = $this->query($user, $cutoff);
 
         if ($queue) {
-            $query->where('queue_code', $queue);
+            $query->where('queue_code', $queue === 'waiting_leader' ? 'waiting_admin' : $queue);
         }
 
         foreach ($query
@@ -124,7 +125,7 @@ final class OversightProjection
 
     private function query(User $user, CarbonImmutable $cutoff): Builder
     {
-        $union = $this->reportVerificationQuery()
+        $union = $this->reportForwardingQuery()
             ->unionAll($this->caseAssignmentQuery())
             ->unionAll($this->satgasCaseQuery())
             ->unionAll($this->recommendationReviewQuery())
@@ -137,12 +138,12 @@ final class OversightProjection
             ->where('started_at', '<=', $cutoff->format('Y-m-d H:i:s'));
     }
 
-    private function reportVerificationQuery(): Builder
+    private function reportForwardingQuery(): Builder
     {
         return DB::table('reports')
             ->selectRaw('? as queue_code, ? as work_type, registration_number as reference, status, submitted_at as started_at', [
                 'waiting_admin',
-                'report_verification',
+                'report_forwarding',
             ])
             ->whereNull('deleted_at')
             ->whereIn('status', [ReportStatus::Submitted->value, ReportStatus::UnderReview->value]);
@@ -207,11 +208,11 @@ final class OversightProjection
             ->join('recommendation_statuses', 'recommendation_statuses.code', '=', 'recommendations.status_code')
             ->join('cases', 'cases.id', '=', 'recommendations.case_id')
             ->selectRaw('? as queue_code, ? as work_type, cases.case_number as reference, recommendation_statuses.name as status, COALESCE(recommendations.submitted_at, recommendations.updated_at, recommendations.created_at) as started_at', [
-                'waiting_leader',
+                'waiting_admin',
                 'recommendation_review',
             ])
             ->whereNull('cases.deleted_at')
-            ->where('recommendation_statuses.name', RecommendationStatus::SubmittedToLeader->value);
+            ->whereIn('recommendation_statuses.name', RecommendationStatus::submittedReviewValues());
     }
 
     private function decisionHandoffQuery(): Builder

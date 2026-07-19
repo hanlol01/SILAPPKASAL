@@ -106,6 +106,12 @@ class AuditOversightTest extends TestCase
                 CaseRecord::query()->value('case_number'),
             ])->sort()->values()->all(),
         );
+        $this->assertSame(
+            'report_forwarding',
+            collect($response->json('data'))
+                ->firstWhere('reference', Report::query()->where('status', ReportStatus::Submitted->value)->value('registration_number'))['work_type'],
+        );
+        $this->assertNotContains('report_verification', collect($response->json('data'))->pluck('work_type')->all());
     }
 
     public function test_locked_queue_ownership_excludes_paused_reports_historical_assignments_and_recovery(): void
@@ -117,7 +123,7 @@ class AuditOversightTest extends TestCase
         $activeCase = $this->makeCase('investigation', activeAssignment: true, startedAt: now()->subDays(2), satgas: $satgas);
         $historicalCase = $this->makeCase('investigation', activeAssignment: false, startedAt: now()->subDays(2), satgas: $satgas, historicalAssignment: true);
         $recoveryCase = $this->makeCase('recovery', activeAssignment: true, startedAt: now()->subDays(2), satgas: $satgas);
-        $leaderCase = $this->makeRecommendationCase('submitted_to_leader', $satgas);
+        $leaderCase = $this->makeRecommendationCase('submitted_for_review', $satgas);
         $decisionCase = $this->makeRecommendationCase('accepted', $satgas);
 
         $this->actingAsApi($superAdmin);
@@ -127,8 +133,19 @@ class AuditOversightTest extends TestCase
         $this->assertSame('waiting_satgas', $items[$activeCase->case_number]['queue']);
         $this->assertFalse($items->has($historicalCase->case_number));
         $this->assertFalse($items->has($recoveryCase->case_number));
-        $this->assertSame('waiting_leader', $items[$leaderCase->case_number]['queue']);
+        $this->assertSame('waiting_admin', $items[$leaderCase->case_number]['queue']);
         $this->assertSame('waiting_admin', $items[$decisionCase->case_number]['queue']);
+        $this->assertSame(1, collect($response->json('data'))->where('reference', $leaderCase->case_number)->count());
+        $this->assertNotContains('waiting_leader', collect($response->json('data'))->pluck('queue')->all());
+
+        $legacyFilter = $this->getJson('/api/v1/audit-logs/oversight?queue=waiting_leader&per_page=50')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2);
+        $this->assertSame(
+            collect([$decisionCase->case_number, $leaderCase->case_number])->sort()->values()->all(),
+            collect($legacyFilter->json('data'))->pluck('reference')->sort()->values()->all(),
+        );
+        $this->assertNotContains('waiting_leader', collect($legacyFilter->json('data'))->pluck('queue')->all());
     }
 
     public function test_business_day_clock_uses_asia_jakarta_weekdays_and_partial_days(): void
@@ -297,7 +314,7 @@ class AuditOversightTest extends TestCase
             startedAt: now()->subWeekdays(3)->subHours(18),
             satgas: $satgas,
         );
-        $this->makeRecommendationCase('submitted_to_leader', $satgas);
+        $this->makeRecommendationCase('submitted_for_review', $satgas);
         BreakGlassRequest::query()->create([
             'requestor_id' => $admin->id,
             'report_id' => $this->makeReport(ReportStatus::Submitted->value, now())->id,

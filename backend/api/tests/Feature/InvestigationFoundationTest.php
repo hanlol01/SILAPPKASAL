@@ -15,9 +15,11 @@ use App\Models\Investigation;
 use App\Models\InvestigationStatus;
 use App\Models\Report;
 use App\Models\Role;
+use App\Models\University;
 use App\Models\User;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
+use Database\Seeders\CampusMasterDataSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Sanctum;
@@ -33,6 +35,7 @@ class InvestigationFoundationTest extends TestCase
 
         $this->seed(RbacSeeder::class);
         $this->seed(MasterDataSeeder::class);
+        $this->seed(CampusMasterDataSeeder::class);
     }
 
     public function test_investigation_foundation_tables_and_transition_metadata_exist(): void
@@ -300,7 +303,7 @@ class InvestigationFoundationTest extends TestCase
         ]);
 
         $this->assertSame(1, $admin->notifications()->where('data->notification_type_code', 'investigation_created')->count());
-        $this->assertSame(1, $superAdmin->notifications()->where('data->notification_type_code', 'investigation_created')->count());
+        $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'investigation_created')->count());
         $this->assertSame(0, $satgas->notifications()->where('data->notification_type_code', 'investigation_created')->count());
 
         $activityId = $this->postJson("/api/v1/investigations/{$investigation->id}/activities", [
@@ -341,7 +344,7 @@ class InvestigationFoundationTest extends TestCase
         $this->assertSame(0, $admin->notifications()->where('data->notification_type_code', 'investigation_status_changed')->count());
         $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'investigation_status_changed')->count());
         $this->assertSame(1, $admin->notifications()->where('data->notification_type_code', 'investigation_completed')->count());
-        $this->assertSame(1, $superAdmin->notifications()->where('data->notification_type_code', 'investigation_completed')->count());
+        $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'investigation_completed')->count());
 
         $payload = $satgas->notifications()->where('data->notification_type_code', 'investigation_status_changed')->firstOrFail()->data;
         $this->assertSame($case->case_number, $payload['case_number']);
@@ -422,7 +425,13 @@ class InvestigationFoundationTest extends TestCase
 
     private function makeReport(): Report
     {
+        $reporter = $this->makeUser(
+            'reporter',
+            'reporter-'.(Report::query()->count() + 1).'@university.ac.id',
+        );
+
         return Report::query()->create([
+            'reporter_id' => $reporter->id,
             'registration_number' => 'SLP-'.now()->format('Ymd').'-'.str_pad((string) (Report::query()->count() + 1), 4, '0', STR_PAD_LEFT),
             'tracking_code' => null,
             'report_type' => 'confidential',
@@ -447,9 +456,11 @@ class InvestigationFoundationTest extends TestCase
     private function makeUser(string $roleCode, string $email): User
     {
         $role = Role::query()->where('code', $roleCode)->firstOrFail();
+        $university = University::query()->where('code', 'DEMO-UNIV')->firstOrFail();
 
         return User::query()->create([
             'role_id' => $role->id,
+            'university_id' => $university->id,
             'name' => "{$roleCode} User",
             'email' => $email,
             'password' => 'SecurePass123',

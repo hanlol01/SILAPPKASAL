@@ -8,6 +8,7 @@ use App\Enums\EvidenceClassification;
 use App\Enums\EvidenceCustodyEventType;
 use App\Enums\EvidenceStatus;
 use App\Enums\ReportStatus;
+use App\Models\AuditLog;
 use App\Models\CaseAssignment;
 use App\Models\CaseRecord;
 use App\Models\CaseStatus;
@@ -229,6 +230,90 @@ class EvidenceFileTest extends TestCase
         }
 
         $this->assertDatabaseMissing('audit_logs', [
+            'action' => AuditAction::EvidenceFilePreviewed->value,
+        ]);
+    }
+
+    public function test_super_admin_internal_evidence_reads_require_flag_and_use_oversight_audits(): void
+    {
+        [$evidence, $satgas] = $this->assignedEvidence();
+        $superAdmin = $this->makeUser('super_admin', 'oversight@university.ac.id');
+        $content = $this->pdfContent();
+
+        $this->actingAsApi($satgas);
+        $this->upload($evidence, 'internal-oversight.pdf', $content)->assertOk();
+
+        $this->actingAsApi($superAdmin);
+        config()->set('oversight.cross_campus_sensitive_read', false);
+        $this->getJson("/api/v1/evidences/{$evidence->id}/preview")->assertForbidden();
+        $this->getJson("/api/v1/evidences/{$evidence->id}/file")->assertForbidden();
+
+        config()->set('oversight.cross_campus_sensitive_read', true);
+        $preview = $this->get("/api/v1/evidences/{$evidence->id}/preview");
+        $preview->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->assertSame($content, $preview->streamedContent());
+
+        $download = $this->get("/api/v1/evidences/{$evidence->id}/file");
+        $download->assertOk()->assertDownload('internal-oversight.pdf');
+        $this->assertSame($content, $download->streamedContent());
+
+        $investigation = $evidence->investigation;
+        $case = $investigation->case;
+        $this->upload($evidence, 'super-admin-cannot-upload.pdf', $content)->assertForbidden();
+        $this->postJson("/api/v1/cases/{$case->id}/investigations", [
+            'plan_summary' => 'Super Admin tetap tidak dapat membuat Investigasi meskipun flag sensitif aktif.',
+        ])->assertForbidden();
+        $this->postJson("/api/v1/investigations/{$investigation->id}/activities", [
+            'activity_type' => 'case_review',
+            'activity_date' => now()->toDateString(),
+            'description' => 'Super Admin tidak dapat menambah aktivitas investigasi.',
+        ])->assertForbidden();
+        $this->patchJson("/api/v1/investigations/{$investigation->id}/status", [
+            'status' => 'evidence_collection',
+        ])->assertForbidden();
+        $this->postJson("/api/v1/investigations/{$investigation->id}/evidences", [
+            'evidence_type_code' => 'EVID-01',
+            'title' => 'Super Admin tidak dapat membuat bukti',
+            'description' => 'Percobaan mutasi harus ditolak oleh backend.',
+            'source' => 'Pengujian otorisasi.',
+            'collected_at' => now()->toJSON(),
+            'classification' => EvidenceClassification::Confidential->value,
+        ])->assertForbidden();
+        $this->patchJson("/api/v1/evidences/{$evidence->id}", [
+            'title' => 'Super Admin tidak dapat mengubah bukti',
+        ])->assertForbidden();
+        $this->patchJson("/api/v1/evidences/{$evidence->id}/status", [
+            'status' => EvidenceStatus::Verified->value,
+        ])->assertForbidden();
+
+        foreach ([
+            AuditAction::EvidenceFilePreviewedByOversight,
+            AuditAction::EvidenceFileDownloadedByOversight,
+        ] as $action) {
+            $audit = AuditLog::query()
+                ->where('action', $action->value)
+                ->where('actor_id', $superAdmin->id)
+                ->where('subject_id', $evidence->id)
+                ->firstOrFail();
+
+            $this->assertTrue($audit->is_elevated_access);
+            $this->assertSame($evidence->id, $audit->metadata['evidence_id']);
+            $this->assertSame(
+                $evidence->investigation->case->case_number,
+                $audit->metadata['case_number'],
+            );
+            $this->assertTrue($audit->metadata['cross_campus_read']);
+            $this->assertArrayNotHasKey('case_id', $audit->metadata);
+            $this->assertArrayNotHasKey('storage_path', $audit->metadata);
+            $this->assertArrayNotHasKey('description', $audit->metadata);
+        }
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_id' => $superAdmin->id,
+            'action' => AuditAction::EvidenceFileDownloaded->value,
+        ]);
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_id' => $superAdmin->id,
             'action' => AuditAction::EvidenceFilePreviewed->value,
         ]);
     }

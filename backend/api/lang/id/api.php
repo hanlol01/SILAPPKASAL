@@ -22,6 +22,8 @@ return [
         'case_investigation_completion_required' => 'Selesaikan investigasi sebelum melanjutkan kasus ke mediasi atau rekomendasi.',
         'investigation_stage_activity_required' => 'Tambahkan minimal satu aktivitas pada tahap :stage sebelum melanjutkan.',
         'investigation_activity_stage_incompatible' => 'Jenis aktivitas tersebut tidak dapat dicatat pada tahap :stage.',
+        'recovery_monitoring_required' => 'Tambahkan minimal satu catatan monitoring sebelum Pemulihan dapat diselesaikan.',
+        'case_recovery_completion_required' => 'Selesaikan Pemulihan dan catat minimal satu monitoring sebelum melanjutkan tahap Kasus.',
     ],
     'investigation_stages' => [
         'planning' => 'Perencanaan',

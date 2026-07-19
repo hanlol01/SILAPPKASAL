@@ -16,7 +16,9 @@ use App\Models\RecommendationStatus;
 use App\Models\Report;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\University;
 use App\Services\NotificationService;
+use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -33,6 +35,7 @@ class MyWorkFoundationTest extends TestCase
 
         $this->seed(RbacSeeder::class);
         $this->seed(MasterDataSeeder::class);
+        $this->seed(CampusMasterDataSeeder::class);
     }
 
     public function test_satgas_sees_only_active_assigned_work_summary_and_cases(): void
@@ -66,7 +69,7 @@ class MyWorkFoundationTest extends TestCase
         $this->assertNotSame($inactiveCase->id, $assignedCase->id);
     }
 
-    public function test_admin_and_super_admin_see_global_metadata_work_queues(): void
+    public function test_admin_sees_campus_work_and_super_admin_has_no_operational_work(): void
     {
         $admin = $this->makeUser('admin', 'admin@university.ac.id');
         $superAdmin = $this->makeUser('super_admin', 'super@university.ac.id');
@@ -76,14 +79,17 @@ class MyWorkFoundationTest extends TestCase
         $this->makeCase($admin, $satgas, CaseStatusEnum::Investigation);
         $this->makeCase($admin, $otherSatgas, CaseStatusEnum::Investigation);
 
-        foreach ([$admin, $superAdmin] as $user) {
-            $this->actingAsApi($user);
-            $this->getJson('/api/v1/my-work/cases')
-                ->assertOk()
-                ->assertJsonCount(2, 'data')
-                ->assertJsonMissingPath('data.0.risk_level_code')
-                ->assertJsonMissingPath('data.0.chronology');
-        }
+        $this->actingAsApi($admin);
+        $this->getJson('/api/v1/my-work/cases')
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonMissingPath('data.0.risk_level_code')
+            ->assertJsonMissingPath('data.0.chronology');
+
+        $this->actingAsApi($superAdmin);
+        $this->getJson('/api/v1/my-work/cases')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
     }
 
     public function test_reporter_is_forbidden_from_my_work(): void
@@ -122,6 +128,8 @@ class MyWorkFoundationTest extends TestCase
     public function test_pending_recommendations_include_missing_or_not_submitted_recommendations_only(): void
     {
         $admin = $this->makeUser('admin', 'admin@university.ac.id');
+        $otherAdmin = $this->makeUser('admin', 'other-admin@university.ac.id', 'DEMO-ST');
+        $superAdmin = $this->makeUser('super_admin', 'super@university.ac.id');
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
 
         $missingRecommendationCase = $this->makeCase($admin, $satgas, CaseStatusEnum::Recommendation);
@@ -129,7 +137,7 @@ class MyWorkFoundationTest extends TestCase
         $submittedRecommendationCase = $this->makeCase($admin, $satgas, CaseStatusEnum::Recommendation);
 
         $this->makeRecommendation($draftRecommendationCase, $satgas, RecommendationStatusEnum::Drafting);
-        $this->makeRecommendation($submittedRecommendationCase, $satgas, RecommendationStatusEnum::SubmittedToLeader);
+        $this->makeRecommendation($submittedRecommendationCase, $satgas, RecommendationStatusEnum::SubmittedForReview);
 
         $this->actingAsApi($satgas);
         $this->getJson('/api/v1/my-work/recommendations')
@@ -140,6 +148,24 @@ class MyWorkFoundationTest extends TestCase
             ->assertJsonMissingPath('data.0.conclusion')
             ->assertJsonMissingPath('data.0.recommended_actions')
             ->assertJsonMissingPath('data.0.decision_content');
+
+        $this->actingAsApi($admin);
+        $this->getJson('/api/v1/my-work/recommendations')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.case_id', $submittedRecommendationCase->id)
+            ->assertJsonMissingPath('data.0.conclusion')
+            ->assertJsonMissingPath('data.0.recommended_actions');
+
+        $this->actingAsApi($otherAdmin);
+        $this->getJson('/api/v1/my-work/recommendations')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        $this->actingAsApi($superAdmin);
+        $this->getJson('/api/v1/my-work/recommendations')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
     }
 
     public function test_my_work_filters_do_not_accept_priority_filter(): void
@@ -167,7 +193,7 @@ class MyWorkFoundationTest extends TestCase
             'status_code' => $status->code,
             'conclusion' => 'Sensitive recommendation conclusion must not be exposed.',
             'recommended_actions' => 'Sensitive recommendation actions must not be exposed.',
-            'submitted_at' => $statusName === RecommendationStatusEnum::SubmittedToLeader ? now() : null,
+            'submitted_at' => $statusName === RecommendationStatusEnum::SubmittedForReview ? now() : null,
         ]);
     }
 
@@ -189,7 +215,9 @@ class MyWorkFoundationTest extends TestCase
 
     private function makeCase(User $admin, User $satgas, CaseStatusEnum $statusName, bool $activeAssignment = true): CaseRecord
     {
+        $reporter = $this->makeUser('reporter', 'my-work-reporter-'.(Report::query()->count() + 1).'@university.ac.id');
         $report = Report::query()->create([
+            'reporter_id' => $reporter->id,
             'registration_number' => 'SLP-'.now()->format('Ymd').'-'.str_pad((string) (Report::query()->count() + 1), 4, '0', STR_PAD_LEFT),
             'tracking_code' => null,
             'report_type' => 'confidential',
@@ -235,7 +263,11 @@ class MyWorkFoundationTest extends TestCase
         return $case;
     }
 
-    private function makeUser(string $roleCode, string $email): User
+    private function makeUser(
+        string $roleCode,
+        string $email,
+        string $universityCode = 'DEMO-UNIV',
+    ): User
     {
         $role = Role::query()->where('code', $roleCode)->firstOrFail();
 
@@ -245,6 +277,7 @@ class MyWorkFoundationTest extends TestCase
             'email' => $email,
             'password' => 'SecurePass123',
             'is_active' => true,
+            'university_id' => University::query()->where('code', $universityCode)->firstOrFail()->id,
         ]);
     }
 

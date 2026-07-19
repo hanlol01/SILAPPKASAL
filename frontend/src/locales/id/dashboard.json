@@ -132,6 +132,8 @@
     "identityHidden": "Identitas pelapor disembunyikan",
     "detailTitle": "Ringkasan laporan",
     "detailDesc": "Hanya ringkasan yang ditampilkan untuk detail laporan operasional.",
+    "sensitiveDetails": "Detail laporan sensitif",
+    "sensitiveDetailsDesc": "Ditampilkan hanya dalam mode pengawasan sensitif yang diaktifkan dan diaudit.",
     "actionsDesc": "Pilih Satgas yang menangani laporan ini.",
     "generalActionsDesc": "Aksi tambahan yang tersedia untuk laporan ini.",
     "satgasHint": "Pilih satu atau lebih Satgas dan tentukan ketua dari pengguna terpilih.",
@@ -162,10 +164,10 @@
       "desc": "Arahan singkat sesuai status kasus dan peran Anda.",
       "fallback": "Ikuti aksi alur kerja yang tersedia pada panel aksi.",
       "context": {
-        "recommendationSubmittedSatgas": "Rekomendasi telah dikirim. Tunggu hasil tinjauan Pimpinan PPKS.",
-        "recommendationSubmittedSuperAdmin": "Tinjau rekomendasi, lalu setujui atau kembalikan kepada Satgas untuk revisi.",
-        "recommendationPendingAdmin": "Rekomendasi sedang menunggu persetujuan Pimpinan PPKS. Putusan belum dapat dibuat.",
-        "recommendationRevisedSatgas": "Baca catatan revisi, perbarui rekomendasi, lalu kirim kembali ke Pimpinan PPKS.",
+        "recommendationSubmittedSatgas": "Rekomendasi telah diajukan. Tunggu hasil peninjauan Admin Kampus.",
+        "recommendationSubmittedSuperAdmin": "Mode pengawasan hanya-baca; peninjauan dilakukan oleh Admin Kampus.",
+        "recommendationPendingAdmin": "Rekomendasi sedang menunggu peninjauan Admin Kampus.",
+        "recommendationRevisedSatgas": "Baca catatan revisi, perbarui rekomendasi, lalu ajukan kembali ke Admin Kampus.",
         "recommendationAcceptedAdmin": "Rekomendasi telah disetujui. Buat putusan melalui tab Putusan.",
         "recommendationAcceptedSatgas": "Rekomendasi telah disetujui. Tunggu Admin mencatat putusan.",
         "decisionDraftAdmin": "Lengkapi draf putusan, lalu ubah statusnya menjadi tercatat.",
@@ -193,7 +195,7 @@
       },
       "recommendation": {
         "all": "Menunggu rekomendasi disusun.",
-        "satgas": "Susun rekomendasi melalui tab Rekomendasi, lalu kirim ke pimpinan.",
+        "satgas": "Susun rekomendasi melalui tab Rekomendasi, lalu ajukan ke Admin Kampus.",
         "admin": "Menunggu rekomendasi dari Satgas yang ditugaskan."
       },
       "decision": {
@@ -276,7 +278,7 @@
         "investigationCreated": "Investigasi dibuat",
         "investigationCreatedDesc": "Investigasi kasus dimulai.",
         "recommendationSubmitted": "Rekomendasi dikirim",
-        "recommendationSubmittedDesc": "Rekomendasi dikirim ke pimpinan.",
+        "recommendationSubmittedDesc": "Rekomendasi diajukan kepada Admin Kampus untuk ditinjau.",
         "decisionFinalized": "Putusan final",
         "decisionFinalizedDesc": "Putusan institusi telah ditetapkan.",
         "recoveryCompleted": "Pemulihan selesai",
@@ -554,9 +556,9 @@
     "recommendationUpdateError": "Rekomendasi tidak dapat diperbarui",
     "recommendationStatusUpdated": "Status rekomendasi diperbarui",
     "recommendationStatusError": "Status rekomendasi tidak dapat diperbarui",
-    "submitRecommendation": "Kirim ke Pimpinan",
-    "submitRecommendationDesc": "Setelah dikirim, rekomendasi tidak dapat diubah sampai Pimpinan PPKS mengembalikannya untuk revisi.",
-    "recommendationSubmitted": "Rekomendasi dikirim ke Pimpinan PPKS",
+    "submitRecommendation": "Ajukan ke Admin Kampus",
+    "submitRecommendationDesc": "Setelah diajukan, rekomendasi tidak dapat diubah sampai Admin Kampus mengembalikannya untuk revisi.",
+    "recommendationSubmitted": "Rekomendasi diajukan untuk peninjauan Admin Kampus",
     "recommendationSubmitError": "Rekomendasi tidak dapat dikirim",
     "approveRecommendation": "Setujui Rekomendasi",
     "approveRecommendationDesc": "Persetujuan akan memajukan kasus ke tahap putusan dan menyerahkannya kepada Admin.",
@@ -573,29 +575,34 @@
     "recommendationGuidance": {
       "fallback": "Status rekomendasi ini bersifat baca-saja untuk peran Anda.",
       "drafting": {
-        "satgas": "Lengkapi rekomendasi, lalu kirim ke Pimpinan PPKS.",
+        "satgas": "Lengkapi rekomendasi, lalu ajukan ke Admin Kampus.",
         "admin": "Rekomendasi masih disusun oleh Satgas.",
-        "superAdmin": "Rekomendasi belum dikirim untuk ditinjau."
+        "superAdmin": "Mode pengawasan hanya-baca."
       },
       "internal_review": {
-        "satgas": "Selesaikan tinjauan internal, lalu kirim ke Pimpinan PPKS.",
+        "satgas": "Selesaikan tinjauan internal, lalu ajukan ke Admin Kampus.",
         "admin": "Rekomendasi masih dalam tinjauan internal Satgas.",
-        "superAdmin": "Rekomendasi belum dikirim untuk ditinjau."
+        "superAdmin": "Mode pengawasan hanya-baca."
       },
       "submitted_to_leader": {
-        "satgas": "Menunggu hasil tinjauan Pimpinan PPKS.",
-        "admin": "Menunggu persetujuan Pimpinan PPKS sebelum putusan dapat dibuat.",
-        "superAdmin": "Tinjau isi rekomendasi, lalu setujui atau kembalikan untuk revisi."
+        "satgas": "Menunggu peninjauan Admin Kampus.",
+        "admin": "Tinjau rekomendasi, lalu setujui atau kembalikan untuk revisi.",
+        "superAdmin": "Mode pengawasan hanya-baca."
+      },
+      "submitted_for_review": {
+        "satgas": "Menunggu peninjauan Admin Kampus.",
+        "admin": "Tinjau rekomendasi, lalu setujui atau kembalikan untuk revisi.",
+        "superAdmin": "Mode pengawasan hanya-baca."
       },
       "revised": {
         "satgas": "Perbarui rekomendasi sesuai catatan revisi, lalu kirim kembali.",
         "admin": "Rekomendasi sedang direvisi oleh Satgas.",
-        "superAdmin": "Rekomendasi telah dikembalikan dan menunggu pengiriman ulang."
+        "superAdmin": "Mode pengawasan hanya-baca."
       },
       "accepted": {
         "satgas": "Rekomendasi telah disetujui dan menunggu putusan Admin.",
         "admin": "Rekomendasi siap digunakan untuk membuat putusan.",
-        "superAdmin": "Rekomendasi telah disetujui dan diserahkan kepada Admin."
+        "superAdmin": "Mode pengawasan hanya-baca."
       },
       "partially_accepted": {
         "satgas": "Status legacy ini ditampilkan sebagai catatan baca-saja.",
@@ -678,6 +685,11 @@
       "case_assessment_required": "Catat tingkat risiko dan prioritas sebelum melanjutkan kasus ke tahap investigasi.",
       "case_investigation_completion_required": "Selesaikan investigasi sebelum melanjutkan kasus ke mediasi atau rekomendasi.",
       "investigation_stage_activity_required": "Tambahkan minimal satu aktivitas pada tahap {{stage}} sebelum melanjutkan.",
+      "campus_access_denied": "Data operasional ini berada di luar lingkup kampus Anda.",
+      "oversight_read_only": "Mode pengawasan hanya-baca. Perubahan operasional dilakukan oleh Admin Kampus atau Satgas yang berwenang.",
+      "recovery_not_ongoing": "Monitoring hanya dapat ditambahkan ketika Pemulihan berstatus berjalan.",
+      "recovery_monitoring_required": "Tambahkan minimal satu catatan monitoring sebelum Pemulihan dapat diselesaikan.",
+      "case_recovery_completion_required": "Selesaikan Pemulihan dan catat minimal satu monitoring sebelum melanjutkan Kasus.",
       "action_unavailable": "Aksi belum tersedia untuk kondisi alur kerja saat ini."
     },
     "tips": {
@@ -690,6 +702,29 @@
       "current_stage_activity_completed": "Aktivitas tahap {{stage}} telah tercatat. Status Investigasi dapat dilanjutkan.",
       "move_case_after_investigation": "Investigasi selesai. Lanjutkan Kasus ke mediasi atau rekomendasi.",
       "create_recommendation": "Buat Rekomendasi melalui kartu Aksi Kasus.",
+      "recommendation_waiting_campus_admin": "Rekomendasi sedang menunggu peninjauan Admin Kampus.",
+      "recommendation_returned": "Rekomendasi dikembalikan. Perbaiki sesuai catatan Admin Kampus.",
+      "recommendation_waiting_satgas_revision": "Rekomendasi telah dikembalikan. Tunggu Satgas memperbaiki dan mengajukannya kembali.",
+      "review_recommendation": "Rekomendasi diajukan untuk peninjauan. Setujui atau kembalikan untuk revisi.",
+      "recommendation_approved_create_decision": "Rekomendasi telah disetujui. Admin Kampus dapat membuat Putusan.",
+      "wait_for_campus_admin_decision": "Tunggu Admin Kampus mencatat dan memfinalisasi Putusan.",
+      "decision_draft": "Lengkapi draf Putusan, lalu catat ketika siap.",
+      "decision_recorded": "Putusan telah dicatat dan dapat difinalisasi oleh Admin Kampus.",
+      "advance_case_to_recovery": "Putusan telah final. Satgas dapat melanjutkan Kasus ke tahap Pemulihan.",
+      "wait_for_satgas_recovery_stage": "Putusan telah final. Tunggu Satgas melanjutkan Kasus ke tahap Pemulihan.",
+      "create_recovery": "Buat rencana Pemulihan untuk Putusan yang telah final.",
+      "wait_for_campus_admin_recovery": "Tunggu Admin Kampus membuat dan memulai rencana Pemulihan.",
+      "recovery_needs_monitoring": "Tambahkan minimal satu catatan monitoring sebelum Pemulihan dapat diselesaikan.",
+      "wait_for_satgas_monitoring": "Pemulihan sedang berjalan. Tunggu Satgas menambahkan catatan monitoring.",
+      "recovery_can_complete": "Monitoring telah tercatat. Admin Kampus dapat menyelesaikan Pemulihan.",
+      "wait_for_campus_admin_recovery_completion": "Monitoring telah tercatat. Tunggu Admin Kampus menyelesaikan Pemulihan.",
+      "recovery_completed_advance_monitoring": "Pemulihan telah selesai. Satgas dapat melanjutkan Kasus ke tahap Monitoring.",
+      "wait_for_satgas_monitoring_stage": "Pemulihan telah selesai. Tunggu Satgas melanjutkan Kasus ke tahap Monitoring.",
+      "case_monitoring_close": "Prasyarat selesai. Satgas dapat menutup Kasus.",
+      "wait_for_satgas_case_closure": "Kasus berada pada tahap Monitoring. Tunggu Satgas menutup Kasus.",
+      "case_closed": "Kasus telah selesai dan status Reporter ditampilkan sebagai Selesai.",
+      "oversight_read_only": "Mode pengawasan hanya-baca. Perubahan operasional dilakukan oleh Admin Kampus atau Satgas yang berwenang.",
+      "campus_access_denied": "Kasus ini berada di luar lingkup kampus Admin.",
       "read_only_no_assignment": "Data ditampilkan baca-saja karena Anda bukan Satgas aktif yang ditugaskan pada kasus ini.",
       "permission_missing": "Izin yang diperlukan untuk langkah berikutnya tidak tersedia.",
       "follow_available_case_action": "Ikuti aksi kasus yang tersedia sesuai status dan kewenangan Anda."
@@ -720,7 +755,9 @@
     "createDecisionNeedsStatus": "Kasus harus berada pada status putusan sebelum putusan dibuat.",
     "createDecisionLoading": "Data rekomendasi atau putusan masih dimuat.",
     "createDecisionExists": "Kasus ini sudah memiliki putusan.",
-    "createDecisionNeedsRecommendation": "Rekomendasi yang sudah disetujui Pimpinan PPKS diperlukan sebelum putusan dibuat.",
+    "createDecisionNeedsRecommendation": "Rekomendasi yang sudah disetujui Admin Kampus diperlukan sebelum putusan dibuat.",
+    "oversightReadOnly": "Mode pengawasan hanya-baca. Perubahan operasional dilakukan oleh Admin Kampus atau Satgas yang berwenang.",
+    "sensitiveOversightUnavailable": "Konten sensitif tidak tersedia karena akses pengawasan sensitif belum diaktifkan.",
     "createDecisionUnavailable": "Pembuatan putusan tidak tersedia untuk kasus ini.",
     "createRecoveryClosed": "Kasus yang sudah ditutup tidak dapat menerima aksi pemulihan.",
     "createRecoveryLoading": "Data putusan masih dimuat.",
@@ -1036,21 +1073,22 @@
       "history": "Riwayat Aktivitas"
     },
     "queues": {
-      "waiting_admin": "Menunggu Admin",
+      "waiting_admin": "Menunggu Admin Kampus",
       "waiting_satgas": "Menunggu Satgas PPKS",
-      "waiting_leader": "Menunggu Pimpinan PPKS",
+      "waiting_leader": "Menunggu Admin Kampus (filter lama)",
       "emergency_access": "Permintaan Akses Darurat",
       "critical_security": "Keamanan Kritis"
     },
     "queueDescriptions": {
-      "waiting_admin": "Verifikasi, penugasan, atau putusan yang memerlukan tindakan Admin.",
+      "waiting_admin": "Penerusan laporan, peninjauan rekomendasi, penugasan, atau putusan yang memerlukan tindakan Admin Kampus.",
       "waiting_satgas": "Kasus aktif yang memerlukan tindak lanjut Satgas PPKS.",
-      "waiting_leader": "Rekomendasi yang menunggu peninjauan Pimpinan PPKS.",
+      "waiting_leader": "Filter kompatibilitas lama yang diarahkan ke antrean Admin Kampus.",
       "emergency_access": "Permintaan akses luar biasa yang belum diputuskan.",
       "critical_security": "Peristiwa keamanan kritis yang perlu diperhatikan."
     },
     "workTypes": {
-      "report_verification": "Verifikasi laporan",
+      "report_verification": "Laporan menunggu penerusan (istilah lama)",
+      "report_forwarding": "Laporan menunggu penerusan",
       "case_assignment": "Penugasan kasus",
       "satgas_case": "Tindak lanjut kasus",
       "recommendation_review": "Peninjauan rekomendasi",
@@ -1281,11 +1319,15 @@
       "evidence_file_uploaded": "File bukti diunggah",
       "evidence_file_downloaded": "File bukti diunduh",
       "evidence_file_previewed": "File bukti dipratinjau",
+      "evidence_file_downloaded_by_oversight": "File bukti diunduh dalam pengawasan",
+      "evidence_file_previewed_by_oversight": "File bukti dipratinjau dalam pengawasan",
       "reporter_evidence_uploaded": "Bukti pelapor diunggah",
       "reporter_evidence_downloaded_by_reporter": "Bukti diunduh oleh pelapor",
       "reporter_evidence_downloaded_by_satgas": "Bukti diunduh oleh Satgas",
       "reporter_evidence_previewed_by_reporter": "Bukti dipratinjau oleh pelapor",
       "reporter_evidence_previewed_by_satgas": "Bukti dipratinjau oleh Satgas",
+      "reporter_evidence_downloaded_by_oversight": "Bukti pendukung diunduh dalam pengawasan",
+      "reporter_evidence_previewed_by_oversight": "Bukti pendukung dipratinjau dalam pengawasan",
       "break_glass_request": "Akses darurat diminta",
       "break_glass_approve": "Akses darurat disetujui",
       "break_glass_deny": "Akses darurat ditolak",
@@ -1411,7 +1453,8 @@
       "drafting": "Penyusunan",
       "internal_review": "Review internal",
       "revised": "Direvisi",
-      "submitted_to_leader": "Dikirim ke pimpinan",
+      "submitted_to_leader": "Diajukan untuk Peninjauan",
+      "submitted_for_review": "Diajukan untuk Peninjauan",
       "accepted": "Diterima",
       "partially_accepted": "Diterima sebagian",
       "rejected": "Ditolak"

@@ -213,6 +213,67 @@ class ReportEvidenceSubmissionTest extends TestCase
         $this->assertNotNull($case->id);
     }
 
+    public function test_super_admin_sensitive_reporter_file_reads_require_flag_and_use_oversight_audits(): void
+    {
+        $reporter = $this->makeUser('reporter', 'oversight-owner@example.test');
+        $superAdmin = $this->makeUser('super_admin', 'oversight@example.test');
+        $report = $this->makeReport($reporter);
+        $content = $this->pdfContent();
+
+        $this->actingAsApi($reporter);
+        $uuid = $this->upload($report, 'oversight.pdf', $content)
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->actingAsApi($superAdmin);
+        config()->set('oversight.cross_campus_sensitive_read', false);
+        $this->getJson("/api/v1/reports/{$report->id}/reporter-evidence-files")->assertForbidden();
+        $this->getJson("/api/v1/reporter-evidence-files/{$uuid}/preview")->assertForbidden();
+        $this->getJson("/api/v1/reporter-evidence-files/{$uuid}/download")->assertForbidden();
+
+        config()->set('oversight.cross_campus_sensitive_read', true);
+        $this->getJson("/api/v1/reports/{$report->id}/reporter-evidence-files")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $uuid);
+        $this->upload($report, 'super-admin-cannot-upload.pdf', $content)->assertForbidden();
+
+        $preview = $this->get("/api/v1/reporter-evidence-files/{$uuid}/preview");
+        $this->assertInlinePreviewResponse($preview, 'oversight.pdf', $content, 'application/pdf');
+
+        $download = $this->get("/api/v1/reporter-evidence-files/{$uuid}/download");
+        $download->assertOk()->assertDownload('oversight.pdf');
+        $this->assertSame($content, $download->streamedContent());
+
+        $submission = ReportEvidenceSubmission::query()->sole();
+        foreach ([
+            AuditAction::ReporterEvidencePreviewedByOversight,
+            AuditAction::ReporterEvidenceDownloadedByOversight,
+        ] as $action) {
+            $audit = AuditLog::query()
+                ->where('action', $action->value)
+                ->where('actor_id', $superAdmin->id)
+                ->where('subject_id', $submission->id)
+                ->firstOrFail();
+
+            $this->assertTrue($audit->is_elevated_access);
+            $this->assertSame($uuid, $audit->metadata['attachment_uuid']);
+            $this->assertSame($report->registration_number, $audit->metadata['registration_number']);
+            $this->assertTrue($audit->metadata['cross_campus_read']);
+            $this->assertArrayNotHasKey('storage_path', $audit->metadata);
+            $this->assertArrayNotHasKey('filename', $audit->metadata);
+        }
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_id' => $superAdmin->id,
+            'action' => AuditAction::ReporterEvidenceDownloadedBySatgas->value,
+        ]);
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_id' => $superAdmin->id,
+            'action' => AuditAction::ReporterEvidencePreviewedBySatgas->value,
+        ]);
+    }
+
     public function test_reporter_cannot_access_another_report_or_substitute_an_attachment_uuid(): void
     {
         $owner = $this->makeUser('reporter', 'owner@example.test');

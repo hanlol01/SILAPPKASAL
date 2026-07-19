@@ -13,6 +13,7 @@ return [
         'timezone' => 'Asia/Jakarta',
         'threshold_business_days' => [
             'report_verification' => 2,
+            'report_forwarding' => 2,
             'case_assignment' => 1,
             'satgas_case' => 5,
             'recommendation_review' => 3,

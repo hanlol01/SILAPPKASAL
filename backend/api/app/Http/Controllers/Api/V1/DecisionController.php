@@ -7,6 +7,7 @@ use App\Http\Requests\StoreDecisionRequest;
 use App\Http\Requests\UpdateDecisionRequest;
 use App\Http\Requests\UpdateDecisionStatusRequest;
 use App\Http\Resources\DecisionResource;
+use App\Http\Resources\DecisionMetadataResource;
 use App\Models\Decision;
 use App\Models\Recommendation;
 use App\Services\DecisionService;
@@ -22,6 +23,8 @@ class DecisionController extends Controller
 
     public function storeForRecommendation(StoreDecisionRequest $request, Recommendation $recommendation): JsonResponse
     {
+        Gate::authorize('create', [Decision::class, $recommendation]);
+
         $decision = $this->decisionService->createForRecommendation($recommendation, $request->user(), $request->validated());
 
         return response()->json([
@@ -38,7 +41,9 @@ class DecisionController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Decisions retrieved successfully',
-            'data' => DecisionResource::collection($decisions),
+            'data' => $decisions->map(fn (Decision $decision) => $this->decisionService->canReadSensitive($decision, $request->user())
+                ? new DecisionResource($decision)
+                : new DecisionMetadataResource($decision))->values(),
         ]);
     }
 
@@ -49,7 +54,9 @@ class DecisionController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Decision retrieved successfully',
-            'data' => new DecisionResource($this->decisionService->loadForUser($decision, $request->user())),
+            'data' => $this->decisionService->canReadSensitive($decision, $request->user())
+                ? new DecisionResource($this->decisionService->loadForUser($decision, $request->user()))
+                : new DecisionMetadataResource($this->decisionService->loadForUser($decision, $request->user())),
         ]);
     }
 

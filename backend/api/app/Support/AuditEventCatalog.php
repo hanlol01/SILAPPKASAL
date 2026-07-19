@@ -114,8 +114,10 @@ final class AuditEventCatalog
             AuditAction::EvidenceStatusChanged,
             AuditAction::EvidenceFileUploaded,
             AuditAction::EvidenceFileDownloaded,
-            AuditAction::EvidenceFilePreviewed => $this->fields(
-                ['case_number', 'evidence_type_code', 'classification', 'status_code'],
+            AuditAction::EvidenceFilePreviewed,
+            AuditAction::EvidenceFileDownloadedByOversight,
+            AuditAction::EvidenceFilePreviewedByOversight => $this->fields(
+                ['case_number', 'evidence_id', 'evidence_type_code', 'classification', 'status_code', 'cross_campus_read'],
                 ['status_code', 'classification', 'has_file'],
             ),
 
@@ -123,8 +125,10 @@ final class AuditEventCatalog
             AuditAction::ReporterEvidenceDownloadedByReporter,
             AuditAction::ReporterEvidenceDownloadedBySatgas,
             AuditAction::ReporterEvidencePreviewedByReporter,
-            AuditAction::ReporterEvidencePreviewedBySatgas => $this->fields(
-                ['registration_number', 'attachment_uuid'],
+            AuditAction::ReporterEvidencePreviewedBySatgas,
+            AuditAction::ReporterEvidenceDownloadedByOversight,
+            AuditAction::ReporterEvidencePreviewedByOversight => $this->fields(
+                ['registration_number', 'attachment_uuid', 'cross_campus_read'],
             ),
 
             AuditAction::BreakGlassRequested,

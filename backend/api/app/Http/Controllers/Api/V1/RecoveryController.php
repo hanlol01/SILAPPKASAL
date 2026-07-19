@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateRecoveryRequest;
 use App\Http\Requests\UpdateRecoveryStatusRequest;
 use App\Http\Resources\RecoveryMonitoringResource;
 use App\Http\Resources\RecoveryResource;
+use App\Http\Resources\RecoveryMetadataResource;
 use App\Models\Decision;
 use App\Models\Recovery;
 use App\Services\RecoveryService;
@@ -42,7 +43,9 @@ class RecoveryController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Recoveries retrieved successfully',
-            'data' => RecoveryResource::collection($recoveries),
+            'data' => $recoveries->map(fn (Recovery $recovery) => $this->recoveryService->canReadSensitive($recovery, $request->user())
+                ? new RecoveryResource($recovery)
+                : new RecoveryMetadataResource($recovery))->values(),
         ]);
     }
 
@@ -53,7 +56,9 @@ class RecoveryController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Recovery retrieved successfully',
-            'data' => new RecoveryResource($this->recoveryService->loadForUser($recovery, $request->user())),
+            'data' => $this->recoveryService->canReadSensitive($recovery, $request->user())
+                ? new RecoveryResource($this->recoveryService->loadForUser($recovery, $request->user()))
+                : new RecoveryMetadataResource($this->recoveryService->loadForUser($recovery, $request->user())),
         ]);
     }
 
