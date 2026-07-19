@@ -667,6 +667,7 @@
       "not_satgas": "This action is only available to Satgas PPKS.",
       "permission_missing": "The required permission for this action is unavailable.",
       "case_closed": "This case is closed, so the action is unavailable.",
+      "lifecycle_controlled": "Case status at this stage is controlled by the Recommendation or Decision workflow.",
       "case_not_investigation": "The case must be in the investigation stage.",
       "investigation_missing": "Create the Investigation before adding evidence.",
       "investigation_completed": "The Investigation is completed, so no new evidence or activities can be added.",
@@ -690,6 +691,7 @@
       "move_case_after_investigation": "The Investigation is complete. Advance the Case to mediation or recommendation.",
       "create_recommendation": "Create the Recommendation from the Case Action card.",
       "read_only_no_assignment": "This data is read-only because you are not an active Satgas member assigned to the case.",
+      "permission_missing": "The permission required for the next step is unavailable.",
       "follow_available_case_action": "Follow the available Case actions for your current role and workflow state."
     },
     "editRecommendation": "Edit recommendation",

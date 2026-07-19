@@ -56,6 +56,9 @@
     "registrationNumberUnavailable": "Nomor pendaftaran tidak dapat dibuat. Silakan coba lagi.",
     "trackingNotFound": "Kode pelacakan laporan tidak ditemukan.",
     "portalReportNotFound": "Laporan tidak ditemukan.",
+    "caseAssessmentRequired": "Catat tingkat risiko dan prioritas sebelum melanjutkan kasus ke tahap investigasi.",
+    "caseInvestigationCompletionRequired": "Selesaikan investigasi sebelum melanjutkan kasus ke mediasi atau rekomendasi.",
+    "investigationStageActivityRequired": "Tambahkan minimal satu aktivitas pada tahap investigasi saat ini sebelum melanjutkan.",
     "auditExportTooManyRows": "Hasil ekspor audit melebihi batas 10.000 baris. Persempit rentang tanggal atau filter."
   }
 }

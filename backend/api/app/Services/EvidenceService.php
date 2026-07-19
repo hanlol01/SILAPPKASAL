@@ -48,7 +48,9 @@ class EvidenceService
 
         return DB::transaction(function () use ($investigation, $actor, $data): Evidence {
             $investigation = Investigation::query()->with(['case.status', 'status'])->whereKey($investigation->id)->lockForUpdate()->firstOrFail();
+            $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
 
+            $this->authorizeAssignedSatgas($investigation, $actor, lockAssignment: true);
             $this->ensureInvestigationCanAcceptEvidence($investigation);
             $evidenceType = $this->activeEvidenceType($data['evidence_type_code']);
 
@@ -472,17 +474,20 @@ class EvidenceService
         Investigation $investigation,
         User $actor,
         string $capability = 'evidence.upload',
+        bool $lockAssignment = false,
     ): void
     {
         if (! $actor->is_active || ! $actor->hasPermission($capability) || ! $actor->hasPermission('evidence.view.case') || ! $actor->hasRole('satgas_ppks')) {
             throw $this->forbidden();
         }
 
-        $isAssigned = \App\Models\CaseAssignment::query()
+        $assignmentQuery = \App\Models\CaseAssignment::query()
             ->where('case_id', $investigation->case_id)
             ->where('satgas_id', $actor->id)
-            ->where('is_active', true)
-            ->exists();
+            ->where('is_active', true);
+        $isAssigned = $lockAssignment
+            ? $assignmentQuery->lockForUpdate()->first() !== null
+            : $assignmentQuery->exists();
 
         if (! $isAssigned) {
             throw $this->forbidden();

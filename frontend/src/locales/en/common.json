@@ -56,6 +56,9 @@
     "registrationNumberUnavailable": "A registration number could not be created. Please try again.",
     "trackingNotFound": "The report tracking code was not found.",
     "portalReportNotFound": "The report was not found.",
+    "caseAssessmentRequired": "Record the risk level and priority before advancing the case to investigation.",
+    "caseInvestigationCompletionRequired": "Complete the investigation before advancing the case to mediation or recommendation.",
+    "investigationStageActivityRequired": "Add at least one activity in the current investigation stage before continuing.",
     "auditExportTooManyRows": "The audit export exceeds the 10,000-row limit. Narrow the date range or filters."
   }
 }

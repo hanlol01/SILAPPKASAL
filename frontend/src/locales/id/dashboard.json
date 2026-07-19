@@ -667,6 +667,7 @@
       "not_satgas": "Aksi ini hanya tersedia untuk Satgas PPKS.",
       "permission_missing": "Izin yang diperlukan untuk aksi ini tidak tersedia.",
       "case_closed": "Kasus telah ditutup sehingga aksi ini tidak tersedia.",
+      "lifecycle_controlled": "Status kasus pada tahap ini dikendalikan oleh alur rekomendasi atau putusan.",
       "case_not_investigation": "Kasus harus berada pada tahap investigasi.",
       "investigation_missing": "Buat Investigasi terlebih dahulu sebelum menambahkan bukti.",
       "investigation_completed": "Investigasi telah selesai sehingga bukti atau aktivitas baru tidak dapat ditambahkan.",
@@ -690,6 +691,7 @@
       "move_case_after_investigation": "Investigasi selesai. Lanjutkan Kasus ke mediasi atau rekomendasi.",
       "create_recommendation": "Buat Rekomendasi melalui kartu Aksi Kasus.",
       "read_only_no_assignment": "Data ditampilkan baca-saja karena Anda bukan Satgas aktif yang ditugaskan pada kasus ini.",
+      "permission_missing": "Izin yang diperlukan untuk langkah berikutnya tidak tersedia.",
       "follow_available_case_action": "Ikuti aksi kasus yang tersedia sesuai status dan kewenangan Anda."
     },
     "editRecommendation": "Ubah rekomendasi",

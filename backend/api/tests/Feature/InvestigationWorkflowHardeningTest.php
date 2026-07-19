@@ -10,9 +10,11 @@ use App\Models\CaseRecord;
 use App\Models\CaseStatus;
 use App\Models\Investigation;
 use App\Models\InvestigationStatus;
+use App\Models\Permission;
 use App\Models\Report;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\CaseWorkflowContextService;
 use App\Support\ApiErrorCode;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
@@ -40,6 +42,7 @@ class InvestigationWorkflowHardeningTest extends TestCase
         CaseStatus::query()->where('name', CaseStatusEnum::Assessment->value)->firstOrFail()
             ->forceFill(['valid_transitions' => [CaseStatusEnum::Investigation->value]])
             ->save();
+        $case->forceFill(['assessment_at' => now()])->save();
 
         $this->actingAsApi($lead);
         $this->getJson("/api/v1/cases/{$case->id}")
@@ -74,6 +77,35 @@ class InvestigationWorkflowHardeningTest extends TestCase
         $this->patchJson("/api/v1/cases/{$case->id}/status", ['status' => $investigationStatus->code])
             ->assertOk()
             ->assertJsonPath('data.status', CaseStatusEnum::Investigation->value);
+    }
+
+    public function test_workflow_context_respects_permissions_and_lifecycle_controlled_case_stages(): void
+    {
+        [, $lead, $case] = $this->caseWithLead(CaseStatusEnum::Investigation);
+        $satgasRole = Role::query()->where('code', 'satgas_ppks')->firstOrFail();
+        $investigatePermission = Permission::query()->where('code', 'cases.investigate')->firstOrFail();
+        $satgasRole->permissions()->detach($investigatePermission->id);
+        $lead->unsetRelation('role');
+
+        $context = app(CaseWorkflowContextService::class)->forCase($case->fresh(), $lead);
+        $this->assertFalse($context['actions']['create_investigation']['allowed']);
+        $this->assertSame('permission_missing', $context['actions']['create_investigation']['reason_code']);
+        $this->assertSame('permission_missing', $context['primary_tip_code']);
+
+        $readAssignedPermission = Permission::query()->where('code', 'cases.read.assigned')->firstOrFail();
+        $satgasRole->permissions()->detach($readAssignedPermission->id);
+        $lead->unsetRelation('role');
+        $context = app(CaseWorkflowContextService::class)->forCase($case->fresh(), $lead);
+        $this->assertFalse($context['actions']['update_case_status']['allowed']);
+        $this->assertSame('permission_missing', $context['actions']['update_case_status']['reason_code']);
+
+        $satgasRole->permissions()->syncWithoutDetaching([$investigatePermission->id, $readAssignedPermission->id]);
+        $lead->unsetRelation('role');
+        $recommendationStatus = CaseStatus::query()->where('name', CaseStatusEnum::Recommendation->value)->firstOrFail();
+        $case->forceFill(['status_code' => $recommendationStatus->code])->save();
+        $context = app(CaseWorkflowContextService::class)->forCase($case->fresh(), $lead);
+        $this->assertFalse($context['actions']['update_case_status']['allowed']);
+        $this->assertSame('lifecycle_controlled', $context['actions']['update_case_status']['reason_code']);
     }
 
     public function test_only_active_assigned_lead_can_create_and_server_derives_lead(): void
@@ -320,6 +352,37 @@ class InvestigationWorkflowHardeningTest extends TestCase
             ->assertJsonPath('data.current_stage_activity_count', 1)
             ->assertJsonPath('data.can_transition', true)
             ->assertJsonPath('data.reason_code', null);
+    }
+
+    public function test_activity_stage_migration_round_trip_preserves_legacy_rows(): void
+    {
+        [, $lead, $case] = $this->caseWithLead(CaseStatusEnum::Investigation);
+        $investigation = $this->makeInvestigation($case, $lead, InvestigationStatusEnum::Planning);
+        $legacyActivityId = $investigation->activities()->create([
+            'investigator_id' => $lead->id,
+            'activity_type' => 'case_review',
+            'activity_date' => now()->toDateString(),
+            'description' => 'Aktivitas legacy untuk uji migrasi.',
+        ])->id;
+        $migration = require database_path('migrations/2026_07_19_010000_add_investigation_stage_to_investigation_activities.php');
+
+        $migration->down();
+        $this->assertFalse(Schema::hasColumn('investigation_activities', 'investigation_stage_code'));
+        $this->assertDatabaseHas('investigation_activities', ['id' => $legacyActivityId]);
+
+        $migration->up();
+        $stageColumn = collect(Schema::getColumns('investigation_activities'))
+            ->firstWhere('name', 'investigation_stage_code');
+        $this->assertIsArray($stageColumn);
+        $this->assertTrue($stageColumn['nullable']);
+        $this->assertContains(
+            'investigation_activities_investigation_stage_index',
+            collect(Schema::getIndexes('investigation_activities'))->pluck('name')->all(),
+        );
+        $this->assertDatabaseHas('investigation_activities', [
+            'id' => $legacyActivityId,
+            'investigation_stage_code' => null,
+        ]);
     }
 
     private function addActivity(Investigation $investigation, string $type)

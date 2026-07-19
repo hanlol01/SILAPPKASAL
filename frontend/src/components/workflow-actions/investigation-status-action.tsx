@@ -31,7 +31,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ApiError } from "@/lib/api-client";
 import { formatInvestigationStatus } from "@/lib/format-labels";
+import { apiErrorMessage } from "@/lib/form-errors";
 import {
   getInvestigationStatusOptions,
   operationsQueryKeys,
@@ -112,8 +114,12 @@ export function InvestigationStatusAction({
       setOpen(false);
       toast.success(t("dashboard:workflow.investigationStatusUpdated"));
     },
-    onError: () => {
-      toast.error(t("dashboard:workflow.investigationStatusError"));
+    onError: (error) => {
+      const message = error instanceof ApiError
+        && error.errorCode === "investigation_stage_activity_required"
+        ? error.message
+        : apiErrorMessage(error, t("dashboard:workflow.investigationStatusError"));
+      toast.error(message);
     },
   });
 

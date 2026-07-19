@@ -30,14 +30,29 @@ class CaseWorkflowContextService
         $activeAssignment = $case->activeAssignments->firstWhere('satgas_id', $actor->id);
         $isAssigned = $actor->is_active && $actor->hasRole('satgas_ppks') && $activeAssignment !== null;
         $isLead = $isAssigned && (bool) $activeAssignment?->is_lead;
+        $canUpdateCaseStatus = $isAssigned && $actor->hasPermission('cases.read.assigned');
         $canInvestigate = $isAssigned && $actor->hasPermission('cases.investigate');
+        $canRecommend = $isAssigned && $actor->hasPermission('cases.recommend');
+        $isLifecycleControlled = in_array($caseStatus, [
+            CaseStatusEnum::Recommendation->value,
+            CaseStatusEnum::Decision->value,
+        ], true);
         $currentStageActivityCount = $investigation
             ? $investigation->activities()
                 ->where('investigation_stage_code', $investigation->status_code)
                 ->count()
             : 0;
 
-        $updateCaseStatus = $this->action($isAssigned && ! $isClosed, $isAssigned ? 'case_closed' : 'read_only_no_assignment');
+        $updateCaseStatus = $this->action(
+            $canUpdateCaseStatus && ! $isClosed && ! $isLifecycleControlled,
+            match (true) {
+                ! $isAssigned => 'read_only_no_assignment',
+                ! $canUpdateCaseStatus => 'permission_missing',
+                $isClosed => 'case_closed',
+                $isLifecycleControlled => 'lifecycle_controlled',
+                default => 'action_unavailable',
+            },
+        );
         if ($updateCaseStatus['allowed'] && $caseStatus === CaseStatusEnum::Assessment->value && ! $assessmentComplete) {
             $updateCaseStatus = $this->action(false, ApiErrorCode::CaseAssessmentRequired);
         }
@@ -91,15 +106,14 @@ class CaseWorkflowContextService
         );
 
         $createRecommendation = $this->action(
-            $isAssigned
-                && $actor->hasPermission('cases.recommend')
+            $canRecommend
                 && ! $isClosed
                 && $caseStatus === CaseStatusEnum::Recommendation->value
                 && $investigationStatus === InvestigationStatusEnum::Completed->value
                 && ! $recommendationExists,
             ! $isAssigned
                 ? 'read_only_no_assignment'
-                : (! $actor->hasPermission('cases.recommend')
+                : (! $canRecommend
                     ? 'permission_missing'
                     : ($recommendationExists
                         ? 'recommendation_exists'
@@ -136,6 +150,8 @@ class CaseWorkflowContextService
                 $currentStageActivityCount,
                 $recommendationExists,
                 $isLead,
+                $canInvestigate,
+                $canRecommend,
             ),
             'primary_tip_params' => [
                 'stage' => $investigationStatus,
@@ -197,6 +213,8 @@ class CaseWorkflowContextService
         int $currentStageActivityCount,
         bool $recommendationExists,
         bool $isLead,
+        bool $canInvestigate,
+        bool $canRecommend,
     ): string {
         if (! $isAssigned) {
             return 'read_only_no_assignment';
@@ -206,11 +224,13 @@ class CaseWorkflowContextService
             $caseStatus === CaseStatusEnum::Forwarded->value => 'start_assessment',
             $caseStatus === CaseStatusEnum::Assessment->value && ! $assessmentComplete => ApiErrorCode::CaseAssessmentRequired,
             $caseStatus === CaseStatusEnum::Assessment->value => 'assessment_completed',
+            $caseStatus === CaseStatusEnum::Investigation->value && ! $canInvestigate => 'permission_missing',
             $caseStatus === CaseStatusEnum::Investigation->value && ! $investigationExists && ! $isLead => 'investigation_lead_required',
             $caseStatus === CaseStatusEnum::Investigation->value && ! $investigationExists => 'create_investigation',
             $caseStatus === CaseStatusEnum::Investigation->value && $investigationStatus !== InvestigationStatusEnum::Completed->value && $currentStageActivityCount === 0 => ApiErrorCode::InvestigationStageActivityRequired,
             $caseStatus === CaseStatusEnum::Investigation->value && $investigationStatus !== InvestigationStatusEnum::Completed->value => 'current_stage_activity_completed',
             $caseStatus === CaseStatusEnum::Investigation->value => 'move_case_after_investigation',
+            $caseStatus === CaseStatusEnum::Recommendation->value && ! $canRecommend => 'permission_missing',
             $caseStatus === CaseStatusEnum::Recommendation->value && ! $recommendationExists => 'create_recommendation',
             default => 'follow_available_case_action',
         };
