@@ -5,7 +5,19 @@ export const INVESTIGATION_ACTIVITY_TYPES = [
   "victim_interview",
   "witness_interview",
   "respondent_interview",
+  "evidence_analysis",
+  "report_drafting",
 ] as const;
+
+export const INVESTIGATION_ACTIVITY_TYPES_BY_STAGE: Record<string, readonly (typeof INVESTIGATION_ACTIVITY_TYPES)[number][]> = {
+  planning: ["case_review", "document_review", "timeline_review"],
+  evidence_collection: ["document_review", "timeline_review"],
+  victim_interview: ["victim_interview"],
+  witness_interview: ["witness_interview"],
+  respondent_interview: ["respondent_interview"],
+  evidence_analysis: ["document_review", "timeline_review", "evidence_analysis"],
+  report_drafting: ["report_drafting"],
+};
 
 export const DECISION_OUTCOMES = [
   "accepted",

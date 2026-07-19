@@ -6,12 +6,15 @@ use App\Enums\AuditAction;
 use App\Enums\AuditCategory;
 use App\Enums\AuditSeverity;
 use App\Enums\CaseStatus as CaseStatusEnum;
+use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Enums\ReportStatus;
 use App\Models\CaseAssignment;
 use App\Models\CaseRecord;
 use App\Models\CaseStatus;
+use App\Models\Investigation;
 use App\Models\Report;
 use App\Models\User;
+use App\Support\ApiErrorCode;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -22,6 +25,7 @@ class CaseService
     public function __construct(
         private readonly NotificationService $notificationService,
         private readonly AuditLogService $auditLogService,
+        private readonly CaseWorkflowContextService $workflowContextService,
     ) {
     }
 
@@ -78,7 +82,7 @@ class CaseService
 
             $this->notificationService->caseAssessmentRecorded($case);
 
-            return $case->load(['status', 'riskLevel', 'priorityLevel', 'activeAssignments.satgas']);
+            return $this->loadForWorkflowResponse($case, $actor);
         });
     }
 
@@ -222,7 +226,10 @@ class CaseService
             $relations[] = 'report';
         }
 
-        return $case->load($relations);
+        $case->load($relations);
+        $case->setAttribute('workflow_context', $this->workflowContextService->forCase($case, $user));
+
+        return $case;
     }
 
     /**
@@ -304,6 +311,29 @@ class CaseService
                 throw $this->unprocessable('Invalid case status transition');
             }
 
+            if (
+                $case->status?->name === CaseStatusEnum::Assessment->value
+                && $nextStatus->name === CaseStatusEnum::Investigation->value
+                && (blank($case->risk_level_code) || blank($case->priority_code))
+            ) {
+                throw $this->unprocessableCode(ApiErrorCode::CaseAssessmentRequired);
+            }
+
+            if (
+                $case->status?->name === CaseStatusEnum::Investigation->value
+                && in_array($nextStatus->name, [CaseStatusEnum::Mediation->value, CaseStatusEnum::Recommendation->value], true)
+            ) {
+                $investigation = Investigation::query()
+                    ->with('status')
+                    ->where('case_id', $case->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($investigation?->status?->name !== InvestigationStatusEnum::Completed->value) {
+                    throw $this->unprocessableCode(ApiErrorCode::CaseInvestigationCompletionRequired);
+                }
+            }
+
             $previousStatusCode = $case->status_code;
             $case->forceFill([
                 'status_code' => $nextStatus->code,
@@ -328,7 +358,7 @@ class CaseService
 
             $this->notificationService->caseStatusChanged($case);
 
-            return $case->load(['status', 'riskLevel', 'priorityLevel', 'activeAssignments.satgas']);
+            return $this->loadForWorkflowResponse($case, $actor);
         });
     }
 
@@ -489,6 +519,15 @@ class CaseService
             || ($user->hasPermission('cases.read.all') && $user->hasRole('super_admin'));
     }
 
+    private function loadForWorkflowResponse(CaseRecord $case, User $actor): CaseRecord
+    {
+        $case->unsetRelation('report')->unsetRelation('reportSensitive');
+        $case->load(['status', 'riskLevel', 'priorityLevel', 'activeAssignments.satgas']);
+        $case->setAttribute('workflow_context', $this->workflowContextService->forCase($case, $actor));
+
+        return $case;
+    }
+
     private function canReadAssigned(User $user): bool
     {
         return $user->hasPermission('cases.read.assigned') && $user->hasRole('satgas_ppks');
@@ -517,6 +556,16 @@ class CaseService
         return new HttpResponseException(response()->json([
             'success' => false,
             'message' => $message,
+            'errors' => null,
+        ], 422));
+    }
+
+    private function unprocessableCode(string $errorCode): HttpResponseException
+    {
+        return new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => __("api.errors.{$errorCode}"),
+            'error_code' => $errorCode,
             'errors' => null,
         ], 422));
     }

@@ -24,6 +24,7 @@ class StoreInvestigationActivityRequest extends FormRequest
             'description' => ['required', 'string', 'max:10000'],
             'findings' => ['nullable', 'string', 'max:10000'],
             'notes' => ['nullable', 'string', 'max:10000'],
+            'investigation_stage_code' => ['prohibited'],
         ];
     }
 }

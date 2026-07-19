@@ -62,7 +62,6 @@ class InvestigationFoundationTest extends TestCase
 
         $this->actingAsApi($satgas);
         $this->postJson("/api/v1/cases/{$case->id}/investigations", [
-            'lead_investigator_id' => $satgas->id,
             'plan_summary' => 'Rencana investigasi awal yang hanya boleh dibaca Satgas assigned.',
         ])
             ->assertCreated()
@@ -81,7 +80,6 @@ class InvestigationFoundationTest extends TestCase
 
         $this->actingAsApi($satgas);
         $this->postJson("/api/v1/cases/{$otherCase->id}/investigations", [
-            'lead_investigator_id' => $satgas->id,
             'plan_summary' => 'Rencana investigasi awal yang valid tetapi kasus belum berada pada status investigation.',
         ])
             ->assertUnprocessable();
@@ -96,14 +94,12 @@ class InvestigationFoundationTest extends TestCase
 
         $this->actingAsApi($admin);
         $this->postJson("/api/v1/cases/{$case->id}/investigations", [
-            'lead_investigator_id' => $satgas->id,
             'plan_summary' => 'Rencana investigasi awal yang valid untuk memastikan admin tetap ditolak.',
         ])
             ->assertForbidden();
 
         $this->actingAsApi($otherSatgas);
         $this->postJson("/api/v1/cases/{$case->id}/investigations", [
-            'lead_investigator_id' => $otherSatgas->id,
             'plan_summary' => 'Rencana investigasi awal yang valid untuk memastikan Satgas tidak assigned tetap ditolak.',
         ])
             ->assertForbidden();
@@ -185,6 +181,14 @@ class InvestigationFoundationTest extends TestCase
             ->forceFill(['valid_transitions' => [InvestigationStatusEnum::Completed->value]])
             ->save();
 
+        $investigation->activities()->create([
+            'investigator_id' => $satgas->id,
+            'activity_type' => 'case_review',
+            'investigation_stage_code' => $investigation->status_code,
+            'activity_date' => now()->toDateString(),
+            'description' => 'Telaah kasus memenuhi gate tahap perencanaan.',
+        ]);
+
         $this->actingAsApi($satgas);
         $this->patchJson("/api/v1/investigations/{$investigation->id}/status", [
             'status' => InvestigationStatusEnum::Completed->value,
@@ -251,13 +255,11 @@ class InvestigationFoundationTest extends TestCase
 
         $this->actingAsApi($satgas);
         $this->postJson("/api/v1/cases/{$case->id}/investigations", [
-            'lead_investigator_id' => $satgas->id,
         ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('plan_summary');
 
         $this->postJson("/api/v1/cases/{$case->id}/investigations", [
-            'lead_investigator_id' => $satgas->id,
             'plan_summary' => 'Terlalu pendek.',
         ])
             ->assertUnprocessable()
@@ -283,7 +285,6 @@ class InvestigationFoundationTest extends TestCase
 
         $this->actingAsApi($satgas);
         $investigationId = $this->postJson("/api/v1/cases/{$case->id}/investigations", [
-            'lead_investigator_id' => $satgas->id,
             'plan_summary' => 'Rencana investigasi awal yang cukup panjang untuk memenuhi validasi minimum M27.',
         ])
             ->assertCreated()

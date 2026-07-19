@@ -14,6 +14,7 @@ class InvestigationActivity extends Model
         'investigation_id',
         'investigator_id',
         'activity_type',
+        'investigation_stage_code',
         'activity_date',
         'description',
         'findings',
@@ -38,5 +39,10 @@ class InvestigationActivity extends Model
     public function investigator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'investigator_id');
+    }
+
+    public function stage(): BelongsTo
+    {
+        return $this->belongsTo(InvestigationStatus::class, 'investigation_stage_code', 'code');
     }
 }

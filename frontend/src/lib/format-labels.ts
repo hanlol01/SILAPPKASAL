@@ -156,6 +156,10 @@ export function formatInvestigationStatus(t: TFunction, value: LabelValue) {
   return translatedLabel(t, "investigationStatus", value);
 }
 
+export function formatInvestigationActivityType(t: TFunction, value: LabelValue) {
+  return translatedLabel(t, "investigationActivityType", value);
+}
+
 export function formatRecommendationStatus(t: TFunction, value: LabelValue) {
   return translatedLabel(t, "recommendationStatus", value);
 }

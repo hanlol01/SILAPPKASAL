@@ -12,6 +12,13 @@ class InvestigationDetailResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $activityCountsByStage = $this->resource->relationLoaded('activities')
+            ? $this->activities
+                ->filter(fn ($activity): bool => $activity->investigation_stage_code !== null)
+                ->countBy('investigation_stage_code')
+                ->all()
+            : [];
+
         return [
             'id' => $this->id,
             'case_id' => $this->case_id,
@@ -28,6 +35,8 @@ class InvestigationDetailResource extends JsonResource
             'findings' => $this->findings,
             'conclusion' => $this->conclusion,
             'activities' => InvestigationActivityResource::collection($this->whenLoaded('activities')),
+            'activity_counts_by_stage' => $activityCountsByStage,
+            'current_stage_activity_count' => (int) ($activityCountsByStage[$this->status_code] ?? 0),
             'started_at' => $this->started_at?->toJSON(),
             'completed_at' => $this->completed_at?->toJSON(),
             'created_at' => $this->created_at?->toJSON(),

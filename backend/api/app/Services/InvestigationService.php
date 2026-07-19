@@ -7,12 +7,14 @@ use App\Enums\AuditCategory;
 use App\Enums\AuditSeverity;
 use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\InvestigationStatus as InvestigationStatusEnum;
+use App\Enums\InvestigationActivityType;
 use App\Models\CaseAssignment;
 use App\Models\CaseRecord;
 use App\Models\Investigation;
 use App\Models\InvestigationActivity;
 use App\Models\InvestigationStatus;
 use App\Models\User;
+use App\Support\ApiErrorCode;
 use App\Notifications\WorkflowDatabaseNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -33,11 +35,11 @@ class InvestigationService
     {
         $this->authorizeAssignedInvestigator($case, $actor);
         $this->ensureCaseCanStartInvestigation($case);
-        $this->ensureAssignedSatgas($case, (int) $data['lead_investigator_id']);
 
         return DB::transaction(function () use ($case, $actor, $data): Investigation {
             $case = CaseRecord::query()->with(['status', 'investigation', 'activeAssignments.satgas'])->whereKey($case->id)->lockForUpdate()->firstOrFail();
 
+            $this->authorizeAssignedLead($case, $actor);
             $this->ensureCaseCanStartInvestigation($case);
 
             $status = $this->statusByName(InvestigationStatusEnum::Planning);
@@ -45,12 +47,12 @@ class InvestigationService
             $investigation = Investigation::query()
                 ->create([
                     'case_id' => $case->id,
-                    'lead_investigator_id' => (int) $data['lead_investigator_id'],
+                    'lead_investigator_id' => $actor->id,
                     'status_code' => $status->code,
                     'plan_summary' => $data['plan_summary'],
                     'started_at' => now(),
                 ])
-                ->load(['case', 'status', 'leadInvestigator', 'activities.investigator']);
+                ->load(['case', 'status', 'leadInvestigator', 'activities.investigator', 'activities.stage']);
 
             $this->recordAudit(
                 AuditAction::InvestigationCreated,
@@ -96,6 +98,7 @@ class InvestigationService
 
         if ($this->canReadSensitive($investigation, $user)) {
             $relations[] = 'activities.investigator';
+            $relations[] = 'activities.stage';
         } else {
             $investigation->loadCount('activities');
         }
@@ -115,16 +118,27 @@ class InvestigationService
             $this->ensureCaseStillInInvestigation($investigation->case);
             $this->ensureInvestigationOpen($investigation);
 
+            $stageName = (string) $investigation->status?->name;
+            $activityType = InvestigationActivityType::from($data['activity_type']);
+
+            if (! in_array($stageName, $activityType->permittedStages(), true)) {
+                throw $this->unprocessableCode(
+                    ApiErrorCode::InvestigationActivityStageIncompatible,
+                    ['stage' => $this->localizedStage($stageName)],
+                );
+            }
+
             $activity = $investigation->activities()
                 ->create([
                     'investigator_id' => $actor->id,
                     'activity_type' => $data['activity_type'],
+                    'investigation_stage_code' => $investigation->status_code,
                     'activity_date' => $data['activity_date'],
                     'description' => $data['description'],
                     'findings' => $data['findings'] ?? null,
                     'notes' => $data['notes'] ?? null,
                 ])
-                ->load('investigator');
+                ->load(['investigator', 'stage']);
 
             $this->recordAudit(
                 AuditAction::InvestigationActivityCreated,
@@ -136,8 +150,12 @@ class InvestigationService
                     'investigation_id' => $investigation->id,
                     'activity_id' => $activity->id,
                     'activity_type' => $activity->activity_type,
+                    'investigation_stage_code' => $activity->investigation_stage_code,
                 ],
-                afterChanges: ['activity_type' => $activity->activity_type],
+                afterChanges: [
+                    'activity_type' => $activity->activity_type,
+                    'investigation_stage_code' => $activity->investigation_stage_code,
+                ],
             );
 
             return $activity;
@@ -160,6 +178,17 @@ class InvestigationService
                 throw $this->unprocessable('Invalid investigation status transition');
             }
 
+            $currentStageActivityCount = $investigation->activities()
+                ->where('investigation_stage_code', $investigation->status_code)
+                ->count();
+
+            if ($currentStageActivityCount === 0) {
+                throw $this->unprocessableCode(
+                    ApiErrorCode::InvestigationStageActivityRequired,
+                    ['stage' => $this->localizedStage((string) $investigation->status?->name)],
+                );
+            }
+
             $beforeStatusCode = $investigation->status_code;
             $beforeStatusName = $investigation->status?->name;
 
@@ -168,7 +197,7 @@ class InvestigationService
                 'completed_at' => $nextStatus->name === InvestigationStatusEnum::Completed->value ? now() : $investigation->completed_at,
             ])->save();
 
-            $investigation = $investigation->load(['case.activeAssignments.satgas', 'status', 'leadInvestigator', 'activities.investigator']);
+            $investigation = $investigation->load(['case.activeAssignments.satgas', 'status', 'leadInvestigator', 'activities.investigator', 'activities.stage']);
 
             $this->recordAudit(
                 AuditAction::InvestigationStatusChanged,
@@ -196,11 +225,14 @@ class InvestigationService
     }
 
     /**
-     * @return array{current_status: array{code: string|null, name: string|null, description: string|null}, valid_transitions: list<array{code: string, name: string, description: string|null}>}
+     * @return array{current_status: array{code: string|null, name: string|null, description: string|null}, valid_transitions: list<array{code: string, name: string, description: string|null}>, current_stage_activity_count: int, can_transition: bool, reason_code: string|null}
      */
     public function statusOptions(Investigation $investigation): array
     {
         $investigation->loadMissing('status');
+        $currentStageActivityCount = $investigation->activities()
+            ->where('investigation_stage_code', $investigation->status_code)
+            ->count();
 
         $transitionNames = $investigation->status?->valid_transitions ?? [];
         $statuses = InvestigationStatus::query()
@@ -223,6 +255,11 @@ class InvestigationService
                 'description' => $investigation->status?->description,
             ],
             'valid_transitions' => $statuses,
+            'current_stage_activity_count' => $currentStageActivityCount,
+            'can_transition' => $currentStageActivityCount > 0,
+            'reason_code' => $currentStageActivityCount > 0
+                ? null
+                : ApiErrorCode::InvestigationStageActivityRequired,
         ];
     }
 
@@ -281,20 +318,20 @@ class InvestigationService
         }
     }
 
-    private function ensureAssignedSatgas(CaseRecord $case, int $userId): void
+    private function authorizeAssignedLead(CaseRecord $case, User $actor): void
     {
-        $isAssigned = User::query()
-            ->whereKey($userId)
+        $isActiveLead = CaseAssignment::query()
+            ->where('case_id', $case->id)
+            ->where('satgas_id', $actor->id)
             ->where('is_active', true)
-            ->whereHas('role', fn (Builder $query): Builder => $query->where('code', 'satgas_ppks'))
-            ->whereHas('caseAssignments', function (Builder $query) use ($case): void {
-                $query->where('case_id', $case->id)
-                    ->where('is_active', true);
-            })
+            ->where('is_lead', true)
+            ->whereHas('satgas', fn (Builder $query): Builder => $query
+                ->where('is_active', true)
+                ->whereHas('role', fn (Builder $roleQuery): Builder => $roleQuery->where('code', 'satgas_ppks')))
             ->exists();
 
-        if (! $isAssigned) {
-            throw $this->unprocessable('Lead investigator must be an active assigned Satgas user');
+        if (! $isActiveLead) {
+            throw $this->forbidden();
         }
     }
 
@@ -447,5 +484,23 @@ class InvestigationService
             'message' => $message,
             'errors' => null,
         ], 422));
+    }
+
+    /**
+     * @param array<string, string> $replace
+     */
+    private function unprocessableCode(string $errorCode, array $replace = []): HttpResponseException
+    {
+        return new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => __("api.errors.{$errorCode}", $replace),
+            'error_code' => $errorCode,
+            'errors' => null,
+        ], 422));
+    }
+
+    private function localizedStage(string $stage): string
+    {
+        return __("api.investigation_stages.{$stage}");
     }
 }

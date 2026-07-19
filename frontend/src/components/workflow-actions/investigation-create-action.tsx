@@ -24,27 +24,17 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import { createInvestigation, operationsQueryKeys } from "@/lib/operations-api";
-import type { CaseAssignment } from "@/lib/operations-types";
 import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
 function createInvestigationCreateSchema(messages: {
-  required: string;
   planSummaryRequired: string;
   planSummaryMin: string;
   planSummaryMax: string;
 }) {
   return z.object({
-    lead_investigator_id: z.string().min(1, messages.required),
     plan_summary: z
       .string()
       .trim()
@@ -58,10 +48,8 @@ type InvestigationCreateValues = z.infer<ReturnType<typeof createInvestigationCr
 
 export function InvestigationCreateAction({
   caseId,
-  assignments,
 }: {
   caseId: number | string;
-  assignments: CaseAssignment[];
 }) {
   const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
@@ -69,22 +57,15 @@ export function InvestigationCreateAction({
   const investigationCreateSchema = useMemo(
     () =>
       createInvestigationCreateSchema({
-        required: t("dashboard:workflow.required"),
         planSummaryRequired: t("dashboard:workflow.planSummaryRequired"),
         planSummaryMin: t("dashboard:workflow.planSummaryMin"),
         planSummaryMax: t("dashboard:workflow.planSummaryMax"),
       }),
     [t],
   );
-  const activeAssignments = useMemo(
-    () => assignments.filter((assignment) => assignment.is_active),
-    [assignments],
-  );
-
   const form = useForm<InvestigationCreateValues>({
     resolver: zodResolver(investigationCreateSchema),
     defaultValues: {
-      lead_investigator_id: activeAssignments[0]?.satgas_id ? String(activeAssignments[0].satgas_id) : "",
       plan_summary: "",
     },
   });
@@ -92,7 +73,6 @@ export function InvestigationCreateAction({
   const mutation = useMutation({
     mutationFn: (values: InvestigationCreateValues) =>
       createInvestigation(caseId, {
-        lead_investigator_id: Number(values.lead_investigator_id),
         plan_summary: values.plan_summary.trim(),
     }),
     onSuccess: async () => {
@@ -101,7 +81,6 @@ export function InvestigationCreateAction({
         exactKeys: [operationsQueryKeys.investigations(caseId)],
       });
       form.reset({
-        lead_investigator_id: activeAssignments[0]?.satgas_id ? String(activeAssignments[0].satgas_id) : "",
         plan_summary: "",
       });
       setOpen(false);
@@ -116,7 +95,7 @@ export function InvestigationCreateAction({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="w-full" variant="outline" disabled={activeAssignments.length === 0}>
+        <Button className="w-full" variant="outline">
           <FileSearch className="mr-2 h-4 w-4" /> {t("dashboard:workflow.createInvestigation")}
         </Button>
       </DialogTrigger>
@@ -132,31 +111,6 @@ export function InvestigationCreateAction({
           <form className="space-y-4" onSubmit={form.handleSubmit((values) => {
             if (!mutation.isPending) mutation.mutate(values);
           })}>
-            <FormField
-              control={form.control}
-              name="lead_investigator_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("dashboard:workflow.leadInvestigator")}</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("dashboard:workflow.selectAssignedSatgas")} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {activeAssignments.map((assignment) => (
-                        <SelectItem key={assignment.id} value={String(assignment.satgas_id)}>
-                          {assignment.satgas_name ?? t("dashboard:common.metadataUnavailable")}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <FormField
               control={form.control}
               name="plan_summary"

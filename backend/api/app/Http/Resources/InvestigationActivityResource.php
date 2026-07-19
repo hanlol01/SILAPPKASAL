@@ -15,6 +15,9 @@ class InvestigationActivityResource extends JsonResource
         return [
             'id' => $this->id,
             'activity_type' => $this->activity_type,
+            'investigation_stage_code' => $this->investigation_stage_code,
+            'investigation_stage' => $this->whenLoaded('stage', fn () => $this->stage?->name),
+            'investigation_stage_label' => $this->whenLoaded('stage', fn () => $this->stage?->description),
             'activity_date' => $this->activity_date?->toDateString(),
             'description' => $this->description,
             'findings' => $this->findings,

@@ -40,6 +40,7 @@ import {
   formatEvidenceClassification,
   formatEvidenceStatus,
   formatGenericLabel,
+  formatInvestigationActivityType,
 } from "@/lib/format-labels";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import { getMasterData, masterDataQueryKeys } from "@/lib/master-data-api";
@@ -66,6 +67,7 @@ import {
   EVIDENCE_STATUSES,
   EVIDENCE_STATUS_TRANSITIONS,
   INVESTIGATION_ACTIVITY_TYPES,
+  INVESTIGATION_ACTIVITY_TYPES_BY_STAGE,
   labelOption,
 } from "@/lib/workflow-action-options";
 import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
@@ -284,10 +286,11 @@ export function InvestigationActivityAction({
   const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
+  const activityOptions = INVESTIGATION_ACTIVITY_TYPES_BY_STAGE[investigation.status ?? ""] ?? [];
   const form = useForm<ActivityValues>({
     resolver: zodResolver(createActivitySchema(t)),
     defaultValues: {
-      activity_type: "case_review",
+      activity_type: activityOptions[0] ?? "case_review",
       activity_date: today,
       description: "",
       findings: "",
@@ -305,7 +308,13 @@ export function InvestigationActivityAction({
           operationsQueryKeys.investigation(investigation.id),
         ],
       });
-      form.reset();
+      form.reset({
+        activity_type: activityOptions[0] ?? "case_review",
+        activity_date: today,
+        description: "",
+        findings: "",
+        notes: "",
+      });
       setOpen(false);
       toast.success(t("dashboard:workflow.activityAdded"));
     },
@@ -331,7 +340,7 @@ export function InvestigationActivityAction({
             <form className="space-y-4" onSubmit={form.handleSubmit((values) => {
               if (!mutation.isPending) mutation.mutate(values);
             })}>
-            <SelectField form={form} name="activity_type" label={t("dashboard:workflow.activityType")} options={INVESTIGATION_ACTIVITY_TYPES} formatter={(value) => formatGenericLabel(value)} />
+            <SelectField form={form} name="activity_type" label={t("dashboard:workflow.activityType")} options={activityOptions} formatter={(value) => formatInvestigationActivityType(t, value)} />
             <DatePickerField form={form} name="activity_date" label={t("dashboard:workflow.activityDate")} disableFuture />
             <TextareaField form={form} name="description" label={t("dashboard:workflow.description")} />
             <TextareaField form={form} name="findings" label={t("dashboard:workflow.findings")} />

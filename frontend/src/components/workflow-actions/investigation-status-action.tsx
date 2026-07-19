@@ -45,9 +45,13 @@ type InvestigationStatusValues = { status: string };
 export function InvestigationStatusAction({
   investigation,
   caseId,
+  allowed = true,
+  reason,
 }: {
   investigation: Investigation;
   caseId: number | string;
+  allowed?: boolean;
+  reason?: string;
 }) {
   const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
@@ -112,6 +116,17 @@ export function InvestigationStatusAction({
       toast.error(t("dashboard:workflow.investigationStatusError"));
     },
   });
+
+  if (!allowed) {
+    return (
+      <div className="min-w-0 space-y-1">
+        <Button size="sm" variant="outline" disabled>
+          <History className="mr-2 h-4 w-4" /> {t("dashboard:workflow.status")}
+        </Button>
+        {reason && <p className="max-w-sm break-words text-xs text-muted-foreground">{reason}</p>}
+      </div>
+    );
+  }
 
   if (optionsQuery.isSuccess && options.length === 0 && !open) return null;
 

@@ -325,6 +325,7 @@
   "sections": {
     "investigations": "Investigations",
     "recommendations": "Recommendations",
+    "recommendationCreateFromCaseAction": "No recommendation has been created. Create it from the Case Action card.",
     "decisions": "Decisions",
     "recoveries": "Recoveries",
     "evidenceMetadata": "Evidence summary",
@@ -521,7 +522,7 @@
     "updateCaseStatus": "Update case status",
     "updateEvidenceStatus": "Update evidence status",
     "backendAuthoritative": "System access and transition rules remain authoritative.",
-    "createInvestigationDesc": "Select an active assigned Satgas user as lead investigator and provide the investigation plan.",
+    "createInvestigationDesc": "The active lead Satgas is assigned automatically as lead investigator. Provide the investigation plan to continue.",
     "activityEndpointDesc": "Activity is recorded in the system.",
     "editableBackendFields": "Only fields available for the user are editable here.",
     "decisionDraftDesc": "Decision content can be edited while system rules allow draft changes.",
@@ -659,6 +660,38 @@
     "findings": "Findings",
     "notes": "Notes",
     "addActivity": "Add activity",
+    "tipsTitle": "Tips · Next Step",
+    "reasons": {
+      "capability_loading": "Checking action availability...",
+      "read_only_no_assignment": "Only an active Satgas member assigned to this case can perform this action.",
+      "not_satgas": "This action is only available to Satgas PPKS.",
+      "permission_missing": "The required permission for this action is unavailable.",
+      "case_closed": "This case is closed, so the action is unavailable.",
+      "case_not_investigation": "The case must be in the investigation stage.",
+      "investigation_missing": "Create the Investigation before adding evidence.",
+      "investigation_completed": "The Investigation is completed, so no new evidence or activities can be added.",
+      "investigation_lead_required": "The Investigation must be created by the active assigned lead Satgas.",
+      "investigation_exists": "An Investigation already exists for this case.",
+      "recommendation_exists": "A Recommendation already exists for this case.",
+      "case_not_recommendation": "The case must be in the recommendation stage.",
+      "case_assessment_required": "Record the risk level and priority before advancing the case to investigation.",
+      "case_investigation_completion_required": "Complete the investigation before advancing the case to mediation or recommendation.",
+      "investigation_stage_activity_required": "Add at least one activity in the {{stage}} stage before continuing.",
+      "action_unavailable": "The action is unavailable for the current workflow state."
+    },
+    "tips": {
+      "start_assessment": "Move the case to assessment to begin recording risk and priority.",
+      "case_assessment_required": "Record the risk level and priority before advancing the case to investigation.",
+      "assessment_completed": "Assessment is complete. The case can advance to investigation.",
+      "investigation_lead_required": "The active assigned lead Satgas must create the Investigation.",
+      "create_investigation": "Create the Investigation to open the investigation workspace.",
+      "investigation_stage_activity_required": "Add at least one activity in the {{stage}} stage before changing Investigation status.",
+      "current_stage_activity_completed": "The {{stage}} stage has an activity. Investigation status can now advance.",
+      "move_case_after_investigation": "The Investigation is complete. Advance the Case to mediation or recommendation.",
+      "create_recommendation": "Create the Recommendation from the Case Action card.",
+      "read_only_no_assignment": "This data is read-only because you are not an active Satgas member assigned to the case.",
+      "follow_available_case_action": "Follow the available Case actions for your current role and workflow state."
+    },
     "editRecommendation": "Edit recommendation",
     "saveRecommendation": "Save recommendation",
     "editDecision": "Edit decision",
@@ -781,6 +814,24 @@
       "noRecoveryTypeData": "No recovery type data available.",
       "footer": "Scope: {{scope}}. Range: {{dateFrom}} to {{dateTo}}."
     }
+  },
+  "investigationProgress": {
+    "title": "Investigation Progress",
+    "description": "Every entered stage requires at least one activity before it can advance.",
+    "states": {
+      "completed": "Exited with activity",
+      "current": "Current stage",
+      "terminal": "Investigation completed",
+      "skipped": "Skipped by valid transition",
+      "future": "Not started"
+    },
+    "activityCount": "{{count}} activities",
+    "currentStageNeedsActivity": "Add at least one activity in the {{stage}} stage.",
+    "history": "Activity History by Stage",
+    "legacyStage": "Legacy/Unknown Stage",
+    "recordedBy": "Recorded by {{name}}",
+    "activityDetails": "Activity details",
+    "createdAt": "Created {{date}}"
   },
   "masterData": {
     "title": "Master Data",
@@ -1342,6 +1393,16 @@
       "timeline_review": "Timeline review",
       "report_drafting": "Report drafting",
       "completed": "Completed"
+    },
+    "investigationActivityType": {
+      "case_review": "Case Review",
+      "document_review": "Document Review",
+      "timeline_review": "Timeline Review",
+      "victim_interview": "Victim/Reporter Interview",
+      "witness_interview": "Witness Interview",
+      "respondent_interview": "Respondent Interview",
+      "evidence_analysis": "Evidence Analysis",
+      "report_drafting": "Investigation Report Drafting"
     },
     "recommendationStatus": {
       "drafting": "Drafting",

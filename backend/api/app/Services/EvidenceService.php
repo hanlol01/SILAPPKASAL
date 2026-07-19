@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\CaseStatus as CaseStatusEnum;
+use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Enums\AuditAction;
 use App\Enums\AuditCategory;
 use App\Enums\AuditSeverity;
@@ -46,7 +47,7 @@ class EvidenceService
         $this->ensureInvestigationCanAcceptEvidence($investigation);
 
         return DB::transaction(function () use ($investigation, $actor, $data): Evidence {
-            $investigation = Investigation::query()->with('case.status')->whereKey($investigation->id)->lockForUpdate()->firstOrFail();
+            $investigation = Investigation::query()->with(['case.status', 'status'])->whereKey($investigation->id)->lockForUpdate()->firstOrFail();
 
             $this->ensureInvestigationCanAcceptEvidence($investigation);
             $evidenceType = $this->activeEvidenceType($data['evidence_type_code']);
@@ -434,13 +435,21 @@ class EvidenceService
 
     private function ensureInvestigationCanAcceptEvidence(Investigation $investigation): void
     {
-        $investigation->loadMissing('case.status');
+        $investigation->loadMissing(['case.status', 'status']);
 
         if (
             $investigation->case?->closed_at !== null
             || $investigation->case?->status?->name === CaseStatusEnum::Closed->value
         ) {
             throw $this->unprocessable('Evidence cannot be added to a closed case');
+        }
+
+        if ($investigation->case?->status?->name !== CaseStatusEnum::Investigation->value) {
+            throw $this->unprocessable('Evidence can only be added while the case is in investigation');
+        }
+
+        if ($investigation->status?->name === InvestigationStatusEnum::Completed->value) {
+            throw $this->unprocessable('Evidence cannot be added to a completed investigation');
         }
     }
 

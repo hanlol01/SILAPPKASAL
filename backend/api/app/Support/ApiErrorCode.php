@@ -20,6 +20,10 @@ final class ApiErrorCode
     public const TrackingNotFound = 'tracking_not_found';
     public const PortalReportNotFound = 'portal_report_not_found';
     public const AuditExportTooManyRows = 'audit_export.too_many_rows';
+    public const CaseAssessmentRequired = 'case_assessment_required';
+    public const CaseInvestigationCompletionRequired = 'case_investigation_completion_required';
+    public const InvestigationStageActivityRequired = 'investigation_stage_activity_required';
+    public const InvestigationActivityStageIncompatible = 'investigation_activity_stage_incompatible';
 
     private function __construct()
     {

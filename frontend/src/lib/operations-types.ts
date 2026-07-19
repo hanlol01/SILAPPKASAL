@@ -86,6 +86,35 @@ export interface CaseRecord {
   escalated_at?: string | null;
   assignments?: CaseAssignment[];
   report?: CaseSensitiveReport;
+  workflow_context?: WorkflowContext;
+}
+
+export interface WorkflowActionCapability {
+  allowed: boolean;
+  reason_code: string | null;
+}
+
+export interface WorkflowContext {
+  facts: {
+    assessment_complete: boolean;
+    investigation_exists: boolean;
+    investigation_status: string | null;
+    investigation_status_code: string | null;
+    current_stage_activity_count: number;
+    recommendation_exists: boolean;
+    active_assignment: boolean;
+    active_lead_assignment: boolean;
+  };
+  actions: {
+    update_case_status: WorkflowActionCapability;
+    create_investigation: WorkflowActionCapability;
+    add_activity: WorkflowActionCapability;
+    update_investigation_status: WorkflowActionCapability;
+    add_evidence: WorkflowActionCapability;
+    create_recommendation: WorkflowActionCapability;
+  };
+  primary_tip_code: string;
+  primary_tip_params?: Record<string, string | number | null>;
 }
 
 export interface Investigation {
@@ -102,6 +131,8 @@ export interface Investigation {
   findings?: string | null;
   conclusion?: string | null;
   activities?: InvestigationActivity[];
+  activity_counts_by_stage?: Record<string, number>;
+  current_stage_activity_count?: number;
   started_at: string | null;
   completed_at: string | null;
   created_at: string | null;
@@ -110,6 +141,9 @@ export interface Investigation {
 export interface InvestigationActivity {
   id: number;
   activity_type: string;
+  investigation_stage_code?: string | null;
+  investigation_stage?: string | null;
+  investigation_stage_label?: string | null;
   activity_date: string | null;
   description?: string | null;
   findings?: string | null;
@@ -119,7 +153,6 @@ export interface InvestigationActivity {
 }
 
 export interface InvestigationCreatePayload {
-  lead_investigator_id: number;
   plan_summary: string;
 }
 
@@ -136,6 +169,9 @@ export interface InvestigationStatusOption {
 export interface InvestigationStatusOptions {
   current_status: InvestigationStatusOption;
   valid_transitions: InvestigationStatusOption[];
+  current_stage_activity_count: number;
+  can_transition: boolean;
+  reason_code: string | null;
 }
 
 export interface Recommendation {

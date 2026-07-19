@@ -17,7 +17,7 @@ class StoreInvestigationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lead_investigator_id' => ['required', 'integer', 'exists:users,id'],
+            'lead_investigator_id' => ['prohibited'],
             'plan_summary' => ['required', 'string', 'min:50', 'max:5000'],
         ];
     }

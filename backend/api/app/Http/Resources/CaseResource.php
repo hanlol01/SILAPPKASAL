@@ -33,6 +33,10 @@ class CaseResource extends JsonResource
             'closed_at' => $this->closed_at?->toJSON(),
             'escalated_at' => $this->escalated_at?->toJSON(),
             'assignments' => CaseAssignmentResource::collection($this->whenLoaded('activeAssignments')),
+            'workflow_context' => $this->when(
+                $this->resource->getAttribute('workflow_context') !== null,
+                $this->resource->getAttribute('workflow_context'),
+            ),
         ];
 
         if ($this->resource->relationLoaded('reportSensitive')) {

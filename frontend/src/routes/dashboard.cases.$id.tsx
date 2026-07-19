@@ -12,6 +12,7 @@ import {
   Gavel,
   History,
   Lock,
+  Lightbulb,
   RefreshCw,
   Scale,
   Send,
@@ -37,6 +38,7 @@ import {
   type ProgressTimelineEvent,
 } from "@/components/progress-timeline";
 import { CollapsibleDataCard } from "@/components/collapsible-data-card";
+import { InvestigationStageProgress } from "@/components/workflow/investigation-stage-progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Breadcrumb,
@@ -80,6 +82,7 @@ import {
   formatDecisionOutcome,
   formatEvidenceClassification,
   formatEvidenceType,
+  formatInvestigationStatus,
   formatPriorityLevel,
   formatRecoveryType,
   formatRiskLevel,
@@ -148,20 +151,6 @@ const WORKFLOW_TAB_BY_TOKEN: Record<string, WorkflowTab> = {
   recovery: "recovery",
   recoveries: "recovery",
 };
-
-const NEXT_STEP_STATUSES = [
-  "forwarded",
-  "assessment",
-  "investigation",
-  "mediation",
-  "recommendation",
-  "decision",
-  "decided",
-  "recovery",
-  "monitoring",
-  "closed",
-  "escalated",
-] as const;
 
 const RESTRICTED_ROLE_CODES = ["super_admin", "admin", "satgas_ppks", "reporter"] as const;
 
@@ -265,6 +254,7 @@ function CaseDetail() {
   }
 
   const c = caseQuery.data;
+  const workflowContext = c.workflow_context;
   const workflowTabContext = `${c.id}:${normalizeWorkflowToken(c.status ?? c.status_code)}`;
   const activeWorkflowTab =
     workflowTabSelection?.context === workflowTabContext
@@ -279,8 +269,6 @@ function CaseDetail() {
   const canManageAssignments =
     isAdminRole && Boolean(user?.permissions?.includes("cases.assign_satgas"));
   const canUseSatgasActions = isAssignedSatgas && !c.closed_at;
-  const canInvestigate =
-    canUseSatgasActions && Boolean(user?.permissions?.includes("cases.investigate"));
   const canRecommend =
     canUseSatgasActions && Boolean(user?.permissions?.includes("cases.recommend"));
   const canReviewRecommendation =
@@ -300,7 +288,8 @@ function CaseDetail() {
     canViewEvidence && Boolean(user?.permissions?.includes("evidence.upload")) && !c.closed_at;
   const canDownloadEvidence =
     canViewEvidence && Boolean(user?.permissions?.includes("evidence.download"));
-  const canCreateEvidence = canUpdateEvidence && evidenceInvestigation !== null;
+  const canCreateEvidence =
+    workflowContext?.actions.add_evidence.allowed === true && evidenceInvestigation !== null;
   const latestCompletedInvestigation = mostRecentCompletedInvestigation(
     investigationsQuery.data ?? [],
   );
@@ -311,16 +300,11 @@ function CaseDetail() {
     recommendationsQuery.isSuccess && decisionQueries.every((query) => query.isSuccess);
   const finalizedDecisionForRecovery = finalizedDecision(decisions);
   const canCreateInvestigation =
-    canInvestigate &&
-    investigationsQuery.isSuccess &&
-    c.status === "investigation" &&
-    (investigationsQuery.data ?? []).length === 0;
+    investigationsQuery.isSuccess && workflowContext?.actions.create_investigation.allowed === true;
   const canCreateRecommendation =
-    canRecommend &&
     investigationsQuery.isSuccess &&
     recommendationsQuery.isSuccess &&
-    c.status === "recommendation" &&
-    (recommendationsQuery.data ?? []).length === 0 &&
+    workflowContext?.actions.create_recommendation.allowed === true &&
     latestCompletedInvestigation !== null;
   const canCreateDecision =
     canManageDecisionActions &&
@@ -338,21 +322,14 @@ function CaseDetail() {
   const isLifecycleControlledCase = ["recommendation", "csts_09", "decision", "csts_10"].includes(
     caseStatusToken,
   );
-  const canUseGenericCaseStatus = canUseSatgasActions && !isLifecycleControlledCase;
-  const hasGeneralActions =
+  const canUseGenericCaseStatus =
+    canUseSatgasActions &&
+    !isLifecycleControlledCase &&
+    workflowContext?.actions.update_case_status.allowed === true;
+  const hasGeneralActions = Boolean(workflowContext) ||
     (canUseGenericCaseStatus && caseStatusAvailable) ||
-    (canUseSatgasActions && c.status === "assessment") ||
-    canCreateInvestigation ||
     canCreateRecovery;
   const restrictedLabel = restrictedRoleLabel(t, roleCode);
-  const nextStepText = nextStepMessage(
-    t,
-    c,
-    isAssignedSatgas,
-    roleCode,
-    recommendationsQuery.data ?? [],
-    decisions,
-  );
   const timelineLoading =
     investigationsQuery.isLoading ||
     recommendationsQuery.isLoading ||
@@ -488,8 +465,13 @@ function CaseDetail() {
               <InvestigationsSection
                 investigations={investigationsQuery.data ?? []}
                 loading={investigationsQuery.isLoading}
-                canAddActivity={canUseSatgasActions}
-                canTransitionStatus={canInvestigate}
+                canAddActivity={workflowContext?.actions.add_activity.allowed === true}
+                canTransitionStatus={workflowContext?.actions.update_investigation_status.allowed === true}
+                transitionReason={workflowReason(
+                  t,
+                  workflowContext?.actions.update_investigation_status.reason_code,
+                  workflowContext?.facts.investigation_status,
+                )}
                 caseId={c.id}
                 language={i18n.language}
                 roleLabel={restrictedLabel}
@@ -503,14 +485,6 @@ function CaseDetail() {
                 canUpdate={canRecommend}
                 canSubmit={canRecommend}
                 canReview={canReviewRecommendation}
-                createAction={
-                  canCreateRecommendation && latestCompletedInvestigation ? (
-                    <RecommendationCreateAction
-                      caseId={c.id}
-                      investigation={latestCompletedInvestigation}
-                    />
-                  ) : null
-                }
                 caseId={c.id}
                 language={i18n.language}
                 roleCode={roleCode}
@@ -568,6 +542,12 @@ function CaseDetail() {
                   canUpdate={canUpdateEvidence}
                   canDownload={canDownloadEvidence}
                   createInvestigation={canCreateEvidence ? evidenceInvestigation : null}
+                  unavailableReason={workflowReason(
+                    t,
+                    workflowContext?.actions.add_evidence.reason_code,
+                    workflowContext?.facts.investigation_status,
+                  )}
+                  capabilityLoading={!workflowContext || investigationsQuery.isLoading}
                   language={i18n.language}
                   roleLabel={restrictedLabel}
                   t={t}
@@ -642,15 +622,47 @@ function CaseDetail() {
                     caseId={c.id}
                     currentRiskCode={c.risk_level_code}
                     currentPriorityCode={c.priority}
-                    hasAssessment={Boolean(c.assessment_at || c.risk_level_code || c.priority)}
+                    hasAssessment={Boolean(c.risk_level_code && c.priority)}
                   />
                 )}
                 {canCreateInvestigation && (
-                  <InvestigationCreateAction caseId={c.id} assignments={activeAssignments} />
+                  <InvestigationCreateAction caseId={c.id} />
+                )}
+                {!canCreateInvestigation &&
+                  c.status === "investigation" &&
+                  !workflowContext?.facts.investigation_exists && (
+                    <UnavailableWorkflowAction
+                      label={t("dashboard:workflow.createInvestigation")}
+                      reason={workflowReason(
+                        t,
+                        workflowContext?.actions.create_investigation.reason_code,
+                      )}
+                    />
+                  )}
+                {canCreateRecommendation && latestCompletedInvestigation && (
+                  <RecommendationCreateAction
+                    caseId={c.id}
+                    investigation={latestCompletedInvestigation}
+                  />
                 )}
                 {canCreateRecovery && finalizedDecisionForRecovery && (
                   <RecoveryCreateAction caseId={c.id} decision={finalizedDecisionForRecovery} />
                 )}
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                  <div className="flex items-start gap-2">
+                    <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">{t("dashboard:workflow.tipsTitle")}</div>
+                      <p className="mt-1 break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                        {workflowTip(
+                          t,
+                          workflowContext?.primary_tip_code,
+                          workflowContext?.facts.investigation_status,
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -678,17 +690,6 @@ function CaseDetail() {
             </CardContent>
           </Card>
 
-          <Card className="min-w-0">
-            <CardHeader>
-              <CardTitle className="text-base">{t("dashboard:cases.nextStep.title")}</CardTitle>
-              <CardDescription>{t("dashboard:cases.nextStep.desc")}</CardDescription>
-            </CardHeader>
-            <CardContent className="min-w-0">
-              <p className="min-w-0 break-words text-sm [overflow-wrap:anywhere] whitespace-pre-wrap">
-                {nextStepText}
-              </p>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
@@ -751,6 +752,7 @@ function InvestigationsSection({
   loading,
   canAddActivity,
   canTransitionStatus,
+  transitionReason,
   caseId,
   language,
   roleLabel,
@@ -760,6 +762,7 @@ function InvestigationsSection({
   loading: boolean;
   canAddActivity: boolean;
   canTransitionStatus: boolean;
+  transitionReason?: string;
   caseId: number | string;
   language: string;
   roleLabel: string;
@@ -784,8 +787,13 @@ function InvestigationsSection({
               {canAddActivity && (
                 <InvestigationActivityAction investigation={item} caseId={caseId} />
               )}
-              {canTransitionStatus && item.status !== "completed" && (
-                <InvestigationStatusAction investigation={item} caseId={caseId} />
+              {item.status !== "completed" && (
+                <InvestigationStatusAction
+                  investigation={item}
+                  caseId={caseId}
+                  allowed={canTransitionStatus}
+                  reason={transitionReason}
+                />
               )}
             </div>
           </div>
@@ -813,6 +821,9 @@ function InvestigationsSection({
           ) : (
             <MetadataOnlyText roleLabel={roleLabel} t={t} />
           )}
+          {item.activities && (
+            <InvestigationStageProgress investigation={item} language={language} />
+          )}
         </div>
       ))}
     </SectionCard>
@@ -825,7 +836,6 @@ function RecommendationsSection({
   canUpdate,
   canSubmit,
   canReview,
-  createAction,
   caseId,
   language,
   roleCode,
@@ -837,7 +847,6 @@ function RecommendationsSection({
   canUpdate: boolean;
   canSubmit: boolean;
   canReview: boolean;
-  createAction: React.ReactNode;
   caseId: number | string;
   language: string;
   roleCode: string | null | undefined;
@@ -850,7 +859,7 @@ function RecommendationsSection({
       title={t("dashboard:sections.recommendations")}
       loading={loading}
       empty={recommendations.length === 0}
-      emptyAction={createAction}
+      emptyText={t("dashboard:sections.recommendationCreateFromCaseAction")}
       t={t}
     >
       {recommendations.map((item) => (
@@ -1075,6 +1084,8 @@ function EvidenceSection({
   canUpdate,
   canDownload,
   createInvestigation,
+  unavailableReason,
+  capabilityLoading,
   language,
   roleLabel,
   t,
@@ -1087,6 +1098,8 @@ function EvidenceSection({
   canUpdate: boolean;
   canDownload: boolean;
   createInvestigation: Investigation | null;
+  unavailableReason?: string;
+  capabilityLoading: boolean;
   language: string;
   roleLabel: string;
   t: TFunction;
@@ -1098,7 +1111,9 @@ function EvidenceSection({
           <CardTitle className="flex items-center gap-2 text-base">
             <FileArchive className="h-4 w-4" /> {t("dashboard:sections.evidenceTitle")}
           </CardTitle>
-          <CardDescription>{t("dashboard:cases.restrictedDetail", { roleLabel })}</CardDescription>
+          <CardDescription>
+            {unavailableReason || t("dashboard:cases.restrictedDetail", { roleLabel })}
+          </CardDescription>
         </CardHeader>
       </Card>
     );
@@ -1106,7 +1121,12 @@ function EvidenceSection({
 
   const createAction = createInvestigation ? (
     <EvidenceCreateAction investigation={createInvestigation} />
-  ) : null;
+  ) : (
+    <UnavailableWorkflowAction
+      label={t("dashboard:workflow.addEvidence")}
+      reason={capabilityLoading ? t("dashboard:workflow.reasons.capability_loading") : unavailableReason}
+    />
+  );
 
   return (
     <CollapsibleDataCard
@@ -1139,11 +1159,7 @@ function EvidenceSection({
           icon={FileArchive}
           title={t("dashboard:sections.evidenceEmptyTitle")}
           description={t("dashboard:sections.evidenceEmptyDesc")}
-          action={
-            createInvestigation ? (
-              <EvidenceCreateAction investigation={createInvestigation} />
-            ) : undefined
-          }
+          action={createAction}
         />
       ) : (
         <div className="space-y-3">
@@ -1209,6 +1225,7 @@ function SectionCard({
   loading,
   empty,
   emptyAction,
+  emptyText,
   children,
   t,
 }: {
@@ -1217,6 +1234,7 @@ function SectionCard({
   loading: boolean;
   empty: boolean;
   emptyAction?: React.ReactNode;
+  emptyText?: string;
   children: React.ReactNode;
   t: TFunction;
 }) {
@@ -1232,13 +1250,38 @@ function SectionCard({
       )}
       {!loading && empty && (
         <>
-          <EmptyText>{t("dashboard:sections.empty", { name: title.toLowerCase() })}</EmptyText>
+          <EmptyText>{emptyText ?? t("dashboard:sections.empty", { name: title.toLowerCase() })}</EmptyText>
           {emptyAction && <div className="flex min-w-0 justify-end">{emptyAction}</div>}
         </>
       )}
       {!loading && !empty && children}
     </CollapsibleDataCard>
   );
+}
+
+function UnavailableWorkflowAction({ label, reason }: { label: string; reason?: string }) {
+  return (
+    <div className="min-w-0 space-y-1">
+      <Button className="w-full" variant="outline" disabled>{label}</Button>
+      {reason && <p className="break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">{reason}</p>}
+    </div>
+  );
+}
+
+function workflowReason(t: TFunction, code?: string | null, stage?: string | null) {
+  if (!code) return undefined;
+  return t(`dashboard:workflow.reasons.${code}`, {
+    stage: formatInvestigationStatus(t, stage),
+    defaultValue: t("dashboard:workflow.reasons.action_unavailable"),
+  });
+}
+
+function workflowTip(t: TFunction, code?: string | null, stage?: string | null) {
+  if (!code) return t("dashboard:workflow.tips.follow_available_case_action");
+  return t(`dashboard:workflow.tips.${code}`, {
+    stage: formatInvestigationStatus(t, stage),
+    defaultValue: t("dashboard:workflow.tips.follow_available_case_action"),
+  });
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -1294,74 +1337,6 @@ function restrictedRoleLabel(t: TFunction, roleCode: string | null | undefined) 
   return (RESTRICTED_ROLE_CODES as readonly string[]).includes(code)
     ? t(`dashboard:cases.restrictedRoles.${code}`)
     : t("dashboard:cases.restrictedRoles.unknown");
-}
-
-function nextStepMessage(
-  t: TFunction,
-  caseRecord: CaseRecord,
-  isAssignedSatgas: boolean,
-  roleCode: string | null | undefined,
-  recommendations: Recommendation[],
-  decisions: Decision[],
-) {
-  const recommendation = recommendations[0];
-  const decision = decisions[0];
-
-  if (decision?.status === "finalized" && isAssignedSatgas) {
-    return t("dashboard:cases.nextStep.context.decisionFinalizedSatgas");
-  }
-
-  if (decision?.status === "draft" && roleCode === "admin") {
-    return t("dashboard:cases.nextStep.context.decisionDraftAdmin");
-  }
-
-  if (decision?.status === "recorded" && roleCode === "admin") {
-    return t("dashboard:cases.nextStep.context.decisionRecordedAdmin");
-  }
-
-  if (recommendation?.status === "submitted_to_leader") {
-    if (isAssignedSatgas)
-      return t("dashboard:cases.nextStep.context.recommendationSubmittedSatgas");
-    if (roleCode === "super_admin")
-      return t("dashboard:cases.nextStep.context.recommendationSubmittedSuperAdmin");
-    if (roleCode === "admin")
-      return t("dashboard:cases.nextStep.context.recommendationPendingAdmin");
-  }
-
-  if (recommendation?.status === "revised" && isAssignedSatgas) {
-    return t("dashboard:cases.nextStep.context.recommendationRevisedSatgas");
-  }
-
-  if (recommendation?.status === "accepted") {
-    if (roleCode === "admin" && !decision)
-      return t("dashboard:cases.nextStep.context.recommendationAcceptedAdmin");
-    if (isAssignedSatgas) return t("dashboard:cases.nextStep.context.recommendationAcceptedSatgas");
-  }
-
-  const token = normalizeWorkflowToken(caseRecord.status ?? caseRecord.status_code);
-  const fallback = t("dashboard:cases.nextStep.fallback");
-
-  if (!(NEXT_STEP_STATUSES as readonly string[]).includes(token)) {
-    return fallback;
-  }
-
-  const audiences = isAssignedSatgas
-    ? ["satgas", "all"]
-    : roleCode === "super_admin"
-      ? ["superAdmin", "admin", "all"]
-      : roleCode === "admin"
-        ? ["admin", "all"]
-        : ["all"];
-
-  for (const audience of audiences) {
-    const text = t(`dashboard:cases.nextStep.${token}.${audience}`, { defaultValue: "" });
-
-    if (text) {
-      return text;
-    }
-  }
-
-  return fallback;
 }
 
 function normalizeWorkflowToken(value: unknown) {
