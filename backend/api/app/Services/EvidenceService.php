@@ -86,12 +86,16 @@ class EvidenceService
     {
         $this->authorizeEvidenceRead($investigation, $user, 'evidence.view.case');
 
-        return Evidence::query()
+        $evidences = Evidence::query()
             ->where('investigation_id', $investigation->id)
             ->with($this->summaryRelations())
             ->latest('created_at')
             ->latest('id')
             ->get();
+
+        $evidences->each(fn (Evidence $evidence) => $this->maskAnonymousOversightFilename($evidence, $user));
+
+        return $evidences;
     }
 
     public function loadForUser(Evidence $evidence, User $user): Evidence
@@ -99,7 +103,10 @@ class EvidenceService
         $evidence->loadMissing('investigation.case');
         $this->authorizeEvidenceRead($evidence->investigation, $user, 'evidence.view.case');
 
-        return $evidence->load($this->detailRelations());
+        $evidence->load($this->detailRelations());
+        $this->maskAnonymousOversightFilename($evidence, $user);
+
+        return $evidence;
     }
 
     /**
@@ -288,10 +295,11 @@ class EvidenceService
 
     public function downloadFile(Evidence $evidence, User $actor): StreamedResponse
     {
-        $evidence->loadMissing('investigation.case');
+        $evidence->loadMissing('investigation.case.report:id,report_type');
         $this->authorizeEvidenceRead($evidence->investigation, $actor, 'evidence.download');
 
         $file = $this->openEvidenceFile($evidence);
+        $file['filename'] = $this->filenameForReader($evidence, $actor, $file['filename']);
         $response = $this->streamEvidenceFile(
             $file['stream'],
             $file['filename'],
@@ -327,10 +335,11 @@ class EvidenceService
 
     public function previewFile(Evidence $evidence, User $actor): StreamedResponse
     {
-        $evidence->loadMissing('investigation.case');
+        $evidence->loadMissing('investigation.case.report:id,report_type');
         $this->authorizeEvidenceRead($evidence->investigation, $actor, 'evidence.download');
 
         $file = $this->openEvidenceFile($evidence, preview: true);
+        $file['filename'] = $this->filenameForReader($evidence, $actor, $file['filename']);
         return $this->streamEvidenceFile(
             $file['stream'],
             $file['filename'],
@@ -518,6 +527,39 @@ class EvidenceService
         $this->authorizeAssignedSatgas($investigation, $actor, $capability);
     }
 
+    private function maskAnonymousOversightFilename(Evidence $evidence, User $actor): void
+    {
+        if (! $this->campusScope->canSensitiveOversight($actor)) {
+            return;
+        }
+
+        $evidence->loadMissing('investigation.case.report:id,report_type');
+
+        if ($evidence->investigation?->case?->report?->report_type === 'anonymous') {
+            $evidence->setAttribute(
+                'oversight_filename',
+                $this->anonymousOversightFilename($evidence->mime_type),
+            );
+        }
+    }
+
+    private function filenameForReader(Evidence $evidence, User $actor, string $filename): string
+    {
+        if (
+            $this->campusScope->canSensitiveOversight($actor)
+            && $evidence->investigation?->case?->report?->report_type === 'anonymous'
+        ) {
+            return $this->anonymousOversightFilename($evidence->mime_type);
+        }
+
+        return $filename;
+    }
+
+    private function anonymousOversightFilename(?string $mimeType): string
+    {
+        return 'internal-evidence.'.(self::EXTENSION_BY_MIME[$mimeType] ?? 'bin');
+    }
+
     private function recordStatusHistory(Evidence $evidence, ?string $fromStatus, string $toStatus, User $actor): void
     {
         $evidence->statusHistories()->create([
@@ -547,7 +589,7 @@ class EvidenceService
     private function summaryRelations(): array
     {
         return [
-            'investigation.case',
+            'investigation.case.report:id,report_type',
             'evidenceType',
             'submitter',
             'fileUploader',

@@ -91,6 +91,26 @@ class RbacSeederTest extends TestCase
         $this->assertDatabaseHas('users', ['email' => 'satgas.staisa@silappkasal.test']);
         $this->assertDatabaseHas('users', ['email' => 'reporter.staisa@silappkasal.test']);
         $this->assertGreaterThanOrEqual(36, User::query()->count());
+
+        $superAdmin = User::query()->where('email', 'superadmin@silappkasal.test')->firstOrFail();
+        $admin = User::query()->where('email', 'admin.staisa@silappkasal.test')->firstOrFail();
+        $this->assertNotContains(
+            'recommendation_submitted_for_review',
+            $superAdmin->notifications->pluck('data.event')->all(),
+        );
+        $this->assertNotContains(
+            'decision_finalized',
+            $superAdmin->notifications->pluck('data.event')->all(),
+        );
+        $this->assertContains(
+            'recommendation_submitted_for_review',
+            $admin->notifications->pluck('data.event')->all(),
+        );
+        $satgas = User::query()->where('email', 'satgas.staisa@silappkasal.test')->firstOrFail();
+        $this->assertContains(
+            'decision_finalized',
+            $satgas->notifications->pluck('data.event')->all(),
+        );
     }
 
     public function test_rbac_seeder_reconciles_managed_permissions_without_removing_extensions(): void

@@ -272,6 +272,42 @@ class ReportEvidenceSubmissionTest extends TestCase
             'actor_id' => $superAdmin->id,
             'action' => AuditAction::ReporterEvidencePreviewedBySatgas->value,
         ]);
+
+        $anonymousReport = $this->makeReport($reporter);
+        $anonymousReport->forceFill([
+            'report_type' => 'anonymous',
+            'tracking_code' => 'ANON-FILE-0001',
+        ])->save();
+
+        $this->actingAsApi($reporter);
+        $anonymousUuid = $this->upload($anonymousReport, 'Demo-Pelapor-secret.pdf', $content)
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->actingAsApi($superAdmin);
+        $this->getJson("/api/v1/reports/{$anonymousReport->id}/reporter-evidence-files")
+            ->assertOk()
+            ->assertJsonPath('data.0.original_filename', 'supporting-file.pdf')
+            ->assertJsonMissing(['original_filename' => 'Demo-Pelapor-secret.pdf']);
+
+        $anonymousPreview = $this->get("/api/v1/reporter-evidence-files/{$anonymousUuid}/preview");
+        $this->assertInlinePreviewResponse(
+            $anonymousPreview,
+            'supporting-file.pdf',
+            $content,
+            'application/pdf',
+        );
+        $this->assertStringNotContainsString(
+            'Demo-Pelapor-secret.pdf',
+            (string) $anonymousPreview->headers->get('Content-Disposition'),
+        );
+
+        $anonymousDownload = $this->get("/api/v1/reporter-evidence-files/{$anonymousUuid}/download");
+        $anonymousDownload->assertOk()->assertDownload('supporting-file.pdf');
+        $this->assertStringNotContainsString(
+            'Demo-Pelapor-secret.pdf',
+            (string) $anonymousDownload->headers->get('Content-Disposition'),
+        );
     }
 
     public function test_reporter_cannot_access_another_report_or_substitute_an_attachment_uuid(): void

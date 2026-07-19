@@ -85,7 +85,7 @@ final class CaseCampusScope
 
     public function canSensitiveOversight(User $actor): bool
     {
-        return (bool) config('oversight.cross_campus_sensitive_read', false)
+        return config('oversight.cross_campus_sensitive_read', false) === true
             && $actor->is_active
             && $actor->hasRole('super_admin')
             && $actor->hasPermission('cases.read.sensitive_oversight');

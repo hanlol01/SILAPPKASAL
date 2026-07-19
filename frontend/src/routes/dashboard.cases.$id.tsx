@@ -286,7 +286,8 @@ function CaseDetail() {
   const canManageDecisionActions =
     roleCode === "admin" &&
     user?.is_active === true &&
-    Boolean(user.permissions?.includes("cases.record_decision"));
+    Boolean(user.permissions?.includes("cases.record_decision")) &&
+    workflowContext?.facts.same_campus_admin === true;
   const canManageRecoveryActions =
     roleCode === "admin" &&
     Boolean(user?.permissions?.includes("cases.monitor")) &&

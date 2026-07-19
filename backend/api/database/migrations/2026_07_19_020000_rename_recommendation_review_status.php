@@ -8,6 +8,7 @@ return new class extends Migration
     public function up(): void
     {
         $this->rename('submitted_to_leader', 'submitted_for_review', 'Rekomendasi diajukan untuk peninjauan Admin Kampus.');
+        $this->updateDecidedDescription('Keputusan institusi telah diterbitkan.');
         $this->renameNotification(
             'Rekomendasi diajukan untuk peninjauan',
             'Admin Kampus',
@@ -19,6 +20,7 @@ return new class extends Migration
     {
         // Application dual-read support makes this rollback safe for one release.
         $this->rename('submitted_for_review', 'submitted_to_leader', 'Rekomendasi diajukan ke pimpinan PT.');
+        $this->updateDecidedDescription('Keputusan pimpinan telah diterbitkan.');
         $this->renameNotification(
             'Rekomendasi dikirim ke pimpinan',
             'Super Admin',
@@ -69,6 +71,16 @@ return new class extends Migration
                 'description' => $name,
                 'recipient_role' => $recipient,
                 'template_key' => $event,
+                'updated_at' => now(),
+            ]);
+    }
+
+    private function updateDecidedDescription(string $description): void
+    {
+        DB::table('case_statuses')
+            ->where('code', 'CSTS-11')
+            ->update([
+                'description' => $description,
                 'updated_at' => now(),
             ]);
     }

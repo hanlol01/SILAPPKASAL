@@ -150,7 +150,7 @@
     "search": "Search case number, registration, status...",
     "currentStatusTitle": "Current Case Status",
     "currentStatusDesc": "The latest status of this case.",
-    "assignmentManagedBy": "Satgas assignment is managed by the Admin/PPKS Leadership.",
+    "assignmentManagedBy": "Satgas assignment is managed by the Campus Admin.",
     "restrictedDetail": "Detail access is limited to protect report confidentiality. Users with the {{roleLabel}} role can only view an operational summary.",
     "restrictedRoles": {
       "super_admin": "PPKS Leadership",

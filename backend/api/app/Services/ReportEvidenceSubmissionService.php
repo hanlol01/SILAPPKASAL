@@ -191,15 +191,24 @@ class ReportEvidenceSubmissionService
      */
     public function listForAssignedSatgas(User $actor, CaseRecord $case): Collection
     {
-        if (! $this->campusScope->canSensitiveOversight($actor)) {
+        $isOversight = $this->campusScope->canSensitiveOversight($actor);
+
+        if (! $isOversight) {
             $this->authorizeAssignedSatgasForCase($actor, $case, 'reporter_evidence.read.assigned');
         }
 
-        return ReportEvidenceSubmission::query()
+        $files = ReportEvidenceSubmission::query()
             ->where('report_id', $case->report_id)
             ->latest('uploaded_at')
             ->latest('id')
             ->get();
+
+        if ($isOversight) {
+            $case->loadMissing('report:id,report_type');
+            $this->maskAnonymousOversightFilenames($files, $case->report);
+        }
+
+        return $files;
     }
 
     /**
@@ -211,10 +220,14 @@ class ReportEvidenceSubmissionService
             throw $this->forbidden();
         }
 
-        return $report->evidenceSubmissions()
+        $files = $report->evidenceSubmissions()
             ->latest('uploaded_at')
             ->latest('id')
             ->get();
+
+        $this->maskAnonymousOversightFilenames($files, $report);
+
+        return $files;
     }
 
     public function downloadForAssignedSatgas(User $actor, string $uuid): StreamedResponse
@@ -301,7 +314,11 @@ class ReportEvidenceSubmissionService
         }
 
         $extension = self::EXTENSION_BY_MIME[$submission->mime_type] ?? 'bin';
-        $filename = $this->sanitizeOriginalFilename($submission->original_filename, $extension);
+        $submission->loadMissing('report:id,report_type');
+        $filename = $this->campusScope->canSensitiveOversight($actor)
+            && $submission->report?->report_type === 'anonymous'
+                ? $this->anonymousOversightFilename($submission->mime_type)
+                : $this->sanitizeOriginalFilename($submission->original_filename, $extension);
         $mimeType = isset(self::EXTENSION_BY_MIME[$submission->mime_type])
             ? $submission->mime_type
             : 'application/octet-stream';
@@ -422,9 +439,29 @@ class ReportEvidenceSubmissionService
     private function oversightSubmissionOrFail(string $uuid): ReportEvidenceSubmission
     {
         return ReportEvidenceSubmission::query()
-            ->with('report')
+            ->with('report:id,report_type,registration_number')
             ->where('uuid', $uuid)
             ->first() ?? throw $this->notFound();
+    }
+
+    /**
+     * @param Collection<int, ReportEvidenceSubmission> $files
+     */
+    private function maskAnonymousOversightFilenames(Collection $files, ?Report $report): void
+    {
+        if ($report?->report_type !== 'anonymous') {
+            return;
+        }
+
+        $files->each(fn (ReportEvidenceSubmission $submission) => $submission->setAttribute(
+            'oversight_filename',
+            $this->anonymousOversightFilename($submission->mime_type),
+        ));
+    }
+
+    private function anonymousOversightFilename(?string $mimeType): string
+    {
+        return 'supporting-file.'.(self::EXTENSION_BY_MIME[$mimeType] ?? 'bin');
     }
 
     private function ownedReportOrFail(User $actor, string $registrationNumber): Report

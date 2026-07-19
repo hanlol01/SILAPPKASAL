@@ -150,7 +150,7 @@
     "search": "Cari nomor kasus, registrasi, status...",
     "currentStatusTitle": "Status Kasus Terkini",
     "currentStatusDesc": "Status terbaru kasus ini.",
-    "assignmentManagedBy": "Penugasan Satgas dikelola oleh Admin/Pimpinan PPKS.",
+    "assignmentManagedBy": "Penugasan Satgas dikelola oleh Admin Kampus.",
     "restrictedDetail": "Akses detail dibatasi untuk menjaga kerahasiaan laporan. Pengguna dengan peran {{roleLabel}} hanya dapat melihat ringkasan operasional.",
     "restrictedRoles": {
       "super_admin": "Pimpinan PPKS",

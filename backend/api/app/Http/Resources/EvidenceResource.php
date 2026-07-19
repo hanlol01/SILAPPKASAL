@@ -12,6 +12,9 @@ class EvidenceResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $originalFilename = $this->resource->getAttribute('oversight_filename')
+            ?? $this->original_filename;
+
         return [
             'id' => $this->id,
             'investigation_id' => $this->investigation_id,
@@ -32,13 +35,13 @@ class EvidenceResource extends JsonResource
                 ? 'metadata_reviewed_admin_complete_not_forensic_authenticity'
                 : null,
             'file_metadata' => [
-                'original_filename' => $this->original_filename,
+                'original_filename' => $originalFilename,
                 'mime_type' => $this->mime_type,
                 'file_size' => $this->file_size,
                 'checksum_sha256' => $this->checksum_sha256,
             ],
             'file_attachment' => $this->storage_path === null ? null : [
-                'original_filename' => $this->original_filename,
+                'original_filename' => $originalFilename,
                 'mime_type' => $this->mime_type,
                 'file_size' => $this->file_size,
                 'uploaded_at' => $this->file_uploaded_at?->toJSON(),

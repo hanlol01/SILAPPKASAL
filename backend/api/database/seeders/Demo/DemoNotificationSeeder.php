@@ -13,17 +13,16 @@ class DemoNotificationSeeder extends Seeder
         User::query()->whereHas('role')->get()->each(function (User $user): void {
             $roleCode = $user->role?->code;
             $items = match ($roleCode) {
-                'super_admin' => [
-                    ['NOTIF-14', 'recommendation_submitted_for_review', 'Ada rekomendasi demo menunggu peninjauan Admin Kampus.'],
-                    ['NOTIF-15', 'decision_finalized', 'Keputusan demo telah difinalisasi.'],
-                ],
+                'super_admin' => [],
                 'admin' => [
+                    ['NOTIF-14', 'recommendation_submitted_for_review', 'Ada rekomendasi demo menunggu peninjauan Admin Kampus.'],
                     ['NOTIF-01', 'report_new', 'Laporan demo baru masuk untuk kampus Anda.'],
                     ['NOTIF-13', 'case_status_changed', 'Status kasus demo berubah.'],
                 ],
                 'satgas_ppks' => [
                     ['NOTIF-12', 'case_assigned', 'Kasus demo ditugaskan kepada Anda.'],
                     ['NOTIF-18', 'decision_created', 'Keputusan demo tersedia untuk kasus yang Anda tangani.'],
+                    ['NOTIF-15', 'decision_finalized', 'Keputusan demo telah difinalisasi.'],
                 ],
                 'reporter' => [
                     ['NOTIF-02', 'report_confirmed', 'Laporan demo Anda telah diterima.'],

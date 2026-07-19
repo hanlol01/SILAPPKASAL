@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\AuditAction;
 use App\Enums\ReportStatus;
+use App\Models\Permission;
 use App\Models\Report;
 use App\Models\Role;
 use App\Models\University;
@@ -244,6 +245,11 @@ class ReportIntakeTest extends TestCase
             ->assertJsonMissingPath('data.reporter.id')
             ->assertJsonMissingPath('data.reporter.name');
 
+        config()->set('oversight.cross_campus_sensitive_read', 'false');
+        $this->getJson("/api/v1/reports/{$report->id}")
+            ->assertOk()
+            ->assertJsonMissingPath('data.sensitive_details');
+
         config()->set('oversight.cross_campus_sensitive_read', true);
         $this->getJson("/api/v1/reports/{$report->id}")
             ->assertOk()
@@ -252,6 +258,20 @@ class ReportIntakeTest extends TestCase
             ->assertJsonMissingPath('data.reporter.id')
             ->assertJsonMissingPath('data.reporter.name')
             ->assertJsonMissingPath('data.reporter.email');
+
+        $superAdmin->forceFill(['is_active' => false])->save();
+        $this->getJson("/api/v1/reports/{$report->id}")
+            ->assertOk()
+            ->assertJsonMissingPath('data.sensitive_details');
+
+        $superAdmin->forceFill(['is_active' => true])->save();
+        $superAdmin->role->permissions()->detach(
+            Permission::query()->where('code', 'cases.read.sensitive_oversight')->value('id'),
+        );
+        Sanctum::actingAs($superAdmin->fresh(), ['*']);
+        $this->getJson("/api/v1/reports/{$report->id}")
+            ->assertOk()
+            ->assertJsonMissingPath('data.sensitive_details');
     }
 
     public function test_satgas_cannot_access_anonymous_report_identity_through_report_api(): void

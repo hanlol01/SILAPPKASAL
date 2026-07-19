@@ -908,7 +908,7 @@ function dateInput(value: string | null | undefined) {
   return value ? value.slice(0, 10) : "";
 }
 
-function asDecisionOutcome(value: string): DecisionValues["outcome_code"] {
+function asDecisionOutcome(value: string | null | undefined): DecisionValues["outcome_code"] {
   return DECISION_OUTCOMES.includes(value as DecisionValues["outcome_code"])
     ? (value as DecisionValues["outcome_code"])
     : "accepted";

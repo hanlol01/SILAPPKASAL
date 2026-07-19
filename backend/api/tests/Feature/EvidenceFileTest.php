@@ -239,9 +239,14 @@ class EvidenceFileTest extends TestCase
         [$evidence, $satgas] = $this->assignedEvidence();
         $superAdmin = $this->makeUser('super_admin', 'oversight@university.ac.id');
         $content = $this->pdfContent();
+        $evidence->investigation->case->report()
+            ->update([
+                'report_type' => 'anonymous',
+                'tracking_code' => 'ANON-EVIDENCE-0001',
+            ]);
 
         $this->actingAsApi($satgas);
-        $this->upload($evidence, 'internal-oversight.pdf', $content)->assertOk();
+        $this->upload($evidence, 'Demo-Pelapor-internal.pdf', $content)->assertOk();
 
         $this->actingAsApi($superAdmin);
         config()->set('oversight.cross_campus_sensitive_read', false);
@@ -249,12 +254,33 @@ class EvidenceFileTest extends TestCase
         $this->getJson("/api/v1/evidences/{$evidence->id}/file")->assertForbidden();
 
         config()->set('oversight.cross_campus_sensitive_read', true);
+        $this->getJson("/api/v1/investigations/{$evidence->investigation_id}/evidences")
+            ->assertOk()
+            ->assertJsonPath('data.0.file_metadata.original_filename', 'internal-evidence.pdf')
+            ->assertJsonMissing(['original_filename' => 'Demo-Pelapor-internal.pdf']);
+        $this->getJson("/api/v1/evidences/{$evidence->id}")
+            ->assertOk()
+            ->assertJsonPath('data.file_attachment.original_filename', 'internal-evidence.pdf')
+            ->assertJsonMissing(['original_filename' => 'Demo-Pelapor-internal.pdf']);
+
         $preview = $this->get("/api/v1/evidences/{$evidence->id}/preview");
         $preview->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->assertStringContainsString(
+            'internal-evidence.pdf',
+            (string) $preview->headers->get('Content-Disposition'),
+        );
+        $this->assertStringNotContainsString(
+            'Demo-Pelapor-internal.pdf',
+            (string) $preview->headers->get('Content-Disposition'),
+        );
         $this->assertSame($content, $preview->streamedContent());
 
         $download = $this->get("/api/v1/evidences/{$evidence->id}/file");
-        $download->assertOk()->assertDownload('internal-oversight.pdf');
+        $download->assertOk()->assertDownload('internal-evidence.pdf');
+        $this->assertStringNotContainsString(
+            'Demo-Pelapor-internal.pdf',
+            (string) $download->headers->get('Content-Disposition'),
+        );
         $this->assertSame($content, $download->streamedContent());
 
         $investigation = $evidence->investigation;

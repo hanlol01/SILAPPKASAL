@@ -151,7 +151,7 @@ class MasterDataSeeder extends Seeder
             ['CSTS-08', 'mediation', 'Proses mediasi opsional.', 4, 'Investigasi', false, 'satgas_ppks', ['recommendation']],
             ['CSTS-09', 'recommendation', 'Satgas menyusun rekomendasi.', 5, 'Rekomendasi', false, 'satgas_ppks', []],
             ['CSTS-10', 'decision', 'Menunggu keputusan institusi.', 6, 'Keputusan', false, 'admin', []],
-            ['CSTS-11', 'decided', 'Keputusan pimpinan telah diterbitkan.', 6, 'Keputusan', false, 'leader', ['recovery']],
+            ['CSTS-11', 'decided', 'Keputusan institusi telah diterbitkan.', 6, 'Keputusan', false, 'leader', ['recovery']],
             ['CSTS-12', 'recovery', 'Tahap pendampingan korban.', 7, 'Monitoring', false, 'satgas_ppks', ['monitoring']],
             ['CSTS-13', 'monitoring', 'Monitoring pasca kasus.', 7, 'Monitoring', false, 'satgas_ppks', ['closed']],
             ['CSTS-14', 'closed', 'Kasus selesai.', 7, 'Monitoring', true, 'satgas_ppks', []],

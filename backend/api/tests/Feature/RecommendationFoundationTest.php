@@ -595,6 +595,10 @@ class RecommendationFoundationTest extends TestCase
             'code' => 'RECS-03',
             'name' => RecommendationStatusEnum::SubmittedToLeader->value,
         ]);
+        $this->assertDatabaseHas('case_statuses', [
+            'code' => 'CSTS-11',
+            'description' => 'Keputusan pimpinan telah diterbitkan.',
+        ]);
         $this->assertSame('RECS-03', $recommendation->refresh()->status_code);
         $this->assertSame(
             RecommendationStatusEnum::SubmittedToLeader->value,
@@ -606,6 +610,10 @@ class RecommendationFoundationTest extends TestCase
         $this->assertDatabaseHas('recommendation_statuses', [
             'code' => 'RECS-03',
             'name' => RecommendationStatusEnum::SubmittedForReview->value,
+        ]);
+        $this->assertDatabaseHas('case_statuses', [
+            'code' => 'CSTS-11',
+            'description' => 'Keputusan institusi telah diterbitkan.',
         ]);
         $this->assertSame('RECS-03', $recommendation->refresh()->status_code);
         $this->assertDatabaseCount('recommendation_statuses', $statusCount);
