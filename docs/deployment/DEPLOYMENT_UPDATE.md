@@ -121,15 +121,31 @@ systemctl restart silappkasal-frontend
 
 ---
 
-## REV-WF-03 R3 Release Note (Not Yet Deployed)
+## REV-WF-03 Final Release Note (Not Yet Deployed)
 
-Before an R3 deployment, back up the database and verify that the release contains migration:
+Before deployment, take and verify a restorable PostgreSQL backup and confirm that the release
+contains these migrations in order:
 
 ```text
+2026_07_20_000000_add_emergency_access_lifecycle_to_break_glass_requests.php
+2026_07_20_010000_reconcile_r2_emergency_access_permissions.php
 2026_07_20_020000_add_final_case_closure.php
 ```
 
-After the standard `php artisan migrate --force` step, verify:
+Run the migration while the application is in maintenance mode. Preserve the existing `APP_KEY`,
+keep `SUPER_ADMIN_CROSS_CAMPUS_SENSITIVE_READ` at its approved production value, and do not run a
+production seeder. The `010000` migration performs the required deployed RBAC reconciliation.
+
+```bash
+php artisan down
+php artisan optimize:clear
+php artisan migrate --force
+php artisan config:cache
+php artisan route:cache
+php artisan queue:restart
+```
+
+Restart the PHP/frontend services, then run `php artisan up` before public smoke testing. Verify:
 
 - `case_final_summaries` exists with a unique `case_id`;
 - `recoveries.discontinuation_reason` exists;
@@ -137,5 +153,11 @@ After the standard `php artisan migrate --force` step, verify:
 - generic Case transition to `closed` is rejected;
 - published Reporter projection and historical `legacy_completion` both load safely;
 - frontend client and SSR artifacts were built from the same commit.
+
+If rollback is required after any REV-WF-03 migration has run, keep the application in maintenance
+mode and prefer restoring the verified pre-release PostgreSQL backup together with the pre-release
+code checkpoint. The migration down path drops final-summary/discontinuation data and rewrites
+Emergency Access lifecycle state, so a code-only rollback or blind production migration rollback
+is not sufficient.
 
 No production migration, deployment, seed, or environment change is performed as part of the R3 implementation commit.

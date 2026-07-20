@@ -84,7 +84,7 @@ Legend: ✅ Full · 📖 Read · ✏️ Write · 👤 Own only · 🔒 Denied ·
 |---|---|---|---|---|
 | View assigned cases | 🔒 | 📖 | 🔒 | 🔒 |
 | View case metadata (all) | 🔒 | 🔒 | 📖 | 📖 |
-| Assign Satgas | 🔒 | 🔒 | ✏️ | ✏️ |
+| Assign Satgas | 🔒 | 🔒 | ✏️ same campus | 🔒 read-only oversight |
 | Update case status | 🔒 | ✏️ (assigned) | 🔒 | 🔒 |
 
 ### 3.4 Investigations, Recommendations, Decisions, Recovery
@@ -93,7 +93,7 @@ Legend: ✅ Full · 📖 Read · ✏️ Write · 👤 Own only · 🔒 Denied ·
 |---|---|---|---|---|
 | Create/update (assigned) | 🔒 | ✏️ | 🔒 | 🔒 |
 | View (assigned) | 🔒 | 📖 | 📖 metadata | 📖 metadata |
-| Record decision | 🔒 | 🔒 | ✏️ | ✏️ |
+| Record decision | 🔒 | 🔒 | ✏️ same campus | 🔒 read-only |
 
 ### 3.5 Evidence
 

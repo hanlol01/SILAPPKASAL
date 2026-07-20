@@ -1083,20 +1083,22 @@ Audit Event: AUD-CASE-04
 ### 7.8 Record Decision
 
 ```
-POST /api/v1/cases/{id}/decisions
+POST /api/v1/recommendations/{recommendation}/decisions
 Auth: Bearer Token
-Roles: satgas_ppks (assigned)
+Roles: admin (same campus)
 Permission: cases.record_decision
-Policy: CasePolicy@recordDecision
-Audit Event: AUD-CASE-05
+Policy: DecisionPolicy@create
+Audit Event: decision.created
 ```
 
 **Request Body:**
 
 ```json
 {
+  "outcome_code": "accepted",
   "decision_number": "SK/PPKS/2026/001",
   "decision_date": "2026-06-20",
+  "decision_summary": "Ringkasan putusan yang telah ditetapkan.",
   "decision_content": "Berdasarkan rekomendasi Satgas PPKS..."
 }
 ```
@@ -1104,44 +1106,41 @@ Audit Event: AUD-CASE-05
 ### 7.9 Add Recovery Monitoring
 
 ```
-POST /api/v1/cases/{id}/recovery-monitoring
+POST /api/v1/recoveries/{recovery}/monitoring
 Auth: Bearer Token
 Roles: satgas_ppks (assigned)
 Permission: cases.monitor
-Policy: CasePolicy@monitor
-Audit Event: AUD-CASE-07 (when complete → case closed)
+Policy: RecoveryPolicy@createMonitoring
+Audit Event: recovery.monitoring_created
 ```
 
 **Request Body:**
 
 ```json
 {
-  "recovery_type": "psychological",
-  "activity_date": "2026-06-25",
-  "description": "Sesi konseling ke-3 dengan psikolog...",
-  "status": "ongoing",
-  "notes": "Korban menunjukkan perkembangan positif."
+  "monitoring_date": "2026-06-25",
+  "condition_summary": "Korban menunjukkan perkembangan positif.",
+  "follow_up_plan": "Lanjutkan sesi konseling berikutnya."
 }
 ```
+
+Monitoring is accepted only while the Recovery is `ongoing`. It does not complete a Recovery or
+close a Case automatically.
 
 ### 7.10 Close Case
 
 ```
-PATCH /api/v1/cases/{id}/close
+POST /api/v1/cases/{case}/close
 Auth: Bearer Token
 Roles: satgas_ppks (assigned)
 Permission: cases.close
 Policy: CasePolicy@close
-Audit Event: AUD-CASE-07
+Audit Event: case.closed
 ```
 
-**Request Body:**
-
-```json
-{
-  "closing_notes": "Semua tahap penanganan telah selesai. Monitoring pemulihan selesai."
-}
-```
+No request body. The service revalidates the active assignment, terminal Recovery path,
+published compatible final summary, Monitoring requirement for the completed path, and rejects
+generic Case status transitions to `closed`.
 
 ### 7.11 Escalate Case
 
@@ -1724,8 +1723,8 @@ Endpoint yang **WAJIB** ada untuk sistem bisa berfungsi minimal.
 | 16 | `POST /cases/{id}/risk-assessment` | Cases |
 | 17 | `POST /cases/{id}/investigation-activities` | Cases |
 | 18 | `POST /cases/{id}/recommendations` | Cases |
-| 19 | `POST /cases/{id}/decisions` | Cases |
-| 20 | `PATCH /cases/{id}/close` | Cases |
+| 19 | `POST /recommendations/{recommendation}/decisions` | Decisions |
+| 20 | `POST /cases/{case}/close` | Cases |
 | 21 | `POST /reports/{id}/evidences` | Evidence |
 | 22 | `GET /evidences/{id}/download` | Evidence |
 | 23 | `GET /users` | Users |
@@ -1741,7 +1740,7 @@ Endpoint yang **SEBAIKNYA** ada untuk pengalaman pengguna yang layak.
 | 2 | `PATCH /reports/{id}/verify` | Reports |
 | 3 | `PATCH /reports/{id}/request-info` | Reports |
 | 4 | `PATCH /cases/{id}/status` | Cases |
-| 5 | `POST /cases/{id}/recovery-monitoring` | Cases |
+| 5 | `POST /recoveries/{recovery}/monitoring` | Recovery |
 | 6 | `PATCH /cases/{id}/escalate` | Cases |
 | 7 | `POST /cases/{id}/evidences` | Evidence |
 | 8 | `DELETE /evidences/{id}` | Evidence |
