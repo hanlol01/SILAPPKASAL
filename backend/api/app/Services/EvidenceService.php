@@ -75,7 +75,10 @@ class EvidenceService
                 'classification' => $evidence->classification,
             ]);
 
-            return $evidence->load($this->detailRelations());
+            $evidence->load($this->detailRelations());
+            $this->maskAnonymousInternalFilename($evidence);
+
+            return $evidence;
         });
     }
 
@@ -132,7 +135,10 @@ class EvidenceService
                 'metadata_updated' => true,
             ]);
 
-            return $evidence->load($this->detailRelations());
+            $evidence->load($this->detailRelations());
+            $this->maskAnonymousInternalFilename($evidence);
+
+            return $evidence;
         });
     }
 
@@ -170,7 +176,10 @@ class EvidenceService
                 ]);
             }
 
-            return $evidence->load($this->detailRelations());
+            $evidence->load($this->detailRelations());
+            $this->maskAnonymousInternalFilename($evidence);
+
+            return $evidence;
         });
     }
 
@@ -282,7 +291,10 @@ class EvidenceService
                 ]);
                 $this->recordFileAudit(AuditAction::EvidenceFileUploaded, $lockedEvidence, $actor);
 
-                return $lockedEvidence->load($this->detailRelations());
+                $lockedEvidence->load($this->detailRelations());
+                $this->maskAnonymousInternalFilename($lockedEvidence);
+
+                return $lockedEvidence;
             });
         } catch (Throwable $exception) {
             if ($storedPath !== null) {

@@ -247,7 +247,20 @@ class EvidenceFileTest extends TestCase
             ]);
 
         $this->actingAsApi($satgas);
-        $this->upload($evidence, 'Demo-Pelapor-internal.pdf', $content)->assertOk();
+        $this->upload($evidence, 'Demo-Pelapor-internal.pdf', $content)
+            ->assertOk()
+            ->assertJsonPath('data.file_attachment.original_filename', 'internal-evidence.pdf')
+            ->assertJsonMissing(['original_filename' => 'Demo-Pelapor-internal.pdf']);
+        $this->patchJson("/api/v1/evidences/{$evidence->id}", [
+            'title' => 'Metadata bukti anonim diperbarui',
+        ])->assertOk()
+            ->assertJsonPath('data.file_attachment.original_filename', 'internal-evidence.pdf')
+            ->assertJsonMissing(['original_filename' => 'Demo-Pelapor-internal.pdf']);
+        $this->patchJson("/api/v1/evidences/{$evidence->id}/status", [
+            'status' => 'under_review',
+        ])->assertOk()
+            ->assertJsonPath('data.file_attachment.original_filename', 'internal-evidence.pdf')
+            ->assertJsonMissing(['original_filename' => 'Demo-Pelapor-internal.pdf']);
         $this->getJson("/api/v1/investigations/{$evidence->investigation_id}/evidences")
             ->assertOk()
             ->assertJsonPath('data.0.file_metadata.original_filename', 'internal-evidence.pdf')
