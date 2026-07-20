@@ -4,12 +4,14 @@ import type {
   BreakGlassPage,
   BreakGlassRequest,
   BreakGlassRequestPayload,
+  BreakGlassRevokePayload,
   BreakGlassReveal,
 } from "@/lib/break-glass-types";
 
 export const breakGlassQueryKeys = {
   pending: (page = 1) => ["break-glass", "pending", page] as const,
   history: (page = 1) => ["break-glass", "history", page] as const,
+  mine: (caseId: string | number) => ["break-glass", "mine", String(caseId)] as const,
   request: (id: string | number) => ["break-glass", "request", id] as const,
 };
 
@@ -18,6 +20,17 @@ export async function requestBreakGlass(payload: BreakGlassRequestPayload) {
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export async function getOwnBreakGlassRequests(caseId: string | number): Promise<BreakGlassPage> {
+  const envelope = await apiRequestEnvelope<BreakGlassRequest[]>("/break-glass/mine", {
+    query: { case_id: caseId, per_page: 100 },
+  });
+
+  return {
+    data: envelope.data,
+    meta: envelope.meta ?? emptyMeta(envelope.data.length),
+  };
 }
 
 export async function getPendingRequests(page = 1): Promise<BreakGlassPage> {
@@ -59,8 +72,15 @@ export function denyBreakGlass(id: string | number, payload: BreakGlassDenyPaylo
   });
 }
 
+export function revokeBreakGlass(id: string | number, payload: BreakGlassRevokePayload) {
+  return apiRequest<BreakGlassRequest>(`/break-glass/${id}/revoke`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function revealIdentity(id: string | number) {
-  return apiRequest<BreakGlassReveal>(`/break-glass/${id}/reveal`);
+  return apiRequest<BreakGlassReveal>(`/break-glass/${id}/reveal`, { method: "POST" });
 }
 
 function emptyMeta(total: number) {

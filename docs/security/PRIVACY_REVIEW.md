@@ -2,13 +2,13 @@
 
 **Project:** SILAPPKASAL  
 **Milestone:** M26 — Security & Privacy Enhancement  
-**Status:** 🔒 FROZEN — All Decisions FINAL  
+**Status:** REV-WF-03 R2 Emergency Access override active
 **Created:** 2026-06-22  
 **Frozen:** 2026-06-22  
 
 > [!IMPORTANT]
-> This document is frozen. All open questions have been resolved. Decisions are final.
-> Do not modify this document. Implementation follows M26_IMPLEMENTATION_PLAN.md.
+> R2 preserves the masking conclusions and supersedes the M26 Break Glass ownership, projection,
+> and TTL statements below.
 
 ---
 
@@ -62,8 +62,9 @@ Reporter (MUST be authenticated)
   → Reporter receives notifications
   → Admin sees: report_type "anonymous", reporter: { masked: true }
   → Break-glass required to reveal identity
-  → Reveal returns: name + email only (minimal profile)
-  → Reveal expires after 8 hours (TTL)
+  → Assigned Satgas requests; same-campus Admin reviews without reveal authority
+  → Requester-only reveal returns the allowlisted minimal identity projection
+  → New grant starts on approval for 30/60/240/1440 minutes
 ```
 
 ### 3.2 API Masking Contract (FINAL)
@@ -100,8 +101,8 @@ For non-anonymous reports:
 
 | Aspect | Decision |
 |---|---|
-| Reveal scope | **Minimal profile only** (name + email) |
-| Reveal duration | **8-hour TTL** from first view |
-| Reporter notification | **On approval only** — reporter learns identity was revealed |
+| Reveal scope | `name`, `nim`, `email`, `phone_number`, faculty, study program, university where present |
+| Reveal duration | **30/60/240/1440 minutes from approval**; legacy rows retain bounded 8-hour compatibility |
+| Reporter notification | **On approval only**, generic and without requester/reviewer/reason data |
 | Audit visibility | **Super Admin only** — break-glass audit entries restricted |
 | Audit entries | Immutable, severity: critical, retained indefinitely |

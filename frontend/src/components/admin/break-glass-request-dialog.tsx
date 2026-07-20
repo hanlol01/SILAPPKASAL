@@ -24,7 +24,10 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { requestBreakGlass } from "@/lib/break-glass-api";
-import type { BreakGlassReasonCategory } from "@/lib/break-glass-types";
+import type {
+  BreakGlassDurationMinutes,
+  BreakGlassReasonCategory,
+} from "@/lib/break-glass-types";
 import { apiErrorMessage } from "@/lib/form-errors";
 
 const REASON_CATEGORIES: BreakGlassReasonCategory[] = [
@@ -36,13 +39,15 @@ const REASON_CATEGORIES: BreakGlassReasonCategory[] = [
 ];
 
 interface BreakGlassRequestDialogProps {
-  reportId: number;
+  caseId: number;
   registrationNumber: string;
+  disabled?: boolean;
 }
 
 export function BreakGlassRequestDialog({
-  reportId,
+  caseId,
   registrationNumber,
+  disabled = false,
 }: BreakGlassRequestDialogProps) {
   const { t } = useTranslation(["dashboard"]);
   const queryClient = useQueryClient();
@@ -50,21 +55,24 @@ export function BreakGlassRequestDialog({
   const [reasonCategory, setReasonCategory] =
     useState<BreakGlassReasonCategory>("investigation_necessity");
   const [reason, setReason] = useState("");
+  const [duration, setDuration] = useState<BreakGlassDurationMinutes>(60);
   const [acknowledgment, setAcknowledgment] = useState(false);
   const [fieldError, setFieldError] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: () =>
       requestBreakGlass({
-        report_id: reportId,
+        case_id: caseId,
         reason_category: reasonCategory,
         reason,
+        requested_duration_minutes: duration,
         acknowledgment,
       }),
     onSuccess: () => {
       toast.success(t("dashboard:breakGlass.request.success"));
       setOpen(false);
       setReason("");
+      setDuration(60);
       setAcknowledgment(false);
       setFieldError(null);
       queryClient.invalidateQueries({ queryKey: ["break-glass"] });
@@ -91,10 +99,17 @@ export function BreakGlassRequestDialog({
     mutation.mutate();
   }
 
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (!nextOpen && !mutation.isPending) {
+      setFieldError(null);
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="w-full">
+        <Button variant="outline" className="w-full" disabled={disabled}>
           <ShieldAlert className="mr-2 h-4 w-4" />
           {t("dashboard:breakGlass.request.trigger")}
         </Button>
@@ -126,6 +141,29 @@ export function BreakGlassRequestDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>{t("dashboard:breakGlass.request.duration")}</Label>
+            <Select
+              value={String(duration)}
+              onValueChange={(value) => setDuration(Number(value) as BreakGlassDurationMinutes)}
+              disabled={mutation.isPending}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[30, 60, 240, 1440].map((minutes) => (
+                  <SelectItem key={minutes} value={String(minutes)}>
+                    {t(`dashboard:breakGlass.duration.${minutes}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {t("dashboard:breakGlass.request.durationHint")}
+            </p>
           </div>
 
           <div className="space-y-2">

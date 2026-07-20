@@ -1,10 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Clock, Eye, Loader2, ShieldAlert, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, Loader2, ShieldAlert, ShieldX, XCircle } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { toast } from "sonner";
-import { BreakGlassRevealView } from "@/components/admin/break-glass-reveal-view";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,9 +30,9 @@ import { apiErrorMessage } from "@/lib/form-errors";
 import {
   approveBreakGlass,
   denyBreakGlass,
-  revealIdentity,
+  revokeBreakGlass,
 } from "@/lib/break-glass-api";
-import type { BreakGlassRequest, BreakGlassReveal } from "@/lib/break-glass-types";
+import type { BreakGlassRequest } from "@/lib/break-glass-types";
 
 interface BreakGlassPendingListProps {
   requests: BreakGlassRequest[];
@@ -50,7 +49,8 @@ export function BreakGlassPendingList({
   const { t, i18n } = useTranslation(["dashboard", "common"]);
   const [denyTarget, setDenyTarget] = useState<BreakGlassRequest | null>(null);
   const [denialReason, setDenialReason] = useState("");
-  const [reveal, setReveal] = useState<BreakGlassReveal | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<BreakGlassRequest | null>(null);
+  const [revocationReason, setRevocationReason] = useState("");
   const fallbackEmpty = emptyMessage ?? t("dashboard:breakGlass.pending.empty");
 
   const approveMutation = useMutation({
@@ -74,13 +74,16 @@ export function BreakGlassPendingList({
     onError: (error) => toast.error(errorMessage(error, t("dashboard:breakGlass.errors.denialFailed"))),
   });
 
-  const revealMutation = useMutation({
-    mutationFn: (id: number) => revealIdentity(id),
-    onSuccess: (data) => {
-      setReveal(data);
+  const revokeMutation = useMutation({
+    mutationFn: ({ id, revocation_reason }: { id: number; revocation_reason: string }) =>
+      revokeBreakGlass(id, { revocation_reason }),
+    onSuccess: () => {
+      toast.success(t("dashboard:breakGlass.success.revoked"));
+      setRevokeTarget(null);
+      setRevocationReason("");
       invalidateBreakGlass(queryClient);
     },
-    onError: (error) => toast.error(errorMessage(error, t("dashboard:breakGlass.errors.revealFailed"))),
+    onError: (error) => toast.error(errorMessage(error, t("dashboard:breakGlass.errors.revocationFailed"))),
   });
 
   function submitDenial() {
@@ -97,12 +100,24 @@ export function BreakGlassPendingList({
     });
   }
 
+  function submitRevocation() {
+    if (!revokeTarget) return;
+
+    if (revocationReason.trim().length < 10) {
+      toast.error(t("dashboard:breakGlass.errors.revocationReasonMin"));
+      return;
+    }
+
+    revokeMutation.mutate({
+      id: revokeTarget.id,
+      revocation_reason: revocationReason.trim(),
+    });
+  }
+
   return (
     <div className="space-y-4">
-      {reveal && <BreakGlassRevealView reveal={reveal} />}
-
-      <div className="overflow-hidden rounded-lg border">
-        <Table>
+      <div className="overflow-x-auto rounded-lg border">
+        <Table className="min-w-[64rem]">
           <TableHeader>
             <TableRow>
               <TableHead>{t("dashboard:breakGlass.table.report")}</TableHead>
@@ -110,6 +125,7 @@ export function BreakGlassPendingList({
               <TableHead>{t("dashboard:breakGlass.table.reason")}</TableHead>
               <TableHead>{t("dashboard:breakGlass.table.status")}</TableHead>
               <TableHead>{t("dashboard:breakGlass.table.requested")}</TableHead>
+              <TableHead>{t("dashboard:breakGlass.table.grant")}</TableHead>
               {showActions && <TableHead className="text-right">{t("dashboard:breakGlass.table.actions")}</TableHead>}
             </TableRow>
           </TableHeader>
@@ -146,6 +162,20 @@ export function BreakGlassPendingList({
                 <TableCell className="text-muted-foreground">
                   {formatDateTime(request.requested_at, i18n.language)}
                 </TableCell>
+                <TableCell className="text-muted-foreground">
+                  <div>{t(`dashboard:breakGlass.duration.${request.requested_duration_minutes}`, {
+                    defaultValue: t("dashboard:breakGlass.duration.minutes", {
+                      count: request.requested_duration_minutes,
+                    }),
+                  })}</div>
+                  {request.expires_at && (
+                    <div className="mt-1 text-xs">
+                      {t("dashboard:breakGlass.table.expires", {
+                        value: formatDateTime(request.expires_at, i18n.language),
+                      })}
+                    </div>
+                  )}
+                </TableCell>
                 {showActions && (
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
@@ -169,19 +199,15 @@ export function BreakGlassPendingList({
                           </Button>
                         </>
                       )}
-                      {request.is_viewable && request.status !== "pending" && (
+                      {request.can_revoke && (
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => revealMutation.mutate(request.id)}
-                          disabled={revealMutation.isPending}
+                          onClick={() => setRevokeTarget(request)}
+                          disabled={revokeMutation.isPending}
                         >
-                          {revealMutation.isPending ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : (
-                            <Eye className="mr-2 h-4 w-4" />
-                          )}
-                          {t("dashboard:breakGlass.actions.reveal")}
+                          <ShieldX className="mr-2 h-4 w-4" />
+                          {t("dashboard:breakGlass.actions.revoke")}
                         </Button>
                       )}
                     </div>
@@ -193,7 +219,7 @@ export function BreakGlassPendingList({
             {requests.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={showActions ? 6 : 5}
+                  colSpan={showActions ? 7 : 6}
                   className="py-10 text-center text-sm text-muted-foreground"
                 >
                   {fallbackEmpty}
@@ -240,6 +266,57 @@ export function BreakGlassPendingList({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={Boolean(revokeTarget)}
+        onOpenChange={(open) => {
+          if (!open && !revokeMutation.isPending) {
+            setRevokeTarget(null);
+            setRevocationReason("");
+          }
+        }}
+      >
+        <DialogTrigger asChild>
+          <span hidden />
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("dashboard:breakGlass.revoke.title")}</DialogTitle>
+            <DialogDescription>
+              {t("dashboard:breakGlass.revoke.description")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="revocation-reason">
+              {t("dashboard:breakGlass.revoke.reasonLabel")}
+            </Label>
+            <Textarea
+              id="revocation-reason"
+              value={revocationReason}
+              onChange={(event) => setRevocationReason(event.target.value)}
+              className="min-h-28"
+              disabled={revokeMutation.isPending}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRevokeTarget(null)}
+              disabled={revokeMutation.isPending}
+            >
+              {t("common:cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={submitRevocation}
+              disabled={revokeMutation.isPending}
+            >
+              {revokeMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("dashboard:breakGlass.revoke.submit")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -260,9 +337,9 @@ function translateStatus(t: TFunction, value: string) {
 
 function BreakGlassStatusBadge({ status, t }: { status: string; t: TFunction }) {
   const visual =
-    status === "approved" || status === "revealed"
+    status === "approved" || status === "viewed"
       ? { Icon: CheckCircle2, className: "bg-success/15 text-success border-success/30" }
-      : status === "denied" || status === "expired"
+      : status === "denied" || status === "expired" || status === "revoked"
         ? { Icon: XCircle, className: "bg-destructive/15 text-destructive border-destructive/30" }
         : status === "pending"
           ? { Icon: Clock, className: "bg-warning/15 text-warning-foreground border-warning/30 dark:text-warning" }

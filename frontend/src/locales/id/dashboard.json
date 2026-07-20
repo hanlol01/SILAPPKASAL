@@ -1021,10 +1021,10 @@
   },
   "breakGlass": {
     "title": "Akses Darurat Identitas Pelapor",
-    "subtitle": "Tinjau permintaan akses identitas pelapor anonim sesuai kebijakan privasi.",
+    "subtitle": "Tinjau permintaan akses darurat dari Satgas untuk laporan anonim di kampus Anda.",
     "pending": {
       "title": "Permintaan tertunda",
-      "description": "Setujui, tolak, atau buka identitas yang sudah disetujui.",
+      "description": "Admin Kampus dapat menyetujui atau menolak permintaan, tetapi tidak dapat membuka identitas.",
       "empty": "Tidak ada permintaan akses tertunda."
     },
     "history": {
@@ -1038,16 +1038,21 @@
       "approvalFailed": "Persetujuan gagal",
       "denialFailed": "Penolakan gagal",
       "revealFailed": "Pengungkapan identitas gagal",
-      "denialReasonMin": "Alasan penolakan minimal 10 karakter."
+      "revocationFailed": "Pencabutan akses gagal",
+      "denialReasonMin": "Alasan penolakan minimal 10 karakter.",
+      "revocationReasonMin": "Alasan pencabutan minimal 10 karakter.",
+      "ownLoad": "Riwayat permintaan akses Anda tidak dapat dimuat."
     },
     "success": {
       "approved": "Permintaan akses disetujui",
-      "denied": "Permintaan akses ditolak"
+      "denied": "Permintaan akses ditolak",
+      "revoked": "Akses darurat dicabut"
     },
     "actions": {
       "approve": "Setujui",
       "deny": "Tolak",
-      "reveal": "Buka identitas"
+      "reveal": "Buka identitas",
+      "revoke": "Cabut akses"
     },
     "deny": {
       "title": "Tolak permintaan akses identitas",
@@ -1055,12 +1060,20 @@
       "reasonLabel": "Alasan penolakan",
       "submit": "Tolak permintaan"
     },
+    "revoke": {
+      "title": "Cabut akses darurat",
+      "description": "Akses Satgas akan segera dihentikan. Tindakan dan alasannya dicatat dalam audit.",
+      "reasonLabel": "Alasan pencabutan",
+      "submit": "Cabut akses"
+    },
     "table": {
       "report": "Laporan",
       "requestor": "Pemohon",
       "reason": "Alasan",
       "status": "Status",
       "requested": "Diminta",
+      "grant": "Masa akses",
+      "expires": "Berakhir {{value}}",
       "actions": "Aksi",
       "unknownReport": "Laporan tidak diketahui",
       "unknownRequestor": "Pemohon tidak diketahui",
@@ -1070,8 +1083,16 @@
       "pending": "Menunggu peninjauan",
       "approved": "Disetujui",
       "denied": "Ditolak",
-      "revealed": "Identitas diungkap",
+      "viewed": "Disetujui (status lama)",
+      "revoked": "Dicabut",
       "expired": "Kedaluwarsa"
+    },
+    "duration": {
+      "30": "30 menit",
+      "60": "1 jam",
+      "240": "4 jam",
+      "1440": "24 jam",
+      "minutes": "{{count}} menit"
     },
     "reasonCategories": {
       "legal_requirement": "Kewajiban hukum",
@@ -1086,6 +1107,8 @@
       "title": "Ajukan akses darurat identitas",
       "description": "Kirim permintaan tercatat untuk membuka identitas pelapor pada laporan {{registrationNumber}}.",
       "category": "Kategori alasan",
+      "duration": "Durasi akses",
+      "durationHint": "Durasi dimulai segera setelah Admin Kampus menyetujui permintaan.",
       "reason": "Alasan",
       "reasonPlaceholder": "Jelaskan alasan yang terdokumentasi dan sesuai kebijakan untuk meminta akses khusus.",
       "characterCount": "{{count}}/{{max}} karakter",
@@ -1098,10 +1121,30 @@
     },
     "reveal": {
       "title": "Identitas yang diungkapkan",
-      "auditNotice": "Akses identitas ini dicatat dan diaudit.",
+      "protectedDescription": "Identitas hanya ditampilkan dalam dialog ini dan dibersihkan ketika dialog ditutup.",
+      "auditNotice": "Setiap pembukaan identitas dicatat dan diaudit. Jangan menyalin atau menyebarkan data di luar kebutuhan kasus.",
+      "confirmation": "Buka identitas hanya jika benar-benar diperlukan untuk penanganan kasus saat ini.",
+      "confirm": "Konfirmasi dan buka identitas",
+      "close": "Tutup dan bersihkan identitas",
+      "success": "Identitas dibuka dan akses telah dicatat",
       "name": "Nama",
       "email": "Email",
-      "validUntil": "Berlaku hingga"
+      "nim": "NIM",
+      "phone": "Nomor telepon",
+      "faculty": "Fakultas",
+      "studyProgram": "Program studi",
+      "university": "Perguruan tinggi"
+    },
+    "caseCard": {
+      "title": "Akses Darurat Identitas Pelapor",
+      "description": "Akses terbatas untuk Satgas aktif yang ditugaskan pada kasus anonim ini.",
+      "privacyNotice": "Identitas tetap disamarkan sampai permintaan disetujui dan Anda memilih membuka identitas secara eksplisit.",
+      "latestRequest": "Permintaan terbaru",
+      "expiresAt": "Berlaku hingga",
+      "viewCount": "Jumlah pembukaan",
+      "pendingHint": "Permintaan menunggu keputusan Admin Kampus.",
+      "denialReason": "Alasan penolakan: {{reason}}",
+      "revocationReason": "Alasan pencabutan: {{reason}}"
     }
   },
   "activityLog": {
@@ -1371,6 +1414,8 @@
       "break_glass_approve": "Akses darurat disetujui",
       "break_glass_deny": "Akses darurat ditolak",
       "break_glass_view_identity": "Identitas dibuka melalui akses darurat",
+      "break_glass_revoke": "Akses darurat dicabut",
+      "break_glass_expire": "Akses darurat kedaluwarsa",
       "security_access_denied": "Akses sensitif ditolak",
       "audit_privacy_scrub": "Sanitasi privasi audit dijalankan",
       "audit_export": "Riwayat audit diekspor",

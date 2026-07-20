@@ -84,6 +84,8 @@ enum AuditAction: string
     case BreakGlassApproved = 'break_glass.approve';
     case BreakGlassDenied = 'break_glass.deny';
     case BreakGlassIdentityViewed = 'break_glass.view_identity';
+    case BreakGlassRevoked = 'break_glass.revoke';
+    case BreakGlassExpired = 'break_glass.expire';
 
     case SecurityAccessDenied = 'security.access_denied';
 

@@ -7,8 +7,12 @@ use App\Enums\AuditCategory;
 use App\Enums\AuditSeverity;
 use App\Models\AuditLog;
 use App\Models\BreakGlassRequest;
+use App\Models\CaseAssignment;
+use App\Models\CaseRecord;
+use App\Models\CaseStatus;
 use App\Models\Report;
 use App\Models\Role;
+use App\Models\University;
 use App\Models\User;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
@@ -28,288 +32,557 @@ class BreakGlassFoundationTest extends TestCase
         $this->seed(MasterDataSeeder::class);
     }
 
-    public function test_admin_can_request_break_glass_for_anonymous_report_and_only_one_pending_exists_globally(): void
+    public function test_active_assigned_same_campus_satgas_can_request_for_anonymous_case(): void
     {
-        $admin = $this->makeUser('admin', 'admin@example.test');
-        $anotherAdmin = $this->makeUser('admin', 'admin-2@example.test');
-        $superAdmin = $this->makeUser('super_admin', 'super@example.test');
-        $report = $this->makeReport($this->makeUser('reporter', 'reporter@example.test'));
+        [$case, $satgas, $admin] = $this->anonymousCase();
 
-        Sanctum::actingAs($admin, ['*']);
-
-        $this->postJson('/api/v1/break-glass/request', $this->requestPayload($report))
+        $response = $this->actingAsApi($satgas)
+            ->postJson('/api/v1/break-glass/request', $this->requestPayload($case, 60))
             ->assertCreated()
             ->assertJsonPath('data.status', BreakGlassRequest::STATUS_PENDING)
-            ->assertJsonPath('data.report.registration_number', $report->registration_number)
-            ->assertJsonMissingPath('data.reporter');
+            ->assertJsonPath('data.requested_duration_minutes', 60)
+            ->assertJsonPath('data.case.case_number', $case->case_number)
+            ->assertJsonMissingPath('data.requestor.id')
+            ->assertJsonMissingPath('data.report.id')
+            ->assertJsonMissingPath('data.reporter')
+            ->assertJsonMissingPath('data.identity');
 
+        $requestId = $response->json('data.id');
         $this->assertDatabaseHas('break_glass_requests', [
-            'requestor_id' => $admin->id,
-            'report_id' => $report->id,
+            'id' => $requestId,
+            'requestor_id' => $satgas->id,
+            'report_id' => $case->report_id,
+            'requested_duration_minutes' => 60,
             'status' => BreakGlassRequest::STATUS_PENDING,
         ]);
-
         $this->assertDatabaseHas('audit_logs', [
-            'actor_id' => $admin->id,
+            'actor_id' => $satgas->id,
             'action' => AuditAction::BreakGlassRequested->value,
             'category' => AuditCategory::Privacy->value,
             'severity' => AuditSeverity::Critical->value,
         ]);
+        $this->assertSame(1, $admin->notifications()->where('data->notification_type_code', 'break_glass_request')->count());
+    }
 
-        $this->assertSame(1, $superAdmin->notifications()->where('data->notification_type_code', 'break_glass_request')->count());
+    public function test_request_validation_rejects_invalid_duration_short_reason_and_non_anonymous_case(): void
+    {
+        [$case, $satgas] = $this->anonymousCase();
 
-        Sanctum::actingAs($anotherAdmin, ['*']);
-
-        $this->postJson('/api/v1/break-glass/request', $this->requestPayload($report))
+        $this->actingAsApi($satgas)
+            ->postJson('/api/v1/break-glass/request', $this->requestPayload($case, 120))
             ->assertUnprocessable()
-            ->assertJsonPath('success', false);
+            ->assertJsonValidationErrors('requested_duration_minutes');
 
-        $this->assertDatabaseCount('break_glass_requests', 1);
-    }
+        $this->postJson('/api/v1/break-glass/request', [
+            ...$this->requestPayload($case, 30),
+            'reason' => 'Terlalu singkat',
+        ])->assertUnprocessable()->assertJsonValidationErrors('reason');
 
-    public function test_break_glass_request_validation_requires_anonymous_report_and_forbids_non_admin_roles(): void
-    {
-        $admin = $this->makeUser('admin', 'admin@example.test');
-        $satgas = $this->makeUser('satgas_ppks', 'satgas@example.test');
-        $reporter = $this->makeUser('reporter', 'reporter@example.test');
-        $openReport = $this->makeReport($reporter, reportType: 'open');
-        $anonymousReport = $this->makeReport($reporter, registrationNumber: 'SLP-20260622-2002');
-
-        Sanctum::actingAs($satgas, ['*']);
-
-        $this->postJson('/api/v1/break-glass/request', $this->requestPayload($anonymousReport))
-            ->assertForbidden();
-
-        Sanctum::actingAs($reporter, ['*']);
-
-        $this->postJson('/api/v1/break-glass/request', $this->requestPayload($anonymousReport))
-            ->assertForbidden();
-
-        Sanctum::actingAs($admin, ['*']);
-
-        $this->postJson('/api/v1/break-glass/request', $this->requestPayload($openReport))
+        $case->report()->update(['report_type' => 'confidential', 'tracking_code' => null]);
+        $this->postJson('/api/v1/break-glass/request', $this->requestPayload($case, 30))
             ->assertUnprocessable();
-
-        $this->postJson('/api/v1/break-glass/request', array_merge($this->requestPayload($anonymousReport), [
-            'reason' => 'Too short',
-        ]))->assertUnprocessable();
     }
 
-    public function test_super_admin_can_list_approve_and_reveal_minimal_identity_with_no_store_header(): void
+    public function test_each_locked_duration_is_accepted(): void
     {
-        $admin = $this->makeUser('admin', 'admin@example.test');
-        $superAdmin = $this->makeUser('super_admin', 'super@example.test');
-        $reporter = $this->makeUser('reporter', 'reporter@example.test', [
-            'name' => 'Reporter Privacy',
-            'nim' => '2200012345',
-            'nip' => 'NIP-PRIVATE',
-            'phone_number' => '6281234567890',
-        ]);
-        $report = $this->makeReport($reporter);
-        $breakGlassRequest = $this->createBreakGlassRequest($admin, $report);
+        foreach (BreakGlassRequest::ALLOWED_DURATIONS as $duration) {
+            [$case, $satgas] = $this->anonymousCase();
 
-        Sanctum::actingAs($superAdmin, ['*']);
-
-        $this->getJson('/api/v1/break-glass/pending')
-            ->assertOk()
-            ->assertJsonPath('meta.total', 1)
-            ->assertJsonPath('data.0.id', $breakGlassRequest->id)
-            ->assertJsonMissingPath('data.0.reporter');
-
-        $this->patchJson("/api/v1/break-glass/{$breakGlassRequest->id}/approve")
-            ->assertOk()
-            ->assertJsonPath('data.status', BreakGlassRequest::STATUS_APPROVED);
-
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_id' => $superAdmin->id,
-            'action' => AuditAction::BreakGlassApproved->value,
-            'category' => AuditCategory::Privacy->value,
-            'severity' => AuditSeverity::Critical->value,
-        ]);
-
-        $response = $this->getJson("/api/v1/break-glass/{$breakGlassRequest->id}/reveal");
-
-        $response->assertOk()
-            ->assertJsonPath('data.name', 'Reporter Privacy')
-            ->assertJsonPath('data.email', 'reporter@example.test')
-            ->assertJsonMissingPath('data.nim')
-            ->assertJsonMissingPath('data.nip')
-            ->assertJsonMissingPath('data.phone_number')
-            ->assertJsonMissingPath('data.address');
-        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
-
-        $this->assertDatabaseHas('break_glass_requests', [
-            'id' => $breakGlassRequest->id,
-            'status' => BreakGlassRequest::STATUS_VIEWED,
-        ]);
-
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_id' => $superAdmin->id,
-            'action' => AuditAction::BreakGlassIdentityViewed->value,
-            'category' => AuditCategory::Privacy->value,
-            'severity' => AuditSeverity::Critical->value,
-        ]);
-
-        $secondRevealResponse = $this->getJson("/api/v1/break-glass/{$breakGlassRequest->id}/reveal");
-        $secondRevealResponse->assertOk();
-        $this->assertStringContainsString('no-store', (string) $secondRevealResponse->headers->get('Cache-Control'));
-
-        $this->assertSame(2, AuditLog::query()->where('action', AuditAction::BreakGlassIdentityViewed->value)->count());
-    }
-
-    public function test_reporter_notifications_on_each_approval_are_generic_and_independent(): void
-    {
-        $admin = $this->makeUser('admin', 'admin@example.test');
-        $superAdmin = $this->makeUser('super_admin', 'super@example.test', ['name' => 'Approver Hidden']);
-        $reporter = $this->makeUser('reporter', 'reporter@example.test');
-        $report = $this->makeReport($reporter);
-
-        $firstRequest = $this->createBreakGlassRequest($admin, $report);
-        Sanctum::actingAs($superAdmin, ['*']);
-        $this->patchJson("/api/v1/break-glass/{$firstRequest->id}/approve")->assertOk();
-
-        $secondRequest = $this->createBreakGlassRequest($admin, $report, 'institutional_compliance');
-        Sanctum::actingAs($superAdmin, ['*']);
-        $this->patchJson("/api/v1/break-glass/{$secondRequest->id}/approve")->assertOk();
-
-        $notifications = $reporter->notifications()
-            ->where('data->notification_type_code', 'privacy_notice')
-            ->get();
-
-        $this->assertCount(2, $notifications);
-
-        foreach ($notifications as $notification) {
-            $payload = $notification->data;
-
-            $this->assertSame('privacy_notice', $payload['notification_type_code']);
-            $this->assertSame('break_glass_approved', $payload['event']);
-            $this->assertStringContainsString($report->registration_number, $payload['body']);
-            $this->assertStringNotContainsString($superAdmin->name, $payload['body']);
-            $this->assertArrayNotHasKey('approver_id', $payload);
-            $this->assertArrayNotHasKey('viewer_id', $payload);
-            $this->assertArrayNotHasKey('requestor_id', $payload);
+            $this->actingAsApi($satgas)
+                ->postJson('/api/v1/break-glass/request', $this->requestPayload($case, $duration))
+                ->assertCreated()
+                ->assertJsonPath('data.requested_duration_minutes', $duration);
         }
     }
 
-    public function test_denied_requests_can_be_retried_but_reporter_is_not_notified(): void
+    public function test_only_active_assigned_same_campus_satgas_can_request(): void
     {
-        $admin = $this->makeUser('admin', 'admin@example.test');
-        $superAdmin = $this->makeUser('super_admin', 'super@example.test');
-        $reporter = $this->makeUser('reporter', 'reporter@example.test');
-        $report = $this->makeReport($reporter);
-        $breakGlassRequest = $this->createBreakGlassRequest($admin, $report);
+        [$case, $assignedSatgas, $admin, $reporter, $university, $otherUniversity] = $this->anonymousCase();
+        $unassigned = $this->makeUser('satgas_ppks', 'unassigned@example.test', $university);
+        $crossCampus = $this->makeUser('satgas_ppks', 'cross-campus@example.test', $otherUniversity);
+        $inactive = $this->makeUser('satgas_ppks', 'inactive@example.test', $university, ['is_active' => false]);
+        $superAdmin = $this->makeUser('super_admin', 'request-super@example.test');
 
-        Sanctum::actingAs($superAdmin, ['*']);
+        foreach ([$unassigned, $crossCampus, $inactive, $admin, $reporter, $superAdmin] as $actor) {
+            $this->actingAsApi($actor)
+                ->postJson('/api/v1/break-glass/request', $this->requestPayload($case))
+                ->assertForbidden();
+        }
 
-        $this->patchJson("/api/v1/break-glass/{$breakGlassRequest->id}/deny", [
-            'denial_reason' => 'Dokumen pendukung belum cukup untuk membuka identitas.',
-        ])->assertOk()
-            ->assertJsonPath('data.status', BreakGlassRequest::STATUS_DENIED);
-
-        $this->assertSame(0, $reporter->notifications()->where('data->notification_type_code', 'privacy_notice')->count());
-
-        Sanctum::actingAs($admin, ['*']);
-
-        $this->postJson('/api/v1/break-glass/request', $this->requestPayload($report, 'victim_consent'))
-            ->assertCreated();
-
-        $this->assertDatabaseCount('break_glass_requests', 2);
+        $case->activeAssignments()->where('satgas_id', $assignedSatgas->id)->update([
+            'is_active' => false,
+            'unassigned_at' => now(),
+        ]);
+        $this->actingAsApi($assignedSatgas)
+            ->postJson('/api/v1/break-glass/request', $this->requestPayload($case))
+            ->assertForbidden();
     }
 
-    public function test_reveal_is_forbidden_after_ttl_and_to_unrelated_super_admin(): void
+    public function test_uniqueness_is_per_report_and_requester_and_retry_is_allowed_after_denial(): void
     {
-        $admin = $this->makeUser('admin', 'admin@example.test');
-        $approver = $this->makeUser('super_admin', 'approver@example.test');
-        $otherSuperAdmin = $this->makeUser('super_admin', 'other-super@example.test');
-        $report = $this->makeReport($this->makeUser('reporter', 'reporter@example.test'));
-        $breakGlassRequest = $this->createBreakGlassRequest($admin, $report);
+        [$case, $satgas, $admin, , $university] = $this->anonymousCase();
+        $otherSatgas = $this->makeUser('satgas_ppks', 'other-satgas@example.test', $university);
+        $this->assign($case, $otherSatgas, $admin, false);
 
-        Sanctum::actingAs($approver, ['*']);
-        $this->patchJson("/api/v1/break-glass/{$breakGlassRequest->id}/approve")->assertOk();
+        $first = $this->createRequest($case, $satgas);
+        $this->actingAsApi($satgas)
+            ->postJson('/api/v1/break-glass/request', $this->requestPayload($case))
+            ->assertUnprocessable();
 
-        Sanctum::actingAs($otherSuperAdmin, ['*']);
-        $this->getJson("/api/v1/break-glass/{$breakGlassRequest->id}/reveal")
+        $this->actingAsApi($otherSatgas)
+            ->postJson('/api/v1/break-glass/request', $this->requestPayload($case, 30))
+            ->assertCreated();
+
+        $this->actingAsApi($admin)
+            ->patchJson("/api/v1/break-glass/{$first->id}/deny", [
+                'denial_reason' => 'Kebutuhan akses belum memiliki dukungan yang cukup.',
+            ])->assertOk();
+
+        $this->actingAsApi($satgas)
+            ->postJson('/api/v1/break-glass/request', $this->requestPayload($case, 240))
+            ->assertCreated();
+    }
+
+    public function test_admin_queue_is_same_campus_scoped_and_super_admin_has_no_operational_access(): void
+    {
+        [$case, $satgas, $admin, , , $otherUniversity] = $this->anonymousCase();
+        $request = $this->createRequest($case, $satgas);
+        $otherAdmin = $this->makeUser('admin', 'other-admin@example.test', $otherUniversity);
+        $superAdmin = $this->makeUser('super_admin', 'super@example.test');
+
+        $this->actingAsApi($admin)
+            ->getJson('/api/v1/break-glass/pending')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $request->id);
+
+        $this->actingAsApi($otherAdmin)
+            ->getJson('/api/v1/break-glass/pending')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+        $this->patchJson("/api/v1/break-glass/{$request->id}/approve")->assertForbidden();
+
+        $this->actingAsApi($superAdmin);
+        $this->getJson('/api/v1/break-glass/pending')->assertForbidden();
+        $this->patchJson("/api/v1/break-glass/{$request->id}/approve")->assertForbidden();
+        $this->patchJson("/api/v1/break-glass/{$request->id}/deny", [
+            'denial_reason' => 'Super Admin tidak boleh memproses permintaan ini.',
+        ])->assertForbidden();
+        $this->patchJson("/api/v1/break-glass/{$request->id}/revoke", [
+            'revocation_reason' => 'Super Admin tidak boleh mencabut akses ini.',
+        ])->assertForbidden();
+        $this->postJson("/api/v1/break-glass/{$request->id}/reveal")->assertForbidden();
+    }
+
+    public function test_approval_revalidates_assignment_starts_grant_and_sends_generic_notifications(): void
+    {
+        [$case, $satgas, $admin, $reporter] = $this->anonymousCase();
+        $request = $this->createRequest($case, $satgas, 30);
+
+        $response = $this->actingAsApi($admin)
+            ->patchJson("/api/v1/break-glass/{$request->id}/approve")
+            ->assertOk()
+            ->assertJsonPath('data.status', BreakGlassRequest::STATUS_APPROVED)
+            ->assertJsonPath('data.can_reveal', false)
+            ->assertJsonPath('data.can_revoke', true);
+
+        $request->refresh();
+        $this->assertNotNull($request->grant_starts_at);
+        $this->assertEquals(30, $request->grant_starts_at->diffInMinutes($request->expires_at));
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_id' => $admin->id,
+            'action' => AuditAction::BreakGlassApproved->value,
+        ]);
+
+        $privacyNotice = $reporter->notifications()
+            ->where('data->notification_type_code', 'privacy_notice')
+            ->firstOrFail()->data;
+        $this->assertArrayNotHasKey('requestor_id', $privacyNotice);
+        $this->assertArrayNotHasKey('approver_id', $privacyNotice);
+        $this->assertArrayNotHasKey('reason', $privacyNotice);
+        $this->assertStringNotContainsString($satgas->name, $privacyNotice['body']);
+        $this->assertStringNotContainsString($admin->name, $privacyNotice['body']);
+        $response->assertJsonMissingPath('data.identity');
+    }
+
+    public function test_approval_fails_when_requester_assignment_is_no_longer_active(): void
+    {
+        [$case, $satgas, $admin] = $this->anonymousCase();
+        $request = $this->createRequest($case, $satgas);
+        $case->activeAssignments()->where('satgas_id', $satgas->id)->update([
+            'is_active' => false,
+            'unassigned_at' => now(),
+        ]);
+
+        $this->actingAsApi($admin)
+            ->patchJson("/api/v1/break-glass/{$request->id}/approve")
+            ->assertForbidden();
+        $this->assertSame(BreakGlassRequest::STATUS_PENDING, $request->refresh()->status);
+    }
+
+    public function test_only_requester_can_reveal_minimal_identity_and_every_reveal_is_audited(): void
+    {
+        [$case, $satgas, $admin, $reporter, $university] = $this->anonymousCase([
+            'name' => 'Demo Pelapor Aman',
+            'nim' => 'DEMO-2026-001',
+            'phone_number' => '081234567890',
+            'nip' => 'NIP-SECRET',
+        ]);
+        $otherSatgas = $this->makeUser('satgas_ppks', 'other-reveal@example.test', $university);
+        $this->assign($case, $otherSatgas, $admin, false);
+        $request = $this->createRequest($case, $satgas);
+        $this->actingAsApi($admin)
+            ->patchJson("/api/v1/break-glass/{$request->id}/approve")
+            ->assertOk();
+
+        $this->actingAsApi($admin)
+            ->postJson("/api/v1/break-glass/{$request->id}/reveal")
+            ->assertForbidden();
+        $this->actingAsApi($otherSatgas)
+            ->postJson("/api/v1/break-glass/{$request->id}/reveal")
             ->assertForbidden();
 
-        $breakGlassRequest->refresh()->forceFill([
-            'status' => BreakGlassRequest::STATUS_VIEWED,
-            'viewed_at' => now()->subHours(9),
+        $response = $this->actingAsApi($satgas)
+            ->postJson("/api/v1/break-glass/{$request->id}/reveal")
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Demo Pelapor Aman')
+            ->assertJsonPath('data.nim', 'DEMO-2026-001')
+            ->assertJsonPath('data.email', $reporter->email)
+            ->assertJsonPath('data.phone_number', '081234567890')
+            ->assertJsonMissingPath('data.nip')
+            ->assertJsonMissingPath('data.address')
+            ->assertJsonMissingPath('data.reason')
+            ->assertHeader('Pragma', 'no-cache');
+        $this->assertEqualsCanonicalizing([
+            'name',
+            'nim',
+            'email',
+            'phone_number',
+            'faculty',
+            'study_program',
+            'university',
+        ], array_keys($response->json('data')));
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+
+        $this->postJson("/api/v1/break-glass/{$request->id}/reveal")->assertOk();
+        $request->refresh();
+        $this->assertSame(BreakGlassRequest::STATUS_APPROVED, $request->status);
+        $this->assertSame(2, $request->view_count);
+        $this->assertNotNull($request->last_viewed_at);
+        $this->assertSame(2, AuditLog::query()
+            ->where('action', AuditAction::BreakGlassIdentityViewed->value)
+            ->where('subject_id', $request->id)
+            ->count());
+    }
+
+    public function test_reveal_revalidates_active_actor_assignment_anonymous_integrity_and_grant_state(): void
+    {
+        [$case, $satgas, $admin] = $this->anonymousCase();
+        $request = $this->approvedRequest($case, $satgas, $admin);
+
+        $satgas->forceFill(['is_active' => false])->save();
+        $this->actingAsApi($satgas)
+            ->postJson("/api/v1/break-glass/{$request->id}/reveal")
+            ->assertForbidden();
+
+        $satgas->forceFill(['is_active' => true])->save();
+        $case->activeAssignments()->where('satgas_id', $satgas->id)->update(['is_active' => false]);
+        $this->postJson("/api/v1/break-glass/{$request->id}/reveal")->assertForbidden();
+
+        $case->activeAssignments()->where('satgas_id', $satgas->id)->update(['is_active' => true]);
+        $case->report()->update(['report_type' => 'confidential', 'tracking_code' => null]);
+        $this->postJson("/api/v1/break-glass/{$request->id}/reveal")->assertForbidden();
+        $this->assertSame(0, $request->refresh()->view_count);
+    }
+
+    public function test_reveal_is_denied_before_grant_start(): void
+    {
+        [$case, $satgas, $admin] = $this->anonymousCase();
+        $request = $this->approvedRequest($case, $satgas, $admin);
+        $request->forceFill([
+            'grant_starts_at' => now()->addMinutes(5),
+            'expires_at' => now()->addHour(),
         ])->save();
 
-        Sanctum::actingAs($approver, ['*']);
-        $this->getJson("/api/v1/break-glass/{$breakGlassRequest->id}/reveal")
+        $this->actingAsApi($satgas)
+            ->postJson("/api/v1/break-glass/{$request->id}/reveal")
             ->assertForbidden();
+        $this->assertSame(0, $request->refresh()->view_count);
+    }
+
+    public function test_admin_can_revoke_active_grant_and_reveal_then_fails(): void
+    {
+        [$case, $satgas, $admin] = $this->anonymousCase();
+        $request = $this->approvedRequest($case, $satgas, $admin);
+
+        $this->actingAsApi($admin)
+            ->patchJson("/api/v1/break-glass/{$request->id}/revoke", [
+                'revocation_reason' => 'Penugasan berubah dan akses tidak lagi diperlukan.',
+            ])->assertOk()
+            ->assertJsonPath('data.status', BreakGlassRequest::STATUS_REVOKED)
+            ->assertJsonPath('data.can_revoke', false);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_id' => $admin->id,
+            'action' => AuditAction::BreakGlassRevoked->value,
+        ]);
+        $this->actingAsApi($satgas)
+            ->postJson("/api/v1/break-glass/{$request->id}/reveal")
+            ->assertForbidden();
+    }
+
+    public function test_stale_approve_revoke_and_reveal_operations_preserve_one_transactional_state(): void
+    {
+        [$case, $satgas, $admin] = $this->anonymousCase();
+        $request = $this->createRequest($case, $satgas);
+
+        $this->actingAsApi($admin)
+            ->patchJson("/api/v1/break-glass/{$request->id}/approve")
+            ->assertOk();
+        $expiresAt = $request->refresh()->expires_at?->toJSON();
+        $this->patchJson("/api/v1/break-glass/{$request->id}/approve")
+            ->assertUnprocessable();
+        $this->assertSame($expiresAt, $request->refresh()->expires_at?->toJSON());
+        $this->assertSame(1, AuditLog::query()
+            ->where('action', AuditAction::BreakGlassApproved->value)
+            ->where('subject_id', $request->id)
+            ->count());
+
+        $this->actingAsApi($satgas)
+            ->postJson("/api/v1/break-glass/{$request->id}/reveal")
+            ->assertOk();
+        $this->actingAsApi($admin)
+            ->patchJson("/api/v1/break-glass/{$request->id}/revoke", [
+                'revocation_reason' => 'Akses segera dicabut setelah kebutuhan investigasi selesai.',
+            ])->assertOk();
+        $this->patchJson("/api/v1/break-glass/{$request->id}/revoke", [
+            'revocation_reason' => 'Percobaan pencabutan stale harus ditolak secara aman.',
+        ])->assertUnprocessable();
+        $this->actingAsApi($satgas)
+            ->postJson("/api/v1/break-glass/{$request->id}/reveal")
+            ->assertForbidden();
+
+        $this->assertSame(1, $request->refresh()->view_count);
+        $this->assertSame(1, AuditLog::query()
+            ->where('action', AuditAction::BreakGlassRevoked->value)
+            ->where('subject_id', $request->id)
+            ->count());
+    }
+
+    public function test_expiry_is_normalized_once_without_scheduler_and_never_reveals(): void
+    {
+        [$case, $satgas, $admin] = $this->anonymousCase();
+        $request = $this->approvedRequest($case, $satgas, $admin);
+        $request->forceFill(['expires_at' => now()->subMinute()])->save();
+
+        $this->actingAsApi($satgas)
+            ->getJson("/api/v1/break-glass/mine?case_id={$case->id}")
+            ->assertOk()
+            ->assertJsonPath('data.0.status', BreakGlassRequest::STATUS_EXPIRED)
+            ->assertJsonPath('data.0.can_reveal', false);
+        $this->getJson("/api/v1/break-glass/mine?case_id={$case->id}")->assertOk();
+
+        $this->assertSame(BreakGlassRequest::STATUS_EXPIRED, $request->refresh()->status);
+        $this->assertSame(1, AuditLog::query()
+            ->where('action', AuditAction::BreakGlassExpired->value)
+            ->where('subject_id', $request->id)
+            ->count());
+        $this->postJson("/api/v1/break-glass/{$request->id}/reveal")->assertForbidden();
+    }
+
+    public function test_legacy_viewed_grant_remains_readable_but_does_not_fabricate_audit_history(): void
+    {
+        [$case, $satgas, $admin] = $this->anonymousCase();
+        $request = $this->createRequest($case, $satgas);
+        $request->forceFill([
+            'approver_id' => $admin->id,
+            'status' => BreakGlassRequest::STATUS_VIEWED,
+            'approved_at' => now()->subMinutes(5),
+            'grant_starts_at' => now()->subMinutes(5),
+            'expires_at' => now()->addMinutes(25),
+            'viewed_at' => now()->subMinutes(4),
+            'view_count' => 1,
+            'last_viewed_at' => now()->subMinutes(4),
+        ])->save();
+        AuditLog::query()->where('subject_id', $request->id)->delete();
+
+        $this->actingAsApi($satgas)
+            ->getJson("/api/v1/break-glass/mine?case_id={$case->id}")
+            ->assertOk()
+            ->assertJsonPath('data.0.status', BreakGlassRequest::STATUS_VIEWED)
+            ->assertJsonPath('data.0.can_reveal', true);
+
+        $this->assertSame(0, AuditLog::query()->where('subject_id', $request->id)->count());
+    }
+
+    public function test_audit_projection_does_not_store_identity_or_free_text_reason(): void
+    {
+        [$case, $satgas, $admin, $reporter] = $this->anonymousCase();
+        $reason = 'Alasan sangat rahasia yang hanya boleh tampil bagi reviewer kampus dan pemohon.';
+        $denialReason = 'Narasi penolakan privat yang tidak boleh masuk metadata audit.';
+        $revocationReason = 'Narasi pencabutan privat yang tidak boleh masuk metadata audit.';
+        $firstId = $this->actingAsApi($satgas)->postJson('/api/v1/break-glass/request', [
+            ...$this->requestPayload($case),
+            'reason' => $reason,
+        ])->assertCreated()->json('data.id');
+        $this->actingAsApi($admin)->patchJson("/api/v1/break-glass/{$firstId}/deny", [
+            'denial_reason' => $denialReason,
+        ])->assertOk();
+
+        $second = $this->createRequest($case, $satgas);
+        $this->actingAsApi($admin)
+            ->patchJson("/api/v1/break-glass/{$second->id}/approve")
+            ->assertOk();
+        $this->actingAsApi($satgas)
+            ->postJson("/api/v1/break-glass/{$second->id}/reveal")
+            ->assertOk();
+        $this->actingAsApi($admin)->patchJson("/api/v1/break-glass/{$second->id}/revoke", [
+            'revocation_reason' => $revocationReason,
+        ])->assertOk();
+
+        $encoded = AuditLog::query()
+            ->whereIn('action', [
+                AuditAction::BreakGlassRequested->value,
+                AuditAction::BreakGlassDenied->value,
+                AuditAction::BreakGlassApproved->value,
+                AuditAction::BreakGlassIdentityViewed->value,
+                AuditAction::BreakGlassRevoked->value,
+            ])
+            ->get(['metadata', 'before_changes', 'after_changes'])
+            ->toJson();
+
+        $this->assertStringNotContainsString($reason, (string) $encoded);
+        $this->assertStringNotContainsString($denialReason, (string) $encoded);
+        $this->assertStringNotContainsString($revocationReason, (string) $encoded);
+        $this->assertStringNotContainsString($reporter->email, (string) $encoded);
+        $this->assertStringNotContainsString($reporter->name, (string) $encoded);
+    }
+
+    private function actingAsApi(User $user): self
+    {
+        Sanctum::actingAs($user, ['*']);
+
+        return $this;
     }
 
     /**
-     * @param array<string, mixed> $overrides
+     * @param array<string, mixed> $reporterOverrides
+     * @return array{CaseRecord, User, User, User, University, University}
      */
-    private function makeUser(string $roleCode, string $email, array $overrides = []): User
+    private function anonymousCase(array $reporterOverrides = []): array
     {
+        $suffix = str_pad((string) (University::query()->count() + 1), 4, '0', STR_PAD_LEFT);
+        $university = University::query()->create([
+            'code' => 'UNI-R2-'.$suffix,
+            'name' => 'Universitas R2 Utama',
+            'is_active' => true,
+        ]);
+        $otherUniversity = University::query()->create([
+            'code' => 'UNI-R2-O'.$suffix,
+            'name' => 'Universitas R2 Lain',
+            'is_active' => true,
+        ]);
+        $admin = $this->makeUser('admin', 'admin-'.uniqid().'@example.test', $university);
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-'.uniqid().'@example.test', $university);
+        $reporter = $this->makeUser('reporter', 'reporter-'.uniqid().'@example.test', $university, $reporterOverrides);
+        $report = $this->makeReport($reporter);
+        $status = CaseStatus::query()->where('name', 'investigation')->firstOrFail();
+        $case = CaseRecord::query()->create([
+            'report_id' => $report->id,
+            'registration_number' => $report->registration_number,
+            'case_number' => 'CASE-R2-'.str_pad((string) (CaseRecord::query()->count() + 1), 4, '0', STR_PAD_LEFT),
+            'status_code' => $status->code,
+            'priority_code' => 'PRIO-03',
+            'current_stage' => $status->workflow_stage,
+            'forwarded_at' => now(),
+            'investigation_started_at' => now(),
+        ]);
+        $this->assign($case, $satgas, $admin, true);
+
+        return [$case, $satgas, $admin, $reporter, $university, $otherUniversity];
+    }
+
+    /** @param array<string, mixed> $overrides */
+    private function makeUser(
+        string $roleCode,
+        string $email,
+        ?University $university = null,
+        array $overrides = [],
+    ): User {
         $role = Role::query()->where('code', $roleCode)->firstOrFail();
 
         return User::query()->create(array_merge([
             'role_id' => $role->id,
-            'name' => "{$roleCode} User",
+            'university_id' => $university?->id,
+            'name' => $roleCode.' R2 User',
             'email' => $email,
             'password' => 'SecurePass123',
             'is_active' => true,
         ], $overrides));
     }
 
-    private function makeReport(
-        User $reporter,
-        string $registrationNumber = 'SLP-20260622-2001',
-        string $reportType = 'anonymous',
-    ): Report {
+    private function makeReport(User $reporter): Report
+    {
+        $sequence = Report::query()->count() + 1;
+
         return Report::query()->create([
             'reporter_id' => $reporter->id,
-            'registration_number' => $registrationNumber,
-            'tracking_code' => $reportType === 'anonymous' ? $this->trackingCode($registrationNumber) : null,
-            'report_type' => $reportType,
+            'registration_number' => 'SLP-R2-'.str_pad((string) $sequence, 5, '0', STR_PAD_LEFT),
+            'tracking_code' => 'R2AA-BBCC-'.str_pad((string) $sequence, 8, '0', STR_PAD_LEFT),
+            'report_type' => 'anonymous',
             'category_code' => 'RCAT-01',
-            'chronology' => 'Sensitive chronology must remain hidden from break-glass request resources.',
+            'chronology' => 'Kronologi sensitif fiktif yang tidak boleh tampil pada metadata akses darurat.',
             'incident_date' => now()->toDateString(),
             'incident_time' => '10:30',
-            'incident_location' => 'Sensitive incident location',
+            'incident_location' => 'Lokasi fiktif sensitif',
             'location_type' => 'LOC-01',
-            'respondent_name' => 'Sensitive respondent',
-            'respondent_campus_status' => 'CAMP-01',
-            'respondent_relation' => 'REL-01',
-            'respondent_details' => 'Sensitive respondent details',
-            'witness_info' => 'Sensitive witness info',
-            'status' => 'submitted',
+            'status' => 'forwarded',
             'priority' => 'PRIO-03',
-            'submitted_at' => now(),
+            'submitted_at' => now()->subHour(),
+            'forwarded_at' => now(),
         ]);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function requestPayload(Report $report, string $reasonCategory = 'legal_requirement'): array
+    private function assign(CaseRecord $case, User $satgas, User $admin, bool $isLead): CaseAssignment
+    {
+        return CaseAssignment::query()->create([
+            'case_id' => $case->id,
+            'satgas_id' => $satgas->id,
+            'assigned_by' => $admin->id,
+            'is_lead' => $isLead,
+            'is_active' => true,
+            'assigned_at' => now(),
+        ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function requestPayload(CaseRecord $case, int $duration = 60): array
     {
         return [
-            'report_id' => $report->id,
-            'reason_category' => $reasonCategory,
-            'reason' => 'A formally documented privacy exception is required for this fictional anonymous report review.',
+            'case_id' => $case->id,
+            'reason_category' => 'investigation_necessity',
+            'reason' => 'Akses identitas dibutuhkan untuk kebutuhan investigasi spesifik yang terdokumentasi pada kasus fiktif ini.',
+            'requested_duration_minutes' => $duration,
             'acknowledgment' => true,
         ];
     }
 
-    private function createBreakGlassRequest(User $requestor, Report $report, string $reasonCategory = 'legal_requirement'): BreakGlassRequest
+    private function createRequest(CaseRecord $case, User $satgas, int $duration = 60): BreakGlassRequest
     {
-        Sanctum::actingAs($requestor, ['*']);
-
-        $response = $this->postJson('/api/v1/break-glass/request', $this->requestPayload($report, $reasonCategory));
-
-        $response->assertCreated();
+        $response = $this->actingAsApi($satgas)
+            ->postJson('/api/v1/break-glass/request', $this->requestPayload($case, $duration))
+            ->assertCreated();
 
         return BreakGlassRequest::query()->findOrFail($response->json('data.id'));
     }
 
-    private function trackingCode(string $registrationNumber): string
+    private function approvedRequest(CaseRecord $case, User $satgas, User $admin): BreakGlassRequest
     {
-        return implode('-', str_split(strtoupper(substr(md5($registrationNumber), 0, 16)), 4));
+        $request = $this->createRequest($case, $satgas);
+        $this->actingAsApi($admin)
+            ->patchJson("/api/v1/break-glass/{$request->id}/approve")
+            ->assertOk();
+
+        return $request->refresh();
     }
 }

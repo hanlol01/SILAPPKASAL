@@ -1,7 +1,7 @@
 # AUTH_FLOW.md — Authentication & Authorization Flow
 
 > **Sistem Informasi Laporan Pencegahan dan Penanganan Kekerasan Seksual (SILAPPKASAL)**
-> Versi: 1.0.1-patch | Terakhir Diperbarui: 2026-06-10 | Status: BERLAKU — AUDIT PATCH | Tier: 2 (GOVERNED)
+> Versi: REV-WF-03-R2 | Terakhir Diperbarui: 2026-07-20 | Status: BERLAKU | Tier: 2 (GOVERNED)
 
 ---
 
@@ -921,6 +921,25 @@ const adminRoute = createFileRoute('/admin/reports')({
 
 ---
 
+## 12.1 Emergency Access Authorization Flow (REV-WF-03 R2)
+
+Sanctum authentication is necessary but never sufficient for anonymous identity access. The
+backend policy and service apply role, permission, campus, assignment, ownership, Case/Report
+integrity, status, start, expiry, and revocation checks on every operation.
+
+| Operation | Role | Permission | Additional server scope |
+|---|---|---|---|
+| Request | `satgas_ppks` | `privacy.request_break_glass` | Active user; active assignment; same campus; anonymous Report linked to Case |
+| List own/show own | `satgas_ppks` | `privacy.request_break_glass` | `requestor_id` equals actor |
+| Campus queue/history/show | `admin` | `privacy.approve_break_glass` | Active Admin; request Report belongs to Admin campus |
+| Approve/deny/revoke | `admin` | `privacy.approve_break_glass` | Same-campus request and valid current lifecycle state |
+| Reveal | `satgas_ppks` | `privacy.reveal_anonymous_identity` | Exclusive requester, active assignment, active grant, valid Case/Report integrity |
+| Redacted audit oversight | `super_admin` | Existing audit oversight permission | No Emergency Access mutation or reveal permission |
+
+The frontend hides unavailable controls, but those checks are UX only. Direct API calls are denied
+by `BreakGlassPolicy` and revalidated transactionally by `BreakGlassService`. Reveal uses `POST`, is
+never prefetched, and returns non-cacheable identity data only after explicit user action.
+
 ## 13. Future 2FA Strategy
 
 > **Status**: Post-MVP / Phase 3. Untuk admin dan satgas yang menangani data sensitif.
@@ -968,6 +987,7 @@ Login (dengan 2FA enabled):
 |-------|---------|----------|
 | 1.0.0 | 2026-06-09 | Versi awal |
 | 1.0.1-patch | 2026-06-10 | Audit patch: catatan MVP token in-memory React (logout on refresh), rencana Post-MVP httpOnly Secure Cookie, penguatan aturan privasi anonim |
+| REV-WF-03-R2 | 2026-07-20 | Added requester-only Emergency Access authorization, same-campus Admin review, and Super Admin operational denial. |
 
 ---
 

@@ -1,7 +1,7 @@
 # API_SPECIFICATION.md — REST API Contract
 
 > **Sistem Informasi Laporan Pencegahan dan Penanganan Kekerasan Seksual (SILAPPKASAL)**
-> Versi: 1.0.1-patch | Terakhir Diperbarui: 2026-06-10 | Status: BERLAKU — AUDIT PATCH | Tier: 2 (GOVERNED)
+> Versi: REV-WF-03-R2 | Terakhir Diperbarui: 2026-07-20 | Status: BERLAKU | Tier: 2 (GOVERNED)
 
 ---
 
@@ -1230,15 +1230,17 @@ Audit Event: AUD-EVID-01
 GET /api/v1/evidences/{id}
 Auth: Bearer Token
 Policy: EvidencePolicy@view
-Permission: evidence.view.case (satgas assigned, reporter own)
+Permission: evidence.view.case (active assigned Satgas; flagged Super Admin oversight uses its dedicated read permission)
 ```
 
-> **PENTING**: Super Admin TIDAK memiliki akses default ke evidence. Harus via break-glass access.
+> **PENTING**: Super Admin tidak memiliki akses default ke Evidence. Read-only sensitive oversight
+> memerlukan feature flag dan permission khusus. Emergency Access R2 hanya mengungkap proyeksi
+> identitas kepada Satgas pemohon dan tidak memberikan akses Evidence kepada Super Admin.
 
 ### 8.4 Download Evidence File
 
 ```
-GET /api/v1/evidences/{id}/download
+GET /api/v1/evidences/{id}/file
 Auth: Bearer Token
 Policy: EvidencePolicy@download
 Permission: evidence.download (satgas assigned only)
@@ -1579,93 +1581,85 @@ Permission: system.audit_log.view
 
 ---
 
-## 13. Break-Glass Endpoints
+## 13. Anonymous Reporter Emergency Access (REV-WF-03 R2)
 
-Base path: `/api/v1/cases/{id}/break-glass` and `/api/v1/break-glass`
+Base path: `/api/v1/break-glass`. All endpoints require Sanctum authentication. Anonymous
+identity remains masked in ordinary Report, Case, Evidence, and oversight resources.
 
-### 13.1 Activate Break-Glass Access
+| Method | Path | Actor and scope | Purpose |
+|---|---|---|---|
+| `POST` | `/request` | Active Satgas with `privacy.request_break_glass`, active assignment, same campus | Request access for an anonymous Report linked to a Case |
+| `GET` | `/mine?case_id={id}` | Satgas requester | List only the authenticated requester's metadata |
+| `GET` | `/pending` | Active same-campus Admin with `privacy.approve_break_glass` | Campus pending queue |
+| `GET` | `/history` | Active same-campus Admin | Campus request history, including active grants |
+| `GET` | `/{request}` | Requesting Satgas or same-campus Admin | Read authorized request metadata |
+| `PATCH` | `/{request}/approve` | Same-campus Admin | Activate a pending grant immediately |
+| `PATCH` | `/{request}/deny` | Same-campus Admin | Deny a pending request |
+| `PATCH` | `/{request}/revoke` | Same-campus Admin | Revoke a currently active grant |
+| `POST` | `/{request}/reveal` | Exclusive Satgas requester | Explicitly reveal the minimal identity projection |
 
-```
-POST /api/v1/cases/{id}/break-glass
-Auth: Bearer Token
-Roles: super_admin ONLY
-Permission: system.break_glass_access
-Audit Event: AUD-SEC-04 (severity: CRITICAL)
-```
+Super Admin has no operational Emergency Access endpoint authority. Activity Log oversight is
+unchanged and remains redacted.
 
-**Request Body:**
+### 13.1 Create Request
 
 ```json
 {
-  "justification": "Insiden keamanan: data korban berpotensi terekspos akibat akses tidak sah. Diperlukan verifikasi data kasus untuk incident response.",
-  "scope": ["investigation", "evidence", "identity"]
+  "case_id": 42,
+  "reason_category": "investigation_necessity",
+  "reason": "A documented, case-specific reason of at least fifty characters.",
+  "requested_duration_minutes": 60,
+  "acknowledgment": true
 }
 ```
 
-> `justification` WAJIB minimal 50 karakter. `scope` menentukan data apa yang bisa diakses.
+`requested_duration_minutes` accepts exactly `30`, `60`, `240`, or `1440`. The server resolves
+the Report from the Case, validates the anonymous classification and Case/Report integrity, then
+revalidates the active same-campus assignment. One pending or active request is allowed for each
+Report/requester pair. Success returns `201` with request metadata; it never returns Reporter
+identity or sensitive Report narrative.
 
-**Success Response (201):**
+### 13.2 Admin Review
+
+Approval has no request body. In one transaction the server locks the request, revalidates the
+requesting Satgas and assignment, and sets `approved_at`, `grant_starts_at`, and `expires_at`.
+Approval does not reveal identity to Admin.
+
+Denial and revocation require a reason of 10–2000 characters:
+
+```json
+{ "denial_reason": "The documented need is currently insufficient." }
+```
+
+```json
+{ "revocation_reason": "The case need ended and access is no longer required." }
+```
+
+### 13.3 Requester-Only Reveal
+
+`POST /api/v1/break-glass/{request}/reveal` performs no prefetch and revalidates the anonymous
+Report, linked Case, exclusive requester, active account, active assignment, campus, grant start,
+expiry, and revocation state. Each successful call increments `view_count`, updates
+`last_viewed_at`, and writes a critical privacy audit event.
 
 ```json
 {
   "success": true,
-  "message": "Break-glass access activated. Session expires in 4 hours.",
   "data": {
-    "session_id": "550e8400-e29b-41d4-a716-446655440000",
-    "case_id": 1,
-    "scope": ["investigation", "evidence", "identity"],
-    "expires_at": "2026-06-10T16:00:00Z",
-    "notice": "Akses ini dicatat sebagai audit CRITICAL dan akan di-review oleh Project Owner dalam 48 jam."
+    "name": "Example Reporter",
+    "nim": "EXAMPLE-001",
+    "email": "reporter@example.test",
+    "phone_number": "081234567890",
+    "faculty": { "code": "FAC-01", "name": "Example Faculty" },
+    "study_program": { "code": "PROG-01", "name": "Example Program" },
+    "university": { "code": "UNI-01", "name": "Example University" }
   }
 }
 ```
 
-### 13.2 Revoke Break-Glass Session
-
-```
-DELETE /api/v1/cases/{id}/break-glass
-Auth: Bearer Token
-Roles: super_admin
-```
-
-**Request Body:**
-
-```json
-{
-  "session_id": "550e8400-e29b-41d4-a716-446655440000"
-}
-```
-
-### 13.3 List Break-Glass Sessions
-
-```
-GET /api/v1/break-glass/sessions
-Auth: Bearer Token
-Roles: super_admin
-Query Params: ?active=true&page=1
-```
-
-**Success Response (200):**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "session_id": "550e8400-e29b-41d4-a716-446655440000",
-      "case_id": 1,
-      "case_registration_number": "SLP-2026-0610-0001",
-      "actor": { "id": 1, "name": "Super Admin" },
-      "justification": "Insiden keamanan...",
-      "scope": ["investigation", "evidence", "identity"],
-      "is_active": true,
-      "created_at": "2026-06-10T12:00:00Z",
-      "expires_at": "2026-06-10T16:00:00Z",
-      "revoked_at": null
-    }
-  ]
-}
-```
+The projection contains no internal IDs, authentication fields, tokens, session data, or unrelated
+account fields. Responses include `Cache-Control: no-store`, `Pragma: no-cache`, and `Expires: 0`.
+Expired grants are denied even before their stored status is normalized.
 
 ---
 
@@ -1774,12 +1768,13 @@ Endpoint yang bisa ditunda tanpa mengurangi fungsionalitas inti.
 | 2 | `POST /auth/reset-password` | Auth |
 | 3 | `GET /audit-logs` | Audit |
 | 4 | `GET /audit-logs/{id}` | Audit |
-| 5 | `POST /cases/{id}/break-glass` | Break-Glass |
-| 6 | `DELETE /cases/{id}/break-glass` | Break-Glass |
-| 7 | `GET /break-glass/sessions` | Break-Glass |
-| 8 | `GET /system-settings` | Settings |
-| 9 | `PUT /system-settings/{key}` | Settings |
-| 10 | `GET /evidences/{id}` (metadata only) | Evidence |
+| 5 | `GET /system-settings` | Settings |
+| 6 | `PUT /system-settings/{key}` | Settings |
+| 7 | `GET /evidences/{id}` (metadata only) | Evidence |
+
+> Emergency Access is no longer a Post-MVP placeholder. Its executable R2 endpoints are specified
+> in Section 13; the former `/cases/{id}/break-glass` and `/break-glass/sessions` proposals do not
+> exist.
 
 > **Catatan**: Backend Agent harus menyelesaikan semua **MVP Core** sebelum mengerjakan **MVP Extended**. **Post-MVP** dikerjakan setelah MVP stabil.
 
@@ -1946,7 +1941,7 @@ Scope: report owned by the authenticated reporter
 - Internal submitted-detail projection is limited to same-campus Admin, active assigned Satgas on the Case, and Super Admin only when the sensitive cross-campus-read feature flag permits it.
 - Report priority is projected from the linked Case: `unavailable` when no Case exists, `unassessed` when the Case has no priority, and `assessed` with the Case priority reference otherwise. The legacy Report priority column is not authoritative.
 - Reporter UI renders collapsible report-detail and handling-progress cards. The progress card has Investigation, Recommendation, Decision, Recovery, and Evidence sections and does not expose sensitive operational content.
-- REV-WF-03 R2 and R3 are not completed by this contract.
+- REV-WF-03 R2 Emergency Access is implemented by Section 13; R3 remains deferred.
 
 ---
 

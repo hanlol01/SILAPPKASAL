@@ -203,10 +203,8 @@ class ReportEvidenceSubmissionService
             ->latest('id')
             ->get();
 
-        if ($isOversight) {
-            $case->loadMissing('report:id,report_type');
-            $this->maskAnonymousOversightFilenames($files, $case->report);
-        }
+        $case->loadMissing('report:id,report_type');
+        $this->maskAnonymousInternalFilenames($files, $case->report);
 
         return $files;
     }
@@ -225,7 +223,7 @@ class ReportEvidenceSubmissionService
             ->latest('id')
             ->get();
 
-        $this->maskAnonymousOversightFilenames($files, $report);
+        $this->maskAnonymousInternalFilenames($files, $report);
 
         return $files;
     }
@@ -315,9 +313,9 @@ class ReportEvidenceSubmissionService
 
         $extension = self::EXTENSION_BY_MIME[$submission->mime_type] ?? 'bin';
         $submission->loadMissing('report:id,report_type');
-        $filename = $this->campusScope->canSensitiveOversight($actor)
-            && $submission->report?->report_type === 'anonymous'
-                ? $this->anonymousOversightFilename($submission->mime_type)
+        $filename = $submission->report?->report_type === 'anonymous'
+            && ! $actor->hasRole('reporter')
+                ? $this->anonymousInternalFilename($submission->mime_type)
                 : $this->sanitizeOriginalFilename($submission->original_filename, $extension);
         $mimeType = isset(self::EXTENSION_BY_MIME[$submission->mime_type])
             ? $submission->mime_type
@@ -447,19 +445,19 @@ class ReportEvidenceSubmissionService
     /**
      * @param Collection<int, ReportEvidenceSubmission> $files
      */
-    private function maskAnonymousOversightFilenames(Collection $files, ?Report $report): void
+    private function maskAnonymousInternalFilenames(Collection $files, ?Report $report): void
     {
         if ($report?->report_type !== 'anonymous') {
             return;
         }
 
         $files->each(fn (ReportEvidenceSubmission $submission) => $submission->setAttribute(
-            'oversight_filename',
-            $this->anonymousOversightFilename($submission->mime_type),
+            'safe_filename',
+            $this->anonymousInternalFilename($submission->mime_type),
         ));
     }
 
-    private function anonymousOversightFilename(?string $mimeType): string
+    private function anonymousInternalFilename(?string $mimeType): string
     {
         return 'supporting-file.'.(self::EXTENSION_BY_MIME[$mimeType] ?? 'bin');
     }

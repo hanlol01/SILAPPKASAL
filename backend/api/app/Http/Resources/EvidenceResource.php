@@ -12,7 +12,7 @@ class EvidenceResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $originalFilename = $this->resource->getAttribute('oversight_filename')
+        $originalFilename = $this->resource->getAttribute('safe_filename')
             ?? $this->original_filename;
 
         return [

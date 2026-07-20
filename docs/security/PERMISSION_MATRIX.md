@@ -2,34 +2,55 @@
 
 **Project:** SILAPPKASAL  
 **Milestone:** M26 — Security & Privacy Enhancement  
-**Status:** 🔒 FROZEN — All Decisions FINAL  
+**Status:** REV-WF-03 R2 override active; M26 content retained as legacy context
 **Created:** 2026-06-22  
 **Frozen:** 2026-06-22  
 
 > [!IMPORTANT]
-> This document is frozen. All open questions have been resolved. Decisions are final.
-> Do not modify this document. Implementation follows M26_IMPLEMENTATION_PLAN.md.
+> The R2 override and executable RBAC are authoritative for Emergency Access. Historical M26
+> assignments below must not be used when they conflict with the override.
 
 ---
+
+## REV-WF-03 R2 Emergency Access Override
+
+The executable R2 policy supersedes every M26 Break Glass assignment later in this historical
+document. Other role capabilities are outside this R2 update and remain governed by the RBAC
+seeder and deployed-data reconciliation migrations.
+
+| Role | Request own assigned Case | View request metadata | Approve/deny/revoke | Reveal identity | Audit oversight |
+|---|---:|---:|---:|---:|---:|
+| `reporter` | No | No | No | No | No |
+| `satgas_ppks` | Yes | Own only | No | Own active grant only | No |
+| `admin` | No | Same campus | Same campus | No | No |
+| `super_admin` | No | No operational access | No | No | Existing redacted oversight only |
+
+Managed permission assignment:
+
+- Satgas: `privacy.request_break_glass`, `privacy.reveal_anonymous_identity`.
+- Admin: `privacy.approve_break_glass`.
+- Super Admin and Reporter: none of the R2 operational permissions.
+- `system.break_glass_access` remains a legacy permission code and is not assigned by R2.
 
 ## 1. Roles
 
 | Code | Display Name | Description |
 |---|---|---|
-| `super_admin` | Super Admin | Full system control, break-glass approver, break-glass audit viewer |
-| `admin` | Admin | Report management, user management, break-glass requestor |
-| `satgas_ppks` | Satgas PPKS | Case investigation, evidence, recommendations |
+| `super_admin` | Super Admin | Cross-campus read-only oversight and redacted Emergency Access audit oversight; no operational Emergency Access authority |
+| `admin` | Admin Kampus | Same-campus operations and Emergency Access review/approval/denial/revocation |
+| `satgas_ppks` | Satgas PPKS | Assigned-case investigation and requester-scoped Emergency Access |
 | `reporter` | Pelapor | Report submission, portal access |
 
 ---
 
-## 2. New Permissions (M26 — FINAL)
+## 2. Emergency Access Permissions (REV-WF-03 R2)
 
 | Code | Name | Module | Assigned To |
 |---|---|---|---|
-| `privacy.reveal_anonymous_identity` | Reveal Anonymous Identity | Privasi | Super Admin |
-| `privacy.approve_break_glass` | Approve Break-Glass | Privasi | Super Admin |
-| `privacy.request_break_glass` | Request Break-Glass | Privasi | Admin, Super Admin |
+| `privacy.reveal_anonymous_identity` | Reveal Anonymous Identity | Privasi | Assigned Satgas; exclusive own active grant |
+| `privacy.approve_break_glass` | Review Emergency Access | Privasi | Same-campus Admin |
+| `privacy.request_break_glass` | Request Emergency Access | Privasi | Assigned Satgas |
+| `system.break_glass_access` | Legacy operational Break Glass | Sistem | No R2 role assignment |
 
 ---
 
@@ -51,10 +72,11 @@ Legend: ✅ Full · 📖 Read · ✏️ Write · 👤 Own only · 🔒 Denied ·
 | Operation | Reporter | Satgas PPKS | Admin | Super Admin |
 |---|---|---|---|---|
 | View own identity | ✅ | — | — | — |
-| View anonymous reporter | 🔒 | 🔒 | 🔒 | 🔑 (minimal: name+email) |
-| Request break-glass | 🔒 | 🔒 | ✏️ | ✏️ |
-| Approve break-glass | 🔒 | 🔒 | 🔒 | ✏️ |
-| View break-glass audit | 🔒 | 🔒 | 🔒 | 📖 |
+| Reveal anonymous Reporter | 🔒 | 🔑 own active grant | 🔒 | 🔒 |
+| Request Emergency Access | 🔒 | ✏️ active assigned Case | 🔒 | 🔒 |
+| View request metadata | 🔒 | 📖 own | 📖 same campus | Oversight audit only |
+| Approve/deny/revoke | 🔒 | 🔒 | ✏️ same campus | 🔒 |
+| View redacted Emergency Access audit | 🔒 | 🔒 | 🔒 | 📖 |
 
 ### 3.3 Cases
 
@@ -90,22 +112,22 @@ Legend: ✅ Full · 📖 Read · ✏️ Write · 👤 Own only · 🔒 Denied ·
 
 ---
 
-## 4. Complete Role → Permission Assignments (FINAL)
+## 4. Legacy General Assignment Snapshot with R2 Overrides
 
-### Super Admin (23 permissions)
+### Super Admin
 
 ```
-system.configure, system.audit_log.view, system.break_glass_access,
+system.configure, system.audit_log.view,
 users.create, users.read, users.update, users.deactivate, users.assign_role,
 reports.read.all, reports.verify, reports.reject, reports.forward, reports.request_info,
 cases.read.metadata, cases.read.all, cases.assign_satgas, cases.record_decision, cases.monitor,
 dashboard.admin, statistics.view, statistics.export,
-privacy.reveal_anonymous_identity,       ← M26 NEW
-privacy.approve_break_glass,             ← M26 NEW
-privacy.request_break_glass              ← M26 NEW
 ```
 
-### Admin (18 permissions)
+Super Admin retains audit oversight permissions but has none of the R2 operational Emergency
+Access permissions above.
+
+### Admin
 
 ```
 system.audit_log.view,
@@ -113,20 +135,21 @@ users.create, users.read, users.update, users.deactivate,
 reports.read.all, reports.verify, reports.reject, reports.forward, reports.request_info,
 cases.read.metadata, cases.assign_satgas, cases.record_decision, cases.monitor,
 dashboard.admin, statistics.view, statistics.export,
-privacy.request_break_glass              ← M26 NEW
+privacy.approve_break_glass              ← REV-WF-03 R2
 ```
 
-### Satgas PPKS (14, unchanged)
+### Satgas PPKS
 
 ```
 cases.read.assigned, cases.assess_risk, cases.investigate, cases.recommend,
 cases.monitor, cases.close, cases.escalate,
 messages.send, messages.read.case,
 dashboard.satgas, statistics.view,
-evidence.upload, evidence.view.case, evidence.download
+evidence.upload, evidence.view.case, evidence.download,
+privacy.request_break_glass, privacy.reveal_anonymous_identity
 ```
 
-### Reporter (6, unchanged)
+### Reporter (legacy general snapshot)
 
 ```
 reports.create, reports.read.own,

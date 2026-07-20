@@ -93,7 +93,7 @@ class EvidenceService
             ->latest('id')
             ->get();
 
-        $evidences->each(fn (Evidence $evidence) => $this->maskAnonymousOversightFilename($evidence, $user));
+        $evidences->each(fn (Evidence $evidence) => $this->maskAnonymousInternalFilename($evidence));
 
         return $evidences;
     }
@@ -104,7 +104,7 @@ class EvidenceService
         $this->authorizeEvidenceRead($evidence->investigation, $user, 'evidence.view.case');
 
         $evidence->load($this->detailRelations());
-        $this->maskAnonymousOversightFilename($evidence, $user);
+        $this->maskAnonymousInternalFilename($evidence);
 
         return $evidence;
     }
@@ -527,18 +527,14 @@ class EvidenceService
         $this->authorizeAssignedSatgas($investigation, $actor, $capability);
     }
 
-    private function maskAnonymousOversightFilename(Evidence $evidence, User $actor): void
+    private function maskAnonymousInternalFilename(Evidence $evidence): void
     {
-        if (! $this->campusScope->canSensitiveOversight($actor)) {
-            return;
-        }
-
         $evidence->loadMissing('investigation.case.report:id,report_type');
 
         if ($evidence->investigation?->case?->report?->report_type === 'anonymous') {
             $evidence->setAttribute(
-                'oversight_filename',
-                $this->anonymousOversightFilename($evidence->mime_type),
+                'safe_filename',
+                $this->anonymousInternalFilename($evidence->mime_type),
             );
         }
     }
@@ -546,16 +542,16 @@ class EvidenceService
     private function filenameForReader(Evidence $evidence, User $actor, string $filename): string
     {
         if (
-            $this->campusScope->canSensitiveOversight($actor)
-            && $evidence->investigation?->case?->report?->report_type === 'anonymous'
+            $evidence->investigation?->case?->report?->report_type === 'anonymous'
+            && ! $actor->hasRole('reporter')
         ) {
-            return $this->anonymousOversightFilename($evidence->mime_type);
+            return $this->anonymousInternalFilename($evidence->mime_type);
         }
 
         return $filename;
     }
 
-    private function anonymousOversightFilename(?string $mimeType): string
+    private function anonymousInternalFilename(?string $mimeType): string
     {
         return 'internal-evidence.'.(self::EXTENSION_BY_MIME[$mimeType] ?? 'bin');
     }

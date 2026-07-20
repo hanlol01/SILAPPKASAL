@@ -1,7 +1,7 @@
 # DATABASE_SCHEMA.md — Database Design & Schema
 
 > **Sistem Informasi Laporan Pencegahan dan Penanganan Kekerasan Seksual (SILAPPKASAL)**
-> Versi: 1.0.1-patch | Terakhir Diperbarui: 2026-06-10 | Status: BERLAKU — AUDIT PATCH | Tier: 2 (GOVERNED)
+> Versi: REV-WF-03-R2 | Terakhir Diperbarui: 2026-07-20 | Status: BERLAKU | Tier: 2 (GOVERNED)
 
 ---
 
@@ -829,6 +829,30 @@ CREATE INDEX idx_reports_registration_fts
 > **Catatan**: Full-text search pada kolom terenkripsi tidak dimungkinkan. Pencarian hanya bisa dilakukan pada kolom non-enkripsi seperti `registration_number`, `status`, dan tanggal.
 
 ---
+
+## 9.1 `break_glass_requests` R2 Lifecycle Extension
+
+REV-WF-03 R2 reuses `break_glass_requests`; no separate grant table is introduced.
+
+| Column | Type | Null | Meaning |
+|---|---|---:|---|
+| `requested_duration_minutes` | unsigned integer | No | Requested grant duration; new requests use 30/60/240/1440, legacy default 480 |
+| `grant_starts_at` | timestamp | Yes | Approval-time grant start |
+| `expires_at` | timestamp | Yes | Authoritative grant end; distinct from any Audit Log expiry |
+| `revoked_at` | timestamp | Yes | Immediate revocation time |
+| `revoked_by` | FK `users.id` | Yes | Same-campus Admin that revoked the grant |
+| `revocation_reason` | text | Yes | Authorized lifecycle narrative; excluded from audit metadata |
+| `view_count` | unsigned integer | No | Successful reveal count, default 0 |
+| `last_viewed_at` | timestamp | Yes | Most recent successful reveal |
+
+Supported current statuses are `pending`, `approved`, `denied`, `revoked`, and `expired`; legacy
+`viewed` remains read-compatible. Indexes cover requester/status, report/status, status/expiry,
+expiry, and a partial unique `(report_id, requestor_id)` active/pending lookup for statuses
+`pending`, `approved`, and legacy `viewed` where `revoked_at IS NULL`.
+
+Migration backfill preserves every row. Legacy grants derive an eight-hour bounded window from
+`viewed_at`, then `approved_at`, `requested_at`, or `created_at`; elapsed grants become `expired`.
+No reveal audit event is fabricated.
 
 ## 10. Migration Order
 

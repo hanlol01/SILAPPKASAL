@@ -1,9 +1,37 @@
 # PROJECT_HANDOFF.md - SILAPPKASAL Project Handoff
 
 > Status: Active Handoff  
-> Last Updated: 2026-06-25  
-> Current Milestone: Milestone 31-B2 Complete - Multi-Campus Reporter Registration Frontend  
-> Next Milestone: TBD
+> Last Updated: 2026-07-20
+> Current Milestone: REV-WF-03 R2 — Anonymous Emergency Access implemented locally
+> Next Milestone: REV-WF-03 R3 remains deferred
+
+---
+
+## REV-WF-03 R2 Handoff
+
+R2 changes Emergency Access from the legacy Admin/Super Admin Break Glass flow to a requester-
+scoped workflow. An active assigned same-campus Satgas requests access from an anonymous Case and
+selects 30 minutes, 1 hour, 4 hours, or 24 hours. The same-campus Admin reviews, approves/denies,
+and may revoke. Only the requesting Satgas can explicitly reveal the minimal identity projection
+during an active grant. Super Admin retains redacted Activity Log oversight but no operational
+request, review, revoke, or reveal authority.
+
+Implementation points:
+
+- `break_glass_requests` stores grant start/expiry, revoke metadata, view count, and last view time;
+- new grants start at approval, not first reveal; expired grants deny without a scheduler;
+- legacy `viewed` rows and eight-hour grants are preserved without fabricated reveal audits;
+- all lifecycle operations are backend policy/service enforced and critical-audited with redacted
+  metadata;
+- reveal is a dedicated non-cacheable `POST` endpoint and is never embedded in Report/Case data;
+- Satgas uses a protected Case-detail dialog whose identity state is cleared on close;
+- Admin uses a same-campus queue without any reveal control;
+- anonymous Supporting File/Internal Evidence names are masked in internal lists and response
+  headers while the Reporter owner retains original Supporting File names.
+
+Deployment requires the two `2026_07_20_*` migrations in timestamp order. Back up PostgreSQL first,
+do not seed production, and follow `docs/deployment/DEPLOYMENT_UPDATE.md`. R3 is not implemented by
+this milestone.
 
 ---
 
@@ -273,7 +301,7 @@ Current security posture:
 - Assigned Satgas remains read-only for decision records.
 - Assigned Satgas may create monitoring entries for assigned cases, but cannot complete or discontinue recovery.
 - Evidence metadata and chain-of-custody foundation is implemented for assigned Satgas only.
-- Admin and Super Admin have no default evidence access in Milestone 11; future break-glass access remains possible but is not implemented.
+- Admin has no default Internal Evidence access. Super Admin sensitive read remains feature-flagged read-only oversight. R2 Emergency Access is identity-only and does not grant Evidence mutation authority.
 - Evidence file upload/download/storage is not implemented.
 - Frontend auth stores bearer tokens through the centralized `frontend/src/lib/auth-storage.ts` wrapper only.
 - Frontend authorization logic must use `user.role.code` as canonical; role display names are display-only.
@@ -290,8 +318,7 @@ Deferred security work:
 
 - Strict security headers middleware.
 - Audit trail foundation implemented.
-- Break-glass access.
-- Break-glass evidence access and secure file streaming.
+- REV-WF-03 R2 Emergency Access is implemented; R3 remains deferred.
 - WhatsApp/Fonnte notification privacy review.
 - Frontend token/session hardening.
 
@@ -508,7 +535,7 @@ REV-WF-03 R1 current behavior:
 - Shared submitted-report detail cards are available to same-campus Admin and active assigned Satgas. Super Admin access requires the existing sensitive cross-campus-read feature flag. Anonymous Reporter identity remains masked in internal projections.
 - Report priority display and dashboard aggregation derive from the linked Case priority. No linked Case is `unavailable`; a linked Case without assessment priority is `unassessed`.
 - Reporter Portal titled data cards use the shared accessible collapsible-card behavior, including localized controls and mounted collapsed content.
-- REV-WF-03 R2 break-glass/final-outcome work and R3 recovery/closure/activity-log work remain deferred.
+- REV-WF-03 R2 Emergency Access is implemented; final-outcome work and R3 recovery/closure/activity-log work remain deferred.
 
 ---
 

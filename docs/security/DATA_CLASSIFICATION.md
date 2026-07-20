@@ -2,13 +2,13 @@
 
 **Project:** SILAPPKASAL  
 **Milestone:** M26 — Security & Privacy Enhancement  
-**Status:** 🔒 FROZEN — All Decisions FINAL  
+**Status:** REV-WF-03 R2 Emergency Access override active
 **Created:** 2026-06-22  
 **Frozen:** 2026-06-22  
 
 > [!IMPORTANT]
-> This document is frozen. All open questions have been resolved. Decisions are final.
-> Do not modify this document. Implementation follows M26_IMPLEMENTATION_PLAN.md.
+> Classification remains unchanged. R2 controls below supersede conflicting M26 Break Glass
+> ownership and projection statements.
 
 ---
 
@@ -29,7 +29,7 @@
 
 | Entity / Field | Protection |
 |---|---|
-| `reports.reporter_id` | Masked for anonymous reports. Break-glass reveals **name + email only**. |
+| `reports.reporter_id` | Masked for anonymous reports. Dedicated requester-only reveal returns the allowlisted identity projection. |
 | `reports.chronology` | `encrypted` cast |
 | `reports.incident_location` | `encrypted` cast |
 | `reports.respondent_name` | `encrypted` cast |
@@ -38,7 +38,7 @@
 | `reports.reporter_phone_encrypted` | `encrypted` cast |
 | `users.password` | `hashed` cast |
 | Evidence file content | Access control (future: file encryption) |
-| `break_glass_requests.*` | Immutable records. **Super Admin audit only.** |
+| `break_glass_requests.*` | Same-campus Admin review; requester-only Satgas reveal; Super Admin sees redacted audit oversight only. |
 | Break-glass audit entries | `category: "privacy"`, `severity: "critical"`. **Super Admin only.** |
 
 ### L2 — RESTRICTED

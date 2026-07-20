@@ -40,6 +40,7 @@ import {
 } from "@/components/progress-timeline";
 import { CollapsibleDataCard } from "@/components/collapsible-data-card";
 import { InvestigationStageProgress } from "@/components/workflow/investigation-stage-progress";
+import { CaseEmergencyAccessCard } from "@/components/security/case-emergency-access-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Breadcrumb,
@@ -180,6 +181,10 @@ function CaseDetail() {
     (caseQuery.data?.assignments ?? []).some(
       (assignment) => assignment.is_active && assignment.satgas_id === user?.id,
     );
+  const canUseEmergencyAccess =
+    isAssignedSatgas &&
+    user?.is_active === true &&
+    Boolean(user.permissions?.includes("privacy.request_break_glass"));
   const isSensitiveOversight =
     roleCode === "super_admin" &&
     caseQuery.data?.workflow_context?.facts.sensitive_oversight_enabled === true;
@@ -469,6 +474,12 @@ function CaseDetail() {
           </CollapsibleDataCard>
 
           <SensitiveReportSection report={c.report} roleLabel={restrictedLabel} t={t} />
+          {canUseEmergencyAccess && c.report?.identification.report_type === "anonymous" && (
+            <CaseEmergencyAccessCard
+              caseId={c.id}
+              registrationNumber={c.registration_number}
+            />
+          )}
           <Tabs
             value={activeWorkflowTab}
             onValueChange={handleWorkflowTabChange}

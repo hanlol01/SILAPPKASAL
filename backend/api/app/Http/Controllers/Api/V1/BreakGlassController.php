@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\BreakGlassDenyRequest;
+use App\Http\Requests\BreakGlassIndexRequest;
+use App\Http\Requests\BreakGlassRevokeRequest;
 use App\Http\Requests\BreakGlassStoreRequest;
 use App\Http\Resources\BreakGlassRequestResource;
 use App\Models\BreakGlassRequest;
@@ -32,11 +34,14 @@ class BreakGlassController extends Controller
         ], 201);
     }
 
-    public function pending(Request $request): JsonResponse
+    public function pending(BreakGlassIndexRequest $request): JsonResponse
     {
         Gate::authorize('viewAny', BreakGlassRequest::class);
 
-        $requests = $this->breakGlassService->pending((int) $request->integer('per_page', 15));
+        $requests = $this->breakGlassService->pending(
+            $request->user(),
+            (int) $request->validated('per_page', 15),
+        );
 
         return response()->json([
             'success' => true,
@@ -51,11 +56,14 @@ class BreakGlassController extends Controller
         ]);
     }
 
-    public function history(Request $request): JsonResponse
+    public function history(BreakGlassIndexRequest $request): JsonResponse
     {
         Gate::authorize('viewAny', BreakGlassRequest::class);
 
-        $requests = $this->breakGlassService->history((int) $request->integer('per_page', 15));
+        $requests = $this->breakGlassService->history(
+            $request->user(),
+            (int) $request->validated('per_page', 15),
+        );
 
         return response()->json([
             'success' => true,
@@ -70,14 +78,39 @@ class BreakGlassController extends Controller
         ]);
     }
 
-    public function show(BreakGlassRequest $breakGlassRequest): JsonResponse
+    public function mine(BreakGlassIndexRequest $request): JsonResponse
+    {
+        Gate::authorize('request', BreakGlassRequest::class);
+
+        $requests = $this->breakGlassService->mine(
+            $request->user(),
+            (int) $request->validated('per_page', 15),
+            $request->validated('case_id') === null ? null : (int) $request->validated('case_id'),
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Own emergency-access requests retrieved successfully',
+            'data' => BreakGlassRequestResource::collection($requests->items()),
+            'meta' => [
+                'current_page' => $requests->currentPage(),
+                'per_page' => $requests->perPage(),
+                'total' => $requests->total(),
+                'last_page' => $requests->lastPage(),
+            ],
+        ]);
+    }
+
+    public function show(BreakGlassRequest $breakGlassRequest, Request $request): JsonResponse
     {
         Gate::authorize('view', $breakGlassRequest);
 
         return response()->json([
             'success' => true,
             'message' => 'Break-glass request retrieved successfully',
-            'data' => new BreakGlassRequestResource($breakGlassRequest->load(['requestor.role', 'approver.role', 'report'])),
+            'data' => new BreakGlassRequestResource(
+                $this->breakGlassService->loadForUser($breakGlassRequest, $request->user()),
+            ),
         ]);
     }
 
@@ -107,6 +140,21 @@ class BreakGlassController extends Controller
         ]);
     }
 
+    public function revoke(BreakGlassRevokeRequest $request, BreakGlassRequest $breakGlassRequest): JsonResponse
+    {
+        Gate::authorize('revoke', $breakGlassRequest);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Emergency-access grant revoked successfully',
+            'data' => new BreakGlassRequestResource($this->breakGlassService->revoke(
+                $breakGlassRequest,
+                $request->user(),
+                (string) $request->validated('revocation_reason'),
+            )),
+        ]);
+    }
+
     public function reveal(BreakGlassRequest $breakGlassRequest, Request $request): JsonResponse
     {
         Gate::authorize('reveal', $breakGlassRequest);
@@ -118,6 +166,8 @@ class BreakGlassController extends Controller
         ]);
 
         $response->headers->set('Cache-Control', 'no-store');
+        $response->headers->set('Pragma', 'no-cache');
+        $response->headers->set('Expires', '0');
 
         return $response;
     }

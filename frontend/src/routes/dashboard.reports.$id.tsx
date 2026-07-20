@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, CheckCircle2, Lock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AccessDenied } from "@/components/access-denied";
-import { BreakGlassRequestDialog } from "@/components/admin/break-glass-request-dialog";
 import { QueryErrorState } from "@/components/query-state";
 import { CollapsibleDataCard } from "@/components/collapsible-data-card";
 import { ReportInputDetailsContent } from "@/components/report-input-details";
@@ -57,7 +56,6 @@ function ReportDetailPage() {
   }
 
   const report = reportQuery.data;
-  const canRequestBreakGlass = Boolean(user?.permissions?.includes("privacy.request_break_glass"));
   const isAnonymousReport = Boolean(report.is_anonymous || report.report_type === "anonymous");
   const reportCase = report.case ?? null;
   const activeAssignments = reportCase?.active_assignments ?? [];
@@ -212,20 +210,6 @@ function ReportDetailPage() {
             </CardContent>
           </Card>
 
-          {isAnonymousReport && canRequestBreakGlass && (
-            <Card className="min-w-0">
-              <CardHeader>
-                <CardTitle className="text-base">{t("dashboard:common.actions")}</CardTitle>
-                <CardDescription>{t("dashboard:reports.generalActionsDesc")}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <BreakGlassRequestDialog
-                  reportId={report.id}
-                  registrationNumber={report.registration_number}
-                />
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
       {sensitiveOversightEnabled && (

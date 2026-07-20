@@ -12,6 +12,7 @@ final class SensitiveAuditOperation
         'audit.export' => 'audit.export',
         'break_glass.approve' => 'break_glass.approve',
         'break_glass.deny' => 'break_glass.deny',
+        'break_glass.revoke' => 'break_glass.revoke',
         'break_glass.reveal' => 'break_glass.reveal',
         'evidence.upload' => 'evidence.upload',
         'evidence.download' => 'evidence.download',

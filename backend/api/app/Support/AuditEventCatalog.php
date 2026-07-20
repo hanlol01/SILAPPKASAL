@@ -134,9 +134,20 @@ final class AuditEventCatalog
             AuditAction::BreakGlassRequested,
             AuditAction::BreakGlassApproved,
             AuditAction::BreakGlassDenied,
-            AuditAction::BreakGlassIdentityViewed => $this->fields(
-                ['registration_number', 'reason_category'],
-                ['status', 'viewed'],
+            AuditAction::BreakGlassIdentityViewed,
+            AuditAction::BreakGlassRevoked,
+            AuditAction::BreakGlassExpired => $this->fields(
+                [
+                    'registration_number',
+                    'case_number',
+                    'reason_category',
+                    'duration_code',
+                    'status',
+                    'expires_at',
+                    'view_count',
+                    'result',
+                ],
+                ['status', 'expires_at', 'view_count', 'revoked'],
             ),
 
             AuditAction::SecurityAccessDenied => $this->fields(

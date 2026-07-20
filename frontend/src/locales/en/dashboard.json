@@ -1020,10 +1020,10 @@
   },
   "breakGlass": {
     "title": "Reporter Identity Emergency Access",
-    "subtitle": "Review exceptional access requests for anonymous reporter identities under privacy policy.",
+    "subtitle": "Review emergency-access requests from assigned Task Force members for anonymous reports at your campus.",
     "pending": {
       "title": "Pending requests",
-      "description": "Approve, deny, or reveal only approved requests.",
+      "description": "Campus Admins may approve or deny requests but cannot reveal identity.",
       "empty": "No pending access requests."
     },
     "history": {
@@ -1037,16 +1037,21 @@
       "approvalFailed": "Approval failed",
       "denialFailed": "Denial failed",
       "revealFailed": "Identity reveal failed",
-      "denialReasonMin": "Denial reason must be at least 10 characters."
+      "revocationFailed": "Access revocation failed",
+      "denialReasonMin": "Denial reason must be at least 10 characters.",
+      "revocationReasonMin": "Revocation reason must be at least 10 characters.",
+      "ownLoad": "Your emergency-access request history could not be loaded."
     },
     "success": {
       "approved": "Access request approved",
-      "denied": "Access request denied"
+      "denied": "Access request denied",
+      "revoked": "Emergency access revoked"
     },
     "actions": {
       "approve": "Approve",
       "deny": "Deny",
-      "reveal": "Reveal identity"
+      "reveal": "Reveal identity",
+      "revoke": "Revoke access"
     },
     "deny": {
       "title": "Deny identity access request",
@@ -1054,12 +1059,20 @@
       "reasonLabel": "Denial reason",
       "submit": "Deny request"
     },
+    "revoke": {
+      "title": "Revoke emergency access",
+      "description": "The Task Force member's access will stop immediately. The action and reason are audited.",
+      "reasonLabel": "Revocation reason",
+      "submit": "Revoke access"
+    },
     "table": {
       "report": "Report",
       "requestor": "Requestor",
       "reason": "Reason",
       "status": "Status",
       "requested": "Requested",
+      "grant": "Access window",
+      "expires": "Expires {{value}}",
       "actions": "Actions",
       "unknownReport": "Unknown report",
       "unknownRequestor": "Unknown requestor",
@@ -1069,8 +1082,16 @@
       "pending": "Pending review",
       "approved": "Approved",
       "denied": "Denied",
-      "revealed": "Identity revealed",
+      "viewed": "Approved (legacy status)",
+      "revoked": "Revoked",
       "expired": "Expired"
+    },
+    "duration": {
+      "30": "30 minutes",
+      "60": "1 hour",
+      "240": "4 hours",
+      "1440": "24 hours",
+      "minutes": "{{count}} minutes"
     },
     "reasonCategories": {
       "legal_requirement": "Legal requirement",
@@ -1085,6 +1106,8 @@
       "title": "Request emergency identity access",
       "description": "Submit an audited request to reveal the reporter identity for report {{registrationNumber}}.",
       "category": "Reason category",
+      "duration": "Access duration",
+      "durationHint": "The duration starts immediately when the Campus Admin approves the request.",
       "reason": "Reason",
       "reasonPlaceholder": "Describe the documented, policy-aligned reason for requesting exceptional access.",
       "characterCount": "{{count}}/{{max}} characters",
@@ -1097,10 +1120,30 @@
     },
     "reveal": {
       "title": "Revealed identity",
-      "auditNotice": "This identity access is logged and audited.",
+      "protectedDescription": "Identity is displayed only in this dialog and is cleared when the dialog closes.",
+      "auditNotice": "Every reveal is logged and audited. Do not copy or distribute the data beyond the case need.",
+      "confirmation": "Reveal identity only when it is necessary for the current case handling.",
+      "confirm": "Confirm and reveal identity",
+      "close": "Close and clear identity",
+      "success": "Identity revealed and access recorded",
       "name": "Name",
       "email": "Email",
-      "validUntil": "Valid until"
+      "nim": "Student ID",
+      "phone": "Telephone number",
+      "faculty": "Faculty",
+      "studyProgram": "Study program",
+      "university": "University"
+    },
+    "caseCard": {
+      "title": "Reporter Identity Emergency Access",
+      "description": "Restricted access for an active Task Force member assigned to this anonymous case.",
+      "privacyNotice": "Identity remains masked until a request is approved and you explicitly choose to reveal it.",
+      "latestRequest": "Latest request",
+      "expiresAt": "Valid until",
+      "viewCount": "Reveal count",
+      "pendingHint": "The request is awaiting a Campus Admin decision.",
+      "denialReason": "Denial reason: {{reason}}",
+      "revocationReason": "Revocation reason: {{reason}}"
     }
   },
   "activityLog": {
@@ -1370,6 +1413,8 @@
       "break_glass_approve": "Emergency access approved",
       "break_glass_deny": "Emergency access denied",
       "break_glass_view_identity": "Identity viewed through emergency access",
+      "break_glass_revoke": "Emergency access revoked",
+      "break_glass_expire": "Emergency access expired",
       "security_access_denied": "Sensitive access denied",
       "audit_privacy_scrub": "Audit privacy scrub run",
       "audit_export": "Audit history exported",

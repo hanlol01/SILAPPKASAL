@@ -200,10 +200,12 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/request', [BreakGlassController::class, 'request']);
         Route::get('/pending', [BreakGlassController::class, 'pending']);
         Route::get('/history', [BreakGlassController::class, 'history']);
+        Route::get('/mine', [BreakGlassController::class, 'mine']);
         Route::get('/{breakGlassRequest}', [BreakGlassController::class, 'show']);
         Route::patch('/{breakGlassRequest}/approve', [BreakGlassController::class, 'approve'])->name('break_glass.approve');
         Route::patch('/{breakGlassRequest}/deny', [BreakGlassController::class, 'deny'])->name('break_glass.deny');
-        Route::get('/{breakGlassRequest}/reveal', [BreakGlassController::class, 'reveal'])->name('break_glass.reveal');
+        Route::patch('/{breakGlassRequest}/revoke', [BreakGlassController::class, 'revoke'])->name('break_glass.revoke');
+        Route::post('/{breakGlassRequest}/reveal', [BreakGlassController::class, 'reveal'])->name('break_glass.reveal');
     });
 
     Route::middleware('auth:sanctum')->prefix('dashboard')->group(function (): void {

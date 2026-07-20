@@ -80,6 +80,11 @@ class RbacSeederTest extends TestCase
         $this->assertTrue($superAdmin->permissions->contains('code', 'cases.read.sensitive_oversight'));
         $this->assertFalse($superAdmin->permissions->contains('code', 'reports.forward'));
         $this->assertFalse($superAdmin->permissions->contains('code', 'cases.assign_satgas'));
+        $this->assertFalse($superAdmin->permissions->contains('code', 'system.break_glass_access'));
+        $this->assertFalse($superAdmin->permissions->contains('code', 'privacy.approve_break_glass'));
+        $this->assertTrue($admin->permissions->contains('code', 'privacy.approve_break_glass'));
+        $this->assertTrue($satgas->permissions->contains('code', 'privacy.request_break_glass'));
+        $this->assertTrue($satgas->permissions->contains('code', 'privacy.reveal_anonymous_identity'));
     }
 
     public function test_database_seeder_creates_demo_dataset_v2_users(): void
@@ -185,7 +190,6 @@ class RbacSeederTest extends TestCase
             'system.configure',
             'system.audit_log.oversight',
             'system.audit_log.export',
-            'system.break_glass_access',
             'users.assign_role',
         ] as $platformPermission) {
             $this->assertTrue(
@@ -193,5 +197,7 @@ class RbacSeederTest extends TestCase
                 "Super Admin lost platform permission {$platformPermission}.",
             );
         }
+
+        $this->assertFalse($superAdmin->fresh()->permissions()->where('permissions.code', 'system.break_glass_access')->exists());
     }
 }

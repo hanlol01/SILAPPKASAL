@@ -1,242 +1,129 @@
-# BREAK_GLASS_POLICY.md — Milestone 26
+# Anonymous Emergency Access Policy — REV-WF-03 R2
 
 **Project:** SILAPPKASAL  
-**Milestone:** M26 — Security & Privacy Enhancement  
-**Status:** 🔒 FROZEN — All Decisions FINAL  
-**Created:** 2026-06-22  
-**Frozen:** 2026-06-22  
+**Status:** Implemented repository contract
+**Updated:** 2026-07-20
+**Source of truth:** executable routes, policies, services, migrations, resources, and tests
 
-> [!IMPORTANT]
-> This document is frozen. All open questions have been resolved. Decisions are final.
-> Do not modify this document. Implementation follows M26_IMPLEMENTATION_PLAN.md.
+This policy supersedes the M26 Break Glass ownership and TTL rules. It does not change the default
+masking of anonymous Reporter identity and does not implement REV-WF-03 R3.
 
----
+## 1. Purpose and boundary
 
-## Approved Product Owner Decisions
+Emergency Access is an exceptional, case-specific, time-bounded, and audited mechanism. Anonymous
+identity remains masked in normal Report and Case resources, Super Admin oversight, file metadata,
+and ordinary frontend views. Identity is returned only by the dedicated requester-only reveal
+endpoint.
 
-| Q# | Decision | Detail |
-|---|---|---|
-| Q1 | A | Legacy `reporter_id=null` reports: leave as-is, no migration |
-| Q2 | A | Keep tracking code for new anonymous reports |
-| Q3 | B | API returns `reporter: { masked: true }` for anonymous reports |
-| Q4 | C | Notify reporter only on break-glass approval |
-| Q5 | C | Both dedicated `break_glass_requests` table + audit log entries |
-| Q6 | B | Break-glass reveal expires after **8-hour TTL** |
-| Q7 | B | Reveal returns **minimal profile only** (name + email) |
-| Q8 | A | Remove `reporter_id = null` branch in `ReportService::submit()` |
-| Q9 | C | SLA: 4 hours for `safety_emergency`, 24 hours for others |
-| Q10 | A | No limit on break-glass requests per report |
-| Q11 | A | Denied requests retryable with new justification |
-| Q12 | B | Break-glass audit entries visible to **Super Admin only** |
+Emergency Access must never be used for routine lookup, curiosity, retaliation, disclosure to the
+respondent, bulk access, or contact outside the authorized case-handling need.
 
----
+## 2. Role ownership
 
-## 1. Definition
+| Role | Request | Review | Approve/deny | Revoke | Reveal |
+|---|---:|---:|---:|---:|---:|
+| Reporter | No | No | No | No | No |
+| Satgas PPKS | Own assigned Case only | Own metadata only | No | No | Own active grant only |
+| Admin Kampus | No | Same campus | Same campus | Same-campus active grant | No |
+| Super Admin | No | Audit oversight only | No | No | No |
 
-**Break-glass access** is an exceptional, audited procedure to reveal the identity of an anonymous reporter. It is never routine, never casual, always audited, always intentional.
+The Satgas requester and Admin reviewer are necessarily different roles, so self-approval is not
+available. A grant is exclusive to its `requestor_id`; another assigned Satgas cannot use it.
 
----
+## 3. Request eligibility
 
-## 2. Who May Request (FINAL)
+The backend accepts a request only when every condition is true:
 
-| Role | May Request? | Permission |
-|---|---|---|
-| Reporter | ❌ | — |
-| Satgas PPKS | ❌ | Must escalate to Admin |
-| Admin | ✅ | `privacy.request_break_glass` |
-| Super Admin | ✅ | `privacy.request_break_glass` |
+- requester is an active `satgas_ppks` user with `privacy.request_break_glass`;
+- the supplied Case exists and has an integrity-valid linked Report;
+- the Report is classified `anonymous` and retains a Reporter account relation;
+- requester belongs to the Report campus and has a current active Case assignment;
+- reason category is supported and the sanitized reason is 50–2000 characters;
+- duration is exactly 30, 60, 240, or 1440 minutes;
+- no pending or active request exists for the same Report/requester pair.
 
----
+Denied, revoked, or expired history remains readable and a later request may be created.
 
-## 3. Who May Approve (FINAL)
+## 4. Review and grant lifecycle
 
-| Role | May Approve? | Permission |
-|---|---|---|
-| Admin | ❌ | Cannot approve, even own requests |
-| Super Admin | ✅ | `privacy.approve_break_glass` |
-
-Self-approval: Super Admin cannot approve their own request if a second Super Admin exists. Single Super Admin: self-approval allowed with `metadata.single_approver_override: true`.
-
----
-
-## 4. Request Workflow (FINAL)
-
-```
-Step 1: REQUEST (Admin or Super Admin)
-  → report_id, reason_category, reason (min 50 chars), acknowledgment
-  → Creates break_glass_requests { status: "pending" }
-  → AuditLog: break_glass.request, severity: critical
-  → Notification: all Super Admins
-
-Step 2: REVIEW (Super Admin)
-  → Sees: requestor, report, reason, chronology for context
-  → Reporter identity NOT yet revealed
-
-Step 3a: APPROVE
-  → status: "approved", approved_at, approver_id
-  → AuditLog: break_glass.approve, severity: critical
-  → Notification: requestor notified
-  → Notification: reporter notified ("Your identity was revealed via break-glass")
-
-Step 3b: DENY
-  → status: "denied", denied_at, denial_reason
-  → AuditLog: break_glass.deny, severity: critical
-  → Notification: requestor notified (no reporter notification)
-
-Step 4: VIEW IDENTITY (approved only)
-  → Returns MINIMAL PROFILE: { name, email } only
-  → 8-hour TTL from first view (viewed_at + 8h)
-  → AuditLog: break_glass.view_identity, severity: critical
-  → After TTL expires: re-access returns 403
-  → Subsequent API calls still show masked identity
+```text
+pending
+  ├─ Admin Kampus denies  → denied
+  └─ Admin Kampus approves → approved (grant starts immediately)
+                                  ├─ time reaches expires_at → expired
+                                  └─ Admin Kampus revokes    → revoked
 ```
 
----
+Approval locks the request and revalidates the requester account, permissions, campus, Case/Report
+integrity, and active assignment. It sets `approved_at`, `grant_starts_at`, and `expires_at` from the
+approved request duration. Expiry does not begin at first reveal.
 
-## 5. Reveal Scope (FINAL — Q7=B)
+Denial requires `denial_reason`. Revocation requires `revocation_reason`, is allowed only while a
+grant is active, and takes effect immediately. Narratives remain in authorized request metadata but
+are excluded from audit metadata.
 
-| Field | Revealed? |
-|---|---|
-| `name` | ✅ |
-| `email` | ✅ |
-| `nim` | ❌ |
-| `nip` | ❌ |
-| `phone_number` | ❌ |
+## 5. Reveal controls
 
----
+Each explicit reveal revalidates:
 
-## 6. Reveal Duration (FINAL — Q6=B)
+- the authenticated actor is the active Satgas requester;
+- `requestor_id` matches the actor;
+- Report remains anonymous and linked to the same valid Case;
+- actor remains same-campus and actively assigned;
+- stored state is `approved` or compatible legacy `viewed`;
+- current time is within `[grant_starts_at, expires_at)`;
+- `revoked_at` is null.
 
-| Rule | Value |
-|---|---|
-| TTL | **8 hours** from `viewed_at` timestamp |
-| Expiry check | `viewed_at + 8 hours > now()` → 403 Forbidden |
-| Multiple views within TTL | ✅ Allowed (each view logged) |
-| After TTL | Must submit new break-glass request |
+Success returns only `name`, `nim`, `email`, `phone_number`, `faculty`, `study_program`, and
+`university`. It increments `view_count`, updates `last_viewed_at`, and audits every reveal. The
+response is non-cacheable (`Cache-Control: no-store`, `Pragma: no-cache`, `Expires: 0`). The React
+client does not put identity in TanStack Query, URLs, browser storage, toasts, or logs, and clears the
+dialog state on close.
 
----
+## 6. Expiry correctness
 
-## 7. Reason Categories (FINAL)
+`BreakGlassRequest::isGrantActive()` is the source of truth. An elapsed `expires_at` denies reveal
+even if the stored status is still `approved`. Bounded access-time normalization changes the status
+to `expired` and emits `break_glass.expire` once. Correctness does not require a scheduler.
 
-| Code | Label (ID) | Label (EN) |
-|---|---|---|
-| `legal_requirement` | Perintah hukum atau pengadilan | Legal or court order |
-| `safety_emergency` | Keselamatan darurat | Safety emergency |
-| `investigation_necessity` | Kebutuhan investigasi kritis | Critical investigation need |
-| `institutional_compliance` | Kepatuhan regulasi institusi | Institutional compliance |
-| `victim_consent` | Persetujuan korban/pelapor | Victim/reporter consent |
+## 7. Anonymous filename protection
 
----
+For anonymous Reports, internal list responses and Content-Disposition headers use:
 
-## 8. Audit Requirements (FINAL)
+- Reporter Supporting Files: `supporting-file.{ext}`;
+- Internal Investigation Evidence: `internal-evidence.{ext}`.
 
-| Action | Category | Severity | Visible To |
-|---|---|---|---|
-| `break_glass.request` | `privacy` | `critical` | Super Admin only |
-| `break_glass.approve` | `privacy` | `critical` | Super Admin only |
-| `break_glass.deny` | `privacy` | `critical` | Super Admin only |
-| `break_glass.view_identity` | `privacy` | `critical` | Super Admin only |
-| `break_glass.emergency_override` | `privacy` | `emergency` | Super Admin only |
+The Reporter owner continues to see their original Supporting File names. File bytes are not
+modified. A filename embedded inside the file content cannot be sanitized by this feature.
 
-All break-glass audit entries are **immutable** and **retained indefinitely**.
+## 8. Audit and notifications
 
-Admin with `system.audit_log.view` can see general audit logs but **NOT** entries with `category = "privacy"`.
+Critical privacy audit actions are `break_glass.request`, `break_glass.approve`,
+`break_glass.deny`, `break_glass.view_identity`, `break_glass.revoke`, and `break_glass.expire`.
+Allowed metadata is limited to public Report/Case references, reason category, duration code,
+status, expiry, view count, and safe result state. Reporter identity, request/denial/revocation
+narratives, filenames, Evidence content, and witness/respondent content are forbidden.
 
----
+Campus Admins receive a generic review notification. The requester receives generic resolution
+notifications. The Reporter receives a generic privacy notice on approval without requester,
+reviewer, reason, or identity data.
 
-## 9. SLA (FINAL — Q9=C)
+## 9. Legacy compatibility
 
-| Reason Category | SLA |
-|---|---|
-| `safety_emergency` | **4 hours** |
-| All others | **24 hours** |
+Existing rows are preserved. Legacy duration is 480 minutes. For legacy `viewed` grants,
+`grant_starts_at` is derived from `viewed_at`; for unviewed approved grants it is derived from
+`approved_at` with bounded fallbacks. Old elapsed grants become `expired`. Existing `viewed_at`
+may initialize `view_count=1`, but migration creates no reveal audit event. Legacy `viewed` remains
+read-compatible while it is within its migrated grant window.
 
-SLA is a policy guideline, not automated enforcement in M26.
+## 10. Deployment
 
----
+Apply the two R2 migrations in order through the normal deployment migration command:
 
-## 10. Retryability (FINAL — Q10=A, Q11=A)
+1. `2026_07_20_000000_add_emergency_access_lifecycle_to_break_glass_requests.php`
+2. `2026_07_20_010000_reconcile_r2_emergency_access_permissions.php`
 
-| Rule | Value |
-|---|---|
-| Max requests per report | **No limit** |
-| Retry after denial | **Allowed** with new justification |
-| Previous denials visible to approver | ✅ Yes, for context |
-
----
-
-## 11. Reporter Notification (FINAL — Q4=C)
-
-| Event | Reporter Notified? |
-|---|---|
-| Break-glass requested | ❌ No |
-| Break-glass denied | ❌ No |
-| Break-glass approved | ✅ **Yes** — "Identitas Anda pada laporan [reg_number] telah diungkapkan melalui prosedur break-glass" |
-
-Notification does NOT disclose who requested or why.
-
----
-
-## 12. Emergency Access (FINAL)
-
-| Step | Action |
-|---|---|
-| 1 | Admin invokes emergency with `safety_emergency` |
-| 2 | If Super Admin available → normal flow |
-| 3 | If no Super Admin available → emergency override |
-| 4 | AuditLog: `break_glass.emergency_override`, `severity: "emergency"` |
-| 5 | All Super Admins notified |
-| 6 | Mandatory post-incident review within 24 hours |
-
----
-
-## 13. Forbidden Uses (FINAL)
-
-1. ❌ Routine identity lookup
-2. ❌ Satisfying curiosity
-3. ❌ Retaliation against reporter
-4. ❌ Sharing with unauthorized parties
-5. ❌ Revealing to respondent (accused)
-6. ❌ Batch/bulk reveals
-7. ❌ Circumventing investigation workflow
-8. ❌ Pre-emptive "just in case" reveals
-9. ❌ Contacting reporter outside system
-10. ❌ Storing/screenshotting revealed identity
-
----
-
-## 14. Database Schema (FINAL)
-
-### `break_glass_requests` Table
-
-| Column | Type | Nullable | Description |
-|---|---|---|---|
-| `id` | bigint PK | No | Auto-increment |
-| `requestor_id` | bigint FK → users | No | Who requested |
-| `approver_id` | bigint FK → users | Yes | Who approved/denied |
-| `report_id` | bigint FK → reports | No | Which anonymous report |
-| `reason_category` | varchar(50) | No | Enum code |
-| `reason` | text | No | Justification (min 50 chars) |
-| `status` | varchar(20) | No | pending/approved/denied/viewed/expired |
-| `denial_reason` | text | Yes | If denied |
-| `requested_at` | timestamp | No | When requested |
-| `approved_at` | timestamp | Yes | When approved |
-| `denied_at` | timestamp | Yes | When denied |
-| `viewed_at` | timestamp | Yes | When identity first accessed |
-| `created_at` | timestamp | No | Record creation |
-
-Constraints: No `updated_at`. No `SoftDeletes`. Immutable after status transition.
-
----
-
-## 15. API Endpoints (FINAL)
-
-| Method | Path | Permission | Description |
-|---|---|---|---|
-| `POST` | `/v1/break-glass/request` | `privacy.request_break_glass` | Create request |
-| `GET` | `/v1/break-glass/pending` | `privacy.approve_break_glass` | List pending (Super Admin) |
-| `GET` | `/v1/break-glass/{id}` | `privacy.request_break_glass` | View request detail |
-| `PATCH` | `/v1/break-glass/{id}/approve` | `privacy.approve_break_glass` | Approve |
-| `PATCH` | `/v1/break-glass/{id}/deny` | `privacy.approve_break_glass` | Deny |
-| `GET` | `/v1/break-glass/{id}/reveal` | `privacy.reveal_anonymous_identity` | View identity (8h TTL) |
-| `GET` | `/v1/break-glass/history` | `privacy.approve_break_glass` | Break-glass history |
+Back up the database first. Do not seed production. The schema migration backfills in chunks,
+normalizes duplicate active rows conservatively, and adds a PostgreSQL/SQLite-compatible partial
+unique index for the Report/requester active lookup. The RBAC migration only reconciles the four
+managed Emergency Access permissions and preserves unrelated Super Admin oversight authorities.

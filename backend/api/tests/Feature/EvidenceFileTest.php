@@ -248,6 +248,26 @@ class EvidenceFileTest extends TestCase
 
         $this->actingAsApi($satgas);
         $this->upload($evidence, 'Demo-Pelapor-internal.pdf', $content)->assertOk();
+        $this->getJson("/api/v1/investigations/{$evidence->investigation_id}/evidences")
+            ->assertOk()
+            ->assertJsonPath('data.0.file_metadata.original_filename', 'internal-evidence.pdf')
+            ->assertJsonMissing(['original_filename' => 'Demo-Pelapor-internal.pdf']);
+        $satgasPreview = $this->get("/api/v1/evidences/{$evidence->id}/preview");
+        $satgasPreview->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->assertStringContainsString(
+            'internal-evidence.pdf',
+            (string) $satgasPreview->headers->get('Content-Disposition'),
+        );
+        $this->assertStringNotContainsString(
+            'Demo-Pelapor-internal.pdf',
+            (string) $satgasPreview->headers->get('Content-Disposition'),
+        );
+        $satgasDownload = $this->get("/api/v1/evidences/{$evidence->id}/file");
+        $satgasDownload->assertOk()->assertDownload('internal-evidence.pdf');
+        $this->assertStringNotContainsString(
+            'Demo-Pelapor-internal.pdf',
+            (string) $satgasDownload->headers->get('Content-Disposition'),
+        );
 
         $this->actingAsApi($superAdmin);
         config()->set('oversight.cross_campus_sensitive_read', false);

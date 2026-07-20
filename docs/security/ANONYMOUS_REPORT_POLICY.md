@@ -2,13 +2,13 @@
 
 **Project:** SILAPPKASAL  
 **Milestone:** M26 — Security & Privacy Enhancement  
-**Status:** 🔒 FROZEN — All Decisions FINAL  
+**Status:** REV-WF-03 R2 Emergency Access override active
 **Created:** 2026-06-22  
 **Frozen:** 2026-06-22  
 
 > [!IMPORTANT]
-> This document is frozen. All open questions have been resolved. Decisions are final.
-> Do not modify this document. Implementation follows M26_IMPLEMENTATION_PLAN.md.
+> Default masking rules remain active. The R2 reveal ownership, projection, and grant lifecycle
+> below supersede conflicting M26 Break Glass statements.
 
 ---
 
@@ -116,7 +116,7 @@ Report::query()
 
 ---
 
-## 8. Break-Glass Reveal Scope (FINAL — Q7=B)
+## 8. Emergency Access Reveal Scope (REV-WF-03 R2)
 
 When identity is revealed via break-glass, the API returns **minimal profile only**:
 
@@ -124,8 +124,12 @@ When identity is revealed via break-glass, the API returns **minimal profile onl
 |---|---|
 | `name` | ✅ Yes |
 | `email` | ✅ Yes |
-| `nim` | ❌ No |
+| `nim` | ✅ Where present |
 | `nip` | ❌ No |
-| `phone_number` | ❌ No |
+| `phone_number` | ✅ Where present |
+| `faculty`, `study_program`, `university` | ✅ Reference code/name where present |
 
-Reveal expires after **8 hours** (TTL from first view).
+Only the active assigned Satgas requester may reveal. A same-campus Admin approves/denies/revokes
+without seeing identity; Super Admin has no operational authority. New grants start on approval and
+last exactly 30, 60, 240, or 1440 minutes. Legacy grants retain the bounded eight-hour migration
+window. Full details are in `BREAK_GLASS_POLICY.md`.

@@ -14,7 +14,7 @@ class ReportEvidenceSubmissionResource extends JsonResource
     {
         return [
             'id' => $this->uuid,
-            'original_filename' => $this->resource->getAttribute('oversight_filename')
+            'original_filename' => $this->resource->getAttribute('safe_filename')
                 ?? $this->original_filename,
             'mime_type' => $this->mime_type,
             'file_size' => $this->file_size,

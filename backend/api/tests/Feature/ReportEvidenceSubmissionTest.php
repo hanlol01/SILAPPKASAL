@@ -214,6 +214,51 @@ class ReportEvidenceSubmissionTest extends TestCase
         $this->assertNotNull($case->id);
     }
 
+    public function test_anonymous_supporting_filenames_are_original_for_owner_and_masked_for_assigned_satgas(): void
+    {
+        $reporter = $this->makeUser('reporter', 'anonymous-owner@example.test');
+        $admin = $this->makeUser('admin', 'anonymous-admin@example.test');
+        $satgas = $this->makeUser('satgas_ppks', 'anonymous-satgas@example.test');
+        $report = $this->makeReport($reporter, ReportStatus::Forwarded->value);
+        $report->forceFill([
+            'report_type' => 'anonymous',
+            'tracking_code' => 'ANON-ASSIGNED-0001',
+        ])->save();
+        $content = $this->pdfContent();
+
+        $this->actingAsApi($reporter);
+        $uuid = $this->upload($report, 'Demo-Pelapor-owner-secret.pdf', $content)
+            ->assertCreated()
+            ->assertJsonPath('data.original_filename', 'Demo-Pelapor-owner-secret.pdf')
+            ->json('data.id');
+        $this->getJson($this->reportFilesUrl($report))
+            ->assertOk()
+            ->assertJsonPath('data.0.original_filename', 'Demo-Pelapor-owner-secret.pdf');
+        $this->get("/api/v1/portal/evidence-files/{$uuid}/download")
+            ->assertOk()
+            ->assertDownload('Demo-Pelapor-owner-secret.pdf');
+
+        $case = $this->makeCase($report, $admin, $satgas);
+        $this->actingAsApi($satgas);
+        $this->getJson("/api/v1/cases/{$case->id}/reporter-evidence-files")
+            ->assertOk()
+            ->assertJsonPath('data.0.original_filename', 'supporting-file.pdf')
+            ->assertJsonMissing(['original_filename' => 'Demo-Pelapor-owner-secret.pdf']);
+
+        $preview = $this->get("/api/v1/reporter-evidence-files/{$uuid}/preview");
+        $this->assertInlinePreviewResponse($preview, 'supporting-file.pdf', $content, 'application/pdf');
+        $this->assertStringNotContainsString(
+            'Demo-Pelapor-owner-secret.pdf',
+            (string) $preview->headers->get('Content-Disposition'),
+        );
+        $download = $this->get("/api/v1/reporter-evidence-files/{$uuid}/download");
+        $download->assertOk()->assertDownload('supporting-file.pdf');
+        $this->assertStringNotContainsString(
+            'Demo-Pelapor-owner-secret.pdf',
+            (string) $download->headers->get('Content-Disposition'),
+        );
+    }
+
     public function test_super_admin_sensitive_reporter_file_reads_require_flag_and_use_oversight_audits(): void
     {
         $reporter = $this->makeUser('reporter', 'oversight-owner@example.test');

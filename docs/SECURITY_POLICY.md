@@ -1,7 +1,7 @@
 # SECURITY_POLICY.md — Security Policy & Standards
 
 > **Sistem Informasi Laporan Pencegahan dan Penanganan Kekerasan Seksual (SILAPPKASAL)**
-> Versi: 1.0.1-patch | Terakhir Diperbarui: 2026-06-10 | Status: BERLAKU — AUDIT PATCH | Tier: 2 (GOVERNED)
+> Versi: REV-WF-03-R2 | Terakhir Diperbarui: 2026-07-20 | Status: BERLAKU | Tier: 2 (GOVERNED)
 
 ---
 
@@ -370,13 +370,13 @@ RBAC Layer Stack:
 | Report | `ReportPolicy` | `view` | Owner (reporter), Admin (all), Satgas (assigned case) |
 | Report | `ReportPolicy` | `create` | Reporter, Anonymous |
 | Report | `ReportPolicy` | `verify` | Admin, Super Admin |
-| Case | `CasePolicy` | `view` | Satgas (assigned — full data), Admin (metadata only via `cases.read.metadata`), Super Admin (metadata via `cases.read.all`, data sensitif hanya via `system.break_glass_access`) |
+| Case | `CasePolicy` | `view` | Satgas aktif yang ditugaskan; Admin sesuai scope kampus; Super Admin read-only sesuai permission dan feature flag sensitive oversight. Identitas anonymous tetap masked. |
 | Case | `CasePolicy` | `assess` | Satgas (assigned) |
 | Case | `CasePolicy` | `investigate` | Satgas (assigned) |
 | Case | `CasePolicy` | `close` | Satgas (assigned) |
-| Evidence | `EvidencePolicy` | `view` | Reporter (own), Satgas (assigned case). **Super Admin: ❌ default, hanya via `system.break_glass_access`** |
-| Evidence | `EvidencePolicy` | `upload` | Reporter, Satgas, Anonymous |
-| Evidence | `EvidencePolicy` | `download` | Satgas (assigned case). **Super Admin: hanya via `system.break_glass_access`** |
+| Evidence | `EvidencePolicy` | `view` | Satgas aktif yang ditugaskan; Super Admin hanya melalui read-only sensitive oversight yang diaktifkan eksplisit. Emergency Access R2 tidak memberikan akses Evidence. |
+| Evidence | `EvidencePolicy` | `upload` | Satgas aktif yang ditugaskan sesuai tahap Investigation; Reporter Supporting Files memakai resource terpisah. |
+| Evidence | `EvidencePolicy` | `download` | Satgas aktif yang ditugaskan; Super Admin hanya melalui read-only sensitive oversight yang diaktifkan eksplisit. |
 | User | `UserPolicy` | `create` | Admin, Super Admin |
 | User | `UserPolicy` | `assignRole` | Super Admin only |
 
@@ -1232,12 +1232,39 @@ Checklist ini wajib diverifikasi sebelum deployment ke production.
 
 ---
 
+## 21. Anonymous Emergency Access (REV-WF-03 R2)
+
+Anonymous Reporter identity is masked by default and may be returned only from the authenticated
+`POST /api/v1/break-glass/{request}/reveal` endpoint. Normal Report, Case, Evidence, supporting-file,
+and Super Admin oversight resources must not embed the identity projection.
+
+Security controls:
+
+- active assigned same-campus Satgas is the only request role and exclusive reveal recipient;
+- active same-campus Admin may review, approve, deny, and revoke but cannot reveal;
+- Super Admin has redacted Activity Log oversight only and no operational Emergency Access action;
+- approval, revoke, reveal, and expiry checks run inside transactions with locked current state;
+- grant activation begins on approval and accepts only 30, 60, 240, or 1440 minutes;
+- elapsed or revoked grants are denied independently of frontend state;
+- every request, approve, deny, reveal, revoke, and normalization-to-expired event is audited using
+  allowlisted metadata without identity, reason narratives, filenames, or case content;
+- the reveal response sends `Cache-Control: no-store`, `Pragma: no-cache`, and `Expires: 0`;
+- identity is not stored in TanStack Query, localStorage, sessionStorage, URLs, toasts, or logs, and
+  protected-dialog state is cleared on close;
+- no service worker handles or persists the reveal response;
+- anonymous internal filename metadata and Content-Disposition values use generated safe names;
+  file bytes are unchanged and embedded filenames inside content cannot be sanitized.
+
+The detailed lifecycle, legacy compatibility, and deployment order are defined in
+`docs/security/BREAK_GLASS_POLICY.md`.
+
 ## Changelog
 
 | Versi | Tanggal | Perubahan |
 |-------|---------|----------|
 | 1.0.0 | 2026-06-09 | Versi awal |
 | 1.0.1-patch | 2026-06-10 | Audit patch: pembatasan akses Admin ke metadata kasus saja, Super Admin tidak otomatis akses bukti (break-glass protocol), penguatan privasi anonim (hashed/masked IP, retention 7 hari), catatan MVP token in-memory, rencana Post-MVP httpOnly cookie, penambahan audit event `security.break_glass_activated` |
+| REV-WF-03-R2 | 2026-07-20 | Requester-scoped Anonymous Emergency Access, same-campus Admin review/revoke, non-cacheable reveal, expiry normalization, redacted audit, and anonymous filename protection. |
 
 ---
 

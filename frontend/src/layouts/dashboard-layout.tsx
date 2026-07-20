@@ -115,7 +115,8 @@ const nav: {
     key: "breakGlass",
     url: "/dashboard/break-glass",
     icon: ShieldAlert,
-    roles: ["super_admin"],
+    roles: ["admin"],
+    permission: "privacy.approve_break_glass",
   },
   {
     key: "settings",

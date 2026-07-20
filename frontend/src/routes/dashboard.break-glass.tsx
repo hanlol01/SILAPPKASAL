@@ -26,7 +26,7 @@ function BreakGlassPage() {
   const { t } = useTranslation(["dashboard", "common"]);
   const [pendingPage, setPendingPage] = useState(1);
   const [historyPage, setHistoryPage] = useState(1);
-  const canApprove = roleCode === "super_admin"
+  const canApprove = roleCode === "admin"
     && Boolean(user?.permissions?.includes("privacy.approve_break_glass"));
 
   const pendingQuery = useQuery({
@@ -101,7 +101,6 @@ function BreakGlassPage() {
             <>
               <BreakGlassPendingList
                 requests={historyQuery.data.data}
-                showActions={false}
                 emptyMessage={t("dashboard:breakGlass.history.empty")}
               />
               <PaginationControls

@@ -2,13 +2,13 @@
 
 **Project:** SILAPPKASAL  
 **Milestone:** M26 — Security & Privacy Enhancement  
-**Status:** 🔒 FROZEN — All Decisions FINAL  
+**Status:** Historical M26 review with REV-WF-03 R2 Emergency Access override
 **Created:** 2026-06-22  
 **Frozen:** 2026-06-22  
 
 > [!IMPORTANT]
-> This document is frozen. All open questions have been resolved. Decisions are final.
-> Do not modify this document. Implementation follows M26_IMPLEMENTATION_PLAN.md.
+> Findings remain historical. For current Emergency Access behavior use `BREAK_GLASS_POLICY.md`,
+> executable RBAC, policies, services, migrations, and tests.
 
 ---
 
@@ -56,7 +56,7 @@
 |---|---|---|
 | Audit model | `AuditLog` with actor, action, category, severity, metadata, before/after diffs | ✅ Foundation |
 | Audit policy | `AuditLogPolicy` — Admin and Super Admin with `system.audit_log.view` | ✅ Active |
-| Break-glass audit | Permission `system.break_glass_access` seeded for Super Admin | ⚠️ Not enforced yet |
+| Emergency Access audit | Six redacted lifecycle events; Super Admin oversight only | ✅ R2 active |
 
 ---
 
@@ -68,7 +68,7 @@
 |---|---|---|
 | `POST /reports` has no `auth:sanctum` middleware | 🔴 HIGH | **Add `auth:sanctum`.** Anonymous = masked, not unauthenticated. |
 | Anonymous reports store `reporter_id = null` | 🔴 HIGH | **Always store `reporter_id = auth()->id()`.** Remove null branch. |
-| `system.break_glass_access` not enforced | 🟡 MEDIUM | **Implement break-glass workflow.** |
+| Legacy `system.break_glass_access` | Resolved | **R2 does not assign it; Satgas request/reveal and Admin review use explicit privacy permissions.** |
 
 ### 2.2 Permission Inconsistencies
 
@@ -98,9 +98,9 @@
 | 1 | Add `auth:sanctum` middleware to `POST /v1/reports` | FINAL |
 | 2 | Always store `reporter_id` (remove null branch) | FINAL |
 | 3 | Mask reporter identity in API resources for anonymous reports using `{ masked: true }` | FINAL |
-| 4 | Implement break-glass workflow with dedicated table + audit log | FINAL |
+| 4 | Reuse `break_glass_requests` with requester-scoped grant lifecycle + audit log | R2 IMPLEMENTED |
 | 5 | Add 3 new privacy permissions | FINAL |
 | 6 | Show anonymous reports in reporter's portal | FINAL |
-| 7 | Break-glass reveal returns minimal profile (name + email only) | FINAL |
-| 8 | Break-glass reveal has 8-hour TTL | FINAL |
+| 7 | Requester-only reveal returns the R2 allowlisted identity projection | R2 IMPLEMENTED |
+| 8 | New grants last 30/60/240/1440 minutes from approval; legacy rows use bounded 8-hour compatibility | R2 IMPLEMENTED |
 | 9 | Break-glass audit entries visible to Super Admin only | FINAL |
