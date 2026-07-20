@@ -167,3 +167,19 @@ evidence.upload, evidence.view.case      ← future capability
 | Break-glass audit logs (`category: "privacy"`) | 🔒 **Hidden** | 📖 Visible |
 
 **Implementation:** `AuditLogPolicy` must filter break-glass entries for Admin role. Admin with `system.audit_log.view` sees all audit logs EXCEPT those with `category = "privacy"`.
+
+---
+
+## 6. REV-WF-03 R3 Finalization Authorization
+
+| Action | Reporter | Satgas PPKS | Same-campus Admin | Super Admin |
+|---|---:|---:|---:|---:|
+| View draft final summary | No | Assigned, read-only | Yes | Only when sensitive oversight permits |
+| View published final summary | Owned safe projection | Assigned, read-only | Yes | Read-only |
+| Create/update/publish final summary | No | No | `cases.monitor` | No |
+| Add Recovery Monitoring | No | Active assigned + `cases.monitor` | No | No |
+| Complete/discontinue Recovery | No | No | `cases.monitor` | No |
+| Close Case through dedicated endpoint | No | Active assigned + `cases.close` | No | No |
+| Close Case through generic status endpoint | No | Rejected | Rejected | Rejected |
+
+The Super Admin Cases sidebar link is hidden in R3. This navigation change does not revoke direct read-only Case authorization, Report-to-Case links, or Activity Log references.

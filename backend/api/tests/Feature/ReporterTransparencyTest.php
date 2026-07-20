@@ -257,7 +257,8 @@ class ReporterTransparencyTest extends TestCase
             ->assertJsonPath('data.monitoring.count', 1)
             ->assertJsonPath('data.evidence.reporter_supporting_file_count', 1)
             ->assertJsonPath('data.evidence.internal_evidence_count', 1)
-            ->assertJsonPath('data.final_summary', null);
+            ->assertJsonPath('data.final_summary.state', 'legacy_completion')
+            ->assertJsonMissingPath('data.final_summary.outcome_code');
 
         $this->assertNoForbiddenProgressKeys($response->json('data'));
         foreach ([

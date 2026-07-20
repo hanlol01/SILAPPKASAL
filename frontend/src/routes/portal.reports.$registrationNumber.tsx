@@ -342,6 +342,54 @@ function ReportProgressSection({
   );
 }
 
+function PortalFinalSummaryCard({
+  summary,
+  language,
+  t,
+}: {
+  summary: NonNullable<import("@/lib/portal-types").PortalReportHandlingProgress["final_summary"]>;
+  language: string;
+  t: TFunction;
+}) {
+  return (
+    <CollapsibleDataCard
+      icon={CheckCircle2}
+      title={t("finalSummary.title")}
+      description={t("finalSummary.description")}
+      expandLabel={t("collapsible.expand")}
+      collapseLabel={t("collapsible.collapse")}
+    >
+      {summary.state === "legacy_completion" ? (
+        <p className="text-sm text-muted-foreground">{t("finalSummary.legacyCompletion")}</p>
+      ) : (
+        <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+          <ProgressFact label={t("finalSummary.fields.outcome")} value={summary.outcome_label} />
+          <ProgressFact label={t("finalSummary.fields.completionDate")} value={formatDate(summary.completion_date, language)} />
+          <FinalNarrative label={t("finalSummary.fields.officialStatement")} value={summary.official_statement} />
+          <FinalNarrative label={t("finalSummary.fields.investigationSummary")} value={summary.investigation_summary} />
+          <FinalNarrative label={t("finalSummary.fields.recommendationResult")} value={summary.recommendation_result} />
+          <FinalNarrative label={t("finalSummary.fields.decisionResult")} value={summary.decision_result} />
+          <FinalNarrative label={t("finalSummary.fields.recoveryResult")} value={summary.recovery_result} />
+          <FinalNarrative label={t("finalSummary.fields.actionsCompleted")} value={summary.actions_completed} />
+          <FinalNarrative label={t("finalSummary.fields.actionsUncompleted")} value={summary.actions_uncompleted} />
+          <FinalNarrative label={t("finalSummary.fields.followUpOrReferral")} value={summary.follow_up_or_referral} />
+          <FinalNarrative label={t("finalSummary.fields.closingExplanation")} value={summary.closing_explanation} />
+        </div>
+      )}
+    </CollapsibleDataCard>
+  );
+}
+
+function FinalNarrative({ label, value }: { label: string; value?: string | null }) {
+  if (!value) return null;
+  return (
+    <div className="min-w-0 sm:col-span-2">
+      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="mt-1 whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere]">{value}</div>
+    </div>
+  );
+}
+
 function safeStageEvent(
   t: TFunction,
   language: string,
@@ -378,6 +426,7 @@ function HandlingProgressSection({
   const empty = t("handlingProgress.empty");
 
   return (
+    <div className="space-y-4">
     <CollapsibleDataCard
       icon={ShieldCheck}
       title={t("handlingProgress.title")}
@@ -462,6 +511,10 @@ function HandlingProgressSection({
         </div>
       )}
     </CollapsibleDataCard>
+    {progress?.final_summary && (
+      <PortalFinalSummaryCard summary={progress.final_summary} language={i18n.language} t={t} />
+    )}
+    </div>
   );
 }
 

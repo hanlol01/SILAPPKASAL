@@ -2,8 +2,8 @@
 
 > Status: Active Handoff  
 > Last Updated: 2026-07-20
-> Current Milestone: REV-WF-03 R2 — Anonymous Emergency Access implemented locally
-> Next Milestone: REV-WF-03 R3 remains deferred
+> Current Milestone: REV-WF-03 R3 — Final outcome and workflow UX implemented locally
+> Next Milestone: Independent review and release verification
 
 ---
 
@@ -318,7 +318,7 @@ Deferred security work:
 
 - Strict security headers middleware.
 - Audit trail foundation implemented.
-- REV-WF-03 R2 Emergency Access is implemented; R3 remains deferred.
+- REV-WF-03 R2 Emergency Access and R3 final outcome/closure are implemented locally; neither statement implies deployment.
 - WhatsApp/Fonnte notification privacy review.
 - Frontend token/session hardening.
 
@@ -531,11 +531,11 @@ GET /api/v1/portal/notifications
 REV-WF-03 R1 current behavior:
 
 - The Reporter-owned report detail now projects all submitted form values plus current account identity/contact/campus data. Current account fields are explicitly current values, not immutable submission snapshots.
-- The Reporter handling-progress endpoint is registration-number based, ownership scoped, and returns only safe states, dates, and counts. Its `final_summary` is intentionally `null` until a later revision.
+- The Reporter handling-progress endpoint is registration-number based and ownership scoped. R3 may add a published safe `final_summary`; drafts remain hidden, and historical closed Cases without one use `legacy_completion` without an invented outcome.
 - Shared submitted-report detail cards are available to same-campus Admin and active assigned Satgas. Super Admin access requires the existing sensitive cross-campus-read feature flag. Anonymous Reporter identity remains masked in internal projections.
 - Report priority display and dashboard aggregation derive from the linked Case priority. No linked Case is `unavailable`; a linked Case without assessment priority is `unassessed`.
 - Reporter Portal titled data cards use the shared accessible collapsible-card behavior, including localized controls and mounted collapsed content.
-- REV-WF-03 R2 Emergency Access is implemented; final-outcome work and R3 recovery/closure/activity-log work remain deferred.
+- REV-WF-03 R2 Emergency Access and R3 final-outcome/recovery/closure UX are implemented locally. Activity Log was not broadly redesigned; R3 adds only narrow allowlisted finalization audit events.
 
 ---
 
@@ -583,3 +583,12 @@ Milestone 22 Additional QA:
 - Non-empty reporter demo verified
 - Frontend/backend contract aligned
 - Account metadata contract aligned
+
+## REV-WF-03 R1/R2/R3 Handoff
+
+- R1 Reporter transparency is implemented: owned submitted details, safe handling progress, linked-Case priority semantics, and collapsible Reporter/internal projections.
+- R2 Emergency Access lifecycle is implemented with same-campus review, requester-only reveal, privacy audit boundaries, and Super Admin oversight restrictions.
+- R3 final outcome and workflow UX is implemented in repository code: encrypted final summaries, Recovery discontinuation reasons, backend-compatible final outcomes, Reporter-safe publication, explicit Satgas closure, historical `legacy_completion`, Decision action placement, Monitoring ownership messaging, and Super Admin Cases navigation hiding.
+- R3 deliberately does not redesign Activity Log. It adds only allowlisted finalization audit events and metadata.
+- R3 requires migration `2026_07_20_020000_add_final_case_closure.php` during a future release. No deployment is claimed here.
+- Future changes must preserve: same-campus Admin summary/Recovery mutation, active assigned Satgas Monitoring/closure ownership, published-only Reporter narratives, anonymous identity exclusion, and rejection of generic `closed` transitions.

@@ -92,6 +92,11 @@ class CaseRecord extends Model
         return $this->hasOne(Recommendation::class, 'case_id');
     }
 
+    public function finalSummary(): HasOne
+    {
+        return $this->hasOne(CaseFinalSummary::class, 'case_id');
+    }
+
     public function isAssignedTo(User $user): bool
     {
         return $this->activeAssignments()

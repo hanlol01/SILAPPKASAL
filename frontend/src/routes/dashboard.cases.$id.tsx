@@ -67,6 +67,11 @@ import { CaseAssessmentAction } from "@/components/workflow-actions/case-assessm
 import { EvidenceCreateAction } from "@/components/workflow-actions/evidence-create-action";
 import { RecoveryCreateAction } from "@/components/workflow-actions/recovery-create-action";
 import { RecoveryStatusAction } from "@/components/workflow-actions/recovery-status-action";
+import {
+  CaseClosureAction,
+  CaseFinalSummaryActions,
+  CaseFinalSummaryCard,
+} from "@/components/workflow-actions/case-final-summary";
 import { SatgasAssignmentAction } from "@/components/workflow-actions/satgas-assignment-action";
 import {
   CaseStatusAction,
@@ -353,7 +358,7 @@ function CaseDetail() {
     workflowContext?.actions.update_case_status.allowed === true;
   const hasGeneralActions = Boolean(workflowContext) ||
     (canUseGenericCaseStatus && caseStatusAvailable) ||
-    canCreateRecovery;
+    canCreateRecovery || canCreateDecision;
   const restrictedLabel = restrictedRoleLabel(t, roleCode);
   const timelineLoading =
     investigationsQuery.isLoading ||
@@ -480,6 +485,7 @@ function CaseDetail() {
               registrationNumber={c.registration_number}
             />
           )}
+          <CaseFinalSummaryCard caseId={c.id} language={i18n.language} />
           <Tabs
             value={activeWorkflowTab}
             onValueChange={handleWorkflowTabChange}
@@ -544,14 +550,6 @@ function CaseDetail() {
                 loading={decisionQueries.some((query) => query.isLoading)}
                 canUpdate={canManageDecisionActions}
                 canTransitionStatus={canManageDecisionActions}
-                createAction={
-                  canCreateDecision && acceptedDecisionRecommendation ? (
-                    <DecisionCreateAction
-                      caseId={c.id}
-                      recommendation={acceptedDecisionRecommendation}
-                    />
-                  ) : null
-                }
                 caseId={c.id}
                 language={i18n.language}
                 roleCode={roleCode}
@@ -566,6 +564,7 @@ function CaseDetail() {
                 canAddMonitoring={canAddRecoveryMonitoring}
                 canTransitionStatus={canManageRecoveryActions}
                 caseId={c.id}
+                roleCode={roleCode}
                 roleLabel={restrictedLabel}
                 t={t}
               />
@@ -693,6 +692,20 @@ function CaseDetail() {
                 )}
                 {canCreateRecovery && finalizedDecisionForRecovery && (
                   <RecoveryCreateAction caseId={c.id} decision={finalizedDecisionForRecovery} />
+                )}
+                {canCreateDecision && acceptedDecisionRecommendation && (
+                  <DecisionCreateAction caseId={c.id} recommendation={acceptedDecisionRecommendation} />
+                )}
+                {roleCode === "admin" && ["recovery", "monitoring"].includes(c.status ?? "") && (
+                  <CaseFinalSummaryActions
+                    caseId={c.id}
+                    createCapability={workflowContext?.actions.create_final_summary}
+                    updateCapability={workflowContext?.actions.update_final_summary}
+                    publishCapability={workflowContext?.actions.publish_final_summary}
+                  />
+                )}
+                {roleCode === "satgas_ppks" && ["recovery", "monitoring"].includes(c.status ?? "") && (
+                  <CaseClosureAction caseId={c.id} capability={workflowContext?.actions.finalize_closure} />
                 )}
                 <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
                   <div className="flex items-start gap-2">
@@ -979,7 +992,6 @@ function DecisionsSection({
   loading,
   canUpdate,
   canTransitionStatus,
-  createAction,
   caseId,
   language,
   roleCode,
@@ -990,7 +1002,6 @@ function DecisionsSection({
   loading: boolean;
   canUpdate: boolean;
   canTransitionStatus: boolean;
-  createAction: React.ReactNode;
   caseId: number | string;
   language: string;
   roleCode: string | null | undefined;
@@ -1003,7 +1014,7 @@ function DecisionsSection({
       title={t("dashboard:sections.decisions")}
       loading={loading}
       empty={decisions.length === 0}
-      emptyAction={createAction}
+      emptyText={t("dashboard:workflow.decisionCreateFromActionCard")}
       t={t}
     >
       {decisions.map((item) => (
@@ -1057,6 +1068,7 @@ function RecoveriesSection({
   canAddMonitoring,
   canTransitionStatus,
   caseId,
+  roleCode,
   roleLabel,
   t,
 }: {
@@ -1065,6 +1077,7 @@ function RecoveriesSection({
   canAddMonitoring: boolean;
   canTransitionStatus: boolean;
   caseId: number | string;
+  roleCode: string | null | undefined;
   roleLabel: string;
   t: TFunction;
 }) {
@@ -1101,10 +1114,31 @@ function RecoveriesSection({
                 <Field label={t("dashboard:sections.supportNeeds")}>{item.support_needs}</Field>
               )}
               {item.notes && <Field label={t("dashboard:sections.notes")}>{item.notes}</Field>}
+              {item.discontinuation_reason && (
+                <Field label={t("dashboard:workflow.discontinuationReason")}>{item.discontinuation_reason}</Field>
+              )}
             </div>
           ) : (
             <MetadataOnlyText roleLabel={roleLabel} t={t} />
           )}
+          <div className="mt-3 space-y-2 border-t pt-3">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t("dashboard:workflow.monitoringHistory")}
+            </div>
+            {(item.monitoring ?? []).map((monitoring) => (
+              <div key={monitoring.id} className="rounded-md bg-muted/40 p-3">
+                <div className="text-xs text-muted-foreground">{formatDate(monitoring.monitoring_date, undefined)}</div>
+                {monitoring.condition_summary && <Field label={t("dashboard:workflow.conditionSummary")}>{monitoring.condition_summary}</Field>}
+                {monitoring.follow_up_plan && <Field label={t("dashboard:workflow.followUpPlan")}>{monitoring.follow_up_plan}</Field>}
+              </div>
+            ))}
+            {(item.monitoring ?? []).length === 0 && roleCode === "admin" && (
+              <p className="text-xs text-muted-foreground">{t("dashboard:workflow.adminMonitoringEmpty")}</p>
+            )}
+            {(item.monitoring ?? []).length === 0 && roleCode === "super_admin" && (
+              <p className="text-xs text-muted-foreground">{t("dashboard:workflow.oversightMonitoringEmpty")}</p>
+            )}
+          </div>
         </div>
       ))}
     </SectionCard>

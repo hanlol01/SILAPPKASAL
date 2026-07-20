@@ -409,3 +409,20 @@ Notification type seed additions for `NOTIF-20` and `NOTIF-21` in `MasterDataSee
 | Q3 Monitoring Duration | **B) Soft Warning** | UI warning if recovery < 3 months. No backend block. |
 | Q4 Recovery Create | **A) Admin + Super Admin** | Both roles can create. Matches M10 policy. |
 | Q5 Notifications | **A) Assigned Satgas Only** | NOTIF-20/21 to assigned Satgas only. |
+
+---
+
+## REV-WF-03 R3 Executable Override
+
+This section supersedes the legacy closure and ownership statements above where they conflict with current routes, policies, services, and tests.
+
+- Same-campus Admin manages Recovery. Super Admin is read-only; it does not create, update, complete, or discontinue Recovery.
+- Active assigned Satgas records Monitoring while the latest Recovery is `ongoing`. Admin and Super Admin see Monitoring read-only.
+- Admin cannot complete Recovery until at least one Monitoring exists.
+- Transition to `discontinued` requires an encrypted reason and is terminal.
+- Recovery completion does not close a Case. Satgas first advances a completed Recovery Case to `monitoring`, then uses the dedicated closure action after the final summary is published.
+- A discontinued Recovery Case closes directly from Case `recovery` through the same dedicated closure action after its compatible final summary is published; Monitoring is not required.
+- Generic Case transition to `closed` is rejected. Super Admin and Admin do not own Case closure.
+- Historical closed Cases without a final summary remain readable and are identified as `legacy_completion`; they are not reopened or backfilled.
+
+R3 implementation is local repository state only until the normal migration, release, and deployment workflow is completed.

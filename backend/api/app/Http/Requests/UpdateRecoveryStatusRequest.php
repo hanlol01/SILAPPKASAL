@@ -18,6 +18,7 @@ class UpdateRecoveryStatusRequest extends FormRequest
     {
         return [
             'status' => ['required', 'string', 'max:50'],
+            'discontinuation_reason' => ['nullable', 'string', 'max:10000'],
         ];
     }
 }

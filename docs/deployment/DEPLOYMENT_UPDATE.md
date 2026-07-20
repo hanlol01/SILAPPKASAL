@@ -118,3 +118,24 @@ npm run build
 systemctl restart php8.3-fpm
 
 systemctl restart silappkasal-frontend
+
+---
+
+## REV-WF-03 R3 Release Note (Not Yet Deployed)
+
+Before an R3 deployment, back up the database and verify that the release contains migration:
+
+```text
+2026_07_20_020000_add_final_case_closure.php
+```
+
+After the standard `php artisan migrate --force` step, verify:
+
+- `case_final_summaries` exists with a unique `case_id`;
+- `recoveries.discontinuation_reason` exists;
+- the five final-summary/closure routes are registered;
+- generic Case transition to `closed` is rejected;
+- published Reporter projection and historical `legacy_completion` both load safely;
+- frontend client and SSR artifacts were built from the same commit.
+
+No production migration, deployment, seed, or environment change is performed as part of the R3 implementation commit.

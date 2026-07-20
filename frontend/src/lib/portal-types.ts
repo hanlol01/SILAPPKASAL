@@ -94,8 +94,27 @@ export interface PortalReportHandlingProgress {
     reporter_supporting_file_count: number;
     internal_evidence_count: number;
   };
-  final_summary: null;
+  final_summary: PortalFinalSummary | null;
 }
+
+export type PortalFinalSummary =
+  | { state: "legacy_completion" }
+  | {
+      state: "published";
+      outcome_code: string;
+      outcome_label: string;
+      completion_date: string;
+      official_statement: string;
+      investigation_summary?: string | null;
+      recommendation_result?: string | null;
+      decision_result?: string | null;
+      recovery_result?: string | null;
+      actions_completed?: string | null;
+      actions_uncompleted?: string | null;
+      follow_up_or_referral?: string | null;
+      closing_explanation: string;
+      published_at?: string | null;
+    };
 
 // ---------------------------------------------------------------------------
 // Portal Report Timeline

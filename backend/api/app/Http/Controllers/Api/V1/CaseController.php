@@ -10,13 +10,17 @@ use App\Http\Requests\CaseStatusUpdateRequest;
 use App\Http\Resources\CaseResource;
 use App\Models\CaseRecord;
 use App\Services\CaseService;
+use App\Services\CaseClosureService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class CaseController extends Controller
 {
-    public function __construct(private readonly CaseService $caseService)
+    public function __construct(
+        private readonly CaseService $caseService,
+        private readonly CaseClosureService $caseClosureService,
+    )
     {
     }
 
@@ -83,6 +87,18 @@ class CaseController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Case assessment recorded successfully',
+            'data' => new CaseResource($case),
+        ]);
+    }
+
+    public function close(Request $request, CaseRecord $case): JsonResponse
+    {
+        Gate::authorize('finalizeClosure', $case);
+        $case = $this->caseClosureService->close($case, $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Case closed successfully',
             'data' => new CaseResource($case),
         ]);
     }

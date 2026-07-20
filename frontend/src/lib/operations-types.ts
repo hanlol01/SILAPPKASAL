@@ -110,6 +110,11 @@ export interface WorkflowContext {
     same_campus_admin: boolean;
     oversight_read_only: boolean;
     sensitive_oversight_enabled: boolean;
+    final_summary_exists: boolean;
+    final_summary_published: boolean;
+    final_outcome_code: string | null;
+    final_outcome_compatible: boolean;
+    finalization_path: "completed" | "discontinued" | "legacy_completion" | null;
   };
   actions: {
     update_case_status: WorkflowActionCapability;
@@ -122,6 +127,12 @@ export interface WorkflowContext {
     create_decision: WorkflowActionCapability;
     manage_recovery: WorkflowActionCapability;
     add_monitoring: WorkflowActionCapability;
+    complete_recovery: WorkflowActionCapability;
+    discontinue_recovery: WorkflowActionCapability;
+    create_final_summary: WorkflowActionCapability;
+    update_final_summary: WorkflowActionCapability;
+    publish_final_summary: WorkflowActionCapability;
+    finalize_closure: WorkflowActionCapability;
   };
   primary_tip_code: string;
   primary_tip_params?: Record<string, string | number | null>;
@@ -264,6 +275,7 @@ export interface Recovery {
   recovery_plan?: string | null;
   support_needs?: string | null;
   notes?: string | null;
+  discontinuation_reason?: string | null;
   creator?: PersonRef | null;
   monitoring?: RecoveryMonitoring[];
   started_at: string | null;
@@ -282,6 +294,7 @@ export interface RecoveryCreatePayload {
 
 export interface RecoveryStatusPayload {
   status: string;
+  discontinuation_reason?: string | null;
 }
 
 export interface RecoveryStatusOption {
@@ -289,7 +302,45 @@ export interface RecoveryStatusOption {
   name: string;
   description?: string | null;
   soft_warning?: string | null;
+  allowed?: boolean;
+  reason_code?: string | null;
 }
+
+export interface CaseFinalSummary {
+  id: number;
+  case_id: number;
+  outcome_code: string;
+  outcome_label: string;
+  completion_date: string;
+  official_statement: string;
+  investigation_summary?: string | null;
+  recommendation_result?: string | null;
+  decision_result?: string | null;
+  recovery_result?: string | null;
+  actions_completed?: string | null;
+  actions_uncompleted?: string | null;
+  follow_up_or_referral?: string | null;
+  closing_explanation: string;
+  is_published: boolean;
+  published_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface CaseFinalOutcomeOption {
+  code: string;
+  label: string;
+}
+
+export interface CaseFinalSummaryEnvelope {
+  summary: CaseFinalSummary | null;
+  outcome_options: CaseFinalOutcomeOption[];
+}
+
+export type CaseFinalSummaryPayload = Omit<
+  CaseFinalSummary,
+  "id" | "case_id" | "outcome_label" | "is_published" | "published_at" | "created_at" | "updated_at"
+>;
 
 export interface RecoveryStatusOptions {
   current_status: RecoveryStatusOption;

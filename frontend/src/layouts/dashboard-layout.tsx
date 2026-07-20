@@ -72,7 +72,7 @@ const nav: {
     key: "cases",
     url: "/dashboard/cases",
     icon: FolderKanban,
-    roles: ["super_admin", "admin", "satgas_ppks"],
+    roles: ["admin", "satgas_ppks"],
   },
   {
     key: "workflow",

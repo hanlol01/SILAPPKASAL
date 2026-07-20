@@ -70,3 +70,17 @@
 |---|---|
 | Master data (categories, statuses, types, etc.) | Auth only |
 | Health endpoint | None |
+
+---
+
+## REV-WF-03 R3 Finalization Data
+
+| Entity / Field | Classification | Protection |
+|---|---|---|
+| `case_final_summaries` draft narratives | L2 RESTRICTED | Authenticated policy access; encrypted at rest; same-campus Admin mutation only |
+| Published final-summary Reporter projection | L2 RESTRICTED | Owned Report only; explicit allowlist; no internal IDs or staff identity |
+| `recoveries.discontinuation_reason` | L2 RESTRICTED | Encrypted at rest; internal authorized projection only; never Reporter-visible |
+| Anonymous Reporter identity in final summary | L3 HIGHLY_SENSITIVE | Publication and closure reject detected identity; existing break-glass boundary remains unchanged |
+| Finalization audit metadata | L1 INTERNAL | Allowlisted codes/references only; no narratives, identity, Evidence content, or filenames |
+
+Published content is Reporter-safe by design, but it is not public: Reporter ownership and authentication remain required.

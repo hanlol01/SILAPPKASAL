@@ -62,6 +62,7 @@ class ReporterPortalService
                 'reporter.faculty',
                 'reporter.studyProgram',
                 'case.status',
+                'case.finalSummary',
             ])
             ->where('registration_number', $registrationNumber)
             ->first();
@@ -121,7 +122,7 @@ class ReporterPortalService
                 'reporter_supporting_file_count' => (int) $report->evidence_submissions_count,
                 'internal_evidence_count' => (int) ($investigation?->evidences_count ?? 0),
             ],
-            'final_summary' => null,
+            'final_summary' => $this->finalSummaryProjection($caseCompleted, $case?->finalSummary),
         ];
     }
 
@@ -312,5 +313,30 @@ class ReporterPortalService
             'completed_at' => $recoveries->max('completed_at')?->toJSON(),
             'discontinued_at' => $recoveries->max('discontinued_at')?->toJSON(),
         ];
+    }
+
+    /** @return array<string, mixed>|null */
+    private function finalSummaryProjection(bool $caseCompleted, ?\App\Models\CaseFinalSummary $summary): ?array
+    {
+        if ($summary?->isPublished()) {
+            return [
+                'state' => 'published',
+                'outcome_code' => $summary->outcome_code?->value,
+                'outcome_label' => $summary->outcome_code?->label(app()->getLocale()),
+                'completion_date' => $summary->completion_date?->toDateString(),
+                'official_statement' => $summary->official_statement,
+                'investigation_summary' => $summary->investigation_summary,
+                'recommendation_result' => $summary->recommendation_result,
+                'decision_result' => $summary->decision_result,
+                'recovery_result' => $summary->recovery_result,
+                'actions_completed' => $summary->actions_completed,
+                'actions_uncompleted' => $summary->actions_uncompleted,
+                'follow_up_or_referral' => $summary->follow_up_or_referral,
+                'closing_explanation' => $summary->closing_explanation,
+                'published_at' => $summary->published_at?->toJSON(),
+            ];
+        }
+
+        return $caseCompleted ? ['state' => 'legacy_completion'] : null;
     }
 }

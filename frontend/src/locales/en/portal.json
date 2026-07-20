@@ -211,6 +211,24 @@
       "internalEvidenceCount": "Internal investigation evidence"
     }
   },
+  "finalSummary": {
+    "title": "Final Handling Summary",
+    "description": "The official statement and final outcome published by PPKS.",
+    "legacyCompletion": "Handling for this report is complete. This historical Case does not have a structured final summary.",
+    "fields": {
+      "outcome": "Final outcome",
+      "completionDate": "Completion date",
+      "officialStatement": "Official PPKS statement",
+      "investigationSummary": "Investigation summary",
+      "recommendationResult": "Recommendation result",
+      "decisionResult": "Decision result",
+      "recoveryResult": "Recovery result",
+      "actionsCompleted": "Actions completed",
+      "actionsUncompleted": "Actions not completed",
+      "followUpOrReferral": "Follow-up or referral",
+      "closingExplanation": "Closure explanation"
+    }
+  },
   "evidenceFiles": {
     "title": "Supporting evidence",
     "description": "Optionally attach supporting files to help with the handling of your report.",

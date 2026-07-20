@@ -331,7 +331,7 @@ class RecoveryFoundationTest extends TestCase
             'status' => CaseStatusEnum::Closed->value,
         ])
             ->assertUnprocessable()
-            ->assertJsonPath('error_code', 'case_recovery_completion_required');
+            ->assertJsonPath('error_code', 'case_generic_closure_forbidden');
 
         $completed = RecoveryStatus::query()->where('name', RecoveryStatusEnum::Completed->value)->firstOrFail();
         $recovery->forceFill([
@@ -341,7 +341,7 @@ class RecoveryFoundationTest extends TestCase
 
         $this->patchJson("/api/v1/cases/{$case->id}/status", [
             'status' => CaseStatusEnum::Closed->value,
-        ])->assertOk()->assertJsonPath('data.status', CaseStatusEnum::Closed->value);
+        ])->assertUnprocessable()->assertJsonPath('error_code', 'case_generic_closure_forbidden');
     }
 
     public function test_discontinued_recovery_does_not_satisfy_case_progression_gate(): void
@@ -355,6 +355,7 @@ class RecoveryFoundationTest extends TestCase
         $this->actingAsApi($admin);
         $this->patchJson("/api/v1/recoveries/{$recovery->id}/status", [
             'status' => RecoveryStatusEnum::Discontinued->value,
+            'discontinuation_reason' => 'Penanganan dihentikan berdasarkan evaluasi Admin Kampus.',
         ])->assertOk();
 
         $this->actingAsApi($satgas);

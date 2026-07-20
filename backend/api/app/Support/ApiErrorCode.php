@@ -26,6 +26,16 @@ final class ApiErrorCode
     public const InvestigationActivityStageIncompatible = 'investigation_activity_stage_incompatible';
     public const RecoveryMonitoringRequired = 'recovery_monitoring_required';
     public const CaseRecoveryCompletionRequired = 'case_recovery_completion_required';
+    public const RecoveryDiscontinuationReasonRequired = 'recovery_discontinuation_reason_required';
+    public const CaseGenericClosureForbidden = 'case_generic_closure_forbidden';
+    public const CaseClosureStageInvalid = 'case_closure_stage_invalid';
+    public const CaseClosureRecoveryRequired = 'case_closure_recovery_required';
+    public const CaseClosureSummaryRequired = 'case_closure_summary_required';
+    public const CaseClosureMonitoringRequired = 'case_closure_monitoring_required';
+    public const FinalSummaryImmutable = 'final_summary_immutable';
+    public const FinalSummaryPublicationRequired = 'final_summary_publication_required';
+    public const FinalOutcomeIncompatible = 'final_outcome_incompatible';
+    public const FinalSummaryAnonymousIdentityDetected = 'final_summary_anonymous_identity_detected';
 
     private function __construct()
     {

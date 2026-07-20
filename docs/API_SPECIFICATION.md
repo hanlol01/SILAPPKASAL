@@ -1941,7 +1941,29 @@ Scope: report owned by the authenticated reporter
 - Internal submitted-detail projection is limited to same-campus Admin, active assigned Satgas on the Case, and Super Admin only when the sensitive cross-campus-read feature flag permits it.
 - Report priority is projected from the linked Case: `unavailable` when no Case exists, `unassessed` when the Case has no priority, and `assessed` with the Case priority reference otherwise. The legacy Report priority column is not authoritative.
 - Reporter UI renders collapsible report-detail and handling-progress cards. The progress card has Investigation, Recommendation, Decision, Recovery, and Evidence sections and does not expose sensitive operational content.
-- REV-WF-03 R2 Emergency Access is implemented by Section 13; R3 remains deferred.
+- REV-WF-03 R2 Emergency Access is implemented by Section 13. The R3 contract that supersedes the earlier `final_summary` limitation is defined in Section 18.6.
+
+### 18.6 REV-WF-03 R3 Final Outcome and Closure Contract
+
+R3 supersedes the R1 statement that `final_summary` is always `null`.
+
+```text
+GET    /api/v1/cases/{case}/final-summary
+POST   /api/v1/cases/{case}/final-summary
+PATCH  /api/v1/cases/{case}/final-summary
+POST   /api/v1/cases/{case}/final-summary/publish
+POST   /api/v1/cases/{case}/close
+PATCH  /api/v1/recoveries/{recovery}/status
+```
+
+- Same-campus active Admin with `cases.monitor` creates, edits, and publishes the one-to-one final summary. Published summaries and summaries for closed Cases are immutable.
+- `outcome_code` is a Case final outcome, separate from `DecisionOutcome`. The final-summary response supplies backend-derived compatible outcome options.
+- A `discontinued` Recovery status request requires `discontinuation_reason`. That reason is encrypted and is never projected to the Reporter.
+- `POST /cases/{case}/close` is the only future Case-closure mutation. Generic `PATCH /cases/{case}/status` requests for `closed` return `case_generic_closure_forbidden`.
+- Completed path: Case `monitoring`, latest Recovery `completed`, at least one Monitoring, a published compatible final summary, and an active assigned Satgas with `cases.close`.
+- Discontinued path: Case `recovery`, latest Recovery `discontinued`, a stored reason, a published compatible final summary, and an active assigned Satgas with `cases.close`. Monitoring is not required.
+- Reporter handling progress projects only a published safe final summary. Historical closed Cases without a summary return `final_summary.state = legacy_completion` and no invented outcome.
+- R3 is implemented in the repository. Deployment is not asserted by this document.
 
 ---
 

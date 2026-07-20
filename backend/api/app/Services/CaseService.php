@@ -351,6 +351,11 @@ class CaseService
             }
 
             $nextStatus = $this->resolveStatus($requestedStatus);
+
+            if ($nextStatus->name === CaseStatusEnum::Closed->value) {
+                throw $this->unprocessableCode(ApiErrorCode::CaseGenericClosureForbidden);
+            }
+
             $this->ensureNotLifecycleControlledTransition($case->status?->name, $nextStatus->name);
             $allowedTransitions = $case->status?->valid_transitions ?? [];
 
@@ -367,8 +372,8 @@ class CaseService
             }
 
             if (
-                ($case->status?->name === CaseStatusEnum::Recovery->value && $nextStatus->name === CaseStatusEnum::Monitoring->value)
-                || ($case->status?->name === CaseStatusEnum::Monitoring->value && $nextStatus->name === CaseStatusEnum::Closed->value)
+                $case->status?->name === CaseStatusEnum::Recovery->value
+                && $nextStatus->name === CaseStatusEnum::Monitoring->value
             ) {
                 $recovery = Recovery::query()
                     ->with('status')

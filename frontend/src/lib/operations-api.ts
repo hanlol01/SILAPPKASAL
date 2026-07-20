@@ -1,6 +1,9 @@
 import { apiDownload, apiFetchBlob, apiRequest, apiRequestEnvelope } from "@/lib/api-client";
 import type {
   CaseRecord,
+  CaseFinalSummary,
+  CaseFinalSummaryEnvelope,
+  CaseFinalSummaryPayload,
   CaseStatusPayload,
   Decision,
   DecisionCreatePayload,
@@ -51,6 +54,8 @@ export const operationsQueryKeys = {
   casesRoot: () => ["operations", "cases"] as const,
   cases: (query?: Record<string, QueryValue>) => ["operations", "cases", query] as const,
   case: (id: string | number) => ["operations", "case", normalizeOperationId(id)] as const,
+  caseFinalSummary: (id: string | number) =>
+    ["operations", "case", normalizeOperationId(id), "final-summary"] as const,
   investigations: (caseId: string | number) =>
     ["operations", "case", normalizeOperationId(caseId), "investigations"] as const,
   investigation: (id: string | number) =>
@@ -106,6 +111,10 @@ export async function getCases(query?: Record<string, QueryValue>): Promise<Pagi
 
 export function getCase(id: string | number) {
   return apiRequest<CaseRecord>(`/cases/${id}`);
+}
+
+export function getCaseFinalSummary(id: string | number) {
+  return apiRequest<CaseFinalSummaryEnvelope>(`/cases/${id}/final-summary`);
 }
 
 export function getCaseInvestigations(caseId: string | number) {
@@ -315,6 +324,30 @@ export function updateEvidenceStatus(id: string | number, payload: EvidenceStatu
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+}
+
+export function createCaseFinalSummary(caseId: string | number, payload: CaseFinalSummaryPayload) {
+  return apiRequest<CaseFinalSummary>(`/cases/${caseId}/final-summary`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateCaseFinalSummary(caseId: string | number, payload: CaseFinalSummaryPayload) {
+  return apiRequest<CaseFinalSummary>(`/cases/${caseId}/final-summary`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function publishCaseFinalSummary(caseId: string | number) {
+  return apiRequest<CaseFinalSummary>(`/cases/${caseId}/final-summary/publish`, {
+    method: "POST",
+  });
+}
+
+export function finalizeCaseClosure(caseId: string | number) {
+  return apiRequest<CaseRecord>(`/cases/${caseId}/close`, { method: "POST" });
 }
 
 export function submitRecommendation(id: string | number) {

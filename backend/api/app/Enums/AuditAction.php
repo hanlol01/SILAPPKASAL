@@ -42,6 +42,10 @@ enum AuditAction: string
     case CaseAssigned = 'case.assigned';
     case CaseStatusChanged = 'case.status_changed';
     case CaseAssessmentRecorded = 'case.assessment_recorded';
+    case CaseFinalSummaryCreated = 'case.final_summary_created';
+    case CaseFinalSummaryUpdated = 'case.final_summary_updated';
+    case CaseFinalSummaryPublished = 'case.final_summary_published';
+    case CaseClosed = 'case.closed';
 
     case InvestigationCreated = 'investigation.created';
     case InvestigationActivityCreated = 'investigation.activity_created';
@@ -61,6 +65,7 @@ enum AuditAction: string
     case RecoveryCreated = 'recovery.created';
     case RecoveryUpdated = 'recovery.updated';
     case RecoveryStatusChanged = 'recovery.status_changed';
+    case RecoveryDiscontinued = 'recovery.discontinued';
     case RecoveryMonitoringCreated = 'recovery.monitoring_created';
 
     case EvidenceMetadataCreated = 'evidence.metadata_created';

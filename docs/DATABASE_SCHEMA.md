@@ -983,3 +983,15 @@ class DatabaseSeeder extends Seeder
 ---
 
 > **Catatan**: Dokumen ini adalah Tier 2 (GOVERNED). Perubahan memerlukan persetujuan Project Owner. Schema ini menjadi referensi wajib bagi Backend Agent untuk membuat migration Laravel.
+
+## REV-WF-03 R3 Schema Addendum
+
+Migration `2026_07_20_020000_add_final_case_closure.php` adds:
+
+- encrypted nullable `recoveries.discontinuation_reason`;
+- one-to-one `case_final_summaries` with a unique `case_id` foreign key;
+- final outcome and completion date;
+- encrypted official, domain-summary, follow-up, action, and closure narratives;
+- creator/updater/publisher references and publication timestamp.
+
+The migration uses Laravel schema operations compatible with PostgreSQL and the SQLite test database. It does not backfill historical closed Cases and does not create business data. Apply through the normal deployment migration step; this document does not claim that any environment has been migrated.

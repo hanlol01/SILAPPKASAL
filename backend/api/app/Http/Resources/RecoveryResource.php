@@ -29,6 +29,7 @@ class RecoveryResource extends JsonResource
             'recovery_plan' => $this->recovery_plan,
             'support_needs' => $this->support_needs,
             'notes' => $this->notes,
+            'discontinuation_reason' => $this->discontinuation_reason,
             'creator' => $this->whenLoaded('creator', fn (): array => [
                 'id' => $this->creator->id,
                 'name' => $this->creator->name,

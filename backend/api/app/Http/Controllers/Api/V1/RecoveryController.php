@@ -90,7 +90,7 @@ class RecoveryController extends Controller
     {
         Gate::authorize('updateStatus', $recovery);
 
-        $recovery = $this->recoveryService->updateStatus($recovery, $request->user(), $request->validated('status'));
+        $recovery = $this->recoveryService->updateStatus($recovery, $request->user(), $request->validated());
 
         return response()->json([
             'success' => true,

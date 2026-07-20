@@ -211,6 +211,24 @@
       "internalEvidenceCount": "Bukti investigasi internal"
     }
   },
+  "finalSummary": {
+    "title": "Rangkuman Akhir Penanganan",
+    "description": "Pernyataan resmi dan hasil akhir yang telah diterbitkan oleh PPKS.",
+    "legacyCompletion": "Penanganan laporan ini telah selesai. Kasus historis ini belum memiliki rangkuman akhir terstruktur.",
+    "fields": {
+      "outcome": "Hasil akhir",
+      "completionDate": "Tanggal penyelesaian",
+      "officialStatement": "Pernyataan resmi PPKS",
+      "investigationSummary": "Ringkasan investigasi",
+      "recommendationResult": "Hasil rekomendasi",
+      "decisionResult": "Hasil putusan",
+      "recoveryResult": "Hasil pemulihan",
+      "actionsCompleted": "Tindakan yang diselesaikan",
+      "actionsUncompleted": "Tindakan yang belum diselesaikan",
+      "followUpOrReferral": "Tindak lanjut atau rujukan",
+      "closingExplanation": "Penjelasan penutupan"
+    }
+  },
   "evidenceFiles": {
     "title": "Bukti pendukung",
     "description": "Lampirkan file pendukung secara opsional untuk membantu penanganan laporan Anda.",

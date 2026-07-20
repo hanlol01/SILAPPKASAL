@@ -76,6 +76,13 @@ final class AuditEventCatalog
                 ['case_number', 'registration_number', 'status_code', 'risk_level_code', 'priority_code', 'assignment_count'],
                 ['status_code', 'risk_level_code', 'priority_code', 'is_active', 'is_lead'],
             ),
+            AuditAction::CaseFinalSummaryCreated,
+            AuditAction::CaseFinalSummaryUpdated,
+            AuditAction::CaseFinalSummaryPublished,
+            AuditAction::CaseClosed => $this->fields(
+                ['case_number', 'outcome_code', 'published', 'recovery_terminal_type', 'result'],
+                ['status_code', 'outcome_code', 'published'],
+            ),
 
             AuditAction::InvestigationCreated,
             AuditAction::InvestigationActivityCreated,
@@ -107,6 +114,10 @@ final class AuditEventCatalog
             AuditAction::RecoveryMonitoringCreated => $this->fields(
                 ['case_number', 'recovery_type_code', 'status_code', 'has_duration_warning'],
                 ['status_code', 'monitoring_date'],
+            ),
+            AuditAction::RecoveryDiscontinued => $this->fields(
+                ['case_number', 'recovery_type_code', 'status_code', 'recovery_terminal_type', 'result'],
+                ['status_code'],
             ),
 
             AuditAction::EvidenceMetadataCreated,

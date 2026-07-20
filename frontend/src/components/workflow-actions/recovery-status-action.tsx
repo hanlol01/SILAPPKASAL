@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { formatRecoveryStatus } from "@/lib/format-labels";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import {
@@ -42,7 +43,7 @@ import {
 import type { Recovery } from "@/lib/operations-types";
 import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
-type RecoveryStatusValues = { status: string };
+type RecoveryStatusValues = { status: string; discontinuation_reason?: string };
 
 export function RecoveryStatusAction({
   recovery,
@@ -63,8 +64,9 @@ export function RecoveryStatusAction({
   const form = useForm<RecoveryStatusValues>({
     resolver: zodResolver(z.object({
       status: z.string().min(1, t("dashboard:workflow.required")),
+      discontinuation_reason: z.string().trim().max(10000, t("dashboard:workflow.max10000")).optional(),
     })),
-    defaultValues: { status: "" },
+    defaultValues: { status: "", discontinuation_reason: "" },
   });
 
   const options = useMemo(
@@ -106,7 +108,7 @@ export function RecoveryStatusAction({
           operationsQueryKeys.recoveryStatusOptions(recovery.id),
         ],
       });
-      form.reset({ status: "" });
+      form.reset({ status: "", discontinuation_reason: "" });
       setOpen(false);
       toast.success(t("dashboard:workflow.recoveryStatusUpdated"));
     },
@@ -150,7 +152,16 @@ export function RecoveryStatusAction({
 
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit((values) => {
-            if (!mutation.isPending) mutation.mutate(values);
+            if (selectedOption?.name === "discontinued" && !values.discontinuation_reason?.trim()) {
+              form.setError("discontinuation_reason", { message: t("dashboard:workflow.required") });
+              return;
+            }
+            if (!mutation.isPending) mutation.mutate({
+              status: values.status,
+              discontinuation_reason: selectedOption?.name === "discontinued"
+                ? values.discontinuation_reason?.trim()
+                : undefined,
+            });
           })}>
             <FormField
               control={form.control}
@@ -176,7 +187,7 @@ export function RecoveryStatusAction({
                     </FormControl>
                     <SelectContent>
                       {options.map((option) => (
-                        <SelectItem key={option.code} value={option.code}>
+                        <SelectItem key={option.code} value={option.code} disabled={option.allowed === false}>
                           {formatRecoveryStatus(t, option.name)}
                         </SelectItem>
                       ))}
@@ -192,6 +203,41 @@ export function RecoveryStatusAction({
               )}
             />
 
+            {options.some((option) => option.allowed === false && option.reason_code) && (
+              <div className="space-y-1 text-xs text-muted-foreground">
+                {options.filter((option) => option.allowed === false && option.reason_code).map((option) => (
+                  <p key={option.code}>
+                    {formatRecoveryStatus(t, option.name)}: {t(`dashboard:workflow.reasons.${option.reason_code}`, {
+                      defaultValue: t("dashboard:workflow.reasons.action_unavailable"),
+                    })}
+                  </p>
+                ))}
+              </div>
+            )}
+
+            {selectedOption?.name === "discontinued" && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="discontinuation_reason"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("dashboard:workflow.discontinuationReason")}</FormLabel>
+                      <FormControl>
+                        <Textarea className="min-h-28" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Alert className="border-amber-200 bg-amber-50 text-amber-950">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>{t("dashboard:workflow.recoveryTerminalTitle")}</AlertTitle>
+                  <AlertDescription>{t("dashboard:workflow.recoveryTerminalDesc")}</AlertDescription>
+                </Alert>
+              </>
+            )}
+
             {selectedOption?.soft_warning && (
               <Alert className="border-amber-200 bg-amber-50 text-amber-950">
                 <AlertTriangle className="h-4 w-4" />
@@ -201,7 +247,10 @@ export function RecoveryStatusAction({
             )}
 
             <DialogFooter>
-              <Button type="submit" disabled={mutation.isPending || options.length === 0}>
+              <Button
+                type="submit"
+                disabled={mutation.isPending || options.length === 0 || selectedOption?.allowed === false}
+              >
                 {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {mutation.isPending
                   ? t("dashboard:common.saving")

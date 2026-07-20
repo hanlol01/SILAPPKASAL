@@ -7,6 +7,7 @@ use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Enums\DecisionStatus as DecisionStatusEnum;
 use App\Enums\RecommendationStatus as RecommendationStatusEnum;
 use App\Enums\RecoveryStatus as RecoveryStatusEnum;
+use App\Enums\CaseFinalOutcome;
 use App\Models\CaseRecord;
 use App\Models\User;
 use App\Support\ApiErrorCode;
@@ -30,6 +31,7 @@ class CaseWorkflowContextService
             'recommendation.status',
             'recommendation.decision.status',
             'recommendation.decision.recoveries.status',
+            'finalSummary',
         ]);
 
         $caseStatus = $case->status?->name;
@@ -43,6 +45,14 @@ class CaseWorkflowContextService
         $recovery = $decision?->recoveries->sortByDesc('id')->first();
         $recoveryStatus = $recovery?->status?->name;
         $monitoringCount = $recovery?->monitorings()->count() ?? 0;
+        $finalSummary = $case->finalSummary;
+        $finalSummaryExists = $finalSummary !== null;
+        $finalSummaryPublished = $finalSummary?->isPublished() ?? false;
+        $recoveryStatusEnum = $recoveryStatus ? RecoveryStatusEnum::tryFrom($recoveryStatus) : null;
+        $finalOutcome = $finalSummary?->outcome_code;
+        $finalOutcomeCompatible = $finalOutcome instanceof CaseFinalOutcome
+            && $recoveryStatusEnum instanceof RecoveryStatusEnum
+            && $finalOutcome->isCompatibleWithRecovery($recoveryStatusEnum);
         $assessmentComplete = filled($case->risk_level_code) && filled($case->priority_code);
         $isClosed = $case->closed_at !== null || $caseStatus === CaseStatusEnum::Closed->value;
         $activeAssignment = $case->activeAssignments->firstWhere('satgas_id', $actor->id);
@@ -83,9 +93,12 @@ class CaseWorkflowContextService
         ) {
             $updateCaseStatus = $this->action(false, ApiErrorCode::CaseInvestigationCompletionRequired);
         }
+        if ($updateCaseStatus['allowed'] && $caseStatus === CaseStatusEnum::Monitoring->value) {
+            $updateCaseStatus = $this->action(false, ApiErrorCode::CaseGenericClosureForbidden);
+        }
         if (
             $updateCaseStatus['allowed']
-            && in_array($caseStatus, [CaseStatusEnum::Recovery->value, CaseStatusEnum::Monitoring->value], true)
+            && $caseStatus === CaseStatusEnum::Recovery->value
             && ($recoveryStatus !== RecoveryStatusEnum::Completed->value || $monitoringCount === 0)
         ) {
             $updateCaseStatus = $this->action(false, ApiErrorCode::CaseRecoveryCompletionRequired);
@@ -178,6 +191,88 @@ class CaseWorkflowContextService
             ! $isAssigned ? 'read_only_no_assignment' : 'recovery_not_ongoing',
         );
 
+        $canManageFinalSummary = $isSameCampusAdmin
+            && $actor->hasPermission('cases.monitor')
+            && ! $isClosed
+            && in_array($caseStatus, [CaseStatusEnum::Recovery->value, CaseStatusEnum::Monitoring->value], true);
+        $createFinalSummary = $this->action(
+            $canManageFinalSummary && ! $finalSummaryExists,
+            $isOversight
+                ? 'oversight_read_only'
+                : (! $isSameCampusAdmin
+                    ? 'campus_access_denied'
+                    : ($finalSummaryExists ? 'final_summary_exists' : 'final_summary_stage_unavailable')),
+        );
+        $updateFinalSummary = $this->action(
+            $canManageFinalSummary && $finalSummaryExists && ! $finalSummaryPublished,
+            $isOversight
+                ? 'oversight_read_only'
+                : (! $isSameCampusAdmin
+                    ? 'campus_access_denied'
+                    : ($finalSummaryPublished ? ApiErrorCode::FinalSummaryImmutable : 'final_summary_missing')),
+        );
+        $summaryPublicationReady = $finalSummaryExists
+            && ! $finalSummaryPublished
+            && filled($finalSummary?->outcome_code)
+            && filled($finalSummary?->completion_date)
+            && filled($finalSummary?->official_statement)
+            && filled($finalSummary?->closing_explanation)
+            && $finalOutcomeCompatible;
+        $publishFinalSummary = $this->action(
+            $canManageFinalSummary && $summaryPublicationReady,
+            $isOversight
+                ? 'oversight_read_only'
+                : (! $isSameCampusAdmin
+                    ? 'campus_access_denied'
+                    : (! $finalSummaryExists
+                        ? 'final_summary_missing'
+                        : ($finalSummaryPublished
+                            ? ApiErrorCode::FinalSummaryImmutable
+                            : (! $finalOutcomeCompatible
+                                ? ApiErrorCode::FinalOutcomeIncompatible
+                                : ApiErrorCode::FinalSummaryPublicationRequired)))),
+        );
+        $completeRecovery = $this->action(
+            $isSameCampusAdmin
+                && $actor->hasPermission('cases.monitor')
+                && $recoveryStatus === RecoveryStatusEnum::Ongoing->value
+                && $monitoringCount > 0,
+            $isOversight
+                ? 'oversight_read_only'
+                : (! $isSameCampusAdmin
+                    ? 'monitoring_satgas_owned'
+                    : ($monitoringCount === 0 ? ApiErrorCode::RecoveryMonitoringRequired : 'recovery_not_ongoing')),
+        );
+        $discontinueRecovery = $this->action(
+            $isSameCampusAdmin
+                && $actor->hasPermission('cases.monitor')
+                && in_array($recoveryStatus, [RecoveryStatusEnum::Planned->value, RecoveryStatusEnum::Ongoing->value], true),
+            $isOversight ? 'oversight_read_only' : (! $isSameCampusAdmin ? 'campus_access_denied' : 'recovery_terminal'),
+        );
+        $finalizeClosureReason = match (true) {
+            ! $isAssigned => 'read_only_no_assignment',
+            ! $actor->hasPermission('cases.close') => 'permission_missing',
+            ! in_array($recoveryStatus, [RecoveryStatusEnum::Completed->value, RecoveryStatusEnum::Discontinued->value], true) => ApiErrorCode::CaseClosureRecoveryRequired,
+            $recoveryStatus === RecoveryStatusEnum::Completed->value && $caseStatus !== CaseStatusEnum::Monitoring->value => ApiErrorCode::CaseClosureStageInvalid,
+            $recoveryStatus === RecoveryStatusEnum::Completed->value && $monitoringCount === 0 => ApiErrorCode::CaseClosureMonitoringRequired,
+            $recoveryStatus === RecoveryStatusEnum::Discontinued->value && $caseStatus !== CaseStatusEnum::Recovery->value => ApiErrorCode::CaseClosureStageInvalid,
+            $recoveryStatus === RecoveryStatusEnum::Discontinued->value && blank($recovery?->discontinuation_reason) => ApiErrorCode::RecoveryDiscontinuationReasonRequired,
+            ! $finalSummaryPublished => ApiErrorCode::CaseClosureSummaryRequired,
+            ! $finalOutcomeCompatible => ApiErrorCode::FinalOutcomeIncompatible,
+            default => 'action_unavailable',
+        };
+        $finalizeClosure = $this->action(
+            $isAssigned
+                && $actor->hasPermission('cases.close')
+                && $finalSummaryPublished
+                && $finalOutcomeCompatible
+                && (
+                    ($recoveryStatus === RecoveryStatusEnum::Completed->value && $caseStatus === CaseStatusEnum::Monitoring->value && $monitoringCount > 0)
+                    || ($recoveryStatus === RecoveryStatusEnum::Discontinued->value && $caseStatus === CaseStatusEnum::Recovery->value && filled($recovery?->discontinuation_reason))
+                ),
+            $finalizeClosureReason,
+        );
+
         $primaryTip = $this->m3PrimaryTip(
             $actor,
             $isSameCampusAdmin,
@@ -200,6 +295,20 @@ class CaseWorkflowContextService
             $canRecommend,
         );
 
+        $primaryTip = match (true) {
+            $caseStatus === CaseStatusEnum::Closed->value && ! $finalSummaryExists => 'legacy_completion',
+            $caseStatus === CaseStatusEnum::Closed->value => 'case_closed',
+            $recoveryStatus === RecoveryStatusEnum::Discontinued->value && ! $finalSummaryExists && $isSameCampusAdmin => 'create_final_summary',
+            $recoveryStatus === RecoveryStatusEnum::Discontinued->value && ! $finalSummaryPublished && $isSameCampusAdmin => 'publish_final_summary',
+            $recoveryStatus === RecoveryStatusEnum::Discontinued->value && $finalizeClosure['allowed'] => 'finalize_case_closure',
+            $recoveryStatus === RecoveryStatusEnum::Discontinued->value && $isAssigned => 'wait_for_final_summary',
+            $caseStatus === CaseStatusEnum::Monitoring->value && ! $finalSummaryExists && $isSameCampusAdmin => 'create_final_summary',
+            $caseStatus === CaseStatusEnum::Monitoring->value && ! $finalSummaryPublished && $isSameCampusAdmin => 'publish_final_summary',
+            $caseStatus === CaseStatusEnum::Monitoring->value && $finalizeClosure['allowed'] => 'finalize_case_closure',
+            $caseStatus === CaseStatusEnum::Monitoring->value && $isAssigned => 'wait_for_final_summary',
+            default => $primaryTip,
+        };
+
         return [
             'facts' => [
                 'assessment_complete' => $assessmentComplete,
@@ -219,6 +328,15 @@ class CaseWorkflowContextService
                 'same_campus_admin' => $isSameCampusAdmin,
                 'oversight_read_only' => $isOversight,
                 'sensitive_oversight_enabled' => $this->campusScope->canSensitiveOversight($actor),
+                'final_summary_exists' => $finalSummaryExists,
+                'final_summary_published' => $finalSummaryPublished,
+                'final_outcome_code' => $finalOutcome?->value,
+                'final_outcome_compatible' => $finalOutcomeCompatible,
+                'finalization_path' => $isClosed && ! $finalSummaryExists
+                    ? 'legacy_completion'
+                    : ($recoveryStatusEnum && in_array($recoveryStatusEnum, [RecoveryStatusEnum::Completed, RecoveryStatusEnum::Discontinued], true)
+                        ? $recoveryStatusEnum->value
+                        : null),
             ],
             'actions' => [
                 'update_case_status' => $updateCaseStatus,
@@ -231,6 +349,12 @@ class CaseWorkflowContextService
                 'create_decision' => $createDecision,
                 'manage_recovery' => $manageRecovery,
                 'add_monitoring' => $addMonitoring,
+                'complete_recovery' => $completeRecovery,
+                'discontinue_recovery' => $discontinueRecovery,
+                'create_final_summary' => $createFinalSummary,
+                'update_final_summary' => $updateFinalSummary,
+                'publish_final_summary' => $publishFinalSummary,
+                'finalize_closure' => $finalizeClosure,
             ],
             'primary_tip_code' => $primaryTip,
             'primary_tip_params' => [

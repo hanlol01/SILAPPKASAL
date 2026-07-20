@@ -172,15 +172,16 @@ class RecoveryService
         });
     }
 
-    public function updateStatus(Recovery $recovery, User $actor, string $requestedStatus): Recovery
+    /** @param array{status: string, discontinuation_reason?: string|null} $data */
+    public function updateStatus(Recovery $recovery, User $actor, array $data): Recovery
     {
-        return DB::transaction(function () use ($recovery, $actor, $requestedStatus): Recovery {
+        return DB::transaction(function () use ($recovery, $actor, $data): Recovery {
             $recovery = Recovery::query()->with(['status', 'decision.recommendation.case.report.reporter:id,university_id'])->whereKey($recovery->id)->lockForUpdate()->firstOrFail();
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
             $this->authorizeRecoveryManager($actor, $recovery);
             $this->ensureRecoveryOpen($recovery);
 
-            $nextStatus = $this->resolveStatus($requestedStatus);
+            $nextStatus = $this->resolveStatus($data['status']);
             $allowedTransitions = $recovery->status?->valid_transitions ?? [];
 
             if (! in_array($nextStatus->name, $allowedTransitions, true)) {
@@ -189,6 +190,13 @@ class RecoveryService
 
             if ($nextStatus->name === RecoveryStatusEnum::Completed->value && ! $recovery->monitorings()->exists()) {
                 throw $this->unprocessableCode(ApiErrorCode::RecoveryMonitoringRequired);
+            }
+
+            if (
+                $nextStatus->name === RecoveryStatusEnum::Discontinued->value
+                && blank($data['discontinuation_reason'] ?? null)
+            ) {
+                throw $this->unprocessableCode(ApiErrorCode::RecoveryDiscontinuationReasonRequired);
             }
 
             $fromStatusCode = $recovery->status_code;
@@ -207,6 +215,7 @@ class RecoveryService
 
             if ($nextStatus->name === RecoveryStatusEnum::Discontinued->value) {
                 $timestamps['discontinued_at'] = now();
+                $timestamps['discontinuation_reason'] = trim((string) $data['discontinuation_reason']);
             }
 
             $recovery->forceFill($timestamps)->save();
@@ -229,6 +238,23 @@ class RecoveryService
                 afterChanges: ['status_code' => $recovery->status_code],
             );
 
+            if ($nextStatus->name === RecoveryStatusEnum::Discontinued->value) {
+                $this->recordAudit(
+                    AuditAction::RecoveryDiscontinued,
+                    $actor,
+                    $recovery,
+                    [
+                        'case_number' => $recovery->decision?->recommendation?->case?->case_number,
+                        'recovery_type_code' => $recovery->recovery_type_code,
+                        'status_code' => $recovery->status_code,
+                        'recovery_terminal_type' => RecoveryStatusEnum::Discontinued->value,
+                        'result' => 'succeeded',
+                    ],
+                    beforeChanges: ['status_code' => $fromStatusCode],
+                    afterChanges: ['status_code' => $recovery->status_code],
+                );
+            }
+
             $this->notificationService->recoveryStatusChanged($recovery);
 
             return $recovery;
@@ -236,7 +262,7 @@ class RecoveryService
     }
 
     /**
-     * @return array{current_status: array{code: string|null, name: string|null, description: string|null}, valid_transitions: list<array{code: string, name: string, description: string|null, soft_warning?: string|null}>}
+     * @return array{current_status: array{code: string|null, name: string|null, description: string|null}, valid_transitions: list<array{code: string, name: string, description: string|null, soft_warning: string|null, allowed: bool, reason_code: string|null}>}
      */
     public function statusOptions(Recovery $recovery, User $user): array
     {
@@ -257,6 +283,10 @@ class RecoveryService
                     'name' => $status->name,
                     'description' => $status->description,
                     'soft_warning' => $this->monitoringDurationWarning($recovery, $status),
+                    'allowed' => $status->name !== RecoveryStatusEnum::Completed->value || $recovery->monitorings()->exists(),
+                    'reason_code' => $status->name === RecoveryStatusEnum::Completed->value && ! $recovery->monitorings()->exists()
+                        ? ApiErrorCode::RecoveryMonitoringRequired
+                        : null,
                 ])
                 ->values()
                 ->all();
