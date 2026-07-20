@@ -41,15 +41,13 @@ import {
 import type { CaseFinalSummaryPayload, WorkflowActionCapability } from "@/lib/operations-types";
 import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
-const today = new Date().toISOString().slice(0, 10);
-
 function summarySchema(t: ReturnType<typeof useTranslation>["t"]) {
   const required = z.string().trim().min(1, t("dashboard:workflow.required")).max(10000, t("dashboard:workflow.max10000"));
   const optional = z.string().trim().max(10000, t("dashboard:workflow.max10000")).optional();
 
   return z.object({
     outcome_code: z.string().min(1, t("dashboard:workflow.required")),
-    completion_date: z.string().min(1, t("dashboard:workflow.required")).refine((value) => value <= today, t("dashboard:workflow.dateFuture")),
+    completion_date: z.string().min(1, t("dashboard:workflow.required")).refine((value) => value <= currentDateValue(), t("dashboard:workflow.dateFuture")),
     official_statement: required,
     investigation_summary: optional,
     recommendation_result: optional,
@@ -283,7 +281,7 @@ function summaryFields(t: ReturnType<typeof useTranslation>["t"]) {
 function emptySummaryValues(): SummaryValues {
   return {
     outcome_code: "",
-    completion_date: today,
+    completion_date: currentDateValue(),
     official_statement: "",
     investigation_summary: "",
     recommendation_result: "",
@@ -294,6 +292,14 @@ function emptySummaryValues(): SummaryValues {
     follow_up_or_referral: "",
     closing_explanation: "",
   };
+}
+
+function currentDateValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 function summaryValues(summary: NonNullable<Awaited<ReturnType<typeof getCaseFinalSummary>>["summary"]>): SummaryValues {

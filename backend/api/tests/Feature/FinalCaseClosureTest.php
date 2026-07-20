@@ -270,6 +270,28 @@ class FinalCaseClosureTest extends TestCase
             ->assertJsonPath('data.status', CaseStatusEnum::Closed->value);
     }
 
+    public function test_published_summary_prevents_a_new_recovery_from_reopening_finalized_handling(): void
+    {
+        [$admin, $satgas, $reporter, $case, $recovery] = $this->scenario();
+        $this->actingAsApi($admin);
+        $this->patchJson("/api/v1/recoveries/{$recovery->id}/status", [
+            'status' => RecoveryStatusEnum::Discontinued->value,
+            'discontinuation_reason' => 'Penanganan dihentikan berdasarkan evaluasi layanan.',
+        ])->assertOk();
+        $this->postJson("/api/v1/cases/{$case->id}/final-summary", $this->summaryPayload(['outcome_code' => 'discontinued']))
+            ->assertCreated();
+        $this->postJson("/api/v1/cases/{$case->id}/final-summary/publish")->assertOk();
+
+        $this->postJson("/api/v1/decisions/{$recovery->decision_id}/recoveries", [
+            'recovery_type_code' => 'RCV-01',
+            'recovery_plan' => 'Rencana baru tidak boleh membuka kembali penanganan yang telah difinalisasi.',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('error_code', ApiErrorCode::FinalSummaryImmutable);
+
+        $this->assertDatabaseCount('recoveries', 1);
+    }
+
     public function test_closure_rechecks_recovery_monitoring_reason_and_outcome_inside_transaction(): void
     {
         [$admin, $satgas, $reporter, $case, $recovery] = $this->scenario();

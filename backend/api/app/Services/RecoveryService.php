@@ -9,6 +9,7 @@ use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\DecisionStatus as DecisionStatusEnum;
 use App\Enums\RecoveryStatus as RecoveryStatusEnum;
 use App\Models\CaseAssignment;
+use App\Models\CaseRecord;
 use App\Models\Decision;
 use App\Models\Recovery;
 use App\Models\RecoveryMonitoring;
@@ -45,6 +46,13 @@ class RecoveryService
                 ->whereKey($decision->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            $case = CaseRecord::query()
+                ->with(['status', 'finalSummary', 'report.reporter:id,university_id'])
+                ->whereKey($decision->recommendation?->case_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $decision->recommendation?->setRelation('case', $case);
 
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
             $this->authorizeRecoveryManager($actor, $decision);
@@ -371,7 +379,7 @@ class RecoveryService
 
     private function ensureDecisionCanReceiveRecovery(Decision $decision): void
     {
-        $decision->loadMissing(['status', 'recommendation.case.status']);
+        $decision->loadMissing(['status', 'recommendation.case.status', 'recommendation.case.finalSummary']);
 
         if ($decision->status?->name !== DecisionStatusEnum::Finalized->value) {
             throw $this->unprocessable('Recovery requires a finalized decision');
@@ -387,6 +395,10 @@ class RecoveryService
 
         if ($decision->recommendation?->case?->status?->name !== CaseStatusEnum::Recovery->value) {
             throw $this->unprocessable('Case must be in recovery status before creating Recovery');
+        }
+
+        if ($decision->recommendation?->case?->finalSummary?->isPublished()) {
+            throw $this->unprocessableCode(ApiErrorCode::FinalSummaryImmutable);
         }
     }
 
