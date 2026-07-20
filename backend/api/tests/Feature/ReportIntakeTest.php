@@ -241,14 +241,14 @@ class ReportIntakeTest extends TestCase
         $this->getJson("/api/v1/reports/{$report->id}")
             ->assertOk()
             ->assertJsonPath('data.reporter.masked', true)
-            ->assertJsonMissingPath('data.sensitive_details')
+            ->assertJsonMissingPath('data.submitted_details')
             ->assertJsonMissingPath('data.reporter.id')
             ->assertJsonMissingPath('data.reporter.name');
 
         config()->set('oversight.cross_campus_sensitive_read', 'false');
         $this->getJson("/api/v1/reports/{$report->id}")
             ->assertOk()
-            ->assertJsonMissingPath('data.sensitive_details');
+            ->assertJsonMissingPath('data.submitted_details');
 
         config()->set('oversight.cross_campus_sensitive_read', true);
         $this->getJson("/api/v1/reports/{$report->id}")
@@ -262,7 +262,7 @@ class ReportIntakeTest extends TestCase
         $superAdmin->forceFill(['is_active' => false])->save();
         $this->getJson("/api/v1/reports/{$report->id}")
             ->assertOk()
-            ->assertJsonMissingPath('data.sensitive_details');
+            ->assertJsonMissingPath('data.submitted_details');
 
         $superAdmin->forceFill(['is_active' => true])->save();
         $superAdmin->role->permissions()->detach(
@@ -271,7 +271,7 @@ class ReportIntakeTest extends TestCase
         Sanctum::actingAs($superAdmin->fresh(), ['*']);
         $this->getJson("/api/v1/reports/{$report->id}")
             ->assertOk()
-            ->assertJsonMissingPath('data.sensitive_details');
+            ->assertJsonMissingPath('data.submitted_details');
     }
 
     public function test_satgas_cannot_access_anonymous_report_identity_through_report_api(): void

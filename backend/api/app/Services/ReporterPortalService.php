@@ -84,9 +84,10 @@ class ReporterPortalService
                 'case.investigation.status',
                 'case.recommendation.status',
                 'case.recommendation.decision.status',
-                'case.recommendation.decision.recoveries' => fn ($query) => $query->withCount('monitorings'),
+                'case.recommendation.decision.recoveries' => fn ($query) => $query
+                    ->withCount('monitorings')
+                    ->withMax('monitorings', 'monitoring_date'),
                 'case.recommendation.decision.recoveries.status',
-                'case.recommendation.decision.recoveries.monitorings',
             ])
             ->where('registration_number', $registrationNumber)
             ->first();
@@ -100,7 +101,6 @@ class ReporterPortalService
         $recommendation = $case?->recommendation;
         $decision = $recommendation?->decision;
         $recoveries = $decision?->recoveries ?? new Collection();
-        $monitorings = $recoveries->flatMap(fn (Recovery $recovery) => $recovery->monitorings);
         $caseCompleted = $case?->status?->name === CaseStatusEnum::Closed->value;
 
         return [
@@ -114,8 +114,8 @@ class ReporterPortalService
             'decision' => $this->decisionProgress($case !== null, $decision),
             'recovery' => $this->recoveryProgress($case !== null, $recoveries),
             'monitoring' => [
-                'count' => $monitorings->count(),
-                'latest_at' => $monitorings->max('monitoring_date')?->toDateString(),
+                'count' => (int) $recoveries->sum('monitorings_count'),
+                'latest_at' => $recoveries->max('monitorings_max_monitoring_date'),
             ],
             'evidence' => [
                 'reporter_supporting_file_count' => (int) $report->evidence_submissions_count,

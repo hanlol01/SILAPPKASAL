@@ -450,7 +450,7 @@ function HandlingProgressSection({
               value="evidence"
               icon={Paperclip}
               title={t("handlingProgress.sections.evidence")}
-              state={progress.case.available ? "ongoing" : "unavailable"}
+              state={progress.case.available ? progress.case.state : "unavailable"}
             >
               <ProgressFact label={t("handlingProgress.fields.supportingFileCount")} value={String(progress.evidence.reporter_supporting_file_count)} />
               <ProgressFact label={t("handlingProgress.fields.internalEvidenceCount")} value={String(progress.evidence.internal_evidence_count)} />

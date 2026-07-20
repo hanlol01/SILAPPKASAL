@@ -120,6 +120,20 @@ class ReporterTransparencyTest extends TestCase
             ->assertJsonPath('data.submitted_details.respondent.confidential_reporter_contact', null);
     }
 
+    public function test_legacy_anonymous_report_without_reporter_id_is_not_available_in_reporter_routes(): void
+    {
+        $reporter = $this->makeUser('reporter', 'legacy-anonymous@example.test');
+        $report = $this->makeReport($reporter, 'SLP-R1-LEGACY-ANON', 'anonymous', [
+            'reporter_id' => null,
+        ]);
+
+        Sanctum::actingAs($reporter, ['*']);
+
+        $this->getJson("/api/v1/portal/reports/{$report->registration_number}")->assertNotFound();
+        $this->getJson("/api/v1/portal/reports/{$report->registration_number}/handling-progress")
+            ->assertNotFound();
+    }
+
     public function test_handling_progress_is_owned_aggregate_only_and_excludes_sensitive_content(): void
     {
         $reporter = $this->makeUser('reporter', 'progress-owner@example.test');
