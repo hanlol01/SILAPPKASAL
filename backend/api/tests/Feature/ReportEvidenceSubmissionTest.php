@@ -34,6 +34,7 @@ class ReportEvidenceSubmissionTest extends TestCase
     {
         parent::setUp();
 
+        config()->set('oversight.cross_campus_sensitive_read', false);
         $this->seed(RbacSeeder::class);
         $this->seed(MasterDataSeeder::class);
         Storage::fake('evidence');

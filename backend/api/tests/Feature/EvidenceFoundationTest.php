@@ -31,6 +31,7 @@ class EvidenceFoundationTest extends TestCase
     {
         parent::setUp();
 
+        config()->set('oversight.cross_campus_sensitive_read', false);
         $this->seed(RbacSeeder::class);
         $this->seed(MasterDataSeeder::class);
     }
