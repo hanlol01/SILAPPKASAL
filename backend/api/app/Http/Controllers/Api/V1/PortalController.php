@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\NotificationIndexRequest;
 use App\Http\Requests\PortalReportIndexRequest;
 use App\Http\Resources\PortalNotificationResource;
+use App\Http\Resources\PortalReportDetailResource;
+use App\Http\Resources\PortalReportHandlingProgressResource;
 use App\Http\Resources\PortalReportResource;
 use App\Http\Resources\PortalReportTimelineResource;
 use App\Http\Resources\PortalSummaryResource;
@@ -71,7 +73,29 @@ class PortalController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Portal report retrieved successfully',
-            'data' => new PortalReportResource($report),
+            'data' => new PortalReportDetailResource($report),
+        ]);
+    }
+
+    public function reportHandlingProgress(NotificationIndexRequest $request, string $registrationNumber): JsonResponse
+    {
+        Gate::authorize('accessReporterPortal');
+
+        $progress = $this->portalService->handlingProgress($request->user(), $registrationNumber);
+
+        if (! $progress) {
+            return response()->json([
+                'success' => false,
+                'message' => __('api.errors.portal_report_not_found'),
+                'error_code' => ApiErrorCode::PortalReportNotFound,
+                'errors' => null,
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Portal report handling progress retrieved successfully',
+            'data' => new PortalReportHandlingProgressResource($progress),
         ]);
     }
 

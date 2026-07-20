@@ -78,6 +78,7 @@ class CaseFoundationTest extends TestCase
         $this->assertSame(ReportStatus::Forwarded->value, $report->status);
         $this->assertNotSame($report->registration_number, $case->case_number);
         $this->assertSame('CSTS-05', $case->status_code);
+        $this->assertNull($case->priority_code);
         $this->assertDatabaseCount('case_assignments', 1);
         foreach ([AuditAction::ReportForwarded, AuditAction::CaseCreated, AuditAction::CaseAssigned] as $action) {
             $events = DB::table('audit_logs')->where('action', $action->value)->get();
@@ -207,7 +208,7 @@ class CaseFoundationTest extends TestCase
             ->assertUnprocessable();
     }
 
-    public function test_admin_reads_metadata_only_and_satgas_reads_assigned_case_detail(): void
+    public function test_admin_and_assigned_satgas_read_authorized_case_report_detail(): void
     {
         $admin = $this->makeUser('admin', 'admin@university.ac.id');
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
@@ -224,12 +225,12 @@ class CaseFoundationTest extends TestCase
         $this->actingAsApi($admin);
         $this->getJson("/api/v1/cases/{$case->id}")
             ->assertOk()
-            ->assertJsonMissingPath('data.report.chronology');
+            ->assertJsonPath('data.report.incident.chronology', $case->report->chronology);
 
         $this->actingAsApi($satgas);
         $this->getJson("/api/v1/cases/{$case->id}")
             ->assertOk()
-            ->assertJsonPath('data.report.chronology', $case->report->chronology);
+            ->assertJsonPath('data.report.incident.chronology', $case->report->chronology);
 
         $this->actingAsApi($otherSatgas);
         $this->getJson("/api/v1/cases/{$case->id}")

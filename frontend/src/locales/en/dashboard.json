@@ -142,7 +142,46 @@
     "forwardedNoticeTitle": "Report forwarded",
     "forwardedNotice": "The case has been forwarded to the selected Satgas.",
     "assignmentCaseNumber": "Case {{number}}",
-    "assignmentPendingCase": "This report has not yet been forwarded into a case."
+    "assignmentPendingCase": "This report has not yet been forwarded into a case.",
+    "priorityAvailability": {
+      "unavailable": "Not available",
+      "unassessed": "Not assessed",
+      "assessed": "Assessed"
+    }
+  },
+  "reportInputDetails": {
+    "title": "Reporter Report Input Details",
+    "description": "Submitted report data allowed by role, campus, assignment, and oversight mode.",
+    "empty": "Not provided",
+    "identityMasked": "The Reporter account identity is hidden for an anonymous report.",
+    "currentAccountNotice": "Account information shows the Reporter's current account data, not a snapshot from submission time.",
+    "sections": {
+      "identification": "Report Identification",
+      "incident": "Incident Details",
+      "respondent": "Reported Party",
+      "reporterAccount": "Reporter Account Information"
+    },
+    "fields": {
+      "reportType": "Report Type",
+      "category": "Category",
+      "chronology": "Chronology",
+      "incidentDate": "Incident Date",
+      "incidentTime": "Incident Time",
+      "incidentLocation": "Incident Location",
+      "locationType": "Location Type",
+      "respondentName": "Reported Party Name",
+      "respondentCampusStatus": "Reported Party Campus Status",
+      "respondentRelation": "Relationship with Reported Party",
+      "respondentDetails": "Reported Party Details",
+      "witnessInformation": "Witness Information",
+      "confidentialContact": "Confidential Report Contact",
+      "reporterName": "Reporter Name",
+      "nim": "Student ID (NIM)",
+      "email": "Account Email",
+      "accountPhone": "Account Phone Number",
+      "faculty": "Faculty",
+      "studyProgram": "Study Program"
+    }
   },
   "cases": {
     "title": "Cases",

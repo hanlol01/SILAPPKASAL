@@ -229,6 +229,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/evidence-files/{uuid}/download', [ReportEvidenceSubmissionController::class, 'downloadForReporter']);
         Route::get('/evidence-files/{uuid}/preview', [ReportEvidenceSubmissionController::class, 'previewForReporter']);
         Route::get('/reports/{registrationNumber}/timeline', [PortalController::class, 'reportTimeline']);
+        Route::get('/reports/{registrationNumber}/handling-progress', [PortalController::class, 'reportHandlingProgress']);
         Route::get('/reports/{registrationNumber}', [PortalController::class, 'report']);
         Route::get('/notifications', [PortalController::class, 'notifications']);
     });

@@ -134,6 +134,83 @@
   "submittedDate": "Submitted {{date}}",
   "anonymousReport": "Anonymous Report",
   "reporterIdentityHidden": "Reporter identity hidden",
+  "collapsible": {
+    "expand": "Expand section",
+    "collapse": "Collapse section"
+  },
+  "submittedDetails": {
+    "title": "Details of the Report You Submitted",
+    "description": "A copy of your submitted report data and your current account information.",
+    "empty": "Not provided",
+    "identityMasked": "The Reporter account identity is hidden from this user.",
+    "currentAccountNotice": "Account information shows your current account data, not a snapshot from submission time.",
+    "sections": {
+      "identification": "Report Identification",
+      "incident": "Incident Details",
+      "respondent": "Reported Party",
+      "reporterAccount": "Reporter Account Information"
+    },
+    "fields": {
+      "reportType": "Report Type",
+      "category": "Category",
+      "chronology": "Chronology",
+      "incidentDate": "Incident Date",
+      "incidentTime": "Incident Time",
+      "incidentLocation": "Incident Location",
+      "locationType": "Location Type",
+      "respondentName": "Reported Party Name",
+      "respondentCampusStatus": "Reported Party Campus Status",
+      "respondentRelation": "Relationship with Reported Party",
+      "respondentDetails": "Reported Party Details",
+      "witnessInformation": "Witness Information",
+      "confidentialContact": "Confidential Report Contact",
+      "reporterName": "Reporter Name",
+      "nim": "Student ID (NIM)",
+      "email": "Account Email",
+      "accountPhone": "Account Phone Number",
+      "faculty": "Faculty",
+      "studyProgram": "Study Program"
+    }
+  },
+  "handlingProgress": {
+    "title": "Case Handling Progress",
+    "description": "A safe handling summary without internal notes or staff identities.",
+    "error": "Case handling progress cannot be loaded right now.",
+    "retry": "Try again",
+    "empty": "Not available yet",
+    "caseState": "Case handling status:",
+    "evidencePrivacy": "Internal investigation evidence is shown only as a count, without filenames or evidence contents.",
+    "sections": {
+      "investigation": "Investigation",
+      "recommendation": "Recommendation",
+      "decision": "Decision",
+      "recovery": "Recovery",
+      "evidence": "Evidence"
+    },
+    "states": {
+      "unavailable": "Unavailable",
+      "not_started": "Not started",
+      "ongoing": "Ongoing",
+      "waiting": "Waiting for review",
+      "completed": "Completed",
+      "discontinued": "Discontinued"
+    },
+    "fields": {
+      "startedAt": "Started",
+      "completedAt": "Completed",
+      "activityCount": "Activity count",
+      "submittedAt": "Submitted",
+      "reviewedAt": "Reviewed",
+      "approvedAt": "Approved",
+      "decisionDate": "Decision date",
+      "finalizedAt": "Finalized",
+      "discontinuedAt": "Discontinued",
+      "monitoringCount": "Monitoring count",
+      "latestMonitoring": "Latest monitoring",
+      "supportingFileCount": "Reporter supporting files",
+      "internalEvidenceCount": "Internal investigation evidence"
+    }
+  },
   "evidenceFiles": {
     "title": "Supporting evidence",
     "description": "Optionally attach supporting files to help with the handling of your report.",

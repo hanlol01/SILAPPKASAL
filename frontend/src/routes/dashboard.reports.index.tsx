@@ -17,9 +17,9 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDateTime } from "@/lib/format";
-import { formatReportStatus, formatReportType } from "@/lib/format-labels";
+import { formatPriorityLevel, formatReportStatus, formatReportType } from "@/lib/format-labels";
 import { getReports, operationsQueryKeys } from "@/lib/operations-api";
-import type { ReportReporter } from "@/lib/operations-types";
+import type { ReportPriorityProjection, ReportReporter } from "@/lib/operations-types";
 import { EmptyState } from "@/components/empty-state";
 import { PageBreadcrumb } from "@/components/page-breadcrumb";
 import { FilterResetButton } from "@/components/filter-reset-button";
@@ -164,7 +164,9 @@ function ReportsPage() {
                       <MobileField label={t("dashboard:common.type")}>{formatReportType(t, report.report_type)}</MobileField>
                       <MobileField label={t("dashboard:reports.reporter")}>{reporterDisplay(report.reporter, t)}</MobileField>
                       <MobileField label={t("dashboard:common.category")}>{report.category?.name ?? t("dashboard:common.metadataUnavailable")}</MobileField>
-                      <MobileField label={t("dashboard:common.priority")}>{report.priority?.name ?? "-"}</MobileField>
+                      <MobileField label={t("dashboard:common.priority")}>
+                        {reportPriorityLabel(t, report.priority)}
+                      </MobileField>
                       <MobileField label={t("dashboard:common.submitted")}>{formatDateTime(report.submitted_at, i18n.language)}</MobileField>
                     </div>
                   </div>
@@ -208,7 +210,7 @@ function ReportsPage() {
                         </td>
                         <td className="px-3 py-2">{reporterDisplay(report.reporter, t)}</td>
                         <td className="px-3 py-2">{report.category?.name ?? t("dashboard:common.metadataUnavailable")}</td>
-                        <td className="px-3 py-2">{report.priority?.name ?? "-"}</td>
+                        <td className="px-3 py-2">{reportPriorityLabel(t, report.priority)}</td>
                         <td className="px-3 py-2"><ReportStatusBadge status={report.status} /></td>
                         <td className="px-3 py-2 text-muted-foreground">{formatDateTime(report.submitted_at, i18n.language)}</td>
                         <td className="px-3 py-2 text-right">
@@ -278,4 +280,15 @@ function reporterDisplay(reporter: ReportReporter | null | undefined, t: ReturnT
   }
 
   return "name" in reporter ? reporter.name : t("dashboard:common.metadataUnavailable");
+}
+
+function reportPriorityLabel(
+  t: ReturnType<typeof useTranslation>["t"],
+  priority: ReportPriorityProjection,
+) {
+  if (priority.availability === "assessed" && priority.level) {
+    return formatPriorityLevel(t, priority.level);
+  }
+
+  return t(`dashboard:reports.priorityAvailability.${priority.availability}`);
 }

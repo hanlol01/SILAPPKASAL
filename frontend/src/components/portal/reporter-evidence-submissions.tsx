@@ -4,11 +4,11 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { toast } from "sonner";
+import { CollapsibleDataCard } from "@/components/collapsible-data-card";
 import { EmptyState } from "@/components/empty-state";
 import { CompactFileUpload } from "@/components/compact-file-upload";
 import { SecureFilePreviewDialog } from "@/components/secure-file-preview-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api-client";
 import { isPreviewableMimeType } from "@/lib/file-preview";
@@ -85,17 +85,14 @@ export function ReporterEvidenceSubmissions({ registrationNumber }: { registrati
   }
 
   return (
-    <Card className="min-w-0">
-      <CardHeader>
-        <CardTitle className="flex min-w-0 items-center gap-2 text-base">
-          <Paperclip className="h-4 w-4 shrink-0" aria-hidden="true" />
-          <span className="min-w-0 break-words [overflow-wrap:anywhere]">
-            {t("evidenceFiles.title")}
-          </span>
-        </CardTitle>
-        <CardDescription>{t("evidenceFiles.description")}</CardDescription>
-      </CardHeader>
-      <CardContent className="min-w-0 space-y-5">
+    <CollapsibleDataCard
+      icon={Paperclip}
+      title={t("evidenceFiles.title")}
+      description={t("evidenceFiles.description")}
+      contentClassName="min-w-0 space-y-5"
+      expandLabel={t("collapsible.expand")}
+      collapseLabel={t("collapsible.collapse")}
+    >
         {filesQuery.isPending ? (
           <EvidenceFilesSkeleton />
         ) : filesQuery.isError ? (
@@ -173,8 +170,7 @@ export function ReporterEvidenceSubmissions({ registrationNumber }: { registrati
             />
           </>
         )}
-      </CardContent>
-    </Card>
+    </CollapsibleDataCard>
   );
 }
 

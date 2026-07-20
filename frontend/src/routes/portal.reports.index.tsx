@@ -42,7 +42,7 @@ function MyReportsPage() {
     const needle = q.toLowerCase();
     return reports.filter((report) => {
       const haystack =
-        `${report.registration_number} ${report.portal_status} ${report.category ?? ""} ${report.report_type}`.toLowerCase();
+        `${report.registration_number} ${report.portal_status} ${report.category?.name ?? ""} ${report.report_type}`.toLowerCase();
       return haystack.includes(needle);
     });
   }, [reportsQuery.data, q]);

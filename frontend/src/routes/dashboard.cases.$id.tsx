@@ -23,6 +23,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { QueryErrorState } from "@/components/query-state";
 import { ReporterEvidenceFiles } from "@/components/reporter-evidence-files";
+import { ReportInputDetailsContent } from "@/components/report-input-details";
 import { EmptyState } from "@/components/empty-state";
 import { EvidenceCustodyDisclosure } from "@/components/evidence-custody-disclosure";
 import { EvidenceFileAttachment } from "@/components/evidence-file-attachment";
@@ -104,6 +105,7 @@ import type {
   Recommendation,
   Recovery,
 } from "@/lib/operations-types";
+import type { ReportInputDetails } from "@/lib/report-input-types";
 
 const WORKFLOW_TABS = [
   "investigation",
@@ -743,7 +745,7 @@ function SensitiveReportSection({
       <Card className="min-w-0">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Lock className="h-4 w-4" /> {t("dashboard:cases.sensitiveReport")}
+            <Lock className="h-4 w-4" /> {t("dashboard:reportInputDetails.title")}
           </CardTitle>
           <CardDescription>{t("dashboard:cases.restrictedDetail", { roleLabel })}</CardDescription>
         </CardHeader>
@@ -751,31 +753,15 @@ function SensitiveReportSection({
     );
   }
 
-  const data = report as Record<string, unknown>;
-  const respondent = data.respondent as
-    | { name?: string | null; details?: string | null }
-    | undefined;
-
   return (
     <CollapsibleDataCard
-      title={t("dashboard:cases.sensitiveReport")}
-      description={t("dashboard:cases.sensitiveDesc")}
-      contentClassName="space-y-4 text-sm"
+      title={t("dashboard:reportInputDetails.title")}
+      description={t("dashboard:reportInputDetails.description")}
     >
-      <Field label={t("dashboard:cases.chronology")}>{asText(data.chronology)}</Field>
-      <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-        <Field label={t("dashboard:cases.incidentDate")}>{asText(data.incident_date)}</Field>
-        <Field label={t("dashboard:cases.incidentTime")}>{asText(data.incident_time)}</Field>
-        <Field label={t("dashboard:cases.incidentLocation")}>
-          {asText(data.incident_location)}
-        </Field>
-        <Field label={t("dashboard:cases.witnessInfo")}>{asText(data.witness_info)}</Field>
-      </div>
-      <Separator />
-      <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-        <Field label={t("dashboard:cases.respondentName")}>{respondent?.name ?? "-"}</Field>
-        <Field label={t("dashboard:cases.respondentDetails")}>{respondent?.details ?? "-"}</Field>
-      </div>
+      <ReportInputDetailsContent
+        details={report as ReportInputDetails}
+        translationScope="dashboard"
+      />
     </CollapsibleDataCard>
   );
 }

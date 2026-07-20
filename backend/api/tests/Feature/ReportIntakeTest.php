@@ -254,7 +254,7 @@ class ReportIntakeTest extends TestCase
         $this->getJson("/api/v1/reports/{$report->id}")
             ->assertOk()
             ->assertJsonPath('data.reporter.masked', true)
-            ->assertJsonPath('data.sensitive_details.chronology', $report->chronology)
+            ->assertJsonPath('data.submitted_details.incident.chronology', $report->chronology)
             ->assertJsonMissingPath('data.reporter.id')
             ->assertJsonMissingPath('data.reporter.name')
             ->assertJsonMissingPath('data.reporter.email');

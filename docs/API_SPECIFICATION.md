@@ -1927,6 +1927,27 @@ return [
 ];
 ```
 
+### 18.5 REV-WF-03 R1 Reporter Transparency Contract
+
+The executable routes, resources, and authorization checks are the source of truth for this contract.
+
+```text
+GET /api/v1/portal/reports/{registrationNumber}
+GET /api/v1/portal/reports/{registrationNumber}/handling-progress
+Auth: Bearer Token
+Role: reporter
+Scope: report owned by the authenticated reporter
+```
+
+- The report detail response includes `submitted_details`, containing the report's submitted incident, respondent, witness, confidential-contact, and current reporter-account projections. Current account identity is not a historical report snapshot.
+- The handling-progress endpoint accepts the external registration number only. It returns domain state, safe dates, and aggregate counts for Case, Investigation, Recommendation, Decision, Recovery/monitoring, and Evidence. It does not return staff identifiers, narrative content, findings, notes, draft content, filenames, custody data, storage paths, or internal entity identifiers.
+- `final_summary` remains `null` in R1. Final case-outcome content belongs to a later revision.
+- Anonymous classification does not prevent an authenticated owner from viewing their own submitted values. Internal projections continue to mask Reporter identity for anonymous Reports.
+- Internal submitted-detail projection is limited to same-campus Admin, active assigned Satgas on the Case, and Super Admin only when the sensitive cross-campus-read feature flag permits it.
+- Report priority is projected from the linked Case: `unavailable` when no Case exists, `unassessed` when the Case has no priority, and `assessed` with the Case priority reference otherwise. The legacy Report priority column is not authoritative.
+- Reporter UI renders collapsible report-detail and handling-progress cards. The progress card has Investigation, Recommendation, Decision, Recovery, and Evidence sections and does not expose sensitive operational content.
+- REV-WF-03 R2 and R3 are not completed by this contract.
+
 ---
 
 > **Catatan**: Dokumen ini adalah Tier 2 (GOVERNED). Perubahan memerlukan persetujuan Project Owner. API specification ini menjadi kontrak wajib antara Backend Agent, Web Agent, dan Mobile Agent.

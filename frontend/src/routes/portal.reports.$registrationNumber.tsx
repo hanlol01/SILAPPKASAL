@@ -4,13 +4,27 @@ import {
   ArrowLeft,
   CheckCircle2,
   Eye,
+  FileCheck2,
+  Gavel,
   HelpCircle,
+  HeartHandshake,
+  Paperclip,
+  SearchCheck,
   Send,
   ShieldCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TFunction } from "i18next";
+import { CollapsibleDataCard } from "@/components/collapsible-data-card";
+import { ReportInputDetailsContent } from "@/components/report-input-details";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -36,9 +50,15 @@ import {
   ProgressTimelineSkeleton,
   type ProgressTimelineEvent,
 } from "@/components/progress-timeline";
-import { portalQueryKeys, getPortalReport, getPortalReportTimeline } from "@/lib/portal-api";
-import type { PortalTimelineEvent } from "@/lib/portal-types";
-import { formatDate } from "@/lib/format";
+import {
+  portalQueryKeys,
+  getPortalReport,
+  getPortalReportHandlingProgress,
+  getPortalReportTimeline,
+} from "@/lib/portal-api";
+import type { PortalHandlingState, PortalTimelineEvent } from "@/lib/portal-types";
+import { formatDate, formatDateTime } from "@/lib/format";
+import { formatReportCategory } from "@/lib/format-labels";
 import { useAuth } from "@/hooks/use-auth";
 import { hasPortalAccess } from "@/lib/auth-roles";
 import { useTranslation } from "react-i18next";
@@ -131,6 +151,10 @@ export function PortalReportDetailContent({
             registrationNumber={registrationNumber}
             enabled={hasPortalAccess(roleCode)}
           />
+          <HandlingProgressSection
+            registrationNumber={registrationNumber}
+            enabled={hasPortalAccess(roleCode)}
+          />
         </>
       )}
     </div>
@@ -146,13 +170,12 @@ interface ReportDetailProps {
 }
 
 function ReportDetail({ report }: ReportDetailProps) {
-  const { t, i18n } = useTranslation(["portal"]);
-  // safely extract string category if backend accidentally returns an object
-  const categoryLabel =
-    typeof report.category === "object" && report.category !== null
-      ? (report.category as { name?: string }).name
-      : report.category;
+  const { t, i18n } = useTranslation(["portal", "dashboard"]);
   const isCompleted = report.portal_status.toLowerCase() === "completed";
+  const collapseLabels = {
+    expandLabel: t("portal:collapsible.expand"),
+    collapseLabel: t("portal:collapsible.collapse"),
+  };
 
   return (
     <>
@@ -180,32 +203,40 @@ function ReportDetail({ report }: ReportDetailProps) {
         </Card>
       )}
 
-      {/* Detail card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t("reportInformation")}</CardTitle>
-          <CardDescription>
-            {t("reportDetailSubtitle")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
-          <Field label={t("registrationNumber")}>
+      <CollapsibleDataCard
+        title={t("portal:reportInformation")}
+        description={t("portal:reportDetailSubtitle")}
+        contentClassName="grid gap-4 text-sm sm:grid-cols-2"
+        {...collapseLabels}
+      >
+          <Field label={t("portal:registrationNumber")}>
             {report.registration_number}
           </Field>
-          <Field label={t("reportType")}>
+          <Field label={t("portal:reportType")}>
             <PortalReportTypeBadge reportType={report.report_type} />
           </Field>
-          <Field label={t("category")}>
-            {categoryLabel ? categoryLabel : "—"}
+          <Field label={t("portal:category")}>
+            {report.category
+              ? formatReportCategory(t, report.category)
+              : t("portal:submittedDetails.empty")}
           </Field>
-          <Field label={t("status")}>
+          <Field label={t("portal:status")}>
             <PortalStatusBadge
               portalStatus={report.portal_status}
             />
           </Field>
-          <Field label={t("submitted")}>{formatDate(report.submitted_at, i18n.language)}</Field>
-        </CardContent>
-      </Card>
+          <Field label={t("portal:submitted")}>
+            {formatDate(report.submitted_at, i18n.language)}
+          </Field>
+      </CollapsibleDataCard>
+
+      <CollapsibleDataCard
+        title={t("portal:submittedDetails.title")}
+        description={t("portal:submittedDetails.description")}
+        {...collapseLabels}
+      >
+        <ReportInputDetailsContent details={report.submitted_details} translationScope="portal" />
+      </CollapsibleDataCard>
     </>
   );
 }
@@ -293,12 +324,12 @@ function ReportProgressSection({
   );
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{t("timeline.title")}</CardTitle>
-        <CardDescription>{t("timeline.desc")}</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <CollapsibleDataCard
+      title={t("timeline.title")}
+      description={t("timeline.desc")}
+      expandLabel={t("collapsible.expand")}
+      collapseLabel={t("collapsible.collapse")}
+    >
         {timelineQuery.isPending && <ProgressTimelineSkeleton rows={3} />}
         {timelineQuery.isError && (
           <p className="text-sm text-muted-foreground">{t("timeline.error")}</p>
@@ -307,8 +338,7 @@ function ReportProgressSection({
           <p className="text-sm text-muted-foreground">{t("timeline.empty")}</p>
         )}
         {timelineQuery.isSuccess && events.length > 0 && <ProgressTimeline events={events} />}
-      </CardContent>
-    </Card>
+    </CollapsibleDataCard>
   );
 }
 
@@ -328,4 +358,167 @@ function safeStageEvent(
     description: description || null,
     icon: TIMELINE_STAGE_ICONS[event.stage] ?? HelpCircle,
   };
+}
+
+function HandlingProgressSection({
+  registrationNumber,
+  enabled,
+}: {
+  registrationNumber: string;
+  enabled: boolean;
+}) {
+  const { t, i18n } = useTranslation(["portal"]);
+  const progressQuery = useQuery({
+    queryKey: portalQueryKeys.reportHandlingProgress(registrationNumber),
+    queryFn: () => getPortalReportHandlingProgress(registrationNumber),
+    enabled,
+    retry: false,
+  });
+  const progress = progressQuery.data;
+  const empty = t("handlingProgress.empty");
+
+  return (
+    <CollapsibleDataCard
+      icon={ShieldCheck}
+      title={t("handlingProgress.title")}
+      description={t("handlingProgress.description")}
+      expandLabel={t("collapsible.expand")}
+      collapseLabel={t("collapsible.collapse")}
+    >
+      {progressQuery.isPending && <ProgressTimelineSkeleton rows={5} />}
+      {progressQuery.isError && (
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">{t("handlingProgress.error")}</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => progressQuery.refetch()}>
+            {t("handlingProgress.retry")}
+          </Button>
+        </div>
+      )}
+      {progress && (
+        <div className="min-w-0 space-y-4">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+            <span className="text-muted-foreground">{t("handlingProgress.caseState")}</span>
+            <ProgressStateBadge state={progress.case.state} />
+          </div>
+          <Accordion type="multiple" defaultValue={["investigation"]} className="min-w-0">
+            <ProgressAccordionItem
+              value="investigation"
+              icon={SearchCheck}
+              title={t("handlingProgress.sections.investigation")}
+              state={progress.investigation.state}
+            >
+              <ProgressFact label={t("handlingProgress.fields.startedAt")} value={formatSafeDateTime(progress.investigation.started_at, i18n.language, empty)} />
+              <ProgressFact label={t("handlingProgress.fields.completedAt")} value={formatSafeDateTime(progress.investigation.completed_at, i18n.language, empty)} />
+              <ProgressFact label={t("handlingProgress.fields.activityCount")} value={String(progress.investigation.activity_count)} />
+            </ProgressAccordionItem>
+            <ProgressAccordionItem
+              value="recommendation"
+              icon={FileCheck2}
+              title={t("handlingProgress.sections.recommendation")}
+              state={progress.recommendation.state}
+            >
+              <ProgressFact label={t("handlingProgress.fields.submittedAt")} value={formatSafeDateTime(progress.recommendation.submitted_at, i18n.language, empty)} />
+              <ProgressFact label={t("handlingProgress.fields.reviewedAt")} value={formatSafeDateTime(progress.recommendation.reviewed_at, i18n.language, empty)} />
+              {progress.recommendation.approved_at && (
+                <ProgressFact label={t("handlingProgress.fields.approvedAt")} value={formatDateTime(progress.recommendation.approved_at, i18n.language)} />
+              )}
+            </ProgressAccordionItem>
+            <ProgressAccordionItem
+              value="decision"
+              icon={Gavel}
+              title={t("handlingProgress.sections.decision")}
+              state={progress.decision.state}
+            >
+              <ProgressFact label={t("handlingProgress.fields.decisionDate")} value={progress.decision.decision_date ? formatDate(progress.decision.decision_date, i18n.language) : empty} />
+              <ProgressFact label={t("handlingProgress.fields.finalizedAt")} value={formatSafeDateTime(progress.decision.finalized_at, i18n.language, empty)} />
+            </ProgressAccordionItem>
+            <ProgressAccordionItem
+              value="recovery"
+              icon={HeartHandshake}
+              title={t("handlingProgress.sections.recovery")}
+              state={progress.recovery.state}
+            >
+              <ProgressFact label={t("handlingProgress.fields.startedAt")} value={formatSafeDateTime(progress.recovery.started_at, i18n.language, empty)} />
+              <ProgressFact label={t("handlingProgress.fields.completedAt")} value={formatSafeDateTime(progress.recovery.completed_at, i18n.language, empty)} />
+              {progress.recovery.discontinued_at && (
+                <ProgressFact label={t("handlingProgress.fields.discontinuedAt")} value={formatDateTime(progress.recovery.discontinued_at, i18n.language)} />
+              )}
+              <ProgressFact label={t("handlingProgress.fields.monitoringCount")} value={String(progress.monitoring.count)} />
+              <ProgressFact label={t("handlingProgress.fields.latestMonitoring")} value={progress.monitoring.latest_at ? formatDate(progress.monitoring.latest_at, i18n.language) : empty} />
+            </ProgressAccordionItem>
+            <ProgressAccordionItem
+              value="evidence"
+              icon={Paperclip}
+              title={t("handlingProgress.sections.evidence")}
+              state={progress.case.available ? "ongoing" : "unavailable"}
+            >
+              <ProgressFact label={t("handlingProgress.fields.supportingFileCount")} value={String(progress.evidence.reporter_supporting_file_count)} />
+              <ProgressFact label={t("handlingProgress.fields.internalEvidenceCount")} value={String(progress.evidence.internal_evidence_count)} />
+              <p className="col-span-full text-xs text-muted-foreground">
+                {t("handlingProgress.evidencePrivacy")}
+              </p>
+            </ProgressAccordionItem>
+          </Accordion>
+        </div>
+      )}
+    </CollapsibleDataCard>
+  );
+}
+
+function ProgressAccordionItem({
+  value,
+  icon: Icon,
+  title,
+  state,
+  children,
+}: {
+  value: string;
+  icon: LucideIcon;
+  title: string;
+  state: PortalHandlingState | "not_started" | "ongoing" | "completed";
+  children: React.ReactNode;
+}) {
+  return (
+    <AccordionItem value={value} className="min-w-0 last:border-b-0">
+      <AccordionTrigger className="min-w-0 gap-3 hover:no-underline">
+        <span className="flex min-w-0 flex-1 items-center gap-2">
+          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span className="min-w-0 break-words text-left [overflow-wrap:anywhere]">{title}</span>
+          <ProgressStateBadge state={state} />
+        </span>
+      </AccordionTrigger>
+      <AccordionContent>
+        <div className="grid min-w-0 gap-3 rounded-md bg-muted/30 p-3 sm:grid-cols-2">
+          {children}
+        </div>
+      </AccordionContent>
+    </AccordionItem>
+  );
+}
+
+function ProgressStateBadge({
+  state,
+}: {
+  state: PortalHandlingState | "not_started" | "ongoing" | "completed";
+}) {
+  const { t } = useTranslation(["portal"]);
+
+  return (
+    <Badge variant="outline" className="shrink-0 whitespace-nowrap">
+      {t(`handlingProgress.states.${state}`)}
+    </Badge>
+  );
+}
+
+function ProgressFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="mt-1 break-words [overflow-wrap:anywhere]">{value}</div>
+    </div>
+  );
+}
+
+function formatSafeDateTime(value: string | null, language: string, empty: string) {
+  return value ? formatDateTime(value, language) : empty;
 }

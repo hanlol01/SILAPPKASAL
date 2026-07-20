@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PortalStatusBadge } from "@/components/portal/portal-status-badge";
 import { PortalReportTypeBadge } from "@/components/portal/portal-report-type-badge";
 import { formatDate } from "@/lib/format";
+import { formatReportCategory } from "@/lib/format-labels";
 import type { PortalReport } from "@/lib/portal-types";
 import { useTranslation } from "react-i18next";
 
@@ -19,12 +20,7 @@ interface PortalReportCardProps {
  * Uses registration_number as the visible identifier and navigation key.
  */
 export function PortalReportCard({ report }: PortalReportCardProps) {
-  const { t, i18n } = useTranslation(["portal", "common"]);
-  // safely extract string category if backend accidentally returns an object
-  const categoryLabel =
-    typeof report.category === "object" && report.category !== null
-      ? (report.category as { name?: string }).name
-      : report.category;
+  const { t, i18n } = useTranslation(["portal", "common", "dashboard"]);
 
   return (
     <Card className="transition-colors hover:bg-muted/40">
@@ -44,7 +40,7 @@ export function PortalReportCard({ report }: PortalReportCardProps) {
             <PortalReportTypeBadge reportType={report.report_type} />
           </div>
           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-            {categoryLabel && <span>{categoryLabel}</span>}
+            {report.category && <span>{formatReportCategory(t, report.category)}</span>}
             <span>{t("portal:submittedDate", { date: formatDate(report.submitted_at, i18n.language) })}</span>
           </div>
         </div>

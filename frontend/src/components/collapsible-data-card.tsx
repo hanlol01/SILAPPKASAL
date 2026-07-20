@@ -15,6 +15,11 @@ export function CollapsibleDataCard({
   children,
   className,
   contentClassName,
+  defaultOpen = true,
+  open: controlledOpen,
+  onOpenChange,
+  expandLabel,
+  collapseLabel,
 }: {
   title: React.ReactNode;
   description?: React.ReactNode;
@@ -23,12 +28,25 @@ export function CollapsibleDataCard({
   children: React.ReactNode;
   className?: string;
   contentClassName?: string;
+  defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  expandLabel?: string;
+  collapseLabel?: string;
 }) {
   const { t } = useTranslation("dashboard");
-  const [open, setOpen] = useState(true);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = (nextOpen: boolean) => {
+    if (controlledOpen === undefined) {
+      setUncontrolledOpen(nextOpen);
+    }
+
+    onOpenChange?.(nextOpen);
+  };
   const toggleLabel = open
-    ? t("dashboard:common.collapseSection")
-    : t("dashboard:common.expandSection");
+    ? (collapseLabel ?? t("dashboard:common.collapseSection"))
+    : (expandLabel ?? t("dashboard:common.expandSection"));
 
   return (
     <Card className={cn("min-w-0 overflow-hidden", className)}>
@@ -51,6 +69,7 @@ export function CollapsibleDataCard({
                   size="icon"
                   className="h-8 w-8"
                   aria-label={toggleLabel}
+                  aria-expanded={open}
                   title={toggleLabel}
                 >
                   <ChevronDown
@@ -65,7 +84,7 @@ export function CollapsibleDataCard({
             </div>
           </div>
         </CardHeader>
-        <CollapsibleContent>
+        <CollapsibleContent forceMount className={cn(!open && "hidden")}>
           <CardContent className={cn("min-w-0", contentClassName)}>{children}</CardContent>
         </CollapsibleContent>
       </Collapsible>

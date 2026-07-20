@@ -134,6 +134,83 @@
   "submittedDate": "Dikirim pada {{date}}",
   "anonymousReport": "Laporan Anonim",
   "reporterIdentityHidden": "Identitas pelapor disembunyikan",
+  "collapsible": {
+    "expand": "Buka bagian",
+    "collapse": "Tutup bagian"
+  },
+  "submittedDetails": {
+    "title": "Detail Laporan yang Anda Kirim",
+    "description": "Salinan data laporan yang Anda kirimkan dan informasi akun Anda saat ini.",
+    "empty": "Tidak diisi",
+    "identityMasked": "Identitas akun Pelapor disembunyikan untuk pengguna ini.",
+    "currentAccountNotice": "Informasi akun menampilkan data akun Anda saat ini, bukan snapshot saat laporan dikirim.",
+    "sections": {
+      "identification": "Identifikasi Laporan",
+      "incident": "Detail Kejadian",
+      "respondent": "Pihak Terlapor",
+      "reporterAccount": "Informasi Akun Pelapor"
+    },
+    "fields": {
+      "reportType": "Jenis Laporan",
+      "category": "Kategori",
+      "chronology": "Kronologi",
+      "incidentDate": "Tanggal Kejadian",
+      "incidentTime": "Waktu Kejadian",
+      "incidentLocation": "Lokasi Kejadian",
+      "locationType": "Jenis Lokasi",
+      "respondentName": "Nama Terlapor",
+      "respondentCampusStatus": "Status Kampus Terlapor",
+      "respondentRelation": "Hubungan dengan Terlapor",
+      "respondentDetails": "Detail Terlapor",
+      "witnessInformation": "Informasi Saksi",
+      "confidentialContact": "Kontak Rahasia pada Laporan",
+      "reporterName": "Nama Pelapor",
+      "nim": "NIM",
+      "email": "Email Akun",
+      "accountPhone": "Nomor Telepon Akun",
+      "faculty": "Fakultas",
+      "studyProgram": "Program Studi"
+    }
+  },
+  "handlingProgress": {
+    "title": "Perkembangan Penanganan Kasus",
+    "description": "Ringkasan aman perkembangan penanganan tanpa catatan internal atau identitas petugas.",
+    "error": "Perkembangan penanganan belum dapat dimuat saat ini.",
+    "retry": "Coba lagi",
+    "empty": "Belum tersedia",
+    "caseState": "Status penanganan kasus:",
+    "evidencePrivacy": "Bukti investigasi internal hanya ditampilkan sebagai jumlah tanpa nama file atau isi bukti.",
+    "sections": {
+      "investigation": "Investigasi",
+      "recommendation": "Rekomendasi",
+      "decision": "Putusan",
+      "recovery": "Pemulihan",
+      "evidence": "Bukti"
+    },
+    "states": {
+      "unavailable": "Belum tersedia",
+      "not_started": "Belum dimulai",
+      "ongoing": "Sedang berjalan",
+      "waiting": "Menunggu peninjauan",
+      "completed": "Selesai",
+      "discontinued": "Dihentikan"
+    },
+    "fields": {
+      "startedAt": "Dimulai",
+      "completedAt": "Selesai",
+      "activityCount": "Jumlah aktivitas",
+      "submittedAt": "Diajukan",
+      "reviewedAt": "Ditinjau",
+      "approvedAt": "Disetujui",
+      "decisionDate": "Tanggal putusan",
+      "finalizedAt": "Difinalisasi",
+      "discontinuedAt": "Dihentikan",
+      "monitoringCount": "Jumlah monitoring",
+      "latestMonitoring": "Monitoring terbaru",
+      "supportingFileCount": "File pendukung Pelapor",
+      "internalEvidenceCount": "Bukti investigasi internal"
+    }
+  },
   "evidenceFiles": {
     "title": "Bukti pendukung",
     "description": "Lampirkan file pendukung secara opsional untuk membantu penanganan laporan Anda.",

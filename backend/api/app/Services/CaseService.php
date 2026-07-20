@@ -124,7 +124,7 @@ class CaseService
                 'case_number' => $this->generateCaseNumber($forwardedAt),
                 'status_code' => $status->code,
                 'risk_level_code' => null,
-                'priority_code' => $report->priority,
+                'priority_code' => null,
                 'current_stage' => $status->workflow_stage ?? 2,
                 'forwarded_at' => $forwardedAt,
             ]);
@@ -235,14 +235,26 @@ class CaseService
     public function loadForUser(CaseRecord $case, User $user): CaseRecord
     {
         $relations = ['status', 'riskLevel', 'priorityLevel', 'activeAssignments.satgas'];
+        $canReadSubmittedDetails = ($this->canReadAssigned($user) && $this->isAssignedTo($case, $user))
+            || $this->campusScope->canSensitiveOversight($user)
+            || ($user->hasRole('admin') && $this->campusScope->sameCampus($user, $case));
 
-        if (($this->canReadAssigned($user) && $this->isAssignedTo($case, $user)) || $this->campusScope->canSensitiveOversight($user)) {
-            $relations[] = 'reportSensitive';
+        if ($canReadSubmittedDetails) {
+            array_push(
+                $relations,
+                'reportSensitive.category',
+                'reportSensitive.locationType',
+                'reportSensitive.campusStatus',
+                'reportSensitive.relation',
+                'reportSensitive.reporter.faculty',
+                'reportSensitive.reporter.studyProgram',
+            );
         } else {
             $relations[] = 'report';
         }
 
         $case->load($relations);
+        $case->setAttribute('include_report_input_details', $canReadSubmittedDetails);
         $case->setAttribute('workflow_context', $this->workflowContextService->forCase($case, $user));
 
         return $case;

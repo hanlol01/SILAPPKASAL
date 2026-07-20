@@ -62,20 +62,32 @@ class ReportController extends Controller
     {
         Gate::authorize('view', $report);
 
-        $report->load([
+        $canReadSubmittedDetails = $this->reportService->canReadSubmittedDetails($request->user(), $report);
+        $relations = [
             'category',
-            'priorityLevel',
+            'case.priorityLevel',
             'case.activeAssignments.satgas',
-        ]);
+        ];
+
+        if ($canReadSubmittedDetails) {
+            array_push($relations, 'locationType', 'campusStatus', 'relation');
+        }
 
         if ($report->report_type !== 'anonymous') {
-            $report->load('reporter');
+            $relations[] = $canReadSubmittedDetails ? 'reporter.faculty' : 'reporter';
+
+            if ($canReadSubmittedDetails) {
+                $relations[] = 'reporter.studyProgram';
+            }
         }
+
+        $report->load($relations);
 
         $report->setAttribute(
             'sensitive_oversight',
-            $this->reportService->canReadSensitiveOversight($request->user()),
+            $canReadSubmittedDetails,
         );
+        $report->setAttribute('include_case_context', true);
 
         return response()->json([
             'success' => true,

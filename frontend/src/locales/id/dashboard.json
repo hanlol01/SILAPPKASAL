@@ -142,7 +142,46 @@
     "forwardedNoticeTitle": "Laporan sudah diteruskan",
     "forwardedNotice": "Kasus sudah diteruskan ke Satgas terpilih.",
     "assignmentCaseNumber": "Kasus {{number}}",
-    "assignmentPendingCase": "Laporan ini belum diteruskan menjadi kasus."
+    "assignmentPendingCase": "Laporan ini belum diteruskan menjadi kasus.",
+    "priorityAvailability": {
+      "unavailable": "Belum tersedia",
+      "unassessed": "Belum dinilai",
+      "assessed": "Sudah dinilai"
+    }
+  },
+  "reportInputDetails": {
+    "title": "Detail Isian Laporan Reporter",
+    "description": "Data isian laporan yang diizinkan sesuai peran, kampus, penugasan, dan mode pengawasan.",
+    "empty": "Tidak diisi",
+    "identityMasked": "Identitas akun Pelapor disembunyikan untuk laporan anonim.",
+    "currentAccountNotice": "Informasi akun menampilkan data akun Pelapor saat ini, bukan snapshot saat laporan dikirim.",
+    "sections": {
+      "identification": "Identifikasi Laporan",
+      "incident": "Detail Kejadian",
+      "respondent": "Pihak Terlapor",
+      "reporterAccount": "Informasi Akun Pelapor"
+    },
+    "fields": {
+      "reportType": "Jenis Laporan",
+      "category": "Kategori",
+      "chronology": "Kronologi",
+      "incidentDate": "Tanggal Kejadian",
+      "incidentTime": "Waktu Kejadian",
+      "incidentLocation": "Lokasi Kejadian",
+      "locationType": "Jenis Lokasi",
+      "respondentName": "Nama Terlapor",
+      "respondentCampusStatus": "Status Kampus Terlapor",
+      "respondentRelation": "Hubungan dengan Terlapor",
+      "respondentDetails": "Detail Terlapor",
+      "witnessInformation": "Informasi Saksi",
+      "confidentialContact": "Kontak Rahasia pada Laporan",
+      "reporterName": "Nama Pelapor",
+      "nim": "NIM",
+      "email": "Email Akun",
+      "accountPhone": "Nomor Telepon Akun",
+      "faculty": "Fakultas",
+      "studyProgram": "Program Studi"
+    }
   },
   "cases": {
     "title": "Kasus",

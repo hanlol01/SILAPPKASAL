@@ -497,8 +497,18 @@ Verified Milestone 21 route additions:
 GET /api/v1/portal/summary
 GET /api/v1/portal/reports
 GET /api/v1/portal/reports/{registrationNumber}
+GET /api/v1/portal/reports/{registrationNumber}/handling-progress
 GET /api/v1/portal/notifications
 ```
+
+REV-WF-03 R1 current behavior:
+
+- The Reporter-owned report detail now projects all submitted form values plus current account identity/contact/campus data. Current account fields are explicitly current values, not immutable submission snapshots.
+- The Reporter handling-progress endpoint is registration-number based, ownership scoped, and returns only safe states, dates, and counts. Its `final_summary` is intentionally `null` until a later revision.
+- Shared submitted-report detail cards are available to same-campus Admin and active assigned Satgas. Super Admin access requires the existing sensitive cross-campus-read feature flag. Anonymous Reporter identity remains masked in internal projections.
+- Report priority display and dashboard aggregation derive from the linked Case priority. No linked Case is `unavailable`; a linked Case without assessment priority is `unassessed`.
+- Reporter Portal titled data cards use the shared accessible collapsible-card behavior, including localized controls and mounted collapsed content.
+- REV-WF-03 R2 break-glass/final-outcome work and R3 recovery/closure/activity-log work remain deferred.
 
 ---
 

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { User, ShieldCheck, KeyRound, Pencil, Save, X, Loader2 } from "lucide-react";
+import { CollapsibleDataCard } from "@/components/collapsible-data-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,8 +12,6 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
@@ -170,24 +169,18 @@ function ProfileSection({
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <User className="h-4 w-4" />
-          </div>
-          <div>
-            <CardTitle className="text-base">{t("profile")}</CardTitle>
-            <CardDescription>{t("profileDesc")}</CardDescription>
-          </div>
-        </div>
-        {!editing && (
+    <CollapsibleDataCard
+      icon={User}
+      title={t("profile")}
+      description={t("profileDesc")}
+      expandLabel={t("collapsible.expand")}
+      collapseLabel={t("collapsible.collapse")}
+      headerAction={!editing ? (
           <Button variant="outline" size="sm" onClick={handleEdit}>
             <Pencil className="mr-2 h-3.5 w-3.5" /> {t("common:edit")}
           </Button>
-        )}
-      </CardHeader>
-      <CardContent>
+        ) : undefined}
+    >
         {editing ? (
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -266,8 +259,7 @@ function ProfileSection({
             {data.nip && <ReadOnlyField label="NIP" value={data.nip} />}
           </div>
         )}
-      </CardContent>
-    </Card>
+    </CollapsibleDataCard>
   );
 }
 
@@ -282,19 +274,14 @@ function AccountStatusSection({
 }) {
   const { t, i18n } = useTranslation(["portal", "common"]);
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <ShieldCheck className="h-4 w-4" />
-          </div>
-          <div>
-            <CardTitle className="text-base">{t("accountStatus")}</CardTitle>
-            <CardDescription>{t("accountStatusDesc")}</CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="grid gap-4 text-sm sm:grid-cols-3">
+    <CollapsibleDataCard
+      icon={ShieldCheck}
+      title={t("accountStatus")}
+      description={t("accountStatusDesc")}
+      contentClassName="grid gap-4 text-sm sm:grid-cols-3"
+      expandLabel={t("collapsible.expand")}
+      collapseLabel={t("collapsible.collapse")}
+    >
         <ReadOnlyField
           label={t("accountActive")}
           value={data.is_active ? t("common:yes") : t("common:no")}
@@ -313,8 +300,7 @@ function AccountStatusSection({
             value={data.registration_number}
           />
         )}
-      </CardContent>
-    </Card>
+    </CollapsibleDataCard>
   );
 }
 
@@ -360,21 +346,13 @@ function ChangePasswordSection() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <KeyRound className="h-4 w-4" />
-          </div>
-          <div>
-            <CardTitle className="text-base">{t("changePassword")}</CardTitle>
-            <CardDescription>
-              {t("changePasswordDesc")}
-            </CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
+    <CollapsibleDataCard
+      icon={KeyRound}
+      title={t("changePassword")}
+      description={t("changePasswordDesc")}
+      expandLabel={t("collapsible.expand")}
+      collapseLabel={t("collapsible.collapse")}
+    >
         <form onSubmit={handleSubmit} className="max-w-md space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="pw-current">{t("currentPassword")}</Label>
@@ -431,8 +409,7 @@ function ChangePasswordSection() {
             {t("changePassword")}
           </Button>
         </form>
-      </CardContent>
-    </Card>
+    </CollapsibleDataCard>
   );
 }
 

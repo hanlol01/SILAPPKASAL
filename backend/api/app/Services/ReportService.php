@@ -82,7 +82,7 @@ class ReportService
         }
 
         $query = Report::query()
-            ->with(['category', 'priorityLevel'])
+            ->with(['category', 'case.priorityLevel'])
             ->latest('submitted_at')
             ->latest('id');
 
@@ -104,6 +104,7 @@ class ReportService
         $reports = $query->paginate((int) ($filters['per_page'] ?? 15));
 
         $reports->getCollection()
+            ->each(fn (Report $report): Report => $report->setAttribute('include_case_context', false))
             ->filter(fn (Report $report): bool => $report->report_type !== 'anonymous')
             ->load('reporter');
 
@@ -116,9 +117,12 @@ class ReportService
             && ($user->hasRole('admin') || $user->hasRole('super_admin'));
     }
 
-    public function canReadSensitiveOversight(User $user): bool
+    public function canReadSubmittedDetails(User $user, Report $report): bool
     {
-        return $this->campusScope->canSensitiveOversight($user);
+        return $this->campusScope->canSensitiveOversight($user)
+            || ($user->hasRole('admin')
+                && $user->hasPermission('reports.read.all')
+                && $this->campusScope->sameCampus($user, $report));
     }
 
     public function findByTrackingCode(string $trackingCode): ?Report

@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import { AccessDenied } from "@/components/access-denied";
 import { BreakGlassRequestDialog } from "@/components/admin/break-glass-request-dialog";
 import { QueryErrorState } from "@/components/query-state";
+import { CollapsibleDataCard } from "@/components/collapsible-data-card";
+import { ReportInputDetailsContent } from "@/components/report-input-details";
 import { ReporterEvidenceFiles } from "@/components/reporter-evidence-files";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SatgasAssignmentAction } from "@/components/workflow-actions/satgas-assignment-action";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDateTime } from "@/lib/format";
-import { formatReportType } from "@/lib/format-labels";
+import { formatPriorityLevel, formatReportType } from "@/lib/format-labels";
 import { getReport, operationsQueryKeys } from "@/lib/operations-api";
 import type { ReportReporter } from "@/lib/operations-types";
 
@@ -64,7 +66,8 @@ function ReportDetailPage() {
     ? roleCode === "admin" && Boolean(user?.permissions?.includes("cases.assign_satgas"))
     : roleCode === "admin" && Boolean(user?.permissions?.includes("reports.forward"));
   const sensitiveOversightEnabled =
-    roleCode === "super_admin" && report.sensitive_details !== undefined;
+    roleCode === "super_admin" && report.submitted_details !== undefined;
+  const canViewSubmittedDetails = report.submitted_details !== undefined;
 
   return (
     <div className="space-y-6">
@@ -135,39 +138,26 @@ function ReportDetailPage() {
             <Field label={t("dashboard:common.type")}>{formatReportType(t, report.report_type)}</Field>
             <Field label={t("dashboard:reports.reporter")}>{reporterDisplay(report.reporter, t)}</Field>
             <Field label={t("dashboard:common.category")}>{report.category?.name ?? t("dashboard:common.metadataUnavailable")}</Field>
-            <Field label={t("dashboard:common.priority")}>{report.priority?.name ?? "-"}</Field>
+            <Field label={t("dashboard:common.priority")}>
+              {reportPriorityLabel(t, report.priority)}
+            </Field>
             <Field label={t("dashboard:common.submitted")}>{formatDateTime(report.submitted_at, i18n.language)}</Field>
             <Field label={t("dashboard:common.forwarded")}>{formatDateTime(report.forwarded_at, i18n.language)}</Field>
             <Field label={t("dashboard:common.created")}>{formatDateTime(report.created_at, i18n.language)}</Field>
           </CardContent>
         </Card>
 
-        {sensitiveOversightEnabled && report.sensitive_details && (
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-base">{t("dashboard:reports.sensitiveDetails")}</CardTitle>
-              <CardDescription>{t("dashboard:reports.sensitiveDetailsDesc")}</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
-              <Field label={t("dashboard:sections.chronology")}>
-                {report.sensitive_details.chronology ?? "-"}
-              </Field>
-              <Field label={t("dashboard:sections.incidentDate")}>
-                {report.sensitive_details.incident_date ?? "-"}
-              </Field>
-              <Field label={t("dashboard:sections.incidentLocation")}>
-                {report.sensitive_details.incident_location ?? "-"}
-              </Field>
-              <Field label={t("dashboard:sections.respondentName")}>
-                {report.sensitive_details.respondent_name ??
-                  report.sensitive_details.respondent?.name ??
-                  "-"}
-              </Field>
-              <Field label={t("dashboard:sections.witnessInfo")}>
-                {report.sensitive_details.witness_info ?? "-"}
-              </Field>
-            </CardContent>
-          </Card>
+        {canViewSubmittedDetails && report.submitted_details && (
+          <CollapsibleDataCard
+            className="lg:col-span-2"
+            title={t("dashboard:reportInputDetails.title")}
+            description={t("dashboard:reportInputDetails.description")}
+          >
+            <ReportInputDetailsContent
+              details={report.submitted_details}
+              translationScope="dashboard"
+            />
+          </CollapsibleDataCard>
         )}
 
         <div className="min-w-0 space-y-4">
@@ -295,4 +285,15 @@ function reporterDisplay(reporter: ReportReporter | null | undefined, t: ReturnT
   }
 
   return "name" in reporter ? reporter.name : t("dashboard:common.metadataUnavailable");
+}
+
+function reportPriorityLabel(
+  t: ReturnType<typeof useTranslation>["t"],
+  priority: import("@/lib/operations-types").ReportPriorityProjection,
+) {
+  if (priority.availability === "assessed" && priority.level) {
+    return formatPriorityLevel(t, priority.level);
+  }
+
+  return t(`dashboard:reports.priorityAvailability.${priority.availability}`);
 }

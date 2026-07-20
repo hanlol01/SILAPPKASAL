@@ -3,10 +3,12 @@
  *
  * These types are intentionally separate from operations-types.ts.
  * The portal API returns privacy-filtered shapes — reporters must never
- * see internal IDs, chronology, respondent details, or investigator names.
+ * see internal IDs, staff identities, or operational narrative content.
  *
  * Field names match the actual backend response contract.
  */
+
+import type { ReportInputDetails, ReportInputReference } from "@/lib/report-input-types";
 
 // ---------------------------------------------------------------------------
 // Portal Summary (GET /api/v1/portal/summary)
@@ -27,7 +29,7 @@ export interface PortalReport {
   /** Primary key for routing — internal numeric ID is never exposed. */
   registration_number: string;
   report_type: string;
-  category: string | null;
+  category: ReportInputReference | null;
   /** Reporter-safe status code. Legacy display labels are normalized client-side. */
   portal_status: string;
   submitted_at: string | null;
@@ -40,10 +42,59 @@ export interface PortalReport {
 export interface PortalReportDetail {
   registration_number: string;
   report_type: string;
-  category: string | null;
+  category: ReportInputReference | null;
   /** Reporter-safe status code. Legacy display labels are normalized client-side. */
   portal_status: string;
   submitted_at: string | null;
+  submitted_details: ReportInputDetails;
+}
+
+export type PortalHandlingState =
+  | "unavailable"
+  | "not_started"
+  | "ongoing"
+  | "waiting"
+  | "completed"
+  | "discontinued";
+
+export interface PortalReportHandlingProgress {
+  registration_number: string;
+  case: {
+    available: boolean;
+    state: "not_started" | "ongoing" | "completed";
+  };
+  investigation: {
+    state: PortalHandlingState;
+    started_at: string | null;
+    completed_at: string | null;
+    activity_count: number;
+  };
+  recommendation: {
+    state: PortalHandlingState;
+    submitted_at: string | null;
+    reviewed_at: string | null;
+    approved_at: string | null;
+  };
+  decision: {
+    state: PortalHandlingState;
+    decision_date: string | null;
+    finalized_at: string | null;
+  };
+  recovery: {
+    state: PortalHandlingState;
+    started_at: string | null;
+    completed_at: string | null;
+    discontinued_at: string | null;
+  };
+  monitoring: {
+    count: number;
+    latest_at: string | null;
+  };
+  evidence: {
+    reporter_supporting_file_count: number;
+    internal_evidence_count: number;
+  };
+  final_summary: null;
 }
 
 // ---------------------------------------------------------------------------

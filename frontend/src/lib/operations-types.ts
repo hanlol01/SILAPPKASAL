@@ -1,4 +1,5 @@
 import type { PaginationMeta } from "@/lib/api-types";
+import type { ReportInputDetails } from "@/lib/report-input-types";
 
 export interface PaginatedData<T> {
   data: T[];
@@ -33,13 +34,18 @@ export interface ReportSummary {
   reporter?: ReportReporter | null;
   category?: MasterRef | null;
   status: string;
-  priority?: MasterRef | null;
+  priority: ReportPriorityProjection;
   case?: ReportCaseSummary | null;
   submitted_at: string | null;
   reviewed_at: string | null;
   forwarded_at: string | null;
   created_at: string | null;
-  sensitive_details?: CaseSensitiveReport;
+  submitted_details?: ReportInputDetails;
+}
+
+export interface ReportPriorityProjection {
+  availability: "unavailable" | "unassessed" | "assessed";
+  level: MasterRef | null;
 }
 
 export interface CaseAssignment {
@@ -53,21 +59,7 @@ export interface CaseAssignment {
   unassigned_at: string | null;
 }
 
-export interface CaseSensitiveReport {
-  chronology?: string | null;
-  incident_date?: string | null;
-  incident_time?: string | null;
-  incident_location?: string | null;
-  respondent?: {
-    name?: string | null;
-    details?: string | null;
-  };
-  respondent_name?: string | null;
-  respondent_campus_status?: string | null;
-  respondent_relation?: string | null;
-  respondent_details?: string | null;
-  witness_info?: string | null;
-}
+export type CaseSensitiveReport = ReportInputDetails;
 
 export interface CaseRecord {
   id: number;
@@ -90,7 +82,7 @@ export interface CaseRecord {
   closed_at?: string | null;
   escalated_at?: string | null;
   assignments?: CaseAssignment[];
-  report?: CaseSensitiveReport;
+  report?: ReportInputDetails;
   workflow_context?: WorkflowContext;
 }
 

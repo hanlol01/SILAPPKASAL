@@ -8,6 +8,7 @@ import {
 } from "@/components/portal/portal-summary-cards";
 import { PortalReportCard } from "@/components/portal/portal-report-card";
 import { QueryErrorState } from "@/components/query-state";
+import { CollapsibleDataCard } from "@/components/collapsible-data-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -88,22 +89,21 @@ function PortalOverview() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
-          <div>
-            <CardTitle className="text-base">{t("recentReports")}</CardTitle>
-            <CardDescription>{t("recentReportsSubtitle")}</CardDescription>
-          </div>
-          {reportsQuery.isSuccess && recentReports.length > 0 && (
+      <CollapsibleDataCard
+        title={t("recentReports")}
+        description={t("recentReportsSubtitle")}
+        expandLabel={t("collapsible.expand")}
+        collapseLabel={t("collapsible.collapse")}
+        contentClassName="space-y-3"
+        headerAction={reportsQuery.isSuccess && recentReports.length > 0 ? (
             <Button asChild variant="outline" size="sm" className="gap-1.5">
               <Link to="/portal/reports">
                 <ExternalLink className="h-3.5 w-3.5" />
                 {t("viewAllReports")}
               </Link>
             </Button>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-3">
+          ) : undefined}
+      >
           {reportsQuery.isLoading && (
             <>
               {Array.from({ length: 3 }).map((_, index) => (
@@ -136,8 +136,7 @@ function PortalOverview() {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CollapsibleDataCard>
 
       <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
         <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />

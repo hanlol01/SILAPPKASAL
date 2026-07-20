@@ -13,6 +13,7 @@ import type {
   PortalSummary,
   PortalReport,
   PortalReportDetail,
+  PortalReportHandlingProgress,
   PortalReportTimeline,
   PortalEvidenceFile,
   PortalEvidenceFilesMeta,
@@ -39,6 +40,7 @@ export const portalQueryKeys = {
   reports:       (q?: Record<string, QueryValue>) => ["portal", "reports", q] as const,
   report:        (regNum: string)            => ["portal", "report", regNum] as const,
   reportTimeline: (regNum: string)           => ["portal", "report", regNum, "timeline"] as const,
+  reportHandlingProgress: (regNum: string)   => ["portal", "report", regNum, "handling-progress"] as const,
   reportEvidenceFiles: (regNum: string)      => ["portal", "report", regNum, "evidence-files"] as const,
   notifications: ()                          => ["portal", "notifications"] as const,
   profile:       ()                          => ["portal", "profile"] as const,
@@ -80,6 +82,13 @@ export function getPortalReport(registrationNumber: string) {
 export function getPortalReportTimeline(registrationNumber: string) {
   return apiRequest<PortalReportTimeline>(
     `/portal/reports/${encodeURIComponent(registrationNumber)}/timeline`,
+  );
+}
+
+/** GET /api/v1/portal/reports/{registrationNumber}/handling-progress */
+export function getPortalReportHandlingProgress(registrationNumber: string) {
+  return apiRequest<PortalReportHandlingProgress>(
+    `/portal/reports/${encodeURIComponent(registrationNumber)}/handling-progress`,
   );
 }
 

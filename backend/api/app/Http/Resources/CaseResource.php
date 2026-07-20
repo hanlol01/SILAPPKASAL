@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\ReportInputProjection;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -39,18 +40,15 @@ class CaseResource extends JsonResource
             ),
         ];
 
-        if ($this->resource->relationLoaded('reportSensitive')) {
-            $data['report'] = [
-                'chronology' => $this->reportSensitive?->chronology,
-                'incident_date' => $this->reportSensitive?->incident_date?->toDateString(),
-                'incident_time' => $this->reportSensitive?->incident_time,
-                'incident_location' => $this->reportSensitive?->incident_location,
-                'respondent' => [
-                    'name' => $this->reportSensitive?->respondent_name,
-                    'details' => $this->reportSensitive?->respondent_details,
-                ],
-                'witness_info' => $this->reportSensitive?->witness_info,
-            ];
+        if (
+            $this->resource->relationLoaded('reportSensitive')
+            && $this->resource->getAttribute('include_report_input_details') === true
+            && $this->reportSensitive !== null
+        ) {
+            $data['report'] = ReportInputProjection::make(
+                $this->reportSensitive,
+                $this->reportSensitive->report_type !== 'anonymous',
+            );
         }
 
         return $data;

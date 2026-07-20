@@ -59,7 +59,7 @@ class DashboardService
             'by_status' => $this->groupedCount($query, 'reports.status'),
             'by_report_type' => $this->groupedCount($query, 'reports.report_type'),
             'by_category_code' => $this->groupedCount($query, 'reports.category_code'),
-            'by_priority' => $this->groupedCount($query, 'reports.priority'),
+            'by_priority' => $this->reportPriorityCounts($query),
             'by_identity_mode' => [
                 'anonymous' => $this->count($this->reportsQuery($user, $filters)->where('reports.report_type', 'anonymous')),
                 'identified' => $this->count($this->reportsQuery($user, $filters)->where('reports.report_type', '<>', 'anonymous')),
@@ -171,6 +171,19 @@ class DashboardService
         }
 
         return $query;
+    }
+
+    /**
+     * @return array<int, array{key: string|null, count: int}>
+     */
+    private function reportPriorityCounts(Builder $query): array
+    {
+        $priorityQuery = (clone $query)->leftJoin('cases as report_priority_cases', function ($join): void {
+            $join->on('report_priority_cases.report_id', '=', 'reports.id')
+                ->whereNull('report_priority_cases.deleted_at');
+        });
+
+        return $this->groupedCount($priorityQuery, 'report_priority_cases.priority_code');
     }
 
     /**
