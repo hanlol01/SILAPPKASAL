@@ -201,3 +201,15 @@ explicit `config:clear` pre-step is intended.
 Rollback of the publication-table migration removes all C1 content data. Prefer restoring the
 verified pre-release database backup; never use a blind production rollback after editorial work has
 begun.
+
+## REV-CONTENT-01 C2 Release Note (Not Yet Deployed)
+
+C2 adds no dependency and no database migration. It adds the campus Admin management page and
+campus-scoped management list/detail/summary, eligible Consultation CTA, published-revision, and
+editable-PDF-removal APIs. A future deployment must publish frontend assets and backend code from the
+same verified commit, then confirm the management routes with `php artisan route:list
+--path=content-management`.
+
+Image uploads remain disabled and must not be enabled for C2. PDF attachments stay on the private
+`content` disk; no public storage symlink is required. C2 automated verification must remain on
+SQLite `:memory:`. No production migration, seed, push, or deployment is claimed by this note.

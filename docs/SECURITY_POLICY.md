@@ -1266,6 +1266,7 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
 | 1.0.1-patch | 2026-06-10 | Audit patch: pembatasan akses Admin ke metadata kasus saja, Super Admin tidak otomatis akses bukti (break-glass protocol), penguatan privasi anonim (hashed/masked IP, retention 7 hari), catatan MVP token in-memory, rencana Post-MVP httpOnly cookie, penambahan audit event `security.break_glass_activated` |
 | REV-WF-03-R2 | 2026-07-20 | Requester-scoped Anonymous Emergency Access, same-campus Admin review/revoke, non-cacheable reveal, expiry normalization, redacted audit, and anonymous filename protection. |
 | REV-CONTENT-01-C1 | 2026-07-21 | Campus-scoped published content, immutable versions, controlled rich text, private attachments, redacted content audit, and non-cacheable authenticated readers. |
+| REV-CONTENT-01-C2 | 2026-07-21 | Campus-scoped Admin authoring UI/API, author-visible review feedback, controlled drafts, and audited editable-PDF removal. |
 
 ## 22. Content publication security (REV-CONTENT-01 C1)
 
@@ -1296,6 +1297,21 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
 - Automated tests are guarded to SQLite `:memory:` by default. Local PostgreSQL verification requires
   the exact database `silappkasal_test` plus an explicit matching confirmation; `silappkasal` is
   prohibited.
+
+### 22.1 C2 campus management boundary
+
+- Management list/detail/summary queries accept only active Campus Admin with
+  `content.read.management.own_campus` and force the actor's campus. Global seeded drafts and
+  other-campus records are non-enumerable through the C2 surface.
+- Draft update, submit, revision creation, PDF upload, and PDF removal reauthorize the locked actor,
+  item, and version. Frontend menu and route checks are presentation only.
+- Author-visible revision/rejection reasons are projected only on an authorized own-campus detail;
+  reviewer identity, encrypted storage representation, and audit metadata remain excluded.
+- C2 keeps image authoring disabled. Private PDF removal deletes the authorized database record,
+  removes the private object, and records `content.attachment_removed` without original filename,
+  contact data, body content, or review narrative.
+- Draft content is not persisted to localStorage. Management and attachment responses remain
+  `private, no-store`, and future service workers must exclude `/api` and `/dashboard/content`.
 
 ---
 

@@ -105,6 +105,51 @@ export async function apiRequestEnvelope<
   return apiFetch<T, TMeta>(path, init);
 }
 
+export function apiUpload<T>(
+  path: string,
+  body: FormData,
+  onProgress?: (percent: number) => void,
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", buildUrl(path));
+    request.setRequestHeader("Accept", "application/json");
+    request.setRequestHeader("Accept-Language", activeApiLocale());
+    const token = getAuthToken();
+    if (token) request.setRequestHeader("Authorization", `Bearer ${token}`);
+
+    request.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) onProgress?.(Math.round((event.loaded / event.total) * 100));
+    });
+    request.addEventListener("load", () => {
+      const payload = safeJson<ApiEnvelope<T>>(request.responseText);
+      if (request.status < 200 || request.status >= 300 || !payload?.success) {
+        if (request.status === 401) clearAuthToken();
+        reject(
+          new ApiError(
+            payload?.message || "Request failed",
+            request.status,
+            payload?.errors ?? null,
+            payload?.error_code ?? null,
+          ),
+        );
+        return;
+      }
+      resolve(payload.data);
+    });
+    request.addEventListener("error", () => reject(new ApiError("Network request failed", 0)));
+    request.send(body);
+  });
+}
+
+function safeJson<T>(value: string): T | null {
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+}
+
 export async function apiDownload(path: string, fallbackFilename: string) {
   const token = getAuthToken();
   const headers = new Headers({ Accept: "application/octet-stream" });

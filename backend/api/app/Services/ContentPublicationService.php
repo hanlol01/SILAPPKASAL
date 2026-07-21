@@ -74,6 +74,7 @@ class ContentPublicationService
                     'scope' => $scope,
                     'university_id' => $universityId,
                     'creator_id' => $actor->id,
+                    'lock_version' => 1,
                 ]);
 
                 $version = ContentVersion::query()->create([
@@ -122,6 +123,27 @@ class ContentPublicationService
 
             if (isset($data['lock_version']) && (int) $data['lock_version'] !== (int) $item->lock_version) {
                 throw $this->conflict('Content was changed by another operation. Reload before continuing.');
+            }
+
+            if (array_key_exists('section_code', $data) || array_key_exists('category_public_id', $data)) {
+                $section = array_key_exists('section_code', $data)
+                    ? ContentSection::query()->where('code', $data['section_code'])->where('is_active', true)->lockForUpdate()->firstOrFail()
+                    : $item->section()->lockForUpdate()->firstOrFail();
+                $categoryPublicId = array_key_exists('category_public_id', $data)
+                    ? $data['category_public_id']
+                    : $item->category?->public_id;
+                $category = $this->resolveCategory($categoryPublicId, $section, $item->scope, $item->university_id);
+                $this->validateTypePlacement($item->content_type, $section, $category);
+
+                $placementChanged = (int) $item->section_id !== (int) $section->id
+                    || (int) $item->category_id !== (int) $category?->id;
+                if ($placementChanged && $item->published_version_id !== null) {
+                    throw ValidationException::withMessages([
+                        'category_public_id' => ['Section and category cannot change after the first publication.'],
+                    ]);
+                }
+                $item->section_id = $section->id;
+                $item->category_id = $category?->id;
             }
 
             $fromStatus = $version->lifecycle_status->value;

@@ -187,6 +187,48 @@ class ContentAttachmentService
         return $response;
     }
 
+    public function remove(ContentAttachment $attachment, User $actor): void
+    {
+        [$disk, $path] = DB::transaction(function () use ($attachment, $actor): array {
+            $actor = User::query()->with('role.permissions')->whereKey($actor->id)->lockForUpdate()->firstOrFail();
+            $attachment = ContentAttachment::query()->whereKey($attachment->id)->lockForUpdate()->firstOrFail();
+            $version = ContentVersion::query()->whereKey($attachment->content_version_id)->lockForUpdate()->firstOrFail();
+            $item = ContentItem::query()->whereKey($version->content_item_id)->lockForUpdate()->firstOrFail();
+
+            if ($attachment->purpose !== ContentAttachmentPurpose::Attachment
+                || ! $this->policy->manageAttachment($actor, $item, $version)) {
+                throw $this->forbidden();
+            }
+
+            $disk = $attachment->storage_disk;
+            $path = $attachment->storage_path;
+            $publicId = $attachment->public_id;
+            $purpose = $attachment->purpose->value;
+            $attachment->delete();
+
+            $this->auditLogs->record(
+                action: AuditAction::ContentAttachmentRemoved,
+                category: AuditCategory::Content,
+                severity: AuditSeverity::Info,
+                actor: $actor,
+                subject: $item,
+                metadata: [
+                    'content_public_id' => $item->public_id,
+                    'version_number' => $version->version_number,
+                    'content_type' => $item->content_type->value,
+                    'scope' => $item->scope->value,
+                    'university_code' => $item->university()->value('code'),
+                    'attachment_public_id' => $publicId,
+                    'purpose' => $purpose,
+                ],
+            );
+
+            return [$disk, $path];
+        });
+
+        Storage::disk($disk)->delete($path);
+    }
+
     /**
      * @return array{
      *     file: UploadedFile,

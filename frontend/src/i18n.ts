@@ -6,11 +6,13 @@ import commonId from './locales/id/common.json';
 import authId from './locales/id/auth.json';
 import portalId from './locales/id/portal.json';
 import dashboardId from './locales/id/dashboard.json';
+import contentId from './locales/id/content.json';
 
 import commonEn from './locales/en/common.json';
 import authEn from './locales/en/auth.json';
 import portalEn from './locales/en/portal.json';
 import dashboardEn from './locales/en/dashboard.json';
+import contentEn from './locales/en/content.json';
 
 const resources = {
   id: {
@@ -18,12 +20,14 @@ const resources = {
     auth: authId,
     portal: portalId,
     dashboard: dashboardId,
+    content: contentId,
   },
   en: {
     common: commonEn,
     auth: authEn,
     portal: portalEn,
     dashboard: dashboardEn,
+    content: contentEn,
   },
 };
 
@@ -36,7 +40,7 @@ i18n
     load: 'languageOnly',
     nonExplicitSupportedLngs: true,
     fallbackLng: 'id',
-    ns: ['common', 'auth', 'portal', 'dashboard'],
+    ns: ['common', 'auth', 'portal', 'dashboard', 'content'],
     defaultNS: 'common',
     interpolation: {
       escapeValue: false,

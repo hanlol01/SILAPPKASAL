@@ -201,3 +201,9 @@ Canonical Campus Admin permissions are `content.create.campus`, `content.update.
 `content.attachment.manage.own_campus`. Canonical Super Admin permissions are `content.review`,
 `content.publish.global`, `content.archive`, `content.feature.manage`, `content.category.govern`, and
 `content.read.management.all`. Backend policies and locked service transactions are authoritative.
+
+C2 presents the management navigation and `/dashboard/content` only to Campus Admin with
+`content.read.management.own_campus`. This frontend guard is not authorization: list/detail queries
+also force `scope=campus` and the actor's `university_id`, while update, submit, revision creation,
+upload, and attachment removal reauthorize after row locks. C2 does not expose review, approval,
+publication, archive, feature, or category-governance actions to Campus Admin.

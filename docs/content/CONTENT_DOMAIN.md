@@ -121,6 +121,8 @@ All authenticated published, management, and attachment responses are private an
 C4 must exclude `/api`, `/dashboard/content`, `/portal/reports`, all Report/Case/Evidence routes,
 private attachments, and authenticated management pages from any service-worker response cache.
 
-C1 does not implement Admin management UI, Super Admin review UI, Reporter Pusat Informasi, PWA
-manifest/service worker, notification delivery, scheduled publication, unauthenticated reading,
-comments, reactions, bookmarks, multilingual bodies, Flutter, or production deployment.
+C2 implements the campus Admin management UI at `/dashboard/content` and the minimum management
+read/revision/PDF-removal endpoints documented in `CONTENT_MANAGEMENT.md`. Super Admin review UI,
+Reporter Pusat Informasi, PWA manifest/service worker, notification delivery, scheduled publication,
+unauthenticated reading, comments, reactions, bookmarks, multilingual bodies, Flutter, and
+production deployment remain deferred.

@@ -599,7 +599,7 @@ Milestone 22 Additional QA:
   backend. Published visibility is pointer-based, versioned, immutable, archived-safe, and campus-safe.
 - Four sections, ten storyboard categories, 41 Article drafts, and eight FAQ drafts are represented by
   one idempotent seeder definition. No Consultation contact is fabricated and nothing auto-publishes.
-- Authenticated published-read and backend management-foundation routes exist. C2 Admin UI, C3 Super
+- Authenticated published-read routes and the C2 campus Admin management surface exist. C3 Super
   Admin review UI, C4 Reporter Pusat Informasi/PWA work, and C5 release scope remain deferred.
 - Symfony HtmlSanitizer 7.4.14 is the only new dependency. Intervention Image is not installed because
   the audited PHP runtime has no GD, Imagick, or EXIF extension.
@@ -614,3 +614,20 @@ Milestone 22 Additional QA:
 - PHPUnit now force-resolves to SQLite `:memory:`. Disposable PostgreSQL verification is limited to
   local `silappkasal_test` with explicit confirmation; the local development database `silappkasal`
   is prohibited for automated tests.
+
+## REV-CONTENT-01 C2 Handoff
+
+- Campus Admin navigation exposes `Manajemen Konten` only with
+  `content.read.management.own_campus`; the route repeats the role/permission guard and every API is
+  backend-authorized and campus-scoped.
+- `/dashboard/content` provides status summaries, filters, pagination, responsive list/card views,
+  create/edit/view/preview/submit/revision actions, controlled Article/FAQ editing, structured
+  Consultation editing, revision feedback, and unsaved-change protection.
+- The controlled block editor serializes C1 JSON directly and supports paragraphs, H2/H3, bold,
+  italic, ordered/unordered lists, blockquotes, allowlisted links, callouts, and dividers. Arbitrary
+  HTML is never authoritative.
+- General PDF attachments remain private, use safe generated labels, report upload progress, and can
+  be removed only from an editable authorized draft. Image controls remain disabled with an explicit
+  capability notice.
+- C2 adds no dependency, migration, C3 review action, Reporter route, service worker, notification
+  delivery, or production deployment.

@@ -14,6 +14,7 @@ import {
   Sun,
   Database,
   ScrollText,
+  LibraryBig,
 } from "lucide-react";
 import {
   Sidebar,
@@ -103,6 +104,13 @@ const nav: {
     url: "/dashboard/master-data",
     icon: Database,
     roles: ["super_admin"],
+  },
+  {
+    key: "contentManagement",
+    url: "/dashboard/content",
+    icon: LibraryBig,
+    roles: ["admin"],
+    permission: "content.read.management.own_campus",
   },
   {
     key: "activityLog",

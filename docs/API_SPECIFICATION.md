@@ -1985,15 +1985,30 @@ GET  /api/v1/content/featured
 GET  /api/v1/content/attachments/{attachmentPublicId}
 ```
 
-The C1 management foundation provides backend-only authoring operations. It does not imply a C2/C3
-UI or complete review endpoint surface.
+The C1 foundation plus C2 campus-management surface provides the following authenticated operations.
+These routes are campus-scoped for Admin management; they do not provide C3 review actions.
 
 ```text
-POST  /api/v1/content-management/items
-PATCH /api/v1/content-management/versions/{versionPublicId}
-POST  /api/v1/content-management/versions/{versionPublicId}/submit
-POST  /api/v1/content-management/versions/{versionPublicId}/attachments
+GET    /api/v1/content-management/items
+GET    /api/v1/content-management/summary
+GET    /api/v1/content-management/consultation-options
+GET    /api/v1/content-management/items/{itemPublicId}
+POST   /api/v1/content-management/items
+POST   /api/v1/content-management/items/{itemPublicId}/revisions
+PATCH  /api/v1/content-management/versions/{versionPublicId}
+POST   /api/v1/content-management/versions/{versionPublicId}/submit
+POST   /api/v1/content-management/versions/{versionPublicId}/attachments
+DELETE /api/v1/content-management/attachments/{attachmentPublicId}
 ```
+
+The list accepts `content_type`, `lifecycle_status`, category public ID, escaped search, `page`, and
+`per_page`. List/detail/summary results include only the authenticated Admin's campus. Global seeded
+drafts and other-campus records return no list result and cannot be opened directly. Detail responses
+project the controlled draft document, typed Article/FAQ/Consultation fields, generic attachment
+metadata, and the author's revision/rejection feedback; review identities and internal IDs remain
+excluded. Revision creation requires a published campus item with no active authoring version.
+Attachment deletion is limited to general attachments on an editable authorized version and is
+audited as `content.attachment_removed`.
 
 Article reader resources expose public ID, slug, title, plain excerpt, safe section/category/scope,
 cover projection, publication time, computed reading time, and—for detail only—the controlled body,

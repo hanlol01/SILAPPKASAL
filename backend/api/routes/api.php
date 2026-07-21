@@ -69,12 +69,18 @@ Route::prefix('v1')->group(function (): void {
     });
 
     Route::middleware('auth:sanctum')->prefix('content-management')->group(function (): void {
+        Route::get('/items', [ContentManagementController::class, 'index']);
+        Route::get('/summary', [ContentManagementController::class, 'summary']);
+        Route::get('/consultation-options', [ContentManagementController::class, 'consultationOptions']);
+        Route::get('/items/{item:public_id}', [ContentManagementController::class, 'show']);
         Route::post('/items', [ContentManagementController::class, 'store']);
+        Route::post('/items/{item:public_id}/revisions', [ContentManagementController::class, 'createRevision']);
         Route::patch('/versions/{version:public_id}', [ContentManagementController::class, 'update']);
         Route::post('/versions/{version:public_id}/submit', [ContentManagementController::class, 'submit']);
         Route::post('/versions/{version:public_id}/attachments', [ContentManagementController::class, 'upload'])
             ->middleware('throttle:10,1')
             ->name('content.attachments.upload');
+        Route::delete('/attachments/{attachment:public_id}', [ContentManagementController::class, 'removeAttachment']);
     });
 
     Route::middleware('auth:sanctum')->prefix('master')->group(function (): void {

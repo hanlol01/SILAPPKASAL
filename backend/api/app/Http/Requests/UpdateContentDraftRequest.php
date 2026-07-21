@@ -16,7 +16,7 @@ class UpdateContentDraftRequest extends StoreContentItemRequest
         }
         unset($fieldRules);
 
-        unset($rules['content_type'], $rules['section_code'], $rules['category_public_id'], $rules['scope'], $rules['university_id'], $rules['slug']);
+        unset($rules['content_type'], $rules['scope'], $rules['university_id'], $rules['slug']);
         $rules['lock_version'] = ['sometimes', 'integer', 'min:1'];
 
         return $rules;
