@@ -1,6 +1,6 @@
 # REV-CONTENT-01 C1 Content Domain
 
-Status: backend foundation implemented; not deployed.
+Status: C1-C3 publication, authoring, and governance implemented; not deployed.
 
 ## Aggregate and lifecycle
 
@@ -121,11 +121,12 @@ All authenticated published, management, and attachment responses are private an
 C4 must exclude `/api`, `/dashboard/content`, `/portal/reports`, all Report/Case/Evidence routes,
 private attachments, and authenticated management pages from any service-worker response cache.
 
-C2 implements the campus Admin management UI at `/dashboard/content` and the minimum management
-read/revision/PDF-removal endpoints documented in `CONTENT_MANAGEMENT.md`. Super Admin review UI,
-Reporter Pusat Informasi, PWA manifest/service worker, notification delivery, scheduled publication,
-unauthenticated reading, comments, reactions, bookmarks, multilingual bodies, Flutter, and
-production deployment remain deferred.
+C2 implements the campus Admin management UI at `/dashboard/content`. C3 implements Super Admin
+review, distinct approval/publication, global authoring, archive, decision history, and featured
+placement governance at `/dashboard/content-governance`, as documented in `CONTENT_MANAGEMENT.md`.
+Reporter Pusat Informasi, the featured carousel, PWA manifest/service worker, notification delivery,
+scheduled publication, unauthenticated reading, comments, reactions, bookmarks, multilingual bodies,
+Flutter, and production deployment remain deferred.
 
 C2 integrity hardening treats `lock_version` as mandatory on submission and revalidates it after
 row locking. Archived items are read-only across every Admin mutation; an item with an active
@@ -135,3 +136,20 @@ Private PDF removal deletes storage first inside the guarded operation and remov
 only after storage confirms success. Structured documents retain their original JSON node-by-node:
 complex supported shapes that the simple editor cannot safely edit are shown read-only and are
 serialized unchanged.
+
+## C3 editorial and featured concurrency
+
+Editorial mutations lock and reload actor, version, and item, then require the current item
+`lock_version`. Stale review, invalid lifecycle, archived state, and active-authoring conflicts use
+stable 409 codes. Approval reruns the controlled-document, CTA, attachment, scope, and publication
+checks; publication is a separate locked transition that atomically advances the published pointer.
+
+The review queue contains only submitted, in-review, and approved authoring versions. Published
+content is exposed through a separate governance query so archive operations do not redefine queue
+eligibility. Review detail combines authoritative audit actions with encrypted append-only review
+decisions and projects only safe actor display fields.
+
+Featured placements use an opaque concurrency token derived from the locked persisted placement
+state. This avoids timestamp-resolution races without a schema change. The backend independently
+resolves the Article, scope, campus, publication pointer, archive state, rank, and active window;
+frontend titles or publication claims are never trusted.

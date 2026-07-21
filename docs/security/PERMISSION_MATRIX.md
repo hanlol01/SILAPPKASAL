@@ -184,7 +184,7 @@ evidence.upload, evidence.view.case      ← future capability
 
 The Super Admin Cases sidebar link is hidden in R3. This navigation change does not revoke direct read-only Case authorization, Report-to-Case links, or Activity Log references.
 
-## 7. REV-CONTENT-01 C1 Permissions
+## 7. REV-CONTENT-01 C1-C3 Permissions
 
 | Capability | Reporter | Satgas | Campus Admin | Super Admin |
 |---|---:|---:|---:|---:|
@@ -207,3 +207,16 @@ C2 presents the management navigation and `/dashboard/content` only to Campus Ad
 also force `scope=campus` and the actor's `university_id`, while update, submit, revision creation,
 upload, and attachment removal reauthorize after row locks. C2 does not expose review, approval,
 publication, archive, feature, or category-governance actions to Campus Admin.
+
+C3 presents `/dashboard/content-governance` only to Super Admin with
+`content.read.management.all`. Individual tabs and backend routes additionally require:
+
+- `content.review` for review start, revision request, rejection, approval, and publication;
+- `content.publish.global` for global-only authoring through the shared management endpoints;
+- `content.archive` for published-item archive;
+- `content.feature.manage` for featured list, eligibility, create, update, and removal.
+
+Campus content is read-only to Super Admin outside the decision operations: direct campus body,
+contact, or attachment mutations resolve as non-disclosing 404 through the global authoring query.
+Global content is never visible to Campus Admin management queries. Review services reject the item
+creator and the version author/editor, so global authoring requires a different Super Admin reviewer.

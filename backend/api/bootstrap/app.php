@@ -1,17 +1,20 @@
 <?php
 
+use App\Http\Middleware\AuditSensitiveAuthorizationDenials;
+use App\Http\Middleware\GenerateRequestId;
+use App\Http\Middleware\PermissionMiddleware;
+use App\Http\Middleware\PrivateNoStore;
+use App\Http\Middleware\RoleMiddleware;
+use App\Http\Middleware\SetApiLocale;
+use App\Support\ApiErrorCode;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Auth\AuthenticationException;
-use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Http\Request;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
-use App\Http\Middleware\SetApiLocale;
-use App\Http\Middleware\GenerateRequestId;
-use App\Http\Middleware\AuditSensitiveAuthorizationDenials;
-use App\Support\ApiErrorCode;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -28,8 +31,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            'role' => \App\Http\Middleware\RoleMiddleware::class,
-            'permission' => \App\Http\Middleware\PermissionMiddleware::class,
+            'role' => RoleMiddleware::class,
+            'permission' => PermissionMiddleware::class,
+            'private.no-store' => PrivateNoStore::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -84,5 +88,14 @@ return Application::configure(basePath: dirname(__DIR__))
                 'errors' => null,
                 'retry_after' => (int) ($e->getHeaders()['Retry-After'] ?? 0),
             ], 429);
+        });
+
+        $exceptions->respond(function ($response, Throwable $exception, Request $request) {
+            if ($request->is('api/v1/content-governance*')) {
+                $response->headers->set('Cache-Control', 'private, no-store, max-age=0');
+                $response->headers->set('Pragma', 'no-cache');
+            }
+
+            return $response;
         });
     })->create();

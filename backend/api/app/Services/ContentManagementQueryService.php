@@ -22,7 +22,7 @@ class ContentManagementQueryService
     /** @param array<string, mixed> $filters */
     public function items(User $actor, array $filters): LengthAwarePaginator
     {
-        $query = $this->campusItems($actor)->with($this->summaryRelations());
+        $query = $this->manageableItems($actor)->with($this->summaryRelations());
 
         if (! empty($filters['content_type'])) {
             $query->where('content_type', $filters['content_type']);
@@ -63,7 +63,7 @@ class ContentManagementQueryService
     public function summary(User $actor): array
     {
         $counts = array_fill_keys(ContentLifecycleStatus::values(), 0);
-        $this->campusItems($actor)->with(['currentDraftVersion', 'latestVersion'])->get()
+        $this->manageableItems($actor)->with(['currentDraftVersion', 'latestVersion'])->get()
             ->each(function (ContentItem $item) use (&$counts): void {
                 $status = $item->archived_at !== null
                     ? ContentLifecycleStatus::Archived->value
@@ -84,7 +84,7 @@ class ContentManagementQueryService
 
     public function itemModel(User $actor, string $publicId): ContentItem
     {
-        $item = $this->campusItems($actor)
+        $item = $this->manageableItems($actor)
             ->where('public_id', $publicId)
             ->firstOrFail();
 
@@ -97,42 +97,40 @@ class ContentManagementQueryService
 
     public function version(User $actor, string $publicId): ContentVersion
     {
-        $this->authorizeCampusManager($actor);
+        $this->authorizeManager($actor);
 
         return ContentVersion::query()
             ->where('public_id', $publicId)
-            ->whereHas('item', fn (Builder $item) => $item
-                ->where('scope', ContentScope::Campus->value)
-                ->where('university_id', $actor->university_id))
+            ->whereHas('item', fn (Builder $item) => $this->constrainManageableItems($item, $actor))
             ->firstOrFail();
     }
 
     public function attachment(User $actor, string $publicId): ContentAttachment
     {
-        $this->authorizeCampusManager($actor);
+        $this->authorizeManager($actor);
 
         return ContentAttachment::query()
             ->where('public_id', $publicId)
-            ->whereHas('version.item', fn (Builder $item) => $item
-                ->where('scope', ContentScope::Campus->value)
-                ->where('university_id', $actor->university_id))
+            ->whereHas('version.item', fn (Builder $item) => $this->constrainManageableItems($item, $actor))
             ->firstOrFail();
     }
 
     /** @return Collection<int, ContentItem> */
     public function eligibleConsultations(User $actor): Collection
     {
-        $this->authorizeCampusManager($actor);
+        $this->authorizeManager($actor);
 
         return ContentItem::query()
             ->where('content_type', ContentType::Consultation->value)
             ->whereNull('archived_at')
             ->whereNotNull('published_version_id')
             ->where(function (Builder $scope) use ($actor): void {
-                $scope->where('scope', ContentScope::Global->value)
-                    ->orWhere(fn (Builder $campus) => $campus
+                $scope->where('scope', ContentScope::Global->value);
+                if ($actor->hasRole('admin')) {
+                    $scope->orWhere(fn (Builder $campus) => $campus
                         ->where('scope', ContentScope::Campus->value)
                         ->where('university_id', $actor->university_id));
+                }
             })
             ->whereHas('publishedVersion', fn (Builder $version) => $version
                 ->where('lifecycle_status', ContentLifecycleStatus::Published->value)
@@ -146,21 +144,35 @@ class ContentManagementQueryService
     }
 
     /** @return Builder<ContentItem> */
-    private function campusItems(User $actor): Builder
+    private function manageableItems(User $actor): Builder
     {
-        $this->authorizeCampusManager($actor);
+        $this->authorizeManager($actor);
 
-        return ContentItem::query()
+        return $this->constrainManageableItems(ContentItem::query(), $actor);
+    }
+
+    /** @param Builder<ContentItem> $query @return Builder<ContentItem> */
+    private function constrainManageableItems(Builder $query, User $actor): Builder
+    {
+        if ($actor->hasRole('super_admin')) {
+            return $query->where('scope', ContentScope::Global->value);
+        }
+
+        return $query
             ->where('scope', ContentScope::Campus->value)
             ->where('university_id', $actor->university_id);
     }
 
-    private function authorizeCampusManager(User $actor): void
+    private function authorizeManager(User $actor): void
     {
         $actor->loadMissing('role.permissions');
-        if (! $actor->is_active || ! $actor->hasRole('admin')
-            || $actor->university_id === null
-            || ! $actor->hasPermission('content.read.management.own_campus')) {
+        $campusManager = $actor->hasRole('admin')
+            && $actor->university_id !== null
+            && $actor->hasPermission('content.read.management.own_campus');
+        $globalManager = $actor->hasRole('super_admin')
+            && $actor->hasPermission('content.read.management.all')
+            && $actor->hasPermission('content.publish.global');
+        if (! $actor->is_active || (! $campusManager && ! $globalManager)) {
             throw $this->forbidden();
         }
     }
@@ -197,7 +209,7 @@ class ContentManagementQueryService
     {
         return new HttpResponseException(response()->json([
             'success' => false,
-            'message' => 'You do not have permission to manage campus content',
+            'message' => 'You do not have permission to manage this content scope',
             'errors' => null,
         ], 403));
     }

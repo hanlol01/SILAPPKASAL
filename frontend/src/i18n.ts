@@ -7,12 +7,14 @@ import authId from './locales/id/auth.json';
 import portalId from './locales/id/portal.json';
 import dashboardId from './locales/id/dashboard.json';
 import contentId from './locales/id/content.json';
+import contentGovernanceId from './locales/id/contentGovernance.json';
 
 import commonEn from './locales/en/common.json';
 import authEn from './locales/en/auth.json';
 import portalEn from './locales/en/portal.json';
 import dashboardEn from './locales/en/dashboard.json';
 import contentEn from './locales/en/content.json';
+import contentGovernanceEn from './locales/en/contentGovernance.json';
 
 const resources = {
   id: {
@@ -21,6 +23,7 @@ const resources = {
     portal: portalId,
     dashboard: dashboardId,
     content: contentId,
+    contentGovernance: contentGovernanceId,
   },
   en: {
     common: commonEn,
@@ -28,6 +31,7 @@ const resources = {
     portal: portalEn,
     dashboard: dashboardEn,
     content: contentEn,
+    contentGovernance: contentGovernanceEn,
   },
 };
 
@@ -40,7 +44,7 @@ i18n
     load: 'languageOnly',
     nonExplicitSupportedLngs: true,
     fallbackLng: 'id',
-    ns: ['common', 'auth', 'portal', 'dashboard', 'content'],
+    ns: ['common', 'auth', 'portal', 'dashboard', 'content', 'contentGovernance'],
     defaultNS: 'common',
     interpolation: {
       escapeValue: false,

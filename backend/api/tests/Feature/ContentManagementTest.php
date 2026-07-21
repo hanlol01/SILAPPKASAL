@@ -110,8 +110,9 @@ class ContentManagementTest extends TestCase
         $this->patchJson('/api/v1/content-management/versions/'.$item->currentDraftVersion->public_id, ['title' => 'Tidak Boleh'])
             ->assertForbidden();
 
-        $item = $service->startReview($item->currentDraftVersion->fresh(), $super);
-        $item = $service->requestRevision($item->currentDraftVersion, $super, 'Tambahkan sumber yang telah diverifikasi.');
+        $item->refresh();
+        $item = $service->startReview($item->currentDraftVersion->fresh(), $super, (int) $item->lock_version);
+        $item = $service->requestRevision($item->currentDraftVersion, $super, 'Tambahkan sumber yang telah diverifikasi.', (int) $item->lock_version);
         $this->getJson('/api/v1/content-management/items/'.$item->public_id)
             ->assertOk()
             ->assertJsonPath('data.lifecycle_status', 'revision_requested')
@@ -119,14 +120,16 @@ class ContentManagementTest extends TestCase
 
         $item = $service->updateDraft($item->currentDraftVersion, $admin, ['excerpt' => 'Ringkasan revisi.']);
         $item = $service->submit($item->currentDraftVersion, $admin, (int) $item->lock_version);
-        $item = $service->startReview($item->currentDraftVersion, $super);
-        $item = $service->approve($item->currentDraftVersion, $super);
-        $item = $service->publishApproved($item->currentDraftVersion, $super);
+        $item = $service->startReview($item->currentDraftVersion, $super, (int) $item->lock_version);
+        $item = $service->approve($item->currentDraftVersion, $super, (int) $item->lock_version);
+        $item = $service->publishApproved($item->currentDraftVersion, $super, (int) $item->lock_version);
 
         Sanctum::actingAs($admin, ['*']);
         $this->patchJson('/api/v1/content-management/versions/'.$item->publishedVersion->public_id, ['title' => 'Tidak Boleh'])
             ->assertForbidden();
-        $this->postJson('/api/v1/content-management/items/'.$item->public_id.'/revisions')
+        $this->postJson('/api/v1/content-management/items/'.$item->public_id.'/revisions', [
+            'lock_version' => $item->lock_version,
+        ])
             ->assertCreated()
             ->assertJsonPath('data.lifecycle_status', 'draft')
             ->assertJsonPath('data.published_version.version_number', 1);
@@ -159,17 +162,17 @@ class ContentManagementTest extends TestCase
         $super = $this->user('super_admin');
         $service = app(ContentPublicationService::class);
         $global = $service->createDraft($super, $this->consultationPayload(ContentScope::Global, null, 'Global Aktif'));
-        $global = $service->directGlobalPublish($global->currentDraftVersion, $super);
+        $global = $service->directGlobalPublish($global->currentDraftVersion, $super, (int) $global->lock_version);
         $own = $service->createDraft($adminA, $this->consultationPayload(ContentScope::Campus, $this->campusA, 'Kampus Aktif'));
         $own = $service->submit($own->currentDraftVersion, $adminA, (int) $own->lock_version);
-        $own = $service->startReview($own->currentDraftVersion, $super);
-        $own = $service->approve($own->currentDraftVersion, $super);
-        $own = $service->publishApproved($own->currentDraftVersion, $super);
+        $own = $service->startReview($own->currentDraftVersion, $super, (int) $own->lock_version);
+        $own = $service->approve($own->currentDraftVersion, $super, (int) $own->lock_version);
+        $own = $service->publishApproved($own->currentDraftVersion, $super, (int) $own->lock_version);
         $foreign = $service->createDraft($adminB, $this->consultationPayload(ContentScope::Campus, $this->campusB, 'Kampus Asing'));
         $foreign = $service->submit($foreign->currentDraftVersion, $adminB, (int) $foreign->lock_version);
-        $foreign = $service->startReview($foreign->currentDraftVersion, $super);
-        $foreign = $service->approve($foreign->currentDraftVersion, $super);
-        $service->publishApproved($foreign->currentDraftVersion, $super);
+        $foreign = $service->startReview($foreign->currentDraftVersion, $super, (int) $foreign->lock_version);
+        $foreign = $service->approve($foreign->currentDraftVersion, $super, (int) $foreign->lock_version);
+        $service->publishApproved($foreign->currentDraftVersion, $super, (int) $foreign->lock_version);
 
         Sanctum::actingAs($adminA, ['*']);
         $response = $this->getJson('/api/v1/content-management/consultation-options')->assertOk();

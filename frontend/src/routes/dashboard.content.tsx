@@ -159,7 +159,8 @@ function DashboardContentPage() {
     },
   });
   const revisionMutation = useMutation({
-    mutationFn: createContentRevision,
+    mutationFn: (item: ManagedContentSummary) =>
+      createContentRevision(item.public_id, item.lock_version),
     onSuccess: async (item) => {
       toast.success(t("content:revisionCreated"));
       await invalidate();
@@ -388,7 +389,7 @@ function DashboardContentPage() {
                             item={item}
                             open={openItem}
                             submit={(value) => submitMutation.mutate(value)}
-                            createRevision={(id) => revisionMutation.mutate(id)}
+                            createRevision={(value) => revisionMutation.mutate(value)}
                             pending={submitMutation.isPending || revisionMutation.isPending}
                             canUpdate={canUpdate}
                             canSubmit={canSubmit}
@@ -419,7 +420,7 @@ function DashboardContentPage() {
                       item={item}
                       open={openItem}
                       submit={(value) => submitMutation.mutate(value)}
-                      createRevision={(id) => revisionMutation.mutate(id)}
+                      createRevision={(value) => revisionMutation.mutate(value)}
                       pending={submitMutation.isPending || revisionMutation.isPending}
                       canUpdate={canUpdate}
                       canSubmit={canSubmit}
@@ -615,7 +616,7 @@ function ItemActions({
   item: ManagedContentSummary;
   open: (item: ManagedContentSummary) => void;
   submit: (item: ManagedContentSummary) => void;
-  createRevision: (id: string) => void;
+  createRevision: (item: ManagedContentSummary) => void;
   pending: boolean;
   canUpdate: boolean;
   canSubmit: boolean;
@@ -645,7 +646,7 @@ function ItemActions({
           size="sm"
           className="min-h-11"
           disabled={pending}
-          onClick={() => createRevision(item.public_id)}
+          onClick={() => createRevision(item)}
         >
           {pending ? (
             <Loader2 className="mr-1 h-4 w-4 animate-spin" />

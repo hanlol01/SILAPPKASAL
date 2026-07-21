@@ -109,8 +109,10 @@ class ContentManagementRepairTest extends TestCase
         Storage::disk('content')->assertExists($storedPath);
 
         $published = $this->publishCampusArticle($admin, $this->user('super_admin'), 'Arsip Resmi');
-        $published = $service->archive($published, $this->user('super_admin'), 'Sudah tidak berlaku.');
-        $this->postJson('/api/v1/content-management/items/'.$published->public_id.'/revisions')
+        $published = $service->archive($published, $this->user('super_admin'), 'Sudah tidak berlaku.', (int) $published->lock_version);
+        $this->postJson('/api/v1/content-management/items/'.$published->public_id.'/revisions', [
+            'lock_version' => $published->lock_version,
+        ])
             ->assertStatus(409)->assertJsonPath('error_code', 'content_archived');
     }
 
@@ -141,7 +143,9 @@ class ContentManagementRepairTest extends TestCase
         foreach ([[$foreign, $foreignAttachment], [$global, $globalAttachment]] as [$target, $attachment]) {
             $versionId = $target->currentDraftVersion->public_id;
             $this->getJson('/api/v1/content-management/items/'.$target->public_id)->assertNotFound();
-            $this->postJson('/api/v1/content-management/items/'.$target->public_id.'/revisions')->assertNotFound();
+            $this->postJson('/api/v1/content-management/items/'.$target->public_id.'/revisions', [
+                'lock_version' => $target->lock_version,
+            ])->assertNotFound();
             $this->patchJson('/api/v1/content-management/versions/'.$versionId, [
                 'title' => 'Probe',
                 'lock_version' => $target->lock_version,
@@ -164,11 +168,11 @@ class ContentManagementRepairTest extends TestCase
         $reviewer = $this->user('super_admin');
         $service = app(ContentPublicationService::class);
         $item = $this->publishCampusArticle($admin, $reviewer, 'Revisi Aktif');
-        $item = $service->createRevision($item, $admin);
+        $item = $service->createRevision($item, $admin, (int) $item->lock_version);
         $draftId = $item->current_draft_version_id;
 
         try {
-            $service->archive($item, $reviewer, 'Tidak boleh menghilangkan draf aktif.');
+            $service->archive($item, $reviewer, 'Tidak boleh menghilangkan draf aktif.', (int) $item->lock_version);
             $this->fail('Archiving should fail while an authoring version is active.');
         } catch (HttpResponseException $exception) {
             $this->assertSame(409, $exception->getResponse()->getStatusCode());
@@ -222,10 +226,10 @@ class ContentManagementRepairTest extends TestCase
         $service = app(ContentPublicationService::class);
         $item = $service->createDraft($admin, $this->articlePayload($this->campusA, $title));
         $item = $service->submit($item->currentDraftVersion, $admin, (int) $item->lock_version);
-        $item = $service->startReview($item->currentDraftVersion, $reviewer);
-        $item = $service->approve($item->currentDraftVersion, $reviewer);
+        $item = $service->startReview($item->currentDraftVersion, $reviewer, (int) $item->lock_version);
+        $item = $service->approve($item->currentDraftVersion, $reviewer, (int) $item->lock_version);
 
-        return $service->publishApproved($item->currentDraftVersion, $reviewer);
+        return $service->publishApproved($item->currentDraftVersion, $reviewer, (int) $item->lock_version);
     }
 
     private function articlePayload(University $campus, string $title): array

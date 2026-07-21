@@ -50,6 +50,14 @@ final class ApiErrorCode
 
     public const ContentStaleVersion = 'content_stale_version';
 
+    public const ContentStaleReview = 'content_stale_review';
+
+    public const ContentInvalidLifecycleTransition = 'content_invalid_lifecycle_transition';
+
+    public const ContentFeaturedStale = 'content_featured_stale';
+
+    public const ContentFeaturedConflict = 'content_featured_conflict';
+
     public const ContentAttachmentDeletionFailed = 'content_attachment_deletion_failed';
 
     public const RecoveryMonitoringRequired = 'recovery_monitoring_required';

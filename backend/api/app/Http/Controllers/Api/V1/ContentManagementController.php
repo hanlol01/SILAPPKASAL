@@ -30,7 +30,7 @@ class ContentManagementController extends Controller
     {
         $items = $this->queries->items($request->user(), $request->validated());
 
-        return $this->response(ContentManagementResource::collection($items->items()), 'Campus content retrieved successfully', 200, [
+        return $this->response(ContentManagementResource::collection($items->items()), 'Managed content retrieved successfully', 200, [
             'current_page' => $items->currentPage(),
             'per_page' => $items->perPage(),
             'total' => $items->total(),
@@ -40,14 +40,14 @@ class ContentManagementController extends Controller
 
     public function summary(ContentManagementActionRequest $request): JsonResponse
     {
-        return $this->response($this->queries->summary($request->user()), 'Campus content summary retrieved successfully');
+        return $this->response($this->queries->summary($request->user()), 'Managed content summary retrieved successfully');
     }
 
     public function show(ContentManagementActionRequest $request, string $item): JsonResponse
     {
         return $this->response(
             new ContentManagementDetailResource($this->queries->item($request->user(), $item)),
-            'Campus content detail retrieved successfully',
+            'Managed content detail retrieved successfully',
         );
     }
 
@@ -86,10 +86,14 @@ class ContentManagementController extends Controller
         return $this->response(new ContentManagementResource($item), 'Content submitted for review successfully');
     }
 
-    public function createRevision(ContentManagementActionRequest $request, string $item): JsonResponse
+    public function createRevision(SubmitContentVersionRequest $request, string $item): JsonResponse
     {
         $item = $this->queries->itemModel($request->user(), $item);
-        $item = $this->publication->createRevision($item, $request->user());
+        $item = $this->publication->createRevision(
+            $item,
+            $request->user(),
+            (int) $request->validated('lock_version'),
+        );
 
         return $this->response(new ContentManagementResource($item), 'Content revision created successfully', 201);
     }

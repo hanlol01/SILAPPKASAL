@@ -362,15 +362,15 @@ class ContentFoundationTest extends TestCase
         $service = app(ContentPublicationService::class);
 
         $revisionItem = $service->createDraft($admin, $this->articlePayload(ContentScope::Campus, $this->campusA, 'Memerlukan Revisi'));
-        $service->submit($revisionItem->currentDraftVersion, $admin, (int) $revisionItem->lock_version);
-        $service->startReview($revisionItem->currentDraftVersion->fresh(), $super);
+        $revisionItem = $service->submit($revisionItem->currentDraftVersion, $admin, (int) $revisionItem->lock_version);
+        $service->startReview($revisionItem->currentDraftVersion->fresh(), $super, (int) $revisionItem->lock_version);
         try {
-            $service->requestRevision($revisionItem->currentDraftVersion->fresh(), $super, '   ');
+            $service->requestRevision($revisionItem->currentDraftVersion->fresh(), $super, '   ', (int) $revisionItem->fresh()->lock_version);
             $this->fail('A revision request without reason was accepted.');
         } catch (ValidationException) {
             $this->assertTrue(true);
         }
-        $service->requestRevision($revisionItem->currentDraftVersion->fresh(), $super, 'Perjelas sumber materi.');
+        $service->requestRevision($revisionItem->currentDraftVersion->fresh(), $super, 'Perjelas sumber materi.', (int) $revisionItem->fresh()->lock_version);
         $this->assertSame(ContentLifecycleStatus::RevisionRequested, $revisionItem->currentDraftVersion->fresh()->lifecycle_status);
         $revisionItem = $service->updateDraft(
             $revisionItem->currentDraftVersion->fresh(),
@@ -381,9 +381,9 @@ class ContentFoundationTest extends TestCase
 
         $approvedItem = $service->createDraft($admin, $this->articlePayload(ContentScope::Campus, $this->campusA, 'Siap Diterbitkan'));
         $approvedItem = $service->submit($approvedItem->currentDraftVersion, $admin, (int) $approvedItem->lock_version);
-        $approvedItem = $service->startReview($approvedItem->currentDraftVersion, $super);
-        $approvedItem = $service->approve($approvedItem->currentDraftVersion, $super, 'Catatan persetujuan aman.');
-        $approvedItem = $service->publishApproved($approvedItem->currentDraftVersion, $super);
+        $approvedItem = $service->startReview($approvedItem->currentDraftVersion, $super, (int) $approvedItem->lock_version);
+        $approvedItem = $service->approve($approvedItem->currentDraftVersion, $super, (int) $approvedItem->lock_version, 'Catatan persetujuan aman.');
+        $approvedItem = $service->publishApproved($approvedItem->currentDraftVersion, $super, (int) $approvedItem->lock_version);
         $this->assertNotNull($approvedItem->published_version_id);
         $this->assertNull($approvedItem->current_draft_version_id);
         $this->assertSame(
@@ -394,7 +394,7 @@ class ContentFoundationTest extends TestCase
 
         Sanctum::actingAs($reader, ['*']);
         $this->getJson('/api/v1/content/articles/'.$approvedItem->public_id)->assertOk();
-        $service->archive($approvedItem, $super, 'Materi tidak lagi berlaku.');
+        $service->archive($approvedItem, $super, 'Materi tidak lagi berlaku.', (int) $approvedItem->lock_version);
         $this->getJson('/api/v1/content/articles/'.$approvedItem->public_id)->assertNotFound();
 
         $audit = AuditLog::query()->where('action', 'content.revision_requested')->firstOrFail()->toJson();
@@ -493,9 +493,9 @@ class ContentFoundationTest extends TestCase
         $this->get('/api/v1/content/attachments/'.$attachmentId)->assertForbidden();
 
         $item = $service->submit($version->fresh(), $admin, (int) $item->lock_version);
-        $item = $service->startReview($item->currentDraftVersion, $super);
-        $item = $service->approve($item->currentDraftVersion, $super);
-        $service->publishApproved($item->currentDraftVersion, $super);
+        $item = $service->startReview($item->currentDraftVersion, $super, (int) $item->lock_version);
+        $item = $service->approve($item->currentDraftVersion, $super, (int) $item->lock_version);
+        $service->publishApproved($item->currentDraftVersion, $super, (int) $item->lock_version);
 
         Sanctum::actingAs($reader, ['*']);
         $download = $this->get('/api/v1/content/attachments/'.$attachmentId)->assertOk();
@@ -566,13 +566,13 @@ class ContentFoundationTest extends TestCase
         $service = app(ContentPublicationService::class);
 
         try {
-            $service->createRevision($item, $super);
+            $service->createRevision($item, $super, (int) $item->lock_version);
             $this->fail('Super Admin was allowed to author a campus revision.');
         } catch (HttpResponseException) {
             $this->assertTrue(true);
         }
 
-        $revised = $service->createRevision($item, $admin);
+        $revised = $service->createRevision($item, $admin, (int) $item->lock_version);
         $this->assertSame(2, $revised->currentDraftVersion->version_number);
         $this->assertSame($item->published_version_id, $revised->published_version_id);
     }
@@ -586,7 +586,7 @@ class ContentFoundationTest extends TestCase
             $super,
             $this->articlePayload(ContentScope::Global, null, 'Publikasi Global Langsung'),
         );
-        $item = $service->directGlobalPublish($item->currentDraftVersion, $super);
+        $item = $service->directGlobalPublish($item->currentDraftVersion, $super, (int) $item->lock_version);
 
         $this->assertSame(ContentLifecycleStatus::Published, $item->publishedVersion->lifecycle_status);
         $this->assertSame(
@@ -622,9 +622,9 @@ class ContentFoundationTest extends TestCase
             'consultation_cta_public_id' => $globalCta->public_id,
         ]);
         $item = $service->submit($item->currentDraftVersion, $admin, (int) $item->lock_version);
-        $item = $service->startReview($item->currentDraftVersion, $super);
-        $item = $service->approve($item->currentDraftVersion, $super);
-        $item = $service->publishApproved($item->currentDraftVersion, $super);
+        $item = $service->startReview($item->currentDraftVersion, $super, (int) $item->lock_version);
+        $item = $service->approve($item->currentDraftVersion, $super, (int) $item->lock_version);
+        $item = $service->publishApproved($item->currentDraftVersion, $super, (int) $item->lock_version);
 
         Sanctum::actingAs($reader, ['*']);
         $this->getJson('/api/v1/content/articles/'.$item->public_id)
@@ -641,11 +641,11 @@ class ContentFoundationTest extends TestCase
             'consultation_cta_public_id' => $staleCta->public_id,
         ]);
         $pending = $service->submit($pending->currentDraftVersion, $admin, (int) $pending->lock_version);
-        $pending = $service->startReview($pending->currentDraftVersion, $super);
-        $pending = $service->approve($pending->currentDraftVersion, $super);
+        $pending = $service->startReview($pending->currentDraftVersion, $super, (int) $pending->lock_version);
+        $pending = $service->approve($pending->currentDraftVersion, $super, (int) $pending->lock_version);
         $staleCta->forceFill(['archived_at' => now()])->save();
         $this->expectException(ValidationException::class);
-        $service->publishApproved($pending->currentDraftVersion, $super);
+        $service->publishApproved($pending->currentDraftVersion, $super, (int) $pending->lock_version);
     }
 
     private function articlePayload(ContentScope $scope, ?University $campus = null, string $title = 'Artikel Uji'): array

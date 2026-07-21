@@ -100,16 +100,19 @@ test("FAQ document validation errors map to the visible answer editor", () => {
 
 test("private content queries are cancelled and removed without touching public queries", async () => {
   assert.equal(isPrivateContentQueryKey(["content-management", "items"]), true);
+  assert.equal(isPrivateContentQueryKey(["content-governance", "reviews"]), true);
   assert.equal(isPrivateContentQueryKey(["content", "articles"]), false);
   const calls: string[] = [];
   const client = {
     async cancelQueries({ predicate }: { predicate: (query: { queryKey: unknown[] }) => boolean }) {
       assert.equal(predicate({ queryKey: ["content-management", "detail"] }), true);
+      assert.equal(predicate({ queryKey: ["content-governance", "detail"] }), true);
       assert.equal(predicate({ queryKey: ["content", "articles"] }), false);
       calls.push("cancel");
     },
     removeQueries({ predicate }: { predicate: (query: { queryKey: unknown[] }) => boolean }) {
       assert.equal(predicate({ queryKey: ["content-management", "summary"] }), true);
+      assert.equal(predicate({ queryKey: ["content-governance", "featured"] }), true);
       calls.push("remove");
     },
   };
@@ -184,4 +187,92 @@ test("Indonesian and English content locale keys remain in parity", async () => 
   assert.deepEqual(keys(id).sort(), keys(en).sort());
   assert.equal(typeof id.errors.stale, "string");
   assert.equal(typeof en.editor.preservedDescription, "string");
+});
+
+test("content governance review filters stay server-driven and campus content stays read-only", async () => {
+  const route = await readFile(
+    new URL("../src/routes/dashboard.content-governance.tsx", import.meta.url),
+    "utf8",
+  );
+  const api = await readFile(
+    new URL("../src/lib/content-governance-api.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(route, /contentGovernanceKeys\.reviews\(filters\)/);
+  assert.match(route, /getGovernanceReviews\(filters\)/);
+  assert.match(route, /submitted_from: from \|\| undefined/);
+  assert.match(route, /university_code: campus \|\| undefined/);
+  assert.match(api, /"\/content-governance\/reviews"/);
+  assert.match(route, /readOnlyCampus/);
+  assert.doesNotMatch(route, /<ContentEditor[\s\S]{0,300}scope="campus"/);
+});
+
+test("editorial decisions preserve notes on conflict and render only server capabilities", async () => {
+  const route = await readFile(
+    new URL("../src/routes/dashboard.content-governance.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(route, /note\.trim\(\)\.length < 10/);
+  assert.match(route, /content_stale_review/);
+  assert.match(route, /void invalidate\(\)/);
+  assert.doesNotMatch(route, /content_stale_review[\s\S]{0,250}setNote\(""\)/);
+  for (const capability of [
+    "start_review",
+    "request_revision",
+    "reject",
+    "approve",
+    "publish",
+    "archive",
+  ]) {
+    assert.match(route, new RegExp(`capabilities\\.${capability}`));
+  }
+});
+
+test("global authoring is explicitly global and separate from campus review", async () => {
+  const route = await readFile(
+    new URL("../src/routes/dashboard.content-governance.tsx", import.meta.url),
+    "utf8",
+  );
+  const editor = await readFile(
+    new URL("../src/components/content/content-editor.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(route, /<ContentEditor[\s\S]+scope="global"/);
+  assert.match(route, /contentGovernance:global\.secondReview/);
+  assert.match(editor, /scope === "global"/);
+  assert.match(editor, /university_id: scope === "campus"/);
+});
+
+test("featured governance validates dates, uses concurrency token, and has safe mobile actions", async () => {
+  const route = await readFile(
+    new URL("../src/routes/dashboard.content-governance.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(route, /new Date\(form\.from\) > new Date\(form\.until\)/);
+  assert.match(route, /concurrency_token: editing\?\.concurrency_token/);
+  assert.match(route, /removeFeaturedPlacement\(item\.public_id, item\.concurrency_token\)/);
+  assert.match(route, /grid grid-cols-1 gap-2 sm:flex sm:flex-wrap/);
+  assert.match(route, /safe-area-inset-bottom/);
+  assert.match(route, /min-h-11 w-full sm:w-auto/);
+});
+
+test("governance translations and stable error mappings remain complete in both locales", async () => {
+  const [id, en, errors] = await Promise.all([
+    readFile(new URL("../src/locales/id/contentGovernance.json", import.meta.url), "utf8").then(JSON.parse),
+    readFile(new URL("../src/locales/en/contentGovernance.json", import.meta.url), "utf8").then(JSON.parse),
+    readFile(new URL("../src/lib/form-errors.ts", import.meta.url), "utf8"),
+  ]);
+  const keys = (value: unknown, prefix = ""): string[] =>
+    value && typeof value === "object" && !Array.isArray(value)
+      ? Object.entries(value).flatMap(([key, child]) => keys(child, prefix ? `${prefix}.${key}` : key))
+      : [prefix];
+
+  assert.deepEqual(keys(id).sort(), keys(en).sort());
+  assert.match(errors, /content_stale_review/);
+  assert.match(errors, /content_invalid_lifecycle_transition/);
+  assert.match(errors, /content_featured_conflict/);
 });

@@ -73,7 +73,7 @@ class ContentFoundationRepairTest extends TestCase
         $service->updateDraft($source, $admin, ['document' => $this->imageDocument($inline->public_id)]);
         $source->articleContent->forceFill(['cover_attachment_id' => $cover->id])->save();
         $item = $this->publishCampusArticle($item, $admin, $super);
-        $revisionItem = $service->createRevision($item, $admin);
+        $revisionItem = $service->createRevision($item, $admin, (int) $item->lock_version);
         $revision = $revisionItem->currentDraftVersion;
         $clones = $revision->attachments()->get()->keyBy(fn (ContentAttachment $file) => $file->purpose->value);
 
@@ -93,9 +93,9 @@ class ContentFoundationRepairTest extends TestCase
 
         $service->updateDraft($revision, $admin, ['requires_editorial_review' => false]);
         $revisionItem = $service->submit($revision->fresh(), $admin, (int) $revisionItem->fresh()->lock_version);
-        $revisionItem = $service->startReview($revisionItem->currentDraftVersion, $super);
-        $revisionItem = $service->approve($revisionItem->currentDraftVersion, $super);
-        $revisionItem = $service->publishApproved($revisionItem->currentDraftVersion, $super);
+        $revisionItem = $service->startReview($revisionItem->currentDraftVersion, $super, (int) $revisionItem->lock_version);
+        $revisionItem = $service->approve($revisionItem->currentDraftVersion, $super, (int) $revisionItem->lock_version);
+        $revisionItem = $service->publishApproved($revisionItem->currentDraftVersion, $super, (int) $revisionItem->lock_version);
 
         $this->assertSame(2, $revisionItem->publishedVersion->version_number);
         Sanctum::actingAs($this->user('reporter', $this->campusA), ['*']);
@@ -124,7 +124,7 @@ class ContentFoundationRepairTest extends TestCase
         $filesBefore = Storage::disk('content')->allFiles();
 
         try {
-            $service->createRevision($item, $admin);
+            $service->createRevision($item, $admin, (int) $item->lock_version);
             $this->fail('Revision creation accepted a missing source attachment.');
         } catch (ValidationException) {
             $this->assertTrue(true);
@@ -191,12 +191,12 @@ class ContentFoundationRepairTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.consultation_cta_public_id', $cta->public_id);
 
-        $inactiveRevision = $service->createRevision($cta, $super);
+        $inactiveRevision = $service->createRevision($cta, $super, (int) $cta->lock_version);
         $service->updateDraft($inactiveRevision->currentDraftVersion, $super, [
             'is_active' => false,
             'requires_editorial_review' => false,
         ]);
-        $service->directGlobalPublish($inactiveRevision->currentDraftVersion->fresh(), $super);
+        $service->directGlobalPublish($inactiveRevision->currentDraftVersion->fresh(), $super, (int) $inactiveRevision->fresh()->lock_version);
 
         $this->getJson('/api/v1/content/articles/'.$article->public_id)
             ->assertOk()
@@ -207,17 +207,17 @@ class ContentFoundationRepairTest extends TestCase
             'consultation_cta_public_id' => $pendingCta->public_id,
         ]);
         $pendingArticle = $service->submit($pendingArticle->currentDraftVersion, $admin, (int) $pendingArticle->lock_version);
-        $pendingArticle = $service->startReview($pendingArticle->currentDraftVersion, $super);
-        $pendingArticle = $service->approve($pendingArticle->currentDraftVersion, $super);
-        $inactivePending = $service->createRevision($pendingCta, $super);
+        $pendingArticle = $service->startReview($pendingArticle->currentDraftVersion, $super, (int) $pendingArticle->lock_version);
+        $pendingArticle = $service->approve($pendingArticle->currentDraftVersion, $super, (int) $pendingArticle->lock_version);
+        $inactivePending = $service->createRevision($pendingCta, $super, (int) $pendingCta->lock_version);
         $service->updateDraft($inactivePending->currentDraftVersion, $super, [
             'is_active' => false,
             'requires_editorial_review' => false,
         ]);
-        $service->directGlobalPublish($inactivePending->currentDraftVersion->fresh(), $super);
+        $service->directGlobalPublish($inactivePending->currentDraftVersion->fresh(), $super, (int) $inactivePending->fresh()->lock_version);
 
         $this->expectException(ValidationException::class);
-        $service->publishApproved($pendingArticle->currentDraftVersion, $super);
+        $service->publishApproved($pendingArticle->currentDraftVersion, $super, (int) $pendingArticle->lock_version);
     }
 
     public function test_article_detail_is_public_id_only_and_never_resolves_visible_duplicate_slugs(): void
@@ -542,10 +542,10 @@ class ContentFoundationRepairTest extends TestCase
         $service = app(ContentPublicationService::class);
         $item->refresh();
         $item = $service->submit($item->currentDraftVersion->fresh(), $admin, (int) $item->lock_version);
-        $item = $service->startReview($item->currentDraftVersion, $super);
-        $item = $service->approve($item->currentDraftVersion, $super);
+        $item = $service->startReview($item->currentDraftVersion, $super, (int) $item->lock_version);
+        $item = $service->approve($item->currentDraftVersion, $super, (int) $item->lock_version);
 
-        return $service->publishApproved($item->currentDraftVersion, $super);
+        return $service->publishApproved($item->currentDraftVersion, $super, (int) $item->lock_version);
     }
 
     private function publishedGlobalConsultation(User $super, string $title): ContentItem
@@ -563,7 +563,7 @@ class ContentFoundationRepairTest extends TestCase
             'verified_owner' => 'Verified institutional owner',
         ]);
 
-        return $service->directGlobalPublish($item->currentDraftVersion, $super);
+        return $service->directGlobalPublish($item->currentDraftVersion, $super, (int) $item->lock_version);
     }
 
     /** @return array<string, mixed> */

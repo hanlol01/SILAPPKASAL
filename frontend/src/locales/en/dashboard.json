@@ -16,7 +16,8 @@
     "masterData": "Master Data",
     "breakGlass": "Break-glass",
     "activityLog": "Activity Log",
-    "contentManagement": "Content Management",
+      "contentManagement": "Content Management",
+      "contentGovernance": "Content Governance",
     "settings": "Settings"
   },
   "topbar": {

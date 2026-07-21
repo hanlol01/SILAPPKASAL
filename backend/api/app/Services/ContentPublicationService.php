@@ -208,7 +208,7 @@ class ContentPublicationService
         });
     }
 
-    public function startReview(ContentVersion $version, User $actor): ContentItem
+    public function startReview(ContentVersion $version, User $actor, int $expectedLockVersion): ContentItem
     {
         return $this->reviewTransition(
             $version,
@@ -217,10 +217,11 @@ class ContentPublicationService
             ContentLifecycleStatus::InReview,
             ContentReviewDecisionCode::ReviewStarted,
             AuditAction::ContentReviewStarted,
+            expectedLockVersion: $expectedLockVersion,
         );
     }
 
-    public function approve(ContentVersion $version, User $actor, ?string $note = null): ContentItem
+    public function approve(ContentVersion $version, User $actor, int $expectedLockVersion, ?string $note = null): ContentItem
     {
         return $this->reviewTransition(
             $version,
@@ -229,11 +230,12 @@ class ContentPublicationService
             ContentLifecycleStatus::Approved,
             ContentReviewDecisionCode::Approved,
             AuditAction::ContentApproved,
-            $note,
+            expectedLockVersion: $expectedLockVersion,
+            reason: $note,
         );
     }
 
-    public function requestRevision(ContentVersion $version, User $actor, string $reason): ContentItem
+    public function requestRevision(ContentVersion $version, User $actor, string $reason, int $expectedLockVersion): ContentItem
     {
         return $this->reviewTransition(
             $version,
@@ -242,11 +244,12 @@ class ContentPublicationService
             ContentLifecycleStatus::RevisionRequested,
             ContentReviewDecisionCode::RevisionRequested,
             AuditAction::ContentRevisionRequested,
-            $reason,
+            expectedLockVersion: $expectedLockVersion,
+            reason: $reason,
         );
     }
 
-    public function reject(ContentVersion $version, User $actor, string $reason): ContentItem
+    public function reject(ContentVersion $version, User $actor, string $reason, int $expectedLockVersion): ContentItem
     {
         return $this->reviewTransition(
             $version,
@@ -255,13 +258,14 @@ class ContentPublicationService
             ContentLifecycleStatus::Rejected,
             ContentReviewDecisionCode::Rejected,
             AuditAction::ContentRejected,
-            $reason,
+            expectedLockVersion: $expectedLockVersion,
+            reason: $reason,
         );
     }
 
-    public function archive(ContentItem $item, User $actor, string $reason): ContentItem
+    public function archive(ContentItem $item, User $actor, string $reason, int $expectedLockVersion): ContentItem
     {
-        return DB::transaction(function () use ($item, $actor, $reason): ContentItem {
+        return DB::transaction(function () use ($item, $actor, $reason, $expectedLockVersion): ContentItem {
             $actor = $this->lockedActor($actor);
             $item = ContentItem::query()->whereKey($item->id)->lockForUpdate()->firstOrFail();
             $reason = trim($reason);
@@ -269,6 +273,7 @@ class ContentPublicationService
             if (! $this->policy->archive($actor) || $item->published_version_id === null) {
                 throw $this->forbidden();
             }
+            $this->assertLockVersion($item, $expectedLockVersion, ApiErrorCode::ContentStaleReview);
             if ($item->current_draft_version_id !== null) {
                 throw $this->conflict(
                     'Resolve the active authoring version before archiving this content item.',
@@ -301,12 +306,12 @@ class ContentPublicationService
         });
     }
 
-    public function createRevision(ContentItem $item, User $actor): ContentItem
+    public function createRevision(ContentItem $item, User $actor, int $expectedLockVersion): ContentItem
     {
         $clonedPaths = [];
 
         try {
-            return DB::transaction(function () use ($item, $actor, &$clonedPaths): ContentItem {
+            return DB::transaction(function () use ($item, $actor, $expectedLockVersion, &$clonedPaths): ContentItem {
                 $actor = $this->lockedActor($actor);
                 $item = ContentItem::query()->whereKey($item->id)->lockForUpdate()->firstOrFail();
                 $this->ensureNotArchived($item);
@@ -315,6 +320,7 @@ class ContentPublicationService
                 if ($published === null || ! $this->policy->createRevision($actor, $item)) {
                     throw $this->forbidden();
                 }
+                $this->assertLockVersion($item, $expectedLockVersion, ApiErrorCode::ContentStaleVersion);
 
                 if ($item->current_draft_version_id !== null) {
                     throw $this->conflict('An authoring version already exists for this content item.');
@@ -360,19 +366,32 @@ class ContentPublicationService
         ContentLifecycleStatus $target,
         ContentReviewDecisionCode $decision,
         AuditAction $action,
+        int $expectedLockVersion,
         ?string $reason = null,
     ): ContentItem {
-        return DB::transaction(function () use ($version, $actor, $required, $target, $decision, $action, $reason): ContentItem {
+        return DB::transaction(function () use ($version, $actor, $required, $target, $decision, $action, $reason, $expectedLockVersion): ContentItem {
             $actor = $this->lockedActor($actor);
             $version = ContentVersion::query()->whereKey($version->id)->lockForUpdate()->firstOrFail();
             $item = ContentItem::query()->whereKey($version->content_item_id)->lockForUpdate()->firstOrFail();
 
-            if (! $this->policy->review($actor, $item) || $version->lifecycle_status !== $required) {
+            $this->ensureNotArchived($item);
+            if (! $this->policy->review($actor, $item, $version)) {
                 throw $this->forbidden();
+            }
+            $this->assertLockVersion($item, $expectedLockVersion, ApiErrorCode::ContentStaleReview);
+            if ((int) $item->current_draft_version_id !== (int) $version->id) {
+                throw $this->invalidLifecycle($required, $version->lifecycle_status);
+            }
+            if ($version->lifecycle_status !== $required) {
+                throw $this->invalidLifecycle($required, $version->lifecycle_status);
             }
             $reason = $reason === null ? null : trim($reason);
             if ($decision->requiresReason() && blank($reason)) {
                 throw ValidationException::withMessages(['reason' => ['A review reason is required for this decision.']]);
+            }
+            if ($target === ContentLifecycleStatus::Approved) {
+                $version->forceFill(['requires_editorial_review' => false])->save();
+                $this->ensurePublishablePayload($version, true);
             }
 
             $now = now();
@@ -405,29 +424,39 @@ class ContentPublicationService
         });
     }
 
-    public function publishApproved(ContentVersion $version, User $actor): ContentItem
+    public function publishApproved(ContentVersion $version, User $actor, int $expectedLockVersion): ContentItem
     {
-        return $this->publish($version, $actor, false);
+        return $this->publish($version, $actor, false, $expectedLockVersion);
     }
 
-    public function directGlobalPublish(ContentVersion $version, User $actor): ContentItem
+    public function directGlobalPublish(ContentVersion $version, User $actor, int $expectedLockVersion): ContentItem
     {
-        return $this->publish($version, $actor, true);
+        return $this->publish($version, $actor, true, $expectedLockVersion);
     }
 
-    private function publish(ContentVersion $version, User $actor, bool $directGlobal): ContentItem
+    private function publish(ContentVersion $version, User $actor, bool $directGlobal, int $expectedLockVersion): ContentItem
     {
-        return DB::transaction(function () use ($version, $actor, $directGlobal): ContentItem {
+        return DB::transaction(function () use ($version, $actor, $directGlobal, $expectedLockVersion): ContentItem {
             $actor = $this->lockedActor($actor);
             $version = ContentVersion::query()->whereKey($version->id)->lockForUpdate()->firstOrFail();
             $item = ContentItem::query()->whereKey($version->content_item_id)->lockForUpdate()->firstOrFail();
 
+            $this->ensureNotArchived($item);
             if ($directGlobal) {
-                if (! $this->policy->publishGlobal($actor, $item) || ! $version->lifecycle_status?->editable()) {
+                if (! $this->policy->publishGlobal($actor, $item)) {
                     throw $this->forbidden();
                 }
-            } elseif (! $this->policy->review($actor, $item) || $version->lifecycle_status !== ContentLifecycleStatus::Approved) {
+            } elseif (! $this->policy->review($actor, $item, $version)) {
                 throw $this->forbidden();
+            }
+            $this->assertLockVersion($item, $expectedLockVersion, ApiErrorCode::ContentStaleReview);
+            $requiredStatus = $directGlobal ? null : ContentLifecycleStatus::Approved;
+            if ((int) $item->current_draft_version_id !== (int) $version->id) {
+                throw $this->invalidLifecycle($requiredStatus, $version->lifecycle_status);
+            }
+            if (($directGlobal && ! $version->lifecycle_status?->editable())
+                || ($requiredStatus !== null && $version->lifecycle_status !== $requiredStatus)) {
+                throw $this->invalidLifecycle($requiredStatus, $version->lifecycle_status);
             }
 
             $this->ensurePublishablePayload($version, true);
@@ -1011,5 +1040,28 @@ class ContentPublicationService
             'Cache-Control' => 'private, no-store, max-age=0',
             'Pragma' => 'no-cache',
         ]));
+    }
+
+    private function assertLockVersion(ContentItem $item, int $expectedLockVersion, string $errorCode): void
+    {
+        if ((int) $item->lock_version !== $expectedLockVersion) {
+            throw $this->conflict(
+                'Content changed after it was loaded. Reload the authoritative state before continuing.',
+                $errorCode,
+            );
+        }
+    }
+
+    private function invalidLifecycle(
+        ?ContentLifecycleStatus $required,
+        ?ContentLifecycleStatus $actual,
+    ): HttpResponseException {
+        $expected = $required?->value ?? 'an editable state';
+        $current = $actual?->value ?? 'unknown';
+
+        return $this->conflict(
+            "Content must be in {$expected} before this action; current state is {$current}.",
+            ApiErrorCode::ContentInvalidLifecycleTransition,
+        );
     }
 }

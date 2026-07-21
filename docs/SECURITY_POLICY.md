@@ -1267,6 +1267,7 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
 | REV-WF-03-R2 | 2026-07-20 | Requester-scoped Anonymous Emergency Access, same-campus Admin review/revoke, non-cacheable reveal, expiry normalization, redacted audit, and anonymous filename protection. |
 | REV-CONTENT-01-C1 | 2026-07-21 | Campus-scoped published content, immutable versions, controlled rich text, private attachments, redacted content audit, and non-cacheable authenticated readers. |
 | REV-CONTENT-01-C2 | 2026-07-21 | Campus-scoped Admin authoring UI/API, author-visible review feedback, controlled drafts, and audited editable-PDF removal. |
+| REV-CONTENT-01-C3 | 2026-07-21 | Super Admin editorial governance, second-review global authoring, published archive, opaque featured concurrency, and private cache isolation. |
 
 ## 22. Content publication security (REV-CONTENT-01 C1)
 
@@ -1318,6 +1319,26 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
   lookup of item, version, and attachment public UUIDs, so foreign/global UUID probes return 404.
 - Every authentication invalidation, logout, and account switch cancels and removes all TanStack
   queries rooted at `content-management` before another account can render management data.
+
+### 22.2 C3 editorial governance boundary
+
+- Governance routes require `super_admin` plus an explicit content permission. Review, archive, and
+  featured services lock and reload the actor and target before repeating policy checks.
+- Campus versions are read-only in review detail. Super Admin cannot use global authoring endpoints
+  to change campus content, contacts, or attachments; cross-scope UUIDs return non-disclosing 404.
+- Every editorial mutation requires item `lock_version`. Review narratives stay encrypted in the
+  append-only decision domain and are excluded from audit metadata. Approval and publication are
+  distinct locked transitions, and publication can target only the approved version just reviewed.
+- Global authoring is fixed to `scope=global` with a null university. The item creator and version
+  author/editor cannot review that version; the C3 UI does not expose the legacy
+  direct-global-publication service path.
+- Published archival governance is a separate query from the editorial queue. An archive requires a
+  reason and is blocked while an authoring version remains active.
+- Featured placement update/removal requires an opaque state-derived concurrency token, not a
+  client-provided timestamp assumption. Eligibility is resolved from the locked published Article,
+  exact scope/campus, archive state, rank, and date window.
+- Governance and global-authoring responses are `private, no-store`. Authentication changes cancel
+  and remove TanStack queries rooted at both `content-management` and `content-governance`.
 
 ---
 

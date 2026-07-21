@@ -104,12 +104,16 @@ class ContentItemPolicy extends BasePolicy
         return $item->scope === ContentScope::Global && $this->createGlobal($user);
     }
 
-    public function review(User $user, ContentItem $item): bool
+    public function review(User $user, ContentItem $item, ?ContentVersion $version = null): bool
     {
         return $user->is_active
             && $this->allowRole($user, 'super_admin')
             && $this->allowPermission($user, 'content.review')
-            && (int) $item->creator_id !== (int) $user->id;
+            && (int) $item->creator_id !== (int) $user->id
+            && ($version === null || (
+                (int) $version->author_id !== (int) $user->id
+                && (int) ($version->editor_id ?? 0) !== (int) $user->id
+            ));
     }
 
     public function archive(User $user): bool

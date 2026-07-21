@@ -134,4 +134,19 @@ class FeaturedContent extends Model
     {
         return $this->belongsTo(User::class, 'creator_id');
     }
+
+    public function concurrencyToken(): string
+    {
+        return hash('sha256', json_encode([
+            $this->public_id,
+            $this->scope?->value,
+            $this->university_id,
+            $this->content_item_id,
+            $this->rank,
+            $this->is_active,
+            $this->active_from?->toJSON(),
+            $this->active_until?->toJSON(),
+            $this->updated_at?->toJSON(),
+        ], JSON_THROW_ON_ERROR));
+    }
 }

@@ -1985,8 +1985,10 @@ GET  /api/v1/content/featured
 GET  /api/v1/content/attachments/{attachmentPublicId}
 ```
 
-The C1 foundation plus C2 campus-management surface provides the following authenticated operations.
-These routes are campus-scoped for Admin management; they do not provide C3 review actions.
+The C1 foundation plus C2/C3 authoring surface provides the following authenticated operations.
+For Campus Admin these routes are own-campus only. For Super Admin in C3 they expose only global
+authoring records; campus-authored content remains available only through the read-only governance
+surface. These routes do not provide review decisions.
 
 ```text
 GET    /api/v1/content-management/items
@@ -2002,8 +2004,9 @@ DELETE /api/v1/content-management/attachments/{attachmentPublicId}
 ```
 
 The list accepts `content_type`, `lifecycle_status`, category public ID, escaped search, `page`, and
-`per_page`. List/detail/summary results include only the authenticated Admin's campus. Global seeded
-drafts and other-campus records return no list result and cannot be opened directly. Detail responses
+`per_page`. Campus Admin list/detail/summary results include only the authenticated Admin's campus;
+Super Admin authoring results include only global scope. Foreign-scope records return no list result
+and cannot be opened directly. Detail responses
 project the controlled draft document, typed Article/FAQ/Consultation fields, generic attachment
 metadata, and the author's revision/rejection feedback; review identities and internal IDs remain
 excluded. Revision creation requires a published campus item with no active authoring version.
@@ -2034,3 +2037,59 @@ Current C1 attachment upload policy is PDF-only for general attachments. Image a
 unless both the explicit feature flag and a verified safe re-encoding processor are available. File
 resources and download headers use generated names such as `lampiran-{attachmentPublicId}.pdf`; the
 protected client filename is never serialized or used as a response filename.
+
+## 18.8 REV-CONTENT-01 C3 Editorial Governance APIs
+
+All routes require Sanctum, the `super_admin` role, and the explicit route permission shown by the
+operation. Policies and locked services repeat authorization. Draft, decision, and governance
+responses use `Cache-Control: private, no-store` and never serialize internal IDs, private paths,
+checksums, protected original filenames, or encrypted review storage.
+
+```text
+content.read.management.all:
+GET  /api/v1/content-governance/reviews
+GET  /api/v1/content-governance/published
+GET  /api/v1/content-governance/campuses
+GET  /api/v1/content-governance/categories?section={code}
+GET  /api/v1/content-governance/items/{itemPublicId}
+
+content.review:
+POST /api/v1/content-governance/versions/{versionPublicId}/start-review
+POST /api/v1/content-governance/versions/{versionPublicId}/request-revision
+POST /api/v1/content-governance/versions/{versionPublicId}/reject
+POST /api/v1/content-governance/versions/{versionPublicId}/approve
+POST /api/v1/content-governance/versions/{versionPublicId}/publish
+
+content.archive:
+POST /api/v1/content-governance/items/{itemPublicId}/archive
+
+content.feature.manage:
+GET    /api/v1/content-governance/featured
+GET    /api/v1/content-governance/featured/eligible
+GET    /api/v1/content-governance/featured/campuses
+POST   /api/v1/content-governance/featured
+PATCH  /api/v1/content-governance/featured/{placementPublicId}
+DELETE /api/v1/content-governance/featured/{placementPublicId}
+```
+
+The review list is server-paginated and accepts review state, scope, content type, section, category
+public ID, campus code, submission-date range, escaped search, `page`, and `per_page`. Its default
+states are `submitted`, `in_review`, and `approved`. Published items eligible for archival governance
+use the separate `/published` query. Detail projects the submitted/current version, the previous
+published version when different, safe PDF resources, server capabilities, author editorial note,
+and an append-only decision timeline.
+
+Start review, revision request, rejection, approval, publication, and archive require the integer
+item `lock_version`. Revision/rejection/archive reasons are 10-2,000 characters; approval note is
+optional. `content_stale_review`, `content_invalid_lifecycle_transition`, `content_archived`, and
+`content_active_authoring_version` are stable conflict codes. Approval and publication remain two
+distinct lifecycle transitions. Approval reruns publishability validation; publication locks the
+same approved version and atomically updates the published pointer. A content author cannot review
+their own version; creator, author, and editor checks also apply to global Super Admin content.
+
+Featured create accepts authoritative content public ID, exact global/campus scope, campus code when
+campus-scoped, rank 1-5, active flag, and optional active window. Update and delete require the opaque
+`concurrency_token` returned by the placement resource. The backend resolves eligibility from the
+current published Article pointer and returns `content_featured_stale` or
+`content_featured_conflict` on concurrency/rank conflicts. Placement windows do not schedule content
+publication.

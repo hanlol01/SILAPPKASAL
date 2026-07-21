@@ -27,6 +27,7 @@ import { Route as DashboardSettingsRouteImport } from './routes/dashboard.settin
 import { Route as DashboardRegistrationsRouteImport } from './routes/dashboard.registrations'
 import { Route as DashboardNotificationsRouteImport } from './routes/dashboard.notifications'
 import { Route as DashboardMasterDataRouteImport } from './routes/dashboard.master-data'
+import { Route as DashboardContentGovernanceRouteImport } from './routes/dashboard.content-governance'
 import { Route as DashboardContentRouteImport } from './routes/dashboard.content'
 import { Route as DashboardBreakGlassRouteImport } from './routes/dashboard.break-glass'
 import { Route as DashboardAnalyticsRouteImport } from './routes/dashboard.analytics'
@@ -134,6 +135,12 @@ const DashboardMasterDataRoute = DashboardMasterDataRouteImport.update({
   path: '/master-data',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardContentGovernanceRoute =
+  DashboardContentGovernanceRouteImport.update({
+    id: '/content-governance',
+    path: '/content-governance',
+    getParentRoute: () => DashboardRoute,
+  } as any)
 const DashboardContentRoute = DashboardContentRouteImport.update({
   id: '/content',
   path: '/content',
@@ -231,6 +238,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/analytics': typeof DashboardAnalyticsRoute
   '/dashboard/break-glass': typeof DashboardBreakGlassRoute
   '/dashboard/content': typeof DashboardContentRoute
+  '/dashboard/content-governance': typeof DashboardContentGovernanceRoute
   '/dashboard/master-data': typeof DashboardMasterDataRouteWithChildren
   '/dashboard/notifications': typeof DashboardNotificationsRoute
   '/dashboard/registrations': typeof DashboardRegistrationsRouteWithChildren
@@ -265,6 +273,7 @@ export interface FileRoutesByTo {
   '/dashboard/analytics': typeof DashboardAnalyticsRoute
   '/dashboard/break-glass': typeof DashboardBreakGlassRoute
   '/dashboard/content': typeof DashboardContentRoute
+  '/dashboard/content-governance': typeof DashboardContentGovernanceRoute
   '/dashboard/master-data': typeof DashboardMasterDataRouteWithChildren
   '/dashboard/notifications': typeof DashboardNotificationsRoute
   '/dashboard/registrations': typeof DashboardRegistrationsRouteWithChildren
@@ -302,6 +311,7 @@ export interface FileRoutesById {
   '/dashboard/analytics': typeof DashboardAnalyticsRoute
   '/dashboard/break-glass': typeof DashboardBreakGlassRoute
   '/dashboard/content': typeof DashboardContentRoute
+  '/dashboard/content-governance': typeof DashboardContentGovernanceRoute
   '/dashboard/master-data': typeof DashboardMasterDataRouteWithChildren
   '/dashboard/notifications': typeof DashboardNotificationsRoute
   '/dashboard/registrations': typeof DashboardRegistrationsRouteWithChildren
@@ -340,6 +350,7 @@ export interface FileRouteTypes {
     | '/dashboard/analytics'
     | '/dashboard/break-glass'
     | '/dashboard/content'
+    | '/dashboard/content-governance'
     | '/dashboard/master-data'
     | '/dashboard/notifications'
     | '/dashboard/registrations'
@@ -374,6 +385,7 @@ export interface FileRouteTypes {
     | '/dashboard/analytics'
     | '/dashboard/break-glass'
     | '/dashboard/content'
+    | '/dashboard/content-governance'
     | '/dashboard/master-data'
     | '/dashboard/notifications'
     | '/dashboard/registrations'
@@ -410,6 +422,7 @@ export interface FileRouteTypes {
     | '/dashboard/analytics'
     | '/dashboard/break-glass'
     | '/dashboard/content'
+    | '/dashboard/content-governance'
     | '/dashboard/master-data'
     | '/dashboard/notifications'
     | '/dashboard/registrations'
@@ -575,6 +588,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardMasterDataRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/content-governance': {
+      id: '/dashboard/content-governance'
+      path: '/content-governance'
+      fullPath: '/dashboard/content-governance'
+      preLoaderRoute: typeof DashboardContentGovernanceRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/content': {
       id: '/dashboard/content'
       path: '/content'
@@ -724,6 +744,7 @@ interface DashboardRouteChildren {
   DashboardAnalyticsRoute: typeof DashboardAnalyticsRoute
   DashboardBreakGlassRoute: typeof DashboardBreakGlassRoute
   DashboardContentRoute: typeof DashboardContentRoute
+  DashboardContentGovernanceRoute: typeof DashboardContentGovernanceRoute
   DashboardMasterDataRoute: typeof DashboardMasterDataRouteWithChildren
   DashboardNotificationsRoute: typeof DashboardNotificationsRoute
   DashboardRegistrationsRoute: typeof DashboardRegistrationsRouteWithChildren
@@ -742,6 +763,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAnalyticsRoute: DashboardAnalyticsRoute,
   DashboardBreakGlassRoute: DashboardBreakGlassRoute,
   DashboardContentRoute: DashboardContentRoute,
+  DashboardContentGovernanceRoute: DashboardContentGovernanceRoute,
   DashboardMasterDataRoute: DashboardMasterDataRouteWithChildren,
   DashboardNotificationsRoute: DashboardNotificationsRoute,
   DashboardRegistrationsRoute: DashboardRegistrationsRouteWithChildren,

@@ -640,3 +640,32 @@ Milestone 22 Additional QA:
   failure leaves both metadata and bytes available and returns a stable retryable error.
 - C2 adds no dependency, migration, C3 review action, Reporter route, service worker, notification
   delivery, or production deployment.
+
+## REV-CONTENT-01 C3 Handoff
+
+- Super Admin navigation now exposes `/dashboard/content-governance` only for
+  `content.read.management.all`. The page has Editorial Queue, Published Content, Global Content,
+  and Featured Content workspaces with responsive table/card and Sheet/Dialog behavior.
+- The governance backend provides server-filtered review and published lists, cross-campus safe
+  category/campus choices, typed read-only detail, previous-version preview, PDF access, server
+  capabilities, and an authoritative audit/decision timeline. Every response is private/no-store.
+- Campus-authored content remains read-only to Super Admin. Revision request, rejection, approval,
+  publication, and archive are lifecycle decisions only; direct body/contact/attachment mutation is
+  not available. Campus Admin, Reporter, and Satgas cannot access governance routes.
+- Super Admin global authoring reuses the controlled C2 editor with `scope=global`. It follows the
+  full submit-review-approve-publish lifecycle and requires a different Super Admin reviewer because
+  creator/author/editor self-review is rejected by policy.
+- Editorial decisions use item `lock_version` after transaction locks. Stable 409 codes distinguish
+  stale review, invalid transition, archived state, and active authoring version. Notes remain in
+  the encrypted append-only decision domain and are preserved in the browser after recoverable
+  failure.
+- Featured governance supports published Articles only, exact global/campus scope, ranks 1-5,
+  current/future/expired/inactive views, optional visibility windows, preview, and audited
+  create/update/replace/remove. Update and removal use an opaque state-derived `concurrency_token` so
+  timestamp resolution cannot permit stale writes.
+- Private TanStack queries rooted at both `content-management` and `content-governance` are cancelled
+  and removed on logout, authentication invalidation, and account replacement.
+- C3 adds no dependency or database migration. Reporter Information Center/cards, featured carousel,
+  PWA/service worker, notification delivery, image upload, scheduled publication, comments,
+  reactions, bookmarks, Flutter, PostgreSQL runtime verification, and production deployment remain
+  outside this commit.

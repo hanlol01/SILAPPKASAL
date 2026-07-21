@@ -218,3 +218,35 @@ C2 integrity repair adds no dependency or migration. Deployment verification mus
 confirm mandatory submit `lock_version`, 404 non-disclosure for out-of-campus management UUIDs,
 archived read-only errors, private-query removal on auth changes, and rollback-safe private PDF
 deletion failure behavior.
+
+## REV-CONTENT-01 C3 Release Note (Not Yet Deployed)
+
+C3 adds no dependency and no database migration. It adds Super Admin editorial governance APIs and
+`/dashboard/content-governance`, enables global authoring through the existing management aggregate,
+and adds featured placement governance. No production migration, seed, push, or deployment is
+claimed by this note.
+
+A future release must deploy backend and client/SSR artifacts from the same verified commit. Before
+service restart, inspect routes with:
+
+```text
+php artisan route:list --path=content-governance
+php artisan route:list --path=content-management
+```
+
+Smoke verification must use disposable non-production records and confirm:
+
+- Campus Admin, Reporter, and Satgas cannot enter governance routes;
+- Super Admin sees submitted campus content but cannot edit its body or attachments;
+- revision/rejection/archive reasons are required and author feedback is campus-scoped;
+- approval and publication are distinct and stale `lock_version` returns 409;
+- global author self-review is denied and a different Super Admin can complete review;
+- published archive removes the item from authenticated reader APIs;
+- featured update/removal rejects a stale opaque concurrency token;
+- all governance responses remain `private, no-store`;
+- logout/account replacement removes private management and governance query caches.
+
+Keep image uploads disabled. C3 adds neither scheduled publication nor the Reporter carousel: featured
+date windows affect only placement visibility after an Article is already published. Automated tests
+must continue to run on SQLite `:memory:`; any later PostgreSQL verification is limited to the
+explicitly confirmed local `silappkasal_test` database and remains a release gate.

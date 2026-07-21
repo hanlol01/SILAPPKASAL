@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\CaseController;
 use App\Http\Controllers\Api\V1\CaseFinalSummaryController;
 use App\Http\Controllers\Api\V1\ContentAttachmentController;
 use App\Http\Controllers\Api\V1\ContentController;
+use App\Http\Controllers\Api\V1\ContentGovernanceController;
 use App\Http\Controllers\Api\V1\ContentManagementController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DecisionController;
@@ -83,6 +84,37 @@ Route::prefix('v1')->group(function (): void {
             ->name('content.attachments.upload');
         Route::delete('/attachments/{attachment}', [ContentManagementController::class, 'removeAttachment'])
             ->whereUuid('attachment');
+    });
+
+    Route::middleware(['private.no-store', 'auth:sanctum', 'role:super_admin'])->prefix('content-governance')->group(function (): void {
+        Route::middleware('permission:content.read.management.all')->group(function (): void {
+            Route::get('/reviews', [ContentGovernanceController::class, 'reviews']);
+            Route::get('/published', [ContentGovernanceController::class, 'published']);
+            Route::get('/campuses', [ContentGovernanceController::class, 'reviewCampuses']);
+            Route::get('/categories', [ContentGovernanceController::class, 'reviewCategories']);
+            Route::get('/items/{item}', [ContentGovernanceController::class, 'show'])->whereUuid('item');
+        });
+
+        Route::middleware(['permission:content.review', 'throttle:30,1'])->group(function (): void {
+            Route::post('/versions/{version}/start-review', [ContentGovernanceController::class, 'startReview'])->whereUuid('version');
+            Route::post('/versions/{version}/request-revision', [ContentGovernanceController::class, 'requestRevision'])->whereUuid('version');
+            Route::post('/versions/{version}/reject', [ContentGovernanceController::class, 'reject'])->whereUuid('version');
+            Route::post('/versions/{version}/approve', [ContentGovernanceController::class, 'approve'])->whereUuid('version');
+            Route::post('/versions/{version}/publish', [ContentGovernanceController::class, 'publish'])->whereUuid('version');
+        });
+        Route::post('/items/{item}/archive', [ContentGovernanceController::class, 'archive'])
+            ->whereUuid('item')->middleware(['permission:content.archive', 'throttle:30,1']);
+
+        Route::middleware('permission:content.feature.manage')->prefix('featured')->group(function (): void {
+            Route::get('/', [ContentGovernanceController::class, 'featured']);
+            Route::get('/eligible', [ContentGovernanceController::class, 'eligibleFeatured']);
+            Route::get('/campuses', [ContentGovernanceController::class, 'campuses']);
+            Route::post('/', [ContentGovernanceController::class, 'storeFeatured'])->middleware('throttle:30,1');
+            Route::patch('/{placement}', [ContentGovernanceController::class, 'updateFeatured'])
+                ->whereUuid('placement')->middleware('throttle:30,1');
+            Route::delete('/{placement}', [ContentGovernanceController::class, 'removeFeatured'])
+                ->whereUuid('placement')->middleware('throttle:30,1');
+        });
     });
 
     Route::middleware('auth:sanctum')->prefix('master')->group(function (): void {

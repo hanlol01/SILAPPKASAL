@@ -15,6 +15,7 @@ import {
   Database,
   ScrollText,
   LibraryBig,
+  BookOpenCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -111,6 +112,13 @@ const nav: {
     icon: LibraryBig,
     roles: ["admin"],
     permission: "content.read.management.own_campus",
+  },
+  {
+    key: "contentGovernance",
+    url: "/dashboard/content-governance",
+    icon: BookOpenCheck,
+    roles: ["super_admin"],
+    permission: "content.read.management.all",
   },
   {
     key: "activityLog",

@@ -69,7 +69,7 @@ export interface ManagedContentSummary {
   public_id: string;
   content_type: ContentType;
   slug: string;
-  scope: "campus";
+  scope: "campus" | "global";
   section: ContentSection;
   category: ContentCategory | null;
   lock_version: number;
@@ -124,7 +124,7 @@ export interface ContentPayload {
   content_type?: ContentType;
   section_code?: string;
   category_public_id?: string | null;
-  scope?: "campus";
+  scope?: "campus" | "global";
   university_id?: number;
   title?: string;
   excerpt?: string | null;
@@ -200,9 +200,10 @@ export function submitManagedContent(versionPublicId: string, lockVersion: numbe
   );
 }
 
-export function createContentRevision(itemPublicId: string) {
+export function createContentRevision(itemPublicId: string, lockVersion: number) {
   return apiRequest<ManagedContentSummary>(`/content-management/items/${itemPublicId}/revisions`, {
     method: "POST",
+    body: JSON.stringify({ lock_version: lockVersion }),
   });
 }
 

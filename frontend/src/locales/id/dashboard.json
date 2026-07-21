@@ -16,7 +16,8 @@
     "masterData": "Master Data",
     "breakGlass": "Akses Darurat",
     "activityLog": "Log Aktivitas",
-    "contentManagement": "Manajemen Konten",
+      "contentManagement": "Manajemen Konten",
+      "contentGovernance": "Tata Kelola Konten",
     "settings": "Pengaturan"
   },
   "topbar": {

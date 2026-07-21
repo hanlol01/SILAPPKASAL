@@ -68,6 +68,7 @@ import { cn } from "@/lib/utils";
 interface Props {
   contentType: ContentType;
   detail?: ManagedContentDetail;
+  scope?: "campus" | "global";
   onBack: () => void;
   onSaved: (publicId: string) => void;
 }
@@ -99,7 +100,7 @@ interface EditorState {
   verifiedOwner: string;
 }
 
-export function ContentEditor({ contentType, detail, onBack, onSaved }: Props) {
+export function ContentEditor({ contentType, detail, scope = "campus", onBack, onSaved }: Props) {
   const { t, i18n } = useTranslation(["content", "common"]);
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -115,10 +116,12 @@ export function ContentEditor({ contentType, detail, onBack, onSaved }: Props) {
   const detailRef = useRef(detail);
   detailRef.current = detail;
   const permissions = new Set(user?.permissions ?? []);
-  const canCreate = permissions.has("content.create.campus");
-  const canUpdate = permissions.has("content.update.own_campus");
-  const canSubmit = permissions.has("content.submit.own_campus");
-  const canManageAttachments = permissions.has("content.attachment.manage.own_campus");
+  const globalAuthor = scope === "global" && permissions.has("content.publish.global");
+  const canCreate = globalAuthor || permissions.has("content.create.campus");
+  const canUpdate = globalAuthor || permissions.has("content.update.own_campus");
+  const canSubmit = globalAuthor || permissions.has("content.submit.own_campus");
+  const canManageAttachments =
+    globalAuthor || permissions.has("content.attachment.manage.own_campus");
   const editable = detail
     ? detail.archived_at === null && detail.has_editable_version && canUpdate
     : canCreate;
@@ -178,6 +181,7 @@ export function ContentEditor({ contentType, detail, onBack, onSaved }: Props) {
       const payload = payloadFromState(
         state,
         contentType,
+        scope,
         user?.university_id,
         detail?.lock_version,
       );
@@ -1058,6 +1062,7 @@ function initialState(contentType: ContentType, detail?: ManagedContentDetail): 
 function payloadFromState(
   state: EditorState,
   type: ContentType,
+  scope: "campus" | "global",
   universityId?: number | null,
   lockVersion?: number,
 ): ContentPayload {
@@ -1065,8 +1070,8 @@ function payloadFromState(
     content_type: type,
     section_code: state.sectionCode,
     category_public_id: state.categoryPublicId || null,
-    scope: "campus",
-    university_id: universityId ?? undefined,
+    scope,
+    university_id: scope === "campus" ? (universityId ?? undefined) : undefined,
     lock_version: lockVersion,
   };
   if (type === "article")
