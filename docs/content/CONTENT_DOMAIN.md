@@ -143,11 +143,16 @@ Editorial mutations lock and reload actor, version, and item, then require the c
 `lock_version`. Stale review, invalid lifecycle, archived state, and active-authoring conflicts use
 stable 409 codes. Approval reruns the controlled-document, CTA, attachment, scope, and publication
 checks; publication is a separate locked transition that atomically advances the published pointer.
+The executable domain has no editable-version or direct-global publication path. Global items must
+pass submission and review by a Super Admin who is not the creator, author, or last editor; only that
+exact authoritative approved version may be published.
 
 The review queue contains only submitted, in-review, and approved authoring versions. Published
 content is exposed through a separate governance query so archive operations do not redefine queue
-eligibility. Review detail combines authoritative audit actions with encrypted append-only review
-decisions and projects only safe actor display fields.
+eligibility. The published query always projects `publishedVersion`, even while another version is
+being authored or has been rejected, and never substitutes `latestVersion`. Review detail combines
+authoritative audit actions with encrypted append-only review decisions and projects only safe actor
+display fields.
 
 Featured placements use an opaque concurrency token derived from the locked persisted placement
 state. This avoids timestamp-resolution races without a schema change. The backend independently

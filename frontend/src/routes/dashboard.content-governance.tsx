@@ -21,6 +21,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { AuthenticatedContentAttachment } from "@/components/content/authenticated-content-attachment";
 import { ContentDocumentPreview } from "@/components/content/content-document-preview";
 import { ContentEditor } from "@/components/content/content-editor";
 import { EmptyState } from "@/components/empty-state";
@@ -223,16 +224,16 @@ function ReviewQueue() {
   );
   const query = useQuery({
     queryKey: contentGovernanceKeys.reviews(filters),
-    queryFn: () => getGovernanceReviews(filters),
+    queryFn: ({ signal }) => getGovernanceReviews(filters, signal),
     placeholderData: keepPreviousData,
   });
   const categoriesQuery = useQuery({
     queryKey: contentGovernanceKeys.categories(section),
-    queryFn: () => getGovernanceCategories(section),
+    queryFn: ({ signal }) => getGovernanceCategories(section, signal),
   });
   const campusesQuery = useQuery({
     queryKey: [...contentGovernanceKeys.campuses(), "reviews"],
-    queryFn: getGovernanceCampuses,
+    queryFn: ({ signal }) => getGovernanceCampuses(signal),
   });
   const reset = () => {
     setSearch("");
@@ -373,7 +374,7 @@ function PublishedGovernance() {
   );
   const query = useQuery({
     queryKey: contentGovernanceKeys.published(filters),
-    queryFn: () => getGovernancePublished(filters),
+    queryFn: ({ signal }) => getGovernancePublished(filters, signal),
     placeholderData: keepPreviousData,
   });
 
@@ -578,7 +579,7 @@ function ReviewDetail({ publicId, onClose }: { publicId: string | null; onClose:
   const [publishOpen, setPublishOpen] = useState(false);
   const query = useQuery({
     queryKey: contentGovernanceKeys.detail(publicId ?? ""),
-    queryFn: () => getGovernanceDetail(publicId!),
+    queryFn: ({ signal }) => getGovernanceDetail(publicId!, signal),
     enabled: Boolean(publicId),
   });
   const invalidate = async () => {
@@ -715,7 +716,7 @@ function VersionPreview({ title, item, version }: { title: string; item: Governa
           {item.content_type === "faq" && <div className="space-y-3"><p className="font-medium">{version.faq?.question}</p><ContentDocumentPreview document={version.faq?.answer_document ?? null} /></div>}
           {item.content_type === "consultation" && version.consultation && <ConsultationPreview value={version.consultation} />}
         </div>
-        <div><h3 className="mb-2 font-medium">{t("contentGovernance:review.attachments")}</h3>{version.attachments.length ? <ul className="space-y-2">{version.attachments.map((file) => <li key={file.public_id}><a className="inline-flex min-h-11 items-center text-primary underline" href={file.download_url} target="_blank" rel="noreferrer noopener">{file.filename}</a></li>)}</ul> : <p className="text-sm text-muted-foreground">{t("contentGovernance:review.noAttachments")}</p>}</div>
+        <div><h3 className="mb-2 font-medium">{t("contentGovernance:review.attachments")}</h3>{version.attachments.length ? <ul className="space-y-2">{version.attachments.map((file) => <li key={file.public_id}><AuthenticatedContentAttachment attachment={file} /></li>)}</ul> : <p className="text-sm text-muted-foreground">{t("contentGovernance:review.noAttachments")}</p>}</div>
       </CardContent>
     </Card>
   );
@@ -740,8 +741,8 @@ function GlobalContent() {
   const [editorType, setEditorType] = useState<ContentType | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const filters = useMemo(() => ({ search: search || undefined, page, per_page: pageSize }), [search, page, pageSize]);
-  const list = useQuery({ queryKey: contentManagementKeys.list(filters), queryFn: () => getManagedContent(filters), placeholderData: keepPreviousData });
-  const detail = useQuery({ queryKey: contentManagementKeys.detail(selectedId ?? ""), queryFn: () => getManagedContentDetail(selectedId!), enabled: Boolean(selectedId) });
+  const list = useQuery({ queryKey: contentManagementKeys.list(filters), queryFn: ({ signal }) => getManagedContent(filters, signal), placeholderData: keepPreviousData });
+  const detail = useQuery({ queryKey: contentManagementKeys.detail(selectedId ?? ""), queryFn: ({ signal }) => getManagedContentDetail(selectedId!, signal), enabled: Boolean(selectedId) });
   const invalidate = () => Promise.all([queryClient.invalidateQueries({ queryKey: contentManagementKeys.all }), queryClient.invalidateQueries({ queryKey: contentGovernanceKeys.all })]);
   const submit = useMutation({ mutationFn: (item: ManagedContentSummary) => submitManagedContent(item.version.public_id, item.lock_version), onSuccess: async () => { toast.success(t("content:submittedSuccess")); await invalidate(); }, onError: (error) => toast.error(apiErrorMessage(error, t("content:loadError"))) });
   const revision = useMutation({ mutationFn: (item: ManagedContentSummary) => createContentRevision(item.public_id, item.lock_version), onSuccess: async (item) => { await invalidate(); setSelectedId(item.public_id); setEditorType(item.content_type); }, onError: (error) => toast.error(apiErrorMessage(error, t("content:loadError"))) });
@@ -787,10 +788,10 @@ function FeaturedGovernance() {
   const [form, setForm] = useState<FeaturedFormState>(emptyFeatured);
   const [editing, setEditing] = useState<FeaturedPlacement | null>(null);
   const [removing, setRemoving] = useState<FeaturedPlacement | null>(null);
-  const placements = useQuery({ queryKey: contentGovernanceKeys.featured({ state: stateFilter || undefined }), queryFn: () => getFeaturedPlacements({ state: stateFilter || undefined }) });
-  const campuses = useQuery({ queryKey: [...contentGovernanceKeys.campuses(), "featured"], queryFn: getFeaturedCampuses });
+  const placements = useQuery({ queryKey: contentGovernanceKeys.featured({ state: stateFilter || undefined }), queryFn: ({ signal }) => getFeaturedPlacements({ state: stateFilter || undefined }, signal) });
+  const campuses = useQuery({ queryKey: [...contentGovernanceKeys.campuses(), "featured"], queryFn: ({ signal }) => getFeaturedCampuses(signal) });
   const eligibleFilters = { scope: form.scope, university_code: form.scope === "campus" ? form.campus || undefined : undefined };
-  const eligible = useQuery({ queryKey: contentGovernanceKeys.eligible(eligibleFilters), queryFn: () => getFeaturedEligible(eligibleFilters), enabled: formOpen && (form.scope === "global" || Boolean(form.campus)) });
+  const eligible = useQuery({ queryKey: contentGovernanceKeys.eligible(eligibleFilters), queryFn: ({ signal }) => getFeaturedEligible(eligibleFilters, signal), enabled: formOpen && (form.scope === "global" || Boolean(form.campus)) });
   const invalidate = () => Promise.all([queryClient.invalidateQueries({ queryKey: contentGovernanceKeys.all }), queryClient.invalidateQueries({ queryKey: ["content"] })]);
   const save = useMutation({ mutationFn: async () => {
     if (!form.content || !Number(form.rank) || (form.scope === "campus" && !form.campus)) throw new ClientFormError(t("content:validation.required"));

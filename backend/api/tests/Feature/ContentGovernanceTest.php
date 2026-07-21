@@ -16,6 +16,7 @@ use App\Services\ContentPublicationService;
 use Database\Seeders\Foundation\ContentFoundationSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -196,6 +197,17 @@ class ContentGovernanceTest extends TestCase
         $payload = $this->articlePayload(ContentScope::Global, null, 'Konten Global C3');
         $created = $this->postJson('/api/v1/content-management/items', $payload)
             ->assertCreated()->assertJsonPath('data.scope', 'global')->json('data');
+        $service = app(ContentPublicationService::class);
+        $draft = ContentVersion::query()->where('public_id', $created['version']['public_id'])->firstOrFail();
+        $secondReviewer = $this->user('super_admin');
+
+        $this->assertFalse(method_exists($service, 'directGlobalPublish'));
+        try {
+            $service->publishApproved($draft, $secondReviewer, (int) $created['lock_version']);
+            $this->fail('An editable global draft was published through direct service invocation.');
+        } catch (HttpResponseException $exception) {
+            $this->assertSame(409, $exception->getResponse()->getStatusCode());
+        }
         $this->postJson('/api/v1/content-management/versions/'.$created['version']['public_id'].'/submit', [
             'lock_version' => $created['lock_version'],
         ])->assertOk();
@@ -207,11 +219,34 @@ class ContentGovernanceTest extends TestCase
             'lock_version' => $queueItem['lock_version'],
         ])->assertForbidden();
 
-        $secondReviewer = $this->user('super_admin');
         Sanctum::actingAs($secondReviewer, ['*']);
         $this->postJson('/api/v1/content-governance/versions/'.$created['version']['public_id'].'/start-review', [
             'lock_version' => $queueItem['lock_version'],
         ])->assertOk();
+        $item = ContentItem::query()->where('public_id', $created['public_id'])->firstOrFail();
+
+        Sanctum::actingAs($this->reviewer, ['*']);
+        $this->postJson('/api/v1/content-governance/versions/'.$created['version']['public_id'].'/approve', [
+            'lock_version' => $item->lock_version,
+        ])->assertForbidden();
+
+        Sanctum::actingAs($secondReviewer, ['*']);
+        $this->postJson('/api/v1/content-governance/versions/'.$created['version']['public_id'].'/approve', [
+            'lock_version' => $item->lock_version,
+        ])->assertOk();
+        $item->refresh();
+
+        Sanctum::actingAs($this->reviewer, ['*']);
+        $this->postJson('/api/v1/content-governance/versions/'.$created['version']['public_id'].'/publish', [
+            'lock_version' => $item->lock_version,
+        ])->assertForbidden();
+
+        Sanctum::actingAs($secondReviewer, ['*']);
+        $this->postJson('/api/v1/content-governance/versions/'.$created['version']['public_id'].'/publish', [
+            'lock_version' => $item->lock_version,
+        ])->assertOk();
+        $this->assertDatabaseHas('audit_logs', ['action' => 'content.approved', 'actor_id' => $secondReviewer->id]);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'content.published', 'actor_id' => $secondReviewer->id]);
 
         Sanctum::actingAs($this->admin, ['*']);
         $this->getJson('/api/v1/content-management/items/'.$created['public_id'])->assertNotFound();
@@ -219,6 +254,90 @@ class ContentGovernanceTest extends TestCase
             'title' => 'Eskalasi Tidak Sah',
             'lock_version' => $queueItem['lock_version'],
         ])->assertNotFound();
+    }
+
+    public function test_published_library_and_reader_follow_only_the_published_pointer_across_rejected_and_approved_revisions(): void
+    {
+        $service = app(ContentPublicationService::class);
+        $item = $this->submittedCampusArticle('Versi Terbit Pertama');
+        $item = $service->startReview($item->currentDraftVersion, $this->reviewer, (int) $item->lock_version);
+        $item = $service->approve($item->currentDraftVersion, $this->reviewer, (int) $item->lock_version);
+        $item = $service->publishApproved($item->currentDraftVersion, $this->reviewer, (int) $item->lock_version);
+        $firstPublished = $item->publishedVersion;
+
+        $rejected = $service->createRevision($item, $this->admin, (int) $item->lock_version);
+        $rejected = $service->updateDraft($rejected->currentDraftVersion, $this->admin, [
+            'title' => 'Versi Revisi Ditolak',
+            'lock_version' => $rejected->lock_version,
+        ]);
+        $rejected = $service->submit($rejected->currentDraftVersion, $this->admin, (int) $rejected->lock_version);
+        $rejected = $service->startReview($rejected->currentDraftVersion, $this->reviewer, (int) $rejected->lock_version);
+        $rejected = $service->reject(
+            $rejected->currentDraftVersion,
+            $this->reviewer,
+            'Versi revisi belum memenuhi standar editorial.',
+            (int) $rejected->lock_version,
+        );
+
+        Sanctum::actingAs($this->reviewer, ['*']);
+        $this->getJson('/api/v1/content-governance/published?search=Versi%20Terbit%20Pertama')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.version.public_id', $firstPublished->public_id)
+            ->assertJsonPath('data.0.version.title', 'Versi Terbit Pertama')
+            ->assertJsonPath('data.0.version.status', 'published');
+        $this->getJson('/api/v1/content-governance/items/'.$item->public_id)
+            ->assertOk()
+            ->assertJsonPath('data.version.title', 'Versi Revisi Ditolak')
+            ->assertJsonPath('data.version.status', 'rejected')
+            ->assertJsonPath('data.previous_published_version.public_id', $firstPublished->public_id);
+
+        Sanctum::actingAs($this->user('reporter', $this->campus), ['*']);
+        $this->getJson('/api/v1/content/articles/'.$item->public_id)
+            ->assertOk()->assertJsonPath('data.title', 'Versi Terbit Pertama');
+
+        $approved = $service->createRevision($rejected, $this->admin, (int) $rejected->lock_version);
+        $approved = $service->updateDraft($approved->currentDraftVersion, $this->admin, [
+            'title' => 'Versi Revisi Disetujui',
+            'lock_version' => $approved->lock_version,
+        ]);
+        $approved = $service->submit($approved->currentDraftVersion, $this->admin, (int) $approved->lock_version);
+        $approved = $service->startReview($approved->currentDraftVersion, $this->reviewer, (int) $approved->lock_version);
+        $approved = $service->approve($approved->currentDraftVersion, $this->reviewer, (int) $approved->lock_version);
+
+        Sanctum::actingAs($this->reviewer, ['*']);
+        $this->getJson('/api/v1/content-governance/published?search=Versi%20Terbit%20Pertama')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.version.public_id', $firstPublished->public_id);
+        $publishedAuditCount = AuditLog::query()->where('action', 'content.published')->count();
+        $this->postJson('/api/v1/content-governance/versions/'.$firstPublished->public_id.'/publish', [
+            'lock_version' => $approved->lock_version,
+        ])->assertStatus(409)->assertJsonPath('error_code', 'content_invalid_lifecycle_transition');
+        $this->postJson('/api/v1/content-governance/versions/'.$approved->currentDraftVersion->public_id.'/publish', [
+            'lock_version' => $approved->lock_version - 1,
+        ])->assertStatus(409)->assertJsonPath('error_code', 'content_stale_review');
+        $this->assertSame(
+            $publishedAuditCount,
+            AuditLog::query()->where('action', 'content.published')->count(),
+            'Rejected publication attempts must not create a success audit.',
+        );
+        $this->postJson('/api/v1/content-governance/versions/'.$approved->currentDraftVersion->public_id.'/publish', [
+            'lock_version' => $approved->lock_version,
+        ])->assertOk();
+        $this->assertSame(
+            $publishedAuditCount + 1,
+            AuditLog::query()->where('action', 'content.published')->count(),
+        );
+
+        $approved->refresh();
+        $this->getJson('/api/v1/content-governance/published?search=Versi%20Revisi%20Disetujui')
+            ->assertOk()
+            ->assertJsonPath('data.0.version.public_id', $approved->publishedVersion->public_id)
+            ->assertJsonPath('data.0.version.title', 'Versi Revisi Disetujui');
+        Sanctum::actingAs($this->user('reporter', $this->campus), ['*']);
+        $this->getJson('/api/v1/content/articles/'.$item->public_id)
+            ->assertOk()->assertJsonPath('data.title', 'Versi Revisi Disetujui');
     }
 
     public function test_global_revision_author_and_editor_cannot_review_their_own_version(): void
@@ -417,10 +536,13 @@ class ContentGovernanceTest extends TestCase
     {
         $service = app(ContentPublicationService::class);
         $payload = $this->articlePayload(ContentScope::Global, null, $title);
-        $payload['requires_editorial_review'] = false;
         $item = $service->createDraft($this->reviewer, $payload);
+        $secondReviewer = $this->user('super_admin');
+        $item = $service->submit($item->currentDraftVersion, $this->reviewer, (int) $item->lock_version);
+        $item = $service->startReview($item->currentDraftVersion, $secondReviewer, (int) $item->lock_version);
+        $item = $service->approve($item->currentDraftVersion, $secondReviewer, (int) $item->lock_version);
 
-        return $service->directGlobalPublish($item->currentDraftVersion, $this->reviewer, (int) $item->lock_version);
+        return $service->publishApproved($item->currentDraftVersion, $secondReviewer, (int) $item->lock_version);
     }
 
     /** @return array<string, mixed> */

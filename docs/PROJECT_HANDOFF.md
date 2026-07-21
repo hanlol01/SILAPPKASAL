@@ -665,6 +665,15 @@ Milestone 22 Additional QA:
   timestamp resolution cannot permit stale writes.
 - Private TanStack queries rooted at both `content-management` and `content-governance` are cancelled
   and removed on logout, authentication invalidation, and account replacement.
+- C3 publication-integrity repair removes the executable direct-global publication path. Global
+  authoring now has a domain-enforced submit, distinct-reviewer approval, and approved-only publish
+  sequence. Creator/author/editor self-review and self-publication remain denied after row locking.
+- Published Content now projects only `publishedVersion`, including while a later version is rejected
+  or approved but not yet published. Review detail may show that later version and the prior published
+  version separately; authenticated reader APIs continue to follow the published pointer.
+- Governance PDF actions use authenticated Blob retrieval with temporary Object URL cleanup rather
+  than raw private endpoint navigation. Governance and global-authoring read queries forward TanStack
+  cancellation signals in addition to the existing private-query removal boundary.
 - C3 adds no dependency or database migration. Reporter Information Center/cards, featured carousel,
   PWA/service worker, notification delivery, image upload, scheduled publication, comments,
   reactions, bookmarks, Flutter, PostgreSQL runtime verification, and production deployment remain

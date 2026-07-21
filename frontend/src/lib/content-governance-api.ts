@@ -146,33 +146,34 @@ export const contentGovernanceKeys = {
   categories: (section: string) => [...contentGovernanceKeys.all, "categories", section] as const,
 };
 
-export async function getGovernanceReviews(filters: Record<string, QueryValue>) {
+export async function getGovernanceReviews(filters: Record<string, QueryValue>, signal?: AbortSignal) {
   const envelope = await apiRequestEnvelope<GovernanceContentSummary[]>(
     "/content-governance/reviews",
-    { query: filters },
+    { query: filters, signal },
   );
   return { data: envelope.data, meta: envelope.meta as PaginationMeta };
 }
 
-export async function getGovernancePublished(filters: Record<string, QueryValue>) {
+export async function getGovernancePublished(filters: Record<string, QueryValue>, signal?: AbortSignal) {
   const envelope = await apiRequestEnvelope<GovernanceContentSummary[]>(
     "/content-governance/published",
-    { query: filters },
+    { query: filters, signal },
   );
   return { data: envelope.data, meta: envelope.meta as PaginationMeta };
 }
 
-export function getGovernanceDetail(publicId: string) {
-  return apiRequest<GovernanceContentDetail>(`/content-governance/items/${publicId}`);
+export function getGovernanceDetail(publicId: string, signal?: AbortSignal) {
+  return apiRequest<GovernanceContentDetail>(`/content-governance/items/${publicId}`, { signal });
 }
 
-export function getGovernanceCampuses() {
-  return apiRequest<Array<{ code: string; name: string }>>("/content-governance/campuses");
+export function getGovernanceCampuses(signal?: AbortSignal) {
+  return apiRequest<Array<{ code: string; name: string }>>("/content-governance/campuses", { signal });
 }
 
-export function getGovernanceCategories(section?: string) {
+export function getGovernanceCategories(section?: string, signal?: AbortSignal) {
   return apiRequest<GovernanceCategoryChoice[]>("/content-governance/categories", {
     query: { section: section || undefined },
+    signal,
   });
 }
 
@@ -203,18 +204,19 @@ export const archiveContent = (publicId: string, lockVersion: number, reason: st
     body: JSON.stringify({ lock_version: lockVersion, reason }),
   });
 
-export function getFeaturedPlacements(filters: Record<string, QueryValue>) {
-  return apiRequest<FeaturedPlacement[]>("/content-governance/featured", { query: filters });
+export function getFeaturedPlacements(filters: Record<string, QueryValue>, signal?: AbortSignal) {
+  return apiRequest<FeaturedPlacement[]>("/content-governance/featured", { query: filters, signal });
 }
 
-export function getFeaturedEligible(filters: Record<string, QueryValue>) {
+export function getFeaturedEligible(filters: Record<string, QueryValue>, signal?: AbortSignal) {
   return apiRequest<FeaturedEligibleContent[]>("/content-governance/featured/eligible", {
     query: filters,
+    signal,
   });
 }
 
-export function getFeaturedCampuses() {
-  return apiRequest<Array<{ code: string; name: string }>>("/content-governance/featured/campuses");
+export function getFeaturedCampuses(signal?: AbortSignal) {
+  return apiRequest<Array<{ code: string; name: string }>>("/content-governance/featured/campuses", { signal });
 }
 
 export function createFeaturedPlacement(payload: FeaturedPayload) {

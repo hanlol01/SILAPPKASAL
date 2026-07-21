@@ -83,13 +83,12 @@ class ContentGovernanceQueryService
 
         $query = ContentItem::query()
             ->whereNull('archived_at')
-            ->whereNull('current_draft_version_id')
             ->whereNotNull('published_version_id')
             ->whereHas('publishedVersion', fn (Builder $version) => $version
                 ->where('lifecycle_status', ContentLifecycleStatus::Published->value))
             ->with([
                 'section', 'category', 'university', 'creator.role',
-                'publishedVersion.author.role', 'latestVersion',
+                'publishedVersion.author.role',
             ]);
 
         $this->applyContentFilters($query, $filters, 'publishedVersion');

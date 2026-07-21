@@ -241,6 +241,11 @@ Smoke verification must use disposable non-production records and confirm:
 - revision/rejection/archive reasons are required and author feedback is campus-scoped;
 - approval and publication are distinct and stale `lock_version` returns 409;
 - global author self-review is denied and a different Super Admin can complete review;
+- no direct global publication method remains and only the authoritative approved version publishes;
+- Published Content and reader APIs retain the prior published pointer while a revision is rejected
+  or approved but not published;
+- governance PDFs are retrieved with authenticated bytes and temporary Blob URLs, not raw anchors;
+- governance read requests propagate cancellation signals before private query caches are removed;
 - published archive removes the item from authenticated reader APIs;
 - featured update/removal rejects a stale opaque concurrency token;
 - all governance responses remain `private, no-store`;

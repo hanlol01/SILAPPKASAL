@@ -577,20 +577,38 @@ class ContentFoundationTest extends TestCase
         $this->assertSame($item->published_version_id, $revised->published_version_id);
     }
 
-    public function test_super_admin_direct_global_publication_is_explicit_and_reader_safe(): void
+    public function test_global_publication_requires_a_distinct_reviewer_and_reader_projection_is_safe(): void
     {
-        $super = $this->user('super_admin');
+        $author = $this->user('super_admin');
+        $reviewer = $this->user('super_admin');
         $reader = $this->user('reporter', $this->campusA);
         $service = app(ContentPublicationService::class);
         $item = $service->createDraft(
-            $super,
-            $this->articlePayload(ContentScope::Global, null, 'Publikasi Global Langsung'),
+            $author,
+            $this->articlePayload(ContentScope::Global, null, 'Publikasi Global Tinjauan Kedua'),
         );
-        $item = $service->directGlobalPublish($item->currentDraftVersion, $super, (int) $item->lock_version);
+
+        $this->assertFalse(method_exists($service, 'directGlobalPublish'));
+        $item = $service->submit($item->currentDraftVersion, $author, (int) $item->lock_version);
+        try {
+            $service->startReview($item->currentDraftVersion, $author, (int) $item->lock_version);
+            $this->fail('The global author was allowed to review their own version.');
+        } catch (HttpResponseException) {
+            $this->assertTrue(true);
+        }
+        $item = $service->startReview($item->currentDraftVersion, $reviewer, (int) $item->lock_version);
+        $item = $service->approve($item->currentDraftVersion, $reviewer, (int) $item->lock_version);
+        try {
+            $service->publishApproved($item->currentDraftVersion, $author, (int) $item->lock_version);
+            $this->fail('The global author was allowed to publish their own approved version.');
+        } catch (HttpResponseException) {
+            $this->assertTrue(true);
+        }
+        $item = $service->publishApproved($item->currentDraftVersion, $reviewer, (int) $item->lock_version);
 
         $this->assertSame(ContentLifecycleStatus::Published, $item->publishedVersion->lifecycle_status);
         $this->assertSame(
-            ['direct_global_published'],
+            ['review_started', 'approved'],
             $item->publishedVersion->reviewDecisions->map(fn ($decision) => $decision->decision_code->value)->all(),
         );
         Sanctum::actingAs($reader, ['*']);

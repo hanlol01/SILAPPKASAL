@@ -196,7 +196,7 @@ class ContentFoundationRepairTest extends TestCase
             'is_active' => false,
             'requires_editorial_review' => false,
         ]);
-        $service->directGlobalPublish($inactiveRevision->currentDraftVersion->fresh(), $super, (int) $inactiveRevision->fresh()->lock_version);
+        $this->publishGlobalItem($inactiveRevision, $super);
 
         $this->getJson('/api/v1/content/articles/'.$article->public_id)
             ->assertOk()
@@ -214,7 +214,7 @@ class ContentFoundationRepairTest extends TestCase
             'is_active' => false,
             'requires_editorial_review' => false,
         ]);
-        $service->directGlobalPublish($inactivePending->currentDraftVersion->fresh(), $super, (int) $inactivePending->fresh()->lock_version);
+        $this->publishGlobalItem($inactivePending, $super);
 
         $this->expectException(ValidationException::class);
         $service->publishApproved($pendingArticle->currentDraftVersion, $super, (int) $pendingArticle->lock_version);
@@ -563,7 +563,19 @@ class ContentFoundationRepairTest extends TestCase
             'verified_owner' => 'Verified institutional owner',
         ]);
 
-        return $service->directGlobalPublish($item->currentDraftVersion, $super, (int) $item->lock_version);
+        return $this->publishGlobalItem($item, $super);
+    }
+
+    private function publishGlobalItem(ContentItem $item, User $author): ContentItem
+    {
+        $service = app(ContentPublicationService::class);
+        $reviewer = $this->user('super_admin');
+        $item->refresh();
+        $item = $service->submit($item->currentDraftVersion->fresh(), $author, (int) $item->lock_version);
+        $item = $service->startReview($item->currentDraftVersion, $reviewer, (int) $item->lock_version);
+        $item = $service->approve($item->currentDraftVersion, $reviewer, (int) $item->lock_version);
+
+        return $service->publishApproved($item->currentDraftVersion, $reviewer, (int) $item->lock_version);
     }
 
     /** @return array<string, mixed> */

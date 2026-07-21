@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\ContentScope;
 use App\Models\ContentCategory;
+use App\Models\ContentItem;
 use App\Models\Role;
 use App\Models\University;
 use App\Models\User;
@@ -162,7 +163,7 @@ class ContentManagementTest extends TestCase
         $super = $this->user('super_admin');
         $service = app(ContentPublicationService::class);
         $global = $service->createDraft($super, $this->consultationPayload(ContentScope::Global, null, 'Global Aktif'));
-        $global = $service->directGlobalPublish($global->currentDraftVersion, $super, (int) $global->lock_version);
+        $global = $this->publishGlobalItem($global, $super);
         $own = $service->createDraft($adminA, $this->consultationPayload(ContentScope::Campus, $this->campusA, 'Kampus Aktif'));
         $own = $service->submit($own->currentDraftVersion, $adminA, (int) $own->lock_version);
         $own = $service->startReview($own->currentDraftVersion, $super, (int) $own->lock_version);
@@ -212,6 +213,17 @@ class ContentManagementTest extends TestCase
             'is_active' => true, 'verification_date' => now()->toDateString(),
             'verified_owner' => 'Pemilik Institusional',
         ];
+    }
+
+    private function publishGlobalItem(ContentItem $item, User $author): ContentItem
+    {
+        $service = app(ContentPublicationService::class);
+        $reviewer = $this->user('super_admin');
+        $item = $service->submit($item->currentDraftVersion, $author, (int) $item->lock_version);
+        $item = $service->startReview($item->currentDraftVersion, $reviewer, (int) $item->lock_version);
+        $item = $service->approve($item->currentDraftVersion, $reviewer, (int) $item->lock_version);
+
+        return $service->publishApproved($item->currentDraftVersion, $reviewer, (int) $item->lock_version);
     }
 
     private function document(string $text): array

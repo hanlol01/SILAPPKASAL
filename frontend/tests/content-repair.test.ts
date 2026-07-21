@@ -200,12 +200,67 @@ test("content governance review filters stay server-driven and campus content st
   );
 
   assert.match(route, /contentGovernanceKeys\.reviews\(filters\)/);
-  assert.match(route, /getGovernanceReviews\(filters\)/);
+  assert.match(route, /getGovernanceReviews\(filters, signal\)/);
   assert.match(route, /submitted_from: from \|\| undefined/);
   assert.match(route, /university_code: campus \|\| undefined/);
   assert.match(api, /"\/content-governance\/reviews"/);
   assert.match(route, /readOnlyCampus/);
   assert.doesNotMatch(route, /<ContentEditor[\s\S]{0,300}scope="campus"/);
+});
+
+test("governance private PDFs use authenticated Blob access with cleanup and safe feedback", async () => {
+  const [route, attachment, attachmentApi, preview, id, en] = await Promise.all([
+    readFile(new URL("../src/routes/dashboard.content-governance.tsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../src/components/content/authenticated-content-attachment.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(new URL("../src/lib/content-attachment-api.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/secure-file-preview-dialog.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/locales/id/contentGovernance.json", import.meta.url), "utf8").then(JSON.parse),
+    readFile(new URL("../src/locales/en/contentGovernance.json", import.meta.url), "utf8").then(JSON.parse),
+  ]);
+
+  assert.match(route, /<AuthenticatedContentAttachment attachment=\{file\}/);
+  assert.doesNotMatch(route, /href=\{file\.download_url\}/);
+  assert.doesNotMatch(route, /target="_blank"/);
+  assert.match(attachment, /SecureFilePreviewDialog/);
+  assert.match(attachment, /fetchContentAttachment\(attachment\.public_id, signal\)/);
+  assert.match(attachment, /attachment\.filename/);
+  assert.match(attachmentApi, /apiFetchBlob/);
+  assert.doesNotMatch(attachmentApi, /token|query:/i);
+  assert.match(preview, /disabled=\{pdfOpening\}/);
+  assert.match(preview, /URL\.createObjectURL\(response\.blob\)/);
+  assert.match(preview, /URL\.revokeObjectURL\(nextUrl\)/);
+  assert.match(attachment, /review\.attachmentError/);
+  assert.equal(typeof id.review.attachmentError, "string");
+  assert.equal(typeof en.review.attachmentLoading, "string");
+});
+
+test("governance queries propagate TanStack AbortSignal to authenticated requests", async () => {
+  const [route, api, managementApi] = await Promise.all([
+    readFile(new URL("../src/routes/dashboard.content-governance.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/lib/content-governance-api.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/lib/content-management-api.ts", import.meta.url), "utf8"),
+  ]);
+
+  for (const call of [
+    "getGovernanceReviews(filters, signal)",
+    "getGovernancePublished(filters, signal)",
+    "getGovernanceDetail(publicId!, signal)",
+    "getGovernanceCategories(section, signal)",
+    "getGovernanceCampuses(signal)",
+    "getFeaturedPlacements({ state: stateFilter || undefined }, signal)",
+    "getFeaturedEligible(eligibleFilters, signal)",
+    "getFeaturedCampuses(signal)",
+  ]) {
+    assert.ok(route.includes(call), `Missing signal propagation for ${call}`);
+  }
+  assert.match(api, /getGovernanceReviews[\s\S]+signal\?: AbortSignal[\s\S]+\{ query: filters, signal \}/);
+  assert.match(api, /getGovernanceDetail[\s\S]+\{ signal \}/);
+  assert.match(managementApi, /getManagedContent[\s\S]+signal\?: AbortSignal/);
+  assert.match(route, /getManagedContent\(filters, signal\)/);
+  assert.match(route, /getManagedContentDetail\(selectedId!, signal\)/);
 });
 
 test("editorial decisions preserve notes on conflict and render only server capabilities", async () => {

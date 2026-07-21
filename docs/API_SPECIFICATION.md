@@ -2075,9 +2075,11 @@ DELETE /api/v1/content-governance/featured/{placementPublicId}
 The review list is server-paginated and accepts review state, scope, content type, section, category
 public ID, campus code, submission-date range, escaped search, `page`, and `per_page`. Its default
 states are `submitted`, `in_review`, and `approved`. Published items eligible for archival governance
-use the separate `/published` query. Detail projects the submitted/current version, the previous
-published version when different, safe PDF resources, server capabilities, author editorial note,
-and an append-only decision timeline.
+use the separate `/published` query. That query projects only `published_version_id`, including while
+a newer draft, submitted, in-review, approved-only, revision-requested, or rejected version exists;
+those versions never replace the Published Library projection. Detail projects the submitted/current
+version, the previous published version when different, safe PDF resources, server capabilities,
+author editorial note, and an append-only decision timeline.
 
 Start review, revision request, rejection, approval, publication, and archive require the integer
 item `lock_version`. Revision/rejection/archive reasons are 10-2,000 characters; approval note is
@@ -2085,7 +2087,15 @@ optional. `content_stale_review`, `content_invalid_lifecycle_transition`, `conte
 `content_active_authoring_version` are stable conflict codes. Approval and publication remain two
 distinct lifecycle transitions. Approval reruns publishability validation; publication locks the
 same approved version and atomically updates the published pointer. A content author cannot review
-their own version; creator, author, and editor checks also apply to global Super Admin content.
+or publish their own version; creator, author, and editor checks also apply to global Super Admin
+content after transactional locking. No direct global publication service exists: global content
+must be submitted, reviewed and approved by an eligible second Super Admin before publication.
+
+Governance PDF actions fetch `/content/attachments/{attachmentPublicId}` with the authenticated
+Bearer session and create only a temporary browser Blob URL. Protected endpoints are never opened
+through raw anchor navigation and tokens are never placed in query strings. TanStack governance
+queue, detail/history, Published Library, category/campus options, featured placements, and featured
+eligibility requests forward cancellation signals to the authenticated fetch layer.
 
 Featured create accepts authoritative content public ID, exact global/campus scope, campus code when
 campus-scoped, rank 1-5, active flag, and optional active window. Update and delete require the opaque

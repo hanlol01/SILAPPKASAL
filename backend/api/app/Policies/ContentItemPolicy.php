@@ -99,11 +99,6 @@ class ContentItemPolicy extends BasePolicy
             && $this->allowPermission($user, 'content.update.own_campus');
     }
 
-    public function publishGlobal(User $user, ContentItem $item): bool
-    {
-        return $item->scope === ContentScope::Global && $this->createGlobal($user);
-    }
-
     public function review(User $user, ContentItem $item, ?ContentVersion $version = null): bool
     {
         return $user->is_active

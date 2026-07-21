@@ -1330,15 +1330,22 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
   append-only decision domain and are excluded from audit metadata. Approval and publication are
   distinct locked transitions, and publication can target only the approved version just reviewed.
 - Global authoring is fixed to `scope=global` with a null university. The item creator and version
-  author/editor cannot review that version; the C3 UI does not expose the legacy
-  direct-global-publication service path.
+  author/editor cannot review or publish that version. The legacy direct-global-publication method
+  has been removed from the production service; only the locked approved-version transition remains.
 - Published archival governance is a separate query from the editorial queue. An archive requires a
   reason and is blocked while an authoring version remains active.
+- Published governance resources project only the authoritative published pointer. Later rejected,
+  revision-requested, draft, submitted, in-review, or approved-only versions cannot replace it.
+- Governance PDF access uses authenticated byte retrieval and temporary Blob URLs. Raw protected
+  attachment anchors and authentication-bearing query strings are prohibited; object URLs are
+  revoked after use and attachment bytes are not persisted by the application.
 - Featured placement update/removal requires an opaque state-derived concurrency token, not a
   client-provided timestamp assumption. Eligibility is resolved from the locked published Article,
   exact scope/campus, archive state, rank, and date window.
 - Governance and global-authoring responses are `private, no-store`. Authentication changes cancel
   and remove TanStack queries rooted at both `content-management` and `content-governance`.
+  Governance read requests forward cancellation signals so obsolete transport work cannot complete
+  into a later account context.
 
 ---
 

@@ -426,37 +426,26 @@ class ContentPublicationService
 
     public function publishApproved(ContentVersion $version, User $actor, int $expectedLockVersion): ContentItem
     {
-        return $this->publish($version, $actor, false, $expectedLockVersion);
+        return $this->publish($version, $actor, $expectedLockVersion);
     }
 
-    public function directGlobalPublish(ContentVersion $version, User $actor, int $expectedLockVersion): ContentItem
+    private function publish(ContentVersion $version, User $actor, int $expectedLockVersion): ContentItem
     {
-        return $this->publish($version, $actor, true, $expectedLockVersion);
-    }
-
-    private function publish(ContentVersion $version, User $actor, bool $directGlobal, int $expectedLockVersion): ContentItem
-    {
-        return DB::transaction(function () use ($version, $actor, $directGlobal, $expectedLockVersion): ContentItem {
+        return DB::transaction(function () use ($version, $actor, $expectedLockVersion): ContentItem {
             $actor = $this->lockedActor($actor);
             $version = ContentVersion::query()->whereKey($version->id)->lockForUpdate()->firstOrFail();
             $item = ContentItem::query()->whereKey($version->content_item_id)->lockForUpdate()->firstOrFail();
 
             $this->ensureNotArchived($item);
-            if ($directGlobal) {
-                if (! $this->policy->publishGlobal($actor, $item)) {
-                    throw $this->forbidden();
-                }
-            } elseif (! $this->policy->review($actor, $item, $version)) {
+            if (! $this->policy->review($actor, $item, $version)) {
                 throw $this->forbidden();
             }
             $this->assertLockVersion($item, $expectedLockVersion, ApiErrorCode::ContentStaleReview);
-            $requiredStatus = $directGlobal ? null : ContentLifecycleStatus::Approved;
             if ((int) $item->current_draft_version_id !== (int) $version->id) {
-                throw $this->invalidLifecycle($requiredStatus, $version->lifecycle_status);
+                throw $this->invalidLifecycle(ContentLifecycleStatus::Approved, $version->lifecycle_status);
             }
-            if (($directGlobal && ! $version->lifecycle_status?->editable())
-                || ($requiredStatus !== null && $version->lifecycle_status !== $requiredStatus)) {
-                throw $this->invalidLifecycle($requiredStatus, $version->lifecycle_status);
+            if ($version->lifecycle_status !== ContentLifecycleStatus::Approved) {
+                throw $this->invalidLifecycle(ContentLifecycleStatus::Approved, $version->lifecycle_status);
             }
 
             $this->ensurePublishablePayload($version, true);
@@ -469,15 +458,6 @@ class ContentPublicationService
                 'published_at' => $now,
             ])->save();
 
-            if ($directGlobal) {
-                ContentReviewDecision::query()->create([
-                    'content_version_id' => $version->id,
-                    'reviewer_id' => $actor->id,
-                    'decision_code' => ContentReviewDecisionCode::DirectGlobalPublished,
-                    'decided_at' => $now,
-                ]);
-            }
-
             $item->forceFill([
                 'published_version_id' => $version->id,
                 'current_draft_version_id' => $item->current_draft_version_id === $version->id
@@ -487,13 +467,7 @@ class ContentPublicationService
             ])->save();
 
             $item = $this->loadManagement($item);
-            $this->record(
-                $directGlobal ? AuditAction::ContentDirectGlobalPublished : AuditAction::ContentPublished,
-                $actor,
-                $item,
-                $version,
-                $from,
-            );
+            $this->record(AuditAction::ContentPublished, $actor, $item, $version, $from);
 
             return $item;
         });

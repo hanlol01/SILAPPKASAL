@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Enums\ContentLifecycleStatus;
+use App\Models\ContentVersion;
 use App\Policies\ContentItemPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -11,7 +12,7 @@ class ContentGovernanceResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $version = $this->currentDraftVersion ?? $this->latestVersion ?? $this->publishedVersion;
+        $version = $this->versionForProjection();
 
         return [
             'public_id' => $this->public_id,
@@ -43,6 +44,11 @@ class ContentGovernanceResource extends JsonResource
             ] : null,
             'capabilities' => $this->capabilities($request, $version),
         ];
+    }
+
+    protected function versionForProjection(): ?ContentVersion
+    {
+        return $this->currentDraftVersion ?? $this->latestVersion ?? $this->publishedVersion;
     }
 
     /** @return array<string, bool> */

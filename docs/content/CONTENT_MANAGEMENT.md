@@ -62,8 +62,14 @@ the append-only decision history and never copied into audit metadata.
 
 `Konten Global` reuses the controlled C2 editor with scope fixed to `global` and no campus selector.
 Global drafts follow the same submit, review, approve, and publish lifecycle. The creator, author,
-or last editor cannot review that version, so publication requires a different Super Admin. Direct publication is not
-offered by the C3 UI.
+or last editor cannot review or publish that version, so publication requires a different Super
+Admin. The production domain exposes no direct global publication method.
+
+Published Content always displays the authoritative published pointer. A rejected, revision-requested,
+draft, submitted, in-review, or approved-only revision remains available to review/history where
+authorized but cannot replace the Published Content card or authenticated reader response. Private
+PDF actions retrieve bytes with the current authenticated session, open a temporary Blob URL, revoke
+it after use, and never navigate directly to a protected API URL.
 
 `Konten Unggulan` manages ranks 1-5 for eligible published Articles. Placement windows affect only
 featured visibility and are not scheduled publication. Update and removal require the opaque
@@ -72,6 +78,8 @@ Changing the selected Article is recorded distinctly as a replacement audit resu
 
 All governance queries are `private, no-store`. Logout, authentication invalidation, and account
 replacement cancel and remove both `content-management` and `content-governance` TanStack queries.
+Governance read functions also forward TanStack `AbortSignal` values to the fetch layer so obsolete
+queue, detail, Published Content, option, and featured requests are cancelled at transport level.
 
 ## Deferred
 

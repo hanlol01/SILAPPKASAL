@@ -164,9 +164,10 @@ export const contentManagementKeys = {
   categories: (section: string) => [...contentManagementKeys.all, "categories", section] as const,
 };
 
-export async function getManagedContent(filters: Record<string, QueryValue>) {
+export async function getManagedContent(filters: Record<string, QueryValue>, signal?: AbortSignal) {
   const envelope = await apiRequestEnvelope<ManagedContentSummary[]>("/content-management/items", {
     query: filters,
+    signal,
   });
   return { data: envelope.data, meta: envelope.meta as PaginationMeta };
 }
@@ -175,8 +176,8 @@ export function getContentSummary() {
   return apiRequest<Record<ContentLifecycleStatus, number>>("/content-management/summary");
 }
 
-export function getManagedContentDetail(publicId: string) {
-  return apiRequest<ManagedContentDetail>(`/content-management/items/${publicId}`);
+export function getManagedContentDetail(publicId: string, signal?: AbortSignal) {
+  return apiRequest<ManagedContentDetail>(`/content-management/items/${publicId}`, { signal });
 }
 
 export function createManagedContent(payload: ContentPayload) {

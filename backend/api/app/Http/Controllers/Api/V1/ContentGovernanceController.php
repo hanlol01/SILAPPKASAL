@@ -16,6 +16,7 @@ use App\Http\Resources\ContentGovernanceDetailResource;
 use App\Http\Resources\ContentGovernanceResource;
 use App\Http\Resources\FeaturedContentGovernanceResource;
 use App\Http\Resources\FeaturedEligibleContentResource;
+use App\Http\Resources\PublishedContentGovernanceResource;
 use App\Services\ContentGovernanceQueryService;
 use App\Services\ContentPublicationService;
 use App\Services\FeaturedContentGovernanceService;
@@ -46,7 +47,7 @@ class ContentGovernanceController extends Controller
     {
         $items = $this->queries->publishedItems($request->user(), $request->validated());
 
-        return $this->response(ContentGovernanceResource::collection($items->items()), 'Published content governance list retrieved successfully', 200, [
+        return $this->response(PublishedContentGovernanceResource::collection($items->items()), 'Published content governance list retrieved successfully', 200, [
             'current_page' => $items->currentPage(),
             'per_page' => $items->perPage(),
             'total' => $items->total(),
