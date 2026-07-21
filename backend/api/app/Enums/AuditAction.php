@@ -97,6 +97,7 @@ enum AuditAction: string
     case ContentDirectGlobalPublished = 'content.direct_global_published';
     case ContentArchived = 'content.archived';
     case ContentAttachmentUploaded = 'content.attachment_uploaded';
+    case ContentAttachmentDownloadAuthorized = 'content.attachment_download_authorized';
     case ContentAttachmentDownloaded = 'content.attachment_downloaded';
     case ContentFeaturedPlacementChanged = 'content.featured_placement_changed';
 

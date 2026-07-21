@@ -1282,6 +1282,20 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
   scope, safe university code, transition, decision code, attachment public ID/purpose, and result.
 - Authenticated content and management responses use private, no-store caching. They must never be
   placed in a shared or service-worker response cache.
+- Campus Admin Content-audit queries are restricted before pagination to `scope=campus` events whose
+  safe university code equals the Admin's university. Global and cross-campus Content events are
+  hidden; detail lookup returns a non-disclosing 404. Super Admin retains all-campus Content audit.
+- Image uploads fail closed while a verified metadata-stripping and re-encoding processor is absent.
+  Enabling an environment flag alone never enables raw image storage. PDF general attachments remain
+  available under the private-storage validation boundary.
+- Revision attachment cloning generates new UUIDs/private paths and rewrites cover/image references;
+  submit and publication reject foreign, missing, wrong-purpose, or dangling attachment references.
+- Download filenames are generated from attachment purpose/public ID. Audit action
+  `content.attachment_download_authorized` records successful authorization and response preparation,
+  not byte-complete delivery.
+- Automated tests are guarded to SQLite `:memory:` by default. Local PostgreSQL verification requires
+  the exact database `silappkasal_test` plus an explicit matching confirmation; `silappkasal` is
+  prohibited.
 
 ---
 

@@ -47,6 +47,7 @@ class PublishedContentQueryService
             ->where(fn (Builder $query) => $this->scopeQuery($query, $actor))
             ->orderBy('display_order')
             ->orderBy('name')
+            ->orderBy('public_id')
             ->get();
     }
 
@@ -63,17 +64,15 @@ class PublishedContentQueryService
         }
 
         return $query->orderByDesc('content_versions.published_at')
-            ->orderByDesc('content_items.id')
+            ->orderBy('content_items.public_id')
             ->paginate((int) ($filters['per_page'] ?? 15));
     }
 
-    public function article(User $actor, string $identifier): ContentItem
+    public function article(User $actor, string $publicId): ContentItem
     {
         return $this->publishedItems($actor, ContentType::Article)
             ->with($this->articleRelations())
-            ->where(fn (Builder $query) => $query
-                ->where('content_items.public_id', $identifier)
-                ->orWhere('content_items.slug', $identifier))
+            ->where('content_items.public_id', $publicId)
             ->firstOrFail();
     }
 
@@ -89,6 +88,7 @@ class PublishedContentQueryService
             ->where('content_items.category_id', $article->category_id)
             ->whereKeyNot($article->id)
             ->orderByDesc('content_versions.published_at')
+            ->orderBy('content_items.public_id')
             ->limit($limit)
             ->get();
     }
@@ -103,6 +103,7 @@ class PublishedContentQueryService
         return $query
             ->orderBy('faq_version_contents.display_order')
             ->orderBy('content_versions.title')
+            ->orderBy('content_items.public_id')
             ->paginate((int) ($filters['per_page'] ?? 50));
     }
 
@@ -115,6 +116,7 @@ class PublishedContentQueryService
             ->orderByRaw("CASE WHEN content_items.scope = 'campus' THEN 0 ELSE 1 END")
             ->orderBy('consultation_version_contents.sort_order')
             ->orderBy('content_versions.title')
+            ->orderBy('content_items.public_id')
             ->get();
     }
 
@@ -137,6 +139,7 @@ class PublishedContentQueryService
             ->whereHas('item', fn (Builder $query) => $this->constrainPublishedItem($query, $actor, ContentType::Article))
             ->orderByRaw("CASE WHEN scope = 'campus' THEN 0 ELSE 1 END")
             ->orderBy('rank')
+            ->orderBy('public_id')
             ->limit(5)
             ->get()
             ->pluck('item')
@@ -152,6 +155,7 @@ class PublishedContentQueryService
             ->with($this->articleRelations())
             ->whereNotIn('content_items.id', $placements->pluck('id'))
             ->orderByDesc('content_versions.published_at')
+            ->orderBy('content_items.public_id')
             ->limit(5 - $placements->count())
             ->get();
 
@@ -224,7 +228,7 @@ class PublishedContentQueryService
         return [
             'section', 'category',
             'publishedVersion.articleContent.coverAttachment',
-            'publishedVersion.articleContent.consultationCta.publishedVersion',
+            'publishedVersion.articleContent.consultationCta.publishedVersion.consultationContent',
             'publishedVersion.attachments',
         ];
     }

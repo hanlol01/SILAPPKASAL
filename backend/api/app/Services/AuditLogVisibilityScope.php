@@ -16,7 +16,7 @@ final class AuditLogVisibilityScope
     }
 
     /**
-     * @param Builder<AuditLog> $query
+     * @param  Builder<AuditLog>  $query
      * @return Builder<AuditLog>
      */
     public function apply(Builder $query, User $user): Builder
@@ -26,9 +26,25 @@ final class AuditLogVisibilityScope
         }
 
         if ($user->hasRole('admin')) {
+            $universityCode = $user->university_id === null
+                ? null
+                : $user->university()->value('code');
+
             return $query
                 ->where('category', '!=', AuditCategory::Privacy->value)
-                ->where('is_elevated_access', false);
+                ->where('is_elevated_access', false)
+                ->where(function (Builder $visibility) use ($universityCode): void {
+                    $visibility->where('category', '!=', AuditCategory::Content->value);
+
+                    if (filled($universityCode)) {
+                        $visibility->orWhere(function (Builder $content) use ($universityCode): void {
+                            $content
+                                ->where('category', AuditCategory::Content->value)
+                                ->where('metadata->scope', 'campus')
+                                ->where('metadata->university_code', $universityCode);
+                        });
+                    }
+                });
         }
 
         return $query->whereRaw('1 = 0');

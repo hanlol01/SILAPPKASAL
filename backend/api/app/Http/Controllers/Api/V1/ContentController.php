@@ -41,9 +41,9 @@ class ContentController extends Controller
         ]);
     }
 
-    public function article(Request $request, string $identifier): JsonResponse
+    public function article(Request $request, string $publicId): JsonResponse
     {
-        $article = $this->queries->article($request->user(), $identifier);
+        $article = $this->queries->article($request->user(), $publicId);
         $article->setAttribute('content_detail', true);
         $article->setRelation('relatedArticles', $this->queries->relatedArticles($request->user(), $article));
 

@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Contracts\ContentImageProcessor;
 use App\Models\AuditLog;
 use App\Models\BreakGlassRequest;
 use App\Models\CaseFinalSummary;
@@ -35,6 +36,8 @@ use App\Policies\ReporterSelfServicePolicy;
 use App\Policies\ReportPolicy;
 use App\Policies\UserPolicy;
 use App\Services\SecurityAccessDeniedLogger;
+use App\Services\TestDatabaseGuard;
+use App\Services\UnavailableContentImageProcessor;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
@@ -50,7 +53,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(ContentImageProcessor::class, UnavailableContentImageProcessor::class);
     }
 
     /**
@@ -58,6 +61,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if ($this->app->runningInConsole() && $this->app->environment('testing')) {
+            $this->app->make(TestDatabaseGuard::class)->assertSafe();
+        }
+
         Gate::policy(AuditLog::class, AuditLogPolicy::class);
         Gate::policy(BreakGlassRequest::class, BreakGlassPolicy::class);
         Gate::policy(CaseRecord::class, CasePolicy::class);

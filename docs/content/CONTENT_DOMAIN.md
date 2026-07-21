@@ -42,27 +42,64 @@ references, and dividers. H1 and unsupported nodes or marks are rejected. Server
 through Symfony HtmlSanitizer. The searchable plain-text derivative and reading time are computed
 server-side.
 
+The server rejects a structured document before rendering when serialized JSON exceeds 500,000
+bytes, a text node exceeds 20,000 characters, total searchable text exceeds 200,000 characters,
+the document exceeds 1,000 nodes or depth 12, a text node has more than four marks, total marks
+exceed 2,000, or a link exceeds 2,048 characters.
+
 FAQ answers use the same restricted document pipeline without Article-only headings, callouts,
 images, or dividers. Consultation contacts use typed fields. Telephone and WhatsApp display values
 allow common separators, but normalized values contain digits and an optional leading plus while
 preserving a leading zero. Appointment links must be HTTPS and may not carry Report, Case,
 registration, tracking, identity, incident, NIM, email, or telephone query data. Published
-Consultation records require a verification owner and date.
+Consultation records require a verification owner and date. Article Consultation CTAs must resolve
+through the target's current published pointer to an active, unarchived, scope-safe Consultation
+payload at submit and publication time. Reader projection omits a CTA that later becomes inactive or
+otherwise ineligible without failing the Article response.
 
 ## Attachments
 
-Attachments use the private `content` filesystem disk. Cover images accept JPG/JPEG/PNG/WebP up to
-5 MB. Other attachments and inline image references accept PDF/JPG/JPEG/PNG up to 10 MB. The backend
-validates non-empty size, extension, detected MIME, PDF/image signature, and image dimensions before
-storage. Responses never serialize private path, checksum, internal IDs, or protected original name.
-Downloads require authorization, are audited, use a safe filename, and send `private, no-store` and
-`X-Content-Type-Options: nosniff`.
+Attachments use the private `content` filesystem disk. The current default is fail-closed for every
+JPG/JPEG/PNG/WebP upload because the audited runtime has no verified metadata-stripping image
+re-encoder. `CONTENT_IMAGE_UPLOADS_ENABLED=true` is insufficient by itself: a runtime-available
+`ContentImageProcessor` implementation must also safely normalize orientation, strip metadata, and
+re-encode the image. Until that implementation exists, only PDF general attachments up to 10 MB are
+accepted; cover and inline-image uploads are unavailable.
 
-The audited local PHP environment has `fileinfo` and `getimagesize`, but no GD, Imagick, or EXIF
-extension. C1 therefore does not claim orientation correction, metadata stripping, re-encoding, or
-derivative generation. Intervention Image was intentionally not added because no compatible image
-driver is available. Production must either install and verify an approved driver before enabling
-such processing or retain the documented validation-only behavior.
+Responses never serialize private path, checksum, internal IDs, or protected original name.
+Reader-facing names are generated from purpose and attachment public ID, for example
+`lampiran-{public_id}.pdf`; client filenames never enter `Content-Disposition`. Downloads revalidate
+authorization, send `private, no-store` and `X-Content-Type-Options: nosniff`, and record
+`content.attachment_download_authorized` after authorization and storage existence checks. The event
+means response preparation was authorized, not that the client received every streamed byte.
+
+Creating a revision clones authorized private attachment bytes to new UUID paths, verifies size and
+SHA-256, drops protected original-name metadata, rewrites structured image UUIDs, and rewrites the
+cover foreign key. Any failure rolls back database rows and deletes newly copied files. Submit and
+publish revalidate that all attachment bytes exist and that cover/inline purposes and version
+ownership match their use.
+
+## Database integrity and deterministic readers
+
+Repair migration `2026_07_21_020000_harden_content_publication_constraints.php` adds explicit
+scope/university, content-type, lifecycle, featured-rank, and featured-window constraints. PostgreSQL
+uses named CHECK constraints; SQLite tests use equivalent named insert/update triggers. Version
+pointer existence remains protected by foreign keys. Pointer ownership is additionally enforced by
+locked publication transactions and by reader joins requiring version/item ownership.
+
+Article detail is public-ID-only: `GET /api/v1/content/articles/{publicId}`. Slugs are list metadata,
+not an ambiguous detail resolver. Lists and related/fallback projections use public ID as their final
+stable ordering key. Expired featured placements are deactivated before replacement, future windows
+are not eligible early, and rank remains limited to 1-5.
+
+## Test database isolation
+
+The default PHPUnit configuration force-overrides inherited database credentials with
+`APP_ENV=testing`, SQLite `:memory:`, and array/sync test drivers. Application startup and the base
+test case use `TestDatabaseGuard`: only SQLite `:memory:` or local PostgreSQL `silappkasal_test` with
+`TEST_DATABASE_CONFIRM=silappkasal_test` is accepted. `.env.testing` remains ignored; the tracked
+`.env.testing.example` contains no secrets. `silappkasal` must never be used for automated tests or
+destructive verification.
 
 ## Seeder boundary
 

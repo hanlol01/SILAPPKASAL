@@ -1978,7 +1978,7 @@ and send `Cache-Control: private, no-store`.
 GET  /api/v1/content/sections
 GET  /api/v1/content/categories?section={code}
 GET  /api/v1/content/articles?section={code}&category={publicId}&search={text}&per_page={1..50}
-GET  /api/v1/content/articles/{publicIdOrSlug}
+GET  /api/v1/content/articles/{publicId}
 GET  /api/v1/content/faqs?category={publicId}&search={text}&per_page={1..50}
 GET  /api/v1/content/consultation
 GET  /api/v1/content/featured
@@ -2001,3 +2001,12 @@ sanitized projection, safe attachments, related published scope-safe Articles, a
 Consultation CTA public reference. FAQ and Consultation resources expose only approved reader fields.
 No reader resource contains internal numeric IDs, author/editor/reviewer identifiers, review reasons,
 draft pointers, private paths, checksums, encrypted narratives, or unpublished versions.
+
+Article detail accepts a UUID public ID only. Slug and public-ID resolution are not combined; a slug
+placed in the detail segment returns 404. Consultation CTA projection is nullable and is omitted when
+the target is inactive, archived, unpublished, future-published, or outside the Article scope.
+
+Current C1 attachment upload policy is PDF-only for general attachments. Image attempts return 422
+unless both the explicit feature flag and a verified safe re-encoding processor are available. File
+resources and download headers use generated names such as `lampiran-{attachmentPublicId}.pdf`; the
+protected client filename is never serialized or used as a response filename.

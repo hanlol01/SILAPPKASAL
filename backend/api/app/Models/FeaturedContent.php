@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\ContentScope;
 use App\Enums\ContentType;
 use App\Models\Concerns\HasContentScope;
+use App\Support\ContentScopeKey;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,6 +17,10 @@ class FeaturedContent extends Model
     use HasContentScope, HasFactory;
 
     protected $table = 'featured_content';
+
+    protected $attributes = [
+        'is_active' => true,
+    ];
 
     protected $fillable = [
         'public_id',
@@ -52,6 +57,29 @@ class FeaturedContent extends Model
                 throw new InvalidArgumentException('Featured content rank must be between 1 and 5.');
             }
 
+            if ($featured->active_from !== null
+                && $featured->active_until !== null
+                && $featured->active_from->isAfter($featured->active_until)) {
+                throw new InvalidArgumentException('Featured content active window is invalid.');
+            }
+
+            $now = now();
+            $scopeKey = ContentScopeKey::make(
+                $featured->scope,
+                $featured->university_id === null ? null : (int) $featured->university_id,
+            );
+            FeaturedContent::query()
+                ->where('scope_key', $scopeKey)
+                ->where('is_active', true)
+                ->whereNotNull('active_until')
+                ->where('active_until', '<', $now)
+                ->when($featured->exists, fn ($query) => $query->whereKeyNot($featured->getKey()))
+                ->update(['is_active' => false, 'updated_at' => $now]);
+
+            if ($featured->is_active && $featured->active_until?->isBefore($now)) {
+                $featured->is_active = false;
+            }
+
             $item = ContentItem::query()->find($featured->content_item_id);
             if ($item === null
                 || $item->content_type !== ContentType::Article
@@ -61,6 +89,22 @@ class FeaturedContent extends Model
             }
             if ($featured->is_active && ($item->published_version_id === null || $item->archived_at !== null)) {
                 throw new InvalidArgumentException('Active featured placement requires an eligible published Article.');
+            }
+
+            $eligibleNow = $featured->is_active
+                && ($featured->active_from === null || $featured->active_from->lessThanOrEqualTo($now))
+                && ($featured->active_until === null || $featured->active_until->greaterThanOrEqualTo($now));
+            if ($eligibleNow) {
+                $eligibleCount = FeaturedContent::query()
+                    ->where('scope_key', $scopeKey)
+                    ->where('is_active', true)
+                    ->where(fn ($query) => $query->whereNull('active_from')->orWhere('active_from', '<=', $now))
+                    ->where(fn ($query) => $query->whereNull('active_until')->orWhere('active_until', '>=', $now))
+                    ->when($featured->exists, fn ($query) => $query->whereKeyNot($featured->getKey()))
+                    ->count();
+                if ($eligibleCount >= 5) {
+                    throw new InvalidArgumentException('A scope may have at most five currently eligible featured placements.');
+                }
             }
         });
     }

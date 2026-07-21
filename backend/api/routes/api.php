@@ -59,7 +59,8 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/sections', [ContentController::class, 'sections']);
         Route::get('/categories', [ContentController::class, 'categories']);
         Route::get('/articles', [ContentController::class, 'articles']);
-        Route::get('/articles/{identifier}', [ContentController::class, 'article']);
+        Route::get('/articles/{publicId}', [ContentController::class, 'article'])
+            ->whereUuid('publicId');
         Route::get('/faqs', [ContentController::class, 'faqs']);
         Route::get('/consultation', [ContentController::class, 'consultation']);
         Route::get('/featured', [ContentController::class, 'featured']);

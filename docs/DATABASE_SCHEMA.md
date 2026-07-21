@@ -984,6 +984,23 @@ class DatabaseSeeder extends Seeder
 
 > **Catatan**: Dokumen ini adalah Tier 2 (GOVERNED). Perubahan memerlukan persetujuan Project Owner. Schema ini menjadi referensi wajib bagi Backend Agent untuk membuat migration Laravel.
 
+## REV-CONTENT-01 C1 Constraint Repair Addendum
+
+Migration `2026_07_21_020000_harden_content_publication_constraints.php` adds named PostgreSQL CHECK
+constraints, with SQLite test-trigger equivalents, for:
+
+- `content_categories`, `content_items`, and `featured_content`: global scope requires a null
+  `university_id`, while campus scope requires a non-null university;
+- `content_items.content_type`: `article`, `faq`, or `consultation`;
+- `content_versions.lifecycle_status`: the eight defined publication lifecycle values;
+- `featured_content.rank`: 1 through 5;
+- `featured_content`: a nullable date window with `active_from <= active_until`.
+
+Existing foreign keys prevent draft/published pointers from referencing nonexistent versions.
+Pointer ownership cannot be expressed as a portable row-local CHECK, so locked publication services
+and reader joins additionally require the pointed version to belong to the same item. The repair does
+not rewrite content data.
+
 ## REV-WF-03 R3 Schema Addendum
 
 Migration `2026_07_20_020000_add_final_case_closure.php` adds:

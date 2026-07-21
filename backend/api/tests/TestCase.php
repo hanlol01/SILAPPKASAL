@@ -2,9 +2,15 @@
 
 namespace Tests;
 
+use App\Services\TestDatabaseGuard;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
-    //
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        app(TestDatabaseGuard::class)->assertSafe();
+    }
 }

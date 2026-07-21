@@ -16,9 +16,13 @@ class PublishedArticleResource extends JsonResource
         $article = $version?->articleContent;
         $detail = (bool) $this->resource->getAttribute('content_detail');
         $consultationCta = $article?->consultationCta;
+        $consultationVersion = $consultationCta?->publishedVersion;
         $consultationCtaAllowed = $consultationCta !== null
             && $consultationCta->archived_at === null
-            && $consultationCta->publishedVersion?->lifecycle_status === ContentLifecycleStatus::Published
+            && $consultationVersion?->lifecycle_status === ContentLifecycleStatus::Published
+            && $consultationVersion->published_at !== null
+            && $consultationVersion->published_at->isPast()
+            && $consultationVersion->consultationContent?->is_active === true
             && ($consultationCta->scope === ContentScope::Global
                 || ($this->scope === ContentScope::Campus
                     && $consultationCta->scope === ContentScope::Campus

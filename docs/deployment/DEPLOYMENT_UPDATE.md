@@ -164,8 +164,10 @@ No production migration, deployment, seed, or environment change is performed as
 
 ## REV-CONTENT-01 C1 Release Note (Not Yet Deployed)
 
-C1 adds `2026_07_21_000000_create_content_publication_tables.php` followed by
-`2026_07_21_010000_reconcile_content_permissions.php`, and adds Symfony HtmlSanitizer 7.4.14.
+C1 adds `2026_07_21_000000_create_content_publication_tables.php`,
+`2026_07_21_010000_reconcile_content_permissions.php`, and repair migration
+`2026_07_21_020000_harden_content_publication_constraints.php`; it also adds Symfony HtmlSanitizer
+7.4.14.
 No production migration, seed, deployment, storage symlink, or environment mutation is performed by
 the implementation commit.
 
@@ -175,9 +177,17 @@ mode, and verify the 12 authenticated content routes. Do not run `ContentFoundat
 production until the product owner explicitly approves the 41 Article and eight FAQ draft records.
 The seeder never publishes content, but it still creates editorial work records.
 
-The current runtime has no GD, Imagick, or EXIF extension. Upload validation works, but orientation
-correction, metadata removal, re-encoding, and derivatives are unavailable. Do not claim those image
-processing capabilities unless an approved production driver is installed and reverified.
+The current runtime has no GD, Imagick, or EXIF extension. Image upload therefore fails closed by
+default. `CONTENT_IMAGE_UPLOADS_ENABLED=true` must not be set until an approved runtime processor is
+installed, bound through `ContentImageProcessor`, and verified to normalize orientation, remove
+metadata, and re-encode output. PDF general attachments remain supported.
+
+Before any destructive test verification, run `test-database:verify` and inspect the printed
+environment, driver, host, and database. The default suite must resolve to SQLite `:memory:`. Local
+PostgreSQL verification may use only `silappkasal_test`, with
+`TEST_DATABASE_CONFIRM=silappkasal_test` and `--confirm-database=silappkasal_test`. Never use
+`silappkasal`. PostgreSQL verification remains a release gate when a disposable test database is not
+available.
 
 Rollback of the publication-table migration removes all C1 content data. Prefer restoring the
 verified pre-release database backup; never use a blind production rollback after editorial work has

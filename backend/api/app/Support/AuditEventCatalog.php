@@ -154,6 +154,7 @@ final class AuditEventCatalog
             AuditAction::ContentDirectGlobalPublished,
             AuditAction::ContentArchived,
             AuditAction::ContentAttachmentUploaded,
+            AuditAction::ContentAttachmentDownloadAuthorized,
             AuditAction::ContentAttachmentDownloaded,
             AuditAction::ContentFeaturedPlacementChanged => $this->fields(
                 [

@@ -34,6 +34,7 @@ dist-ssr
 .env
 .env.*
 !.env.example
+!backend/api/.env.testing.example
 
 # Laravel / PHP
 vendor/

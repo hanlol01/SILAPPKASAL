@@ -5,6 +5,8 @@ use Pdo\Mysql;
 
 return [
 
+    'testing_confirmation' => env('TEST_DATABASE_CONFIRM'),
+
     /*
     |--------------------------------------------------------------------------
     | Default Database Connection Name

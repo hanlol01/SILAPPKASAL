@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Validation\ValidationException;
+use JsonException;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizer;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizerConfig;
 
@@ -13,6 +14,16 @@ class ContentDocumentService
     private const MAX_DEPTH = 12;
 
     private const MAX_TEXT_LENGTH = 200000;
+
+    private const MAX_DOCUMENT_BYTES = 500000;
+
+    private const MAX_TEXT_NODE_LENGTH = 20000;
+
+    private const MAX_MARKS_PER_TEXT_NODE = 4;
+
+    private const MAX_TOTAL_MARKS = 2000;
+
+    private const MAX_LINK_LENGTH = 2048;
 
     private HtmlSanitizer $sanitizer;
 
@@ -88,12 +99,22 @@ class ContentDocumentService
      */
     private function prepare(array $document, bool $faq): array
     {
+        try {
+            $serialized = json_encode($document, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            throw ValidationException::withMessages(['document' => ['The content document is not valid UTF-8 JSON.']]);
+        }
+        if (strlen($serialized) > self::MAX_DOCUMENT_BYTES) {
+            throw ValidationException::withMessages(['document' => ['The serialized content document is too large.']]);
+        }
+
         $this->assertAllowedKeys($document, ['type', 'content'], 'document root');
         if (($document['type'] ?? null) !== 'doc' || ! is_array($document['content'] ?? null)) {
             throw ValidationException::withMessages(['document' => ['A controlled content document is required.']]);
         }
 
         $counter = 0;
+        $markCounter = 0;
         $textParts = [];
         $html = '';
 
@@ -102,7 +123,7 @@ class ContentDocumentService
                 throw ValidationException::withMessages(['document' => ['Every document node must be an object.']]);
             }
 
-            $html .= $this->renderNode($node, 1, $counter, $textParts, $faq);
+            $html .= $this->renderNode($node, 1, $counter, $markCounter, $textParts, $faq);
         }
 
         $text = trim(preg_replace('/\s+/u', ' ', implode(' ', $textParts)) ?? '');
@@ -125,8 +146,14 @@ class ContentDocumentService
      * @param  array<string, mixed>  $node
      * @param  list<string>  $textParts
      */
-    private function renderNode(array $node, int $depth, int &$counter, array &$textParts, bool $faq): string
-    {
+    private function renderNode(
+        array $node,
+        int $depth,
+        int &$counter,
+        int &$markCounter,
+        array &$textParts,
+        bool $faq,
+    ): string {
         $counter++;
 
         if ($counter > self::MAX_NODES || $depth > self::MAX_DEPTH) {
@@ -140,7 +167,7 @@ class ContentDocumentService
         }
 
         if ($type === 'text') {
-            return $this->renderText($node, $textParts);
+            return $this->renderText($node, $markCounter, $textParts);
         }
 
         $allowedKeys = match ($type) {
@@ -163,7 +190,7 @@ class ContentDocumentService
             if (! is_array($child)) {
                 throw ValidationException::withMessages(['document' => ['Every child node must be an object.']]);
             }
-            $inner .= $this->renderNode($child, $depth + 1, $counter, $textParts, $faq);
+            $inner .= $this->renderNode($child, $depth + 1, $counter, $markCounter, $textParts, $faq);
         }
 
         return match ($type) {
@@ -183,13 +210,16 @@ class ContentDocumentService
     }
 
     /** @param array<string, mixed> $node */
-    private function renderText(array $node, array &$textParts): string
+    private function renderText(array $node, int &$markCounter, array &$textParts): string
     {
         $this->assertAllowedKeys($node, ['type', 'text', 'marks'], 'text node');
         $text = $node['text'] ?? null;
 
         if (! is_string($text)) {
             throw ValidationException::withMessages(['document' => ['Text nodes require text.']]);
+        }
+        if (mb_strlen($text) > self::MAX_TEXT_NODE_LENGTH) {
+            throw ValidationException::withMessages(['document' => ['A content text node is too long.']]);
         }
 
         $textParts[] = $text;
@@ -198,6 +228,13 @@ class ContentDocumentService
 
         if (! is_array($marks)) {
             throw ValidationException::withMessages(['document' => ['Text marks must be an array.']]);
+        }
+        if (count($marks) > self::MAX_MARKS_PER_TEXT_NODE) {
+            throw ValidationException::withMessages(['document' => ['A text node contains too many marks.']]);
+        }
+        $markCounter += count($marks);
+        if ($markCounter > self::MAX_TOTAL_MARKS) {
+            throw ValidationException::withMessages(['document' => ['The content document contains too many marks.']]);
         }
 
         foreach ($marks as $mark) {
@@ -290,7 +327,7 @@ class ContentDocumentService
         $href = $attrs['href'] ?? null;
         $title = $attrs['title'] ?? null;
 
-        if (! is_string($href) || ! $this->safeUrl($href)) {
+        if (! is_string($href) || mb_strlen($href) > self::MAX_LINK_LENGTH || ! $this->safeUrl($href)) {
             throw ValidationException::withMessages(['document' => ['Unsafe or malformed link protocol.']]);
         }
 

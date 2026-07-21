@@ -9,6 +9,7 @@ use App\Enums\ContentType;
 use App\Models\ArticleVersionContent;
 use App\Models\AuditLog;
 use App\Models\ConsultationVersionContent;
+use App\Models\ContentAttachment;
 use App\Models\ContentCategory;
 use App\Models\ContentItem;
 use App\Models\ContentSection;
@@ -268,10 +269,26 @@ class ContentFoundationTest extends TestCase
             'gambar rahasia.png',
             base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=')
         );
-        $response = $this->postJson('/api/v1/content-management/versions/'.$version->public_id.'/attachments', [
+        $this->postJson('/api/v1/content-management/versions/'.$version->public_id.'/attachments', [
             'purpose' => ContentAttachmentPurpose::Cover->value,
             'file' => $png,
             'alt_text' => 'Ilustrasi netral',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('file');
+        $this->assertDatabaseCount('content_attachments', 0);
+        $this->assertSame([], Storage::disk('content')->allFiles());
+
+        config()->set('content.attachments.image_uploads_enabled', true);
+        $this->postJson('/api/v1/content-management/versions/'.$version->public_id.'/attachments', [
+            'purpose' => ContentAttachmentPurpose::Cover->value,
+            'file' => $png,
+            'alt_text' => 'Ilustrasi netral',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('file');
+
+        $response = $this->postJson('/api/v1/content-management/versions/'.$version->public_id.'/attachments', [
+            'purpose' => ContentAttachmentPurpose::Attachment->value,
+            'file' => UploadedFile::fake()->createWithContent('DEMO-001 dokumen rahasia.pdf', "%PDF-1.4\n%%EOF"),
         ])->assertCreated();
 
         $response->assertJsonMissingPath('data.storage_path')
@@ -291,7 +308,7 @@ class ContentFoundationTest extends TestCase
         ])->assertUnprocessable();
 
         $auditJson = AuditLog::query()->where('action', 'content.attachment_uploaded')->firstOrFail()->toJson();
-        $this->assertStringNotContainsString('gambar rahasia.png', $auditJson);
+        $this->assertStringNotContainsString('DEMO-001 dokumen rahasia.pdf', $auditJson);
         $this->assertStringNotContainsString('Ilustrasi netral', $auditJson);
     }
 
@@ -484,8 +501,10 @@ class ContentFoundationTest extends TestCase
         $download = $this->get('/api/v1/content/attachments/'.$attachmentId)->assertOk();
         $this->assertStringContainsString('no-store', (string) $download->headers->get('Cache-Control'));
         $this->assertSame('nosniff', $download->headers->get('X-Content-Type-Options'));
+        $this->assertStringContainsString('lampiran-'.$attachmentId.'.pdf', (string) $download->headers->get('Content-Disposition'));
+        $this->assertStringNotContainsString('dokumen.pdf', (string) $download->headers->get('Content-Disposition'));
         $this->assertDatabaseHas('audit_logs', [
-            'action' => 'content.attachment_downloaded',
+            'action' => 'content.attachment_download_authorized',
             'actor_id' => $reader->id,
         ]);
     }
@@ -504,14 +523,25 @@ class ContentFoundationTest extends TestCase
         $service = app(ContentPublicationService::class);
         $source = $service->createDraft($admin, $this->articlePayload(ContentScope::Campus, $this->campusA, 'Sumber Gambar'));
         $target = $service->createDraft($admin, $this->articlePayload(ContentScope::Campus, $this->campusA, 'Target Gambar'));
-        Sanctum::actingAs($admin, ['*']);
-        $upload = $this->postJson('/api/v1/content-management/versions/'.$source->currentDraftVersion->public_id.'/attachments', [
-            'purpose' => 'inline_image',
-            'file' => UploadedFile::fake()->createWithContent(
-                'inline.png',
-                base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=')
-            ),
-        ])->assertCreated();
+        $bytes = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=');
+        $attachmentPublicId = (string) Str::uuid();
+        $path = $source->currentDraftVersion->public_id.'/'.$attachmentPublicId.'.png';
+        Storage::disk('content')->put($path, $bytes);
+        ContentAttachment::query()->create([
+            'public_id' => $attachmentPublicId,
+            'content_version_id' => $source->currentDraftVersion->id,
+            'purpose' => ContentAttachmentPurpose::InlineImage,
+            'storage_disk' => 'content',
+            'storage_path' => $path,
+            'safe_filename' => 'gambar-'.$attachmentPublicId.'.png',
+            'detected_mime' => 'image/png',
+            'extension' => 'png',
+            'file_size' => strlen($bytes),
+            'checksum_sha256' => hash('sha256', $bytes),
+            'width' => 1,
+            'height' => 1,
+            'uploader_id' => $admin->id,
+        ]);
 
         $this->expectException(ValidationException::class);
         $service->updateDraft($target->currentDraftVersion, $admin, [
@@ -520,7 +550,7 @@ class ContentFoundationTest extends TestCase
                 'content' => [[
                     'type' => 'imageReference',
                     'attrs' => [
-                        'attachment_public_id' => $upload->json('data.public_id'),
+                        'attachment_public_id' => $attachmentPublicId,
                         'alt' => 'Gambar dari versi lain',
                     ],
                 ]],

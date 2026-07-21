@@ -1,11 +1,11 @@
 <?php
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use Carbon\CarbonImmutable;
 
 return new class extends Migration
 {
@@ -26,11 +26,11 @@ return new class extends Migration
         $this->backfillBounded();
 
         if (DB::table('audit_logs')->whereNull('public_id')->exists()) {
-            throw new \RuntimeException('Audit public_id backfill did not complete.');
+            throw new RuntimeException('Audit public_id backfill did not complete.');
         }
 
         if (DB::table('audit_logs')->select('public_id')->groupBy('public_id')->havingRaw('count(*) > 1')->exists()) {
-            throw new \RuntimeException('Audit public_id backfill produced a duplicate.');
+            throw new RuntimeException('Audit public_id backfill produced a duplicate.');
         }
 
         Schema::table('audit_logs', function (Blueprint $table): void {
@@ -138,7 +138,7 @@ return new class extends Migration
             DB::statement("ALTER TABLE audit_logs ADD CONSTRAINT audit_logs_result_values CHECK (result IN ('succeeded', 'failed', 'denied'))");
             DB::statement("ALTER TABLE audit_logs ADD CONSTRAINT audit_logs_action_result_boundary CHECK ((action <> 'auth.login_failed' OR result = 'failed') AND (action <> 'security.access_denied' OR result = 'denied'))");
             DB::statement(<<<'SQL'
-                CREATE FUNCTION prevent_audit_public_id_change() RETURNS trigger AS $$
+                CREATE OR REPLACE FUNCTION prevent_audit_public_id_change() RETURNS trigger AS $$
                 BEGIN
                     IF NEW.public_id IS DISTINCT FROM OLD.public_id THEN
                         RAISE EXCEPTION 'audit public_id is immutable';

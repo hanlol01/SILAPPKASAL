@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\ContentAttachmentFilename;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -12,7 +13,7 @@ class ContentAttachmentResource extends JsonResource
         return [
             'public_id' => $this->public_id,
             'purpose' => $this->purpose?->value,
-            'filename' => $this->safe_filename,
+            'filename' => ContentAttachmentFilename::for($this->resource),
             'mime_type' => $this->detected_mime,
             'extension' => $this->extension,
             'size' => $this->file_size,

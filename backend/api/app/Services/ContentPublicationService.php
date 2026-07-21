@@ -24,8 +24,10 @@ use App\Policies\ContentItemPolicy;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class ContentPublicationService
 {
@@ -34,6 +36,7 @@ class ContentPublicationService
         private readonly ContentDocumentService $documents,
         private readonly ContentContactNormalizer $contacts,
         private readonly AuditLogService $auditLogs,
+        private readonly ContentRevisionAttachmentService $revisionAttachments,
     ) {}
 
     /**
@@ -258,43 +261,53 @@ class ContentPublicationService
 
     public function createRevision(ContentItem $item, User $actor): ContentItem
     {
-        return DB::transaction(function () use ($item, $actor): ContentItem {
-            $actor = $this->lockedActor($actor);
-            $item = ContentItem::query()->whereKey($item->id)->lockForUpdate()->firstOrFail();
-            $published = ContentVersion::query()->whereKey($item->published_version_id)->first();
+        $clonedPaths = [];
 
-            if ($published === null || ! $this->policy->createRevision($actor, $item)) {
-                throw $this->forbidden();
-            }
+        try {
+            return DB::transaction(function () use ($item, $actor, &$clonedPaths): ContentItem {
+                $actor = $this->lockedActor($actor);
+                $item = ContentItem::query()->whereKey($item->id)->lockForUpdate()->firstOrFail();
+                $published = ContentVersion::query()->whereKey($item->published_version_id)->first();
 
-            if ($item->current_draft_version_id !== null) {
-                throw $this->conflict('An authoring version already exists for this content item.');
-            }
+                if ($published === null || ! $this->policy->createRevision($actor, $item)) {
+                    throw $this->forbidden();
+                }
 
-            $nextVersion = (int) $item->versions()->lockForUpdate()->max('version_number') + 1;
-            $revision = ContentVersion::query()->create([
-                'content_item_id' => $item->id,
-                'version_number' => $nextVersion,
-                'lifecycle_status' => ContentLifecycleStatus::Draft,
-                'title' => $published->title,
-                'excerpt' => $published->excerpt,
-                'author_id' => $actor->id,
-                'editor_id' => $actor->id,
-                'source_type' => 'revision',
-                'requires_editorial_review' => true,
-            ]);
+                if ($item->current_draft_version_id !== null) {
+                    throw $this->conflict('An authoring version already exists for this content item.');
+                }
 
-            $this->copyTypedContent($published, $revision, $item->content_type);
-            $item->forceFill([
-                'current_draft_version_id' => $revision->id,
-                'lock_version' => $item->lock_version + 1,
-            ])->save();
+                $nextVersion = (int) $item->versions()->lockForUpdate()->max('version_number') + 1;
+                $revision = ContentVersion::query()->create([
+                    'content_item_id' => $item->id,
+                    'version_number' => $nextVersion,
+                    'lifecycle_status' => ContentLifecycleStatus::Draft,
+                    'title' => $published->title,
+                    'excerpt' => $published->excerpt,
+                    'author_id' => $actor->id,
+                    'editor_id' => $actor->id,
+                    'source_type' => 'revision',
+                    'requires_editorial_review' => true,
+                ]);
 
-            $item = $this->loadManagement($item);
-            $this->record(AuditAction::ContentVersionCreated, $actor, $item, $revision);
+                $attachmentMap = $this->revisionAttachments->clone($published, $revision, $actor);
+                $clonedPaths = $attachmentMap['paths'];
+                $this->copyTypedContent($published, $revision, $item->content_type, $attachmentMap);
+                $item->forceFill([
+                    'current_draft_version_id' => $revision->id,
+                    'lock_version' => $item->lock_version + 1,
+                ])->save();
 
-            return $item;
-        });
+                $item = $this->loadManagement($item);
+                $this->record(AuditAction::ContentVersionCreated, $actor, $item, $revision);
+
+                return $item;
+            });
+        } catch (Throwable $exception) {
+            $this->revisionAttachments->cleanup($clonedPaths);
+
+            throw $exception;
+        }
     }
 
     private function reviewTransition(
@@ -524,16 +537,21 @@ class ContentPublicationService
         );
     }
 
-    private function copyTypedContent(ContentVersion $source, ContentVersion $target, ContentType $type): void
-    {
+    /**
+     * @param array{
+     *     public_ids: array<string, string>,
+     *     database_ids: array<int, int>,
+     *     paths: list<string>
+     * } $attachmentMap
+     */
+    private function copyTypedContent(
+        ContentVersion $source,
+        ContentVersion $target,
+        ContentType $type,
+        array $attachmentMap,
+    ): void {
         match ($type) {
-            ContentType::Article => ArticleVersionContent::query()->create([
-                'content_version_id' => $target->id,
-                ...$source->articleContent()->firstOrFail()->only([
-                    'document_json', 'sanitized_html', 'search_text', 'estimated_reading_minutes',
-                    'cover_alt_text', 'consultation_cta_item_id',
-                ]),
-            ]),
+            ContentType::Article => $this->copyArticleContent($source, $target, $attachmentMap),
             ContentType::Faq => FaqVersionContent::query()->create([
                 'content_version_id' => $target->id,
                 ...$source->faqContent()->firstOrFail()->only([
@@ -550,6 +568,72 @@ class ContentPublicationService
                 ]),
             ]),
         };
+    }
+
+    /**
+     * @param array{
+     *     public_ids: array<string, string>,
+     *     database_ids: array<int, int>,
+     *     paths: list<string>
+     * } $attachmentMap
+     */
+    private function copyArticleContent(ContentVersion $source, ContentVersion $target, array $attachmentMap): void
+    {
+        $article = $source->articleContent()->firstOrFail();
+        $document = $article->document_json === null
+            ? null
+            : $this->rewriteAttachmentReferences($article->document_json, $attachmentMap['public_ids']);
+        $prepared = $document === null ? null : $this->documents->prepareArticle($document);
+        $coverAttachmentId = null;
+
+        if ($article->cover_attachment_id !== null) {
+            $coverAttachmentId = $attachmentMap['database_ids'][$article->cover_attachment_id] ?? null;
+            if ($coverAttachmentId === null) {
+                throw ValidationException::withMessages([
+                    'attachments' => ['The published cover attachment could not be cloned into the revision.'],
+                ]);
+            }
+        }
+
+        ArticleVersionContent::query()->create([
+            'content_version_id' => $target->id,
+            'document_json' => $prepared['document'] ?? null,
+            'sanitized_html' => $prepared['html'] ?? null,
+            'search_text' => $prepared['text'] ?? null,
+            'estimated_reading_minutes' => $prepared['reading_minutes'] ?? 0,
+            'cover_attachment_id' => $coverAttachmentId,
+            'cover_alt_text' => $article->cover_alt_text,
+            'consultation_cta_item_id' => $article->consultation_cta_item_id,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $node
+     * @param  array<string, string>  $publicIdMap
+     * @return array<string, mixed>
+     */
+    private function rewriteAttachmentReferences(array $node, array $publicIdMap): array
+    {
+        if (($node['type'] ?? null) === 'imageReference') {
+            $sourcePublicId = $node['attrs']['attachment_public_id'] ?? null;
+            if (! is_string($sourcePublicId) || ! isset($publicIdMap[$sourcePublicId])) {
+                throw ValidationException::withMessages([
+                    'document' => ['A published image reference cannot be resolved for the new revision.'],
+                ]);
+            }
+            $node['attrs']['attachment_public_id'] = $publicIdMap[$sourcePublicId];
+        }
+
+        if (is_array($node['content'] ?? null)) {
+            $node['content'] = array_map(
+                fn (mixed $child): mixed => is_array($child)
+                    ? $this->rewriteAttachmentReferences($child, $publicIdMap)
+                    : $child,
+                $node['content'],
+            );
+        }
+
+        return $node;
     }
 
     /** @param array<string, mixed> $document */
@@ -575,7 +659,7 @@ class ContentPublicationService
 
         $ownedCount = ContentAttachment::query()
             ->where('content_version_id', $version->id)
-            ->whereIn('purpose', [ContentAttachmentPurpose::Cover->value, ContentAttachmentPurpose::InlineImage->value])
+            ->where('purpose', ContentAttachmentPurpose::InlineImage->value)
             ->whereIn('public_id', $publicIds)
             ->count();
         if ($ownedCount !== count($publicIds)) {
@@ -593,6 +677,8 @@ class ContentPublicationService
             throw ValidationException::withMessages(['requires_editorial_review' => ['Editorial verification must be completed before publication.']]);
         }
 
+        $this->assertVersionAttachmentsAvailable($version);
+
         match ($version->item->content_type) {
             ContentType::Article => $this->ensureArticlePublishable($version, $publication),
             ContentType::Faq => $version->faqContent?->answer_document_json !== null
@@ -608,7 +694,9 @@ class ContentPublicationService
             throw ValidationException::withMessages(['document' => ['Article content is required before this action.']]);
         }
 
-        if ($publication && $content->consultation_cta_item_id !== null) {
+        $this->assertArticleAttachmentsAvailable($version, $content);
+
+        if ($content->consultation_cta_item_id !== null) {
             $consultation = $content->consultationCta()->first();
             if ($consultation === null) {
                 throw ValidationException::withMessages([
@@ -619,6 +707,37 @@ class ContentPublicationService
         }
 
         return true;
+    }
+
+    private function assertArticleAttachmentsAvailable(
+        ContentVersion $version,
+        ArticleVersionContent $content,
+    ): void {
+        $attachments = $version->attachments()->get();
+        if ($content->cover_attachment_id !== null) {
+            $cover = $attachments->firstWhere('id', $content->cover_attachment_id);
+            if ($cover === null || $cover->purpose !== ContentAttachmentPurpose::Cover) {
+                throw ValidationException::withMessages([
+                    'cover' => ['The cover must belong to this version and use the cover purpose.'],
+                ]);
+            }
+        }
+
+        if ($content->document_json !== null) {
+            $this->assertArticleImageReferencesOwned($version, $content->document_json);
+        }
+    }
+
+    private function assertVersionAttachmentsAvailable(ContentVersion $version): void
+    {
+        foreach ($version->attachments()->get() as $attachment) {
+            if ($attachment->storage_disk !== 'content'
+                || ! Storage::disk('content')->exists($attachment->storage_path)) {
+                throw ValidationException::withMessages([
+                    'attachments' => ['Every attachment must be available on private storage before submission or publication.'],
+                ]);
+            }
+        }
     }
 
     private function ensureConsultationPublishable(?ConsultationVersionContent $content, bool $publication): bool
@@ -673,7 +792,9 @@ class ContentPublicationService
             ->whereNotNull('published_version_id')
             ->whereHas('publishedVersion', fn ($query) => $query
                 ->where('lifecycle_status', ContentLifecycleStatus::Published->value)
-                ->whereNotNull('published_at'))
+                ->whereNotNull('published_at')
+                ->where('published_at', '<=', now())
+                ->whereHas('consultationContent', fn ($content) => $content->where('is_active', true)))
             ->lockForUpdate()
             ->first();
 

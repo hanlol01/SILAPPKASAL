@@ -607,3 +607,10 @@ Milestone 22 Additional QA:
   decisions, keep management and reader queries separate, and never expose internal storage or review
   metadata.
 - No production deployment or production seeding is claimed.
+- C1 security repair makes images fail-closed without a verified re-encoder, clones revision
+  attachments with rewritten references and cleanup, enforces active Consultation CTAs, uses
+  public-ID-only Article detail, scopes Admin Content audit by campus, adds database constraints and
+  stable ordering, and generates non-sensitive download names.
+- PHPUnit now force-resolves to SQLite `:memory:`. Disposable PostgreSQL verification is limited to
+  local `silappkasal_test` with explicit confirmation; the local development database `silappkasal`
+  is prohibited for automated tests.
