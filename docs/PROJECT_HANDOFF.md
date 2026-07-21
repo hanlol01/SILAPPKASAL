@@ -592,3 +592,18 @@ Milestone 22 Additional QA:
 - R3 deliberately does not redesign Activity Log. It adds only allowlisted finalization audit events and metadata.
 - R3 requires migration `2026_07_20_020000_add_final_case_closure.php` during a future release. No deployment is claimed here.
 - Future changes must preserve: same-campus Admin summary/Recovery mutation, active assigned Satgas Monitoring/closure ownership, published-only Reporter narratives, anonymous identity exclusion, and rejection of generic `closed` transitions.
+
+## REV-CONTENT-01 C1 Handoff
+
+- The shared Laravel publication aggregate for Article, FAQ, and Consultation is implemented in the
+  backend. Published visibility is pointer-based, versioned, immutable, archived-safe, and campus-safe.
+- Four sections, ten storyboard categories, 41 Article drafts, and eight FAQ drafts are represented by
+  one idempotent seeder definition. No Consultation contact is fabricated and nothing auto-publishes.
+- Authenticated published-read and backend management-foundation routes exist. C2 Admin UI, C3 Super
+  Admin review UI, C4 Reporter Pusat Informasi/PWA work, and C5 release scope remain deferred.
+- Symfony HtmlSanitizer 7.4.14 is the only new dependency. Intervention Image is not installed because
+  the audited PHP runtime has no GD, Imagick, or EXIF extension.
+- Future C2/C3 work must call the existing policies/services, preserve append-only encrypted review
+  decisions, keep management and reader queries separate, and never expose internal storage or review
+  metadata.
+- No production deployment or production seeding is claimed.

@@ -81,6 +81,18 @@ class RbacSeeder extends Seeder
         'reporter_evidence.download.own' => ['name' => 'Download Own Reporter Evidence', 'description' => 'Mengunduh lampiran bukti pada laporan sendiri', 'module' => 'Bukti Pelapor'],
         'reporter_evidence.read.assigned' => ['name' => 'Read Assigned Reporter Evidence', 'description' => 'Melihat lampiran bukti pelapor pada kasus yang ditugaskan', 'module' => 'Bukti Pelapor'],
         'reporter_evidence.download.assigned' => ['name' => 'Download Assigned Reporter Evidence', 'description' => 'Mengunduh lampiran bukti pelapor pada kasus yang ditugaskan', 'module' => 'Bukti Pelapor'],
+        'content.create.campus' => ['name' => 'Create Campus Content', 'description' => 'Membuat draf konten untuk kampus sendiri', 'module' => 'Konten'],
+        'content.update.own_campus' => ['name' => 'Update Own Campus Content', 'description' => 'Memperbarui draf konten kampus sendiri', 'module' => 'Konten'],
+        'content.submit.own_campus' => ['name' => 'Submit Own Campus Content', 'description' => 'Mengajukan konten kampus sendiri untuk peninjauan', 'module' => 'Konten'],
+        'content.read.management.own_campus' => ['name' => 'Read Own Campus Content Management', 'description' => 'Melihat data pengelolaan konten kampus sendiri', 'module' => 'Konten'],
+        'content.attachment.manage.own_campus' => ['name' => 'Manage Own Campus Content Attachments', 'description' => 'Mengelola lampiran draf konten kampus sendiri', 'module' => 'Konten'],
+        'content.review' => ['name' => 'Review Content', 'description' => 'Meninjau konten kampus', 'module' => 'Konten'],
+        'content.publish.global' => ['name' => 'Publish Global Content', 'description' => 'Membuat dan menerbitkan konten global', 'module' => 'Konten'],
+        'content.archive' => ['name' => 'Archive Content', 'description' => 'Mengarsipkan konten yang telah diterbitkan', 'module' => 'Konten'],
+        'content.feature.manage' => ['name' => 'Manage Featured Content', 'description' => 'Mengelola penempatan konten unggulan', 'module' => 'Konten'],
+        'content.category.govern' => ['name' => 'Govern Content Categories', 'description' => 'Mengelola tata kelola kategori konten', 'module' => 'Konten'],
+        'content.read.management.all' => ['name' => 'Read All Content Management', 'description' => 'Melihat seluruh data pengelolaan konten', 'module' => 'Konten'],
+        'content.read.published' => ['name' => 'Read Published Content', 'description' => 'Membaca konten yang telah diterbitkan sesuai cakupan', 'module' => 'Konten'],
     ];
 
     /**
@@ -104,6 +116,13 @@ class RbacSeeder extends Seeder
             'dashboard.admin',
             'statistics.view',
             'statistics.export',
+            'content.review',
+            'content.publish.global',
+            'content.archive',
+            'content.feature.manage',
+            'content.category.govern',
+            'content.read.management.all',
+            'content.read.published',
         ],
         'admin' => [
             'system.audit_log.view',
@@ -125,6 +144,12 @@ class RbacSeeder extends Seeder
             'statistics.view',
             'statistics.export',
             'privacy.approve_break_glass',
+            'content.create.campus',
+            'content.update.own_campus',
+            'content.submit.own_campus',
+            'content.read.management.own_campus',
+            'content.attachment.manage.own_campus',
+            'content.read.published',
         ],
         'satgas_ppks' => [
             'cases.read.assigned',
@@ -145,6 +170,7 @@ class RbacSeeder extends Seeder
             'reporter_evidence.download.assigned',
             'privacy.request_break_glass',
             'privacy.reveal_anonymous_identity',
+            'content.read.published',
         ],
         'reporter' => [
             'reports.create',
@@ -155,6 +181,7 @@ class RbacSeeder extends Seeder
             'reporter_evidence.read.own',
             'reporter_evidence.upload.own',
             'reporter_evidence.download.own',
+            'content.read.published',
         ],
     ];
 

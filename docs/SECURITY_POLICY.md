@@ -1265,6 +1265,23 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
 | 1.0.0 | 2026-06-09 | Versi awal |
 | 1.0.1-patch | 2026-06-10 | Audit patch: pembatasan akses Admin ke metadata kasus saja, Super Admin tidak otomatis akses bukti (break-glass protocol), penguatan privasi anonim (hashed/masked IP, retention 7 hari), catatan MVP token in-memory, rencana Post-MVP httpOnly cookie, penambahan audit event `security.break_glass_activated` |
 | REV-WF-03-R2 | 2026-07-20 | Requester-scoped Anonymous Emergency Access, same-campus Admin review/revoke, non-cacheable reveal, expiry normalization, redacted audit, and anonymous filename protection. |
+| REV-CONTENT-01-C1 | 2026-07-21 | Campus-scoped published content, immutable versions, controlled rich text, private attachments, redacted content audit, and non-cacheable authenticated readers. |
+
+## 22. Content publication security (REV-CONTENT-01 C1)
+
+- Reader queries use the published-version pointer and actor campus scope; lifecycle text alone never
+  exposes a version.
+- Draft, review, rejected, revision-requested, and archived content is excluded from reader APIs.
+- Article and FAQ input is a controlled JSON document. Server-side sanitization and protocol
+  allowlisting are mandatory; arbitrary authoritative HTML is not accepted.
+- Content files remain on a private disk. Upload and download both revalidate authorization. Private
+  path, checksum, internal IDs, protected original filename, and review narratives are not serialized.
+- Review/archive reasons and editorial notes use encrypted casts. Their values are excluded from
+  allowlisted audit metadata.
+- Audit metadata may identify only safe content public IDs, version numbers, type/section/category,
+  scope, safe university code, transition, decision code, attachment public ID/purpose, and result.
+- Authenticated content and management responses use private, no-store caching. They must never be
+  placed in a shared or service-worker response cache.
 
 ---
 

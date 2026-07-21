@@ -142,6 +142,39 @@ final class AuditEventCatalog
                 ['registration_number', 'attachment_uuid', 'cross_campus_read'],
             ),
 
+            AuditAction::ContentItemCreated,
+            AuditAction::ContentVersionCreated,
+            AuditAction::ContentDraftUpdated,
+            AuditAction::ContentSubmitted,
+            AuditAction::ContentReviewStarted,
+            AuditAction::ContentRevisionRequested,
+            AuditAction::ContentRejected,
+            AuditAction::ContentApproved,
+            AuditAction::ContentPublished,
+            AuditAction::ContentDirectGlobalPublished,
+            AuditAction::ContentArchived,
+            AuditAction::ContentAttachmentUploaded,
+            AuditAction::ContentAttachmentDownloaded,
+            AuditAction::ContentFeaturedPlacementChanged => $this->fields(
+                [
+                    'content_public_id',
+                    'version_number',
+                    'content_type',
+                    'section_code',
+                    'category_code',
+                    'scope',
+                    'university_code',
+                    'from_status',
+                    'to_status',
+                    'decision_code',
+                    'attachment_public_id',
+                    'purpose',
+                    'rank',
+                    'result',
+                ],
+                ['lifecycle_status', 'published_version_changed', 'archived'],
+            ),
+
             AuditAction::BreakGlassRequested,
             AuditAction::BreakGlassApproved,
             AuditAction::BreakGlassDenied,
@@ -174,7 +207,7 @@ final class AuditEventCatalog
     }
 
     /**
-     * @param array<string, mixed> $values
+     * @param  array<string, mixed>  $values
      * @return array<string, bool|float|int|string|null>
      */
     public function sanitizeMetadata(AuditAction|string $action, array $values): array
@@ -183,7 +216,7 @@ final class AuditEventCatalog
     }
 
     /**
-     * @param array<string, mixed> $values
+     * @param  array<string, mixed>  $values
      * @return array<string, bool|float|int|string|null>
      */
     public function sanitizeDeltas(AuditAction|string $action, array $values): array
@@ -192,8 +225,8 @@ final class AuditEventCatalog
     }
 
     /**
-     * @param list<string> $metadata
-     * @param list<string> $deltas
+     * @param  list<string>  $metadata
+     * @param  list<string>  $deltas
      * @return array{metadata: list<string>, deltas: list<string>}
      */
     private function fields(array $metadata = [], array $deltas = []): array
@@ -202,8 +235,8 @@ final class AuditEventCatalog
     }
 
     /**
-     * @param array<string, mixed> $values
-     * @param list<string> $allowed
+     * @param  array<string, mixed>  $values
+     * @param  list<string>  $allowed
      * @return array<string, bool|float|int|string|null>
      */
     private function sanitize(array $values, array $allowed): array

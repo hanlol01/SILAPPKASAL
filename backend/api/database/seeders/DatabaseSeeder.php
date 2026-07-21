@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Database\Seeders\Demo\DemoDatasetSeeder;
 use Database\Seeders\Foundation\CampusMasterDataSeeder;
+use Database\Seeders\Foundation\ContentFoundationSeeder;
 use Database\Seeders\Foundation\MasterDataSeeder;
 use Database\Seeders\Foundation\RbacSeeder;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -22,6 +23,7 @@ class DatabaseSeeder extends Seeder
             RbacSeeder::class,
             MasterDataSeeder::class,
             CampusMasterDataSeeder::class,
+            ContentFoundationSeeder::class,
             DemoDatasetSeeder::class,
         ]);
     }

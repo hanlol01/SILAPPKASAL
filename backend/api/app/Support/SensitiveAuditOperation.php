@@ -17,6 +17,8 @@ final class SensitiveAuditOperation
         'evidence.upload' => 'evidence.upload',
         'evidence.download' => 'evidence.download',
         'evidence.preview' => 'evidence.preview',
+        'content.attachments.upload' => 'content.attachment.upload',
+        'content.attachments.download' => 'content.attachment.download',
         'reporter_evidence.download' => 'reporter_evidence.download',
         'reporter_evidence.preview' => 'reporter_evidence.preview',
         'recommendation.review' => 'recommendation.review',

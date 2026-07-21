@@ -1967,3 +1967,37 @@ PATCH  /api/v1/recoveries/{recovery}/status
 ---
 
 > **Catatan**: Dokumen ini adalah Tier 2 (GOVERNED). Perubahan memerlukan persetujuan Project Owner. API specification ini menjadi kontrak wajib antara Backend Agent, Web Agent, dan Mobile Agent.
+
+## 18.7 REV-CONTENT-01 C1 Authenticated Content APIs
+
+All routes require Sanctum authentication. Published responses return only the version referenced by
+`published_version_id`, are restricted to global plus the actor's own campus, exclude archived items,
+and send `Cache-Control: private, no-store`.
+
+```text
+GET  /api/v1/content/sections
+GET  /api/v1/content/categories?section={code}
+GET  /api/v1/content/articles?section={code}&category={publicId}&search={text}&per_page={1..50}
+GET  /api/v1/content/articles/{publicIdOrSlug}
+GET  /api/v1/content/faqs?category={publicId}&search={text}&per_page={1..50}
+GET  /api/v1/content/consultation
+GET  /api/v1/content/featured
+GET  /api/v1/content/attachments/{attachmentPublicId}
+```
+
+The C1 management foundation provides backend-only authoring operations. It does not imply a C2/C3
+UI or complete review endpoint surface.
+
+```text
+POST  /api/v1/content-management/items
+PATCH /api/v1/content-management/versions/{versionPublicId}
+POST  /api/v1/content-management/versions/{versionPublicId}/submit
+POST  /api/v1/content-management/versions/{versionPublicId}/attachments
+```
+
+Article reader resources expose public ID, slug, title, plain excerpt, safe section/category/scope,
+cover projection, publication time, computed reading time, and—for detail only—the controlled body,
+sanitized projection, safe attachments, related published scope-safe Articles, and optional
+Consultation CTA public reference. FAQ and Consultation resources expose only approved reader fields.
+No reader resource contains internal numeric IDs, author/editor/reviewer identifiers, review reasons,
+draft pointers, private paths, checksums, encrypted narratives, or unpublished versions.

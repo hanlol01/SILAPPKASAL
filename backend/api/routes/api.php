@@ -3,9 +3,12 @@
 use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BreakGlassController;
+use App\Http\Controllers\Api\V1\CampusMasterDataController;
 use App\Http\Controllers\Api\V1\CaseController;
 use App\Http\Controllers\Api\V1\CaseFinalSummaryController;
-use App\Http\Controllers\Api\V1\CampusMasterDataController;
+use App\Http\Controllers\Api\V1\ContentAttachmentController;
+use App\Http\Controllers\Api\V1\ContentController;
+use App\Http\Controllers\Api\V1\ContentManagementController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DecisionController;
 use App\Http\Controllers\Api\V1\EvidenceController;
@@ -17,9 +20,9 @@ use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\PortalController;
 use App\Http\Controllers\Api\V1\RecommendationController;
 use App\Http\Controllers\Api\V1\RecoveryController;
-use App\Http\Controllers\Api\V1\ReportEvidenceSubmissionController;
-use App\Http\Controllers\Api\V1\ReporterRegistrationController;
 use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\ReporterRegistrationController;
+use App\Http\Controllers\Api\V1\ReportEvidenceSubmissionController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -50,6 +53,27 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('/profile', [MeController::class, 'updateProfile']);
         Route::patch('/change-password', [MeController::class, 'changePassword']);
         Route::get('/account-status', [MeController::class, 'accountStatus']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('content')->group(function (): void {
+        Route::get('/sections', [ContentController::class, 'sections']);
+        Route::get('/categories', [ContentController::class, 'categories']);
+        Route::get('/articles', [ContentController::class, 'articles']);
+        Route::get('/articles/{identifier}', [ContentController::class, 'article']);
+        Route::get('/faqs', [ContentController::class, 'faqs']);
+        Route::get('/consultation', [ContentController::class, 'consultation']);
+        Route::get('/featured', [ContentController::class, 'featured']);
+        Route::get('/attachments/{attachment:public_id}', [ContentAttachmentController::class, 'download'])
+            ->name('content.attachments.download');
+    });
+
+    Route::middleware('auth:sanctum')->prefix('content-management')->group(function (): void {
+        Route::post('/items', [ContentManagementController::class, 'store']);
+        Route::patch('/versions/{version:public_id}', [ContentManagementController::class, 'update']);
+        Route::post('/versions/{version:public_id}/submit', [ContentManagementController::class, 'submit']);
+        Route::post('/versions/{version:public_id}/attachments', [ContentManagementController::class, 'upload'])
+            ->middleware('throttle:10,1')
+            ->name('content.attachments.upload');
     });
 
     Route::middleware('auth:sanctum')->prefix('master')->group(function (): void {

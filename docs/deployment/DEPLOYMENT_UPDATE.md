@@ -161,3 +161,24 @@ Emergency Access lifecycle state, so a code-only rollback or blind production mi
 is not sufficient.
 
 No production migration, deployment, seed, or environment change is performed as part of the R3 implementation commit.
+
+## REV-CONTENT-01 C1 Release Note (Not Yet Deployed)
+
+C1 adds `2026_07_21_000000_create_content_publication_tables.php` followed by
+`2026_07_21_010000_reconcile_content_permissions.php`, and adds Symfony HtmlSanitizer 7.4.14.
+No production migration, seed, deployment, storage symlink, or environment mutation is performed by
+the implementation commit.
+
+Before a future release: back up PostgreSQL, preserve `APP_KEY` because editorial/review/original-name
+fields are encrypted, run `composer install --no-dev --optimize-autoloader`, migrate in maintenance
+mode, and verify the 12 authenticated content routes. Do not run `ContentFoundationSeeder` in
+production until the product owner explicitly approves the 41 Article and eight FAQ draft records.
+The seeder never publishes content, but it still creates editorial work records.
+
+The current runtime has no GD, Imagick, or EXIF extension. Upload validation works, but orientation
+correction, metadata removal, re-encoding, and derivatives are unavailable. Do not claim those image
+processing capabilities unless an approved production driver is installed and reverified.
+
+Rollback of the publication-table migration removes all C1 content data. Prefer restoring the
+verified pre-release database backup; never use a blind production rollback after editorial work has
+begun.

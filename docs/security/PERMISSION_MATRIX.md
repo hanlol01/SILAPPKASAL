@@ -183,3 +183,21 @@ evidence.upload, evidence.view.case      ← future capability
 | Close Case through generic status endpoint | No | Rejected | Rejected | Rejected |
 
 The Super Admin Cases sidebar link is hidden in R3. This navigation change does not revoke direct read-only Case authorization, Report-to-Case links, or Activity Log references.
+
+## 7. REV-CONTENT-01 C1 Permissions
+
+| Capability | Reporter | Satgas | Campus Admin | Super Admin |
+|---|---:|---:|---:|---:|
+| Read published, scope-safe content | `content.read.published` | `content.read.published` | `content.read.published` | `content.read.published` |
+| Create/update/submit campus content | No | No | Own campus only | No |
+| Manage campus draft attachments | No | No | Own campus only | No |
+| Read management data | No | No | Own campus only | All campuses |
+| Review campus content | No | No | No | `content.review`; cannot approve own content |
+| Author/publish global content | No | No | No | `content.publish.global` |
+| Archive/feature/category governance | No | No | No | Explicit content governance permissions |
+
+Canonical Campus Admin permissions are `content.create.campus`, `content.update.own_campus`,
+`content.submit.own_campus`, `content.read.management.own_campus`, and
+`content.attachment.manage.own_campus`. Canonical Super Admin permissions are `content.review`,
+`content.publish.global`, `content.archive`, `content.feature.manage`, `content.category.govern`, and
+`content.read.management.all`. Backend policies and locked service transactions are authoritative.

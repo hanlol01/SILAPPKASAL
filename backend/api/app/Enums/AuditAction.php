@@ -85,6 +85,21 @@ enum AuditAction: string
     case ReporterEvidenceDownloadedByOversight = 'reporter_evidence.downloaded_by_oversight';
     case ReporterEvidencePreviewedByOversight = 'reporter_evidence.previewed_by_oversight';
 
+    case ContentItemCreated = 'content.item_created';
+    case ContentVersionCreated = 'content.version_created';
+    case ContentDraftUpdated = 'content.draft_updated';
+    case ContentSubmitted = 'content.submitted';
+    case ContentReviewStarted = 'content.review_started';
+    case ContentRevisionRequested = 'content.revision_requested';
+    case ContentRejected = 'content.rejected';
+    case ContentApproved = 'content.approved';
+    case ContentPublished = 'content.published';
+    case ContentDirectGlobalPublished = 'content.direct_global_published';
+    case ContentArchived = 'content.archived';
+    case ContentAttachmentUploaded = 'content.attachment_uploaded';
+    case ContentAttachmentDownloaded = 'content.attachment_downloaded';
+    case ContentFeaturedPlacementChanged = 'content.featured_placement_changed';
+
     case BreakGlassRequested = 'break_glass.request';
     case BreakGlassApproved = 'break_glass.approve';
     case BreakGlassDenied = 'break_glass.deny';
