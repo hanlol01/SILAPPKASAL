@@ -180,7 +180,9 @@ The seeder never publishes content, but it still creates editorial work records.
 The current runtime has no GD, Imagick, or EXIF extension. Image upload therefore fails closed by
 default. `CONTENT_IMAGE_UPLOADS_ENABLED=true` must not be set until an approved runtime processor is
 installed, bound through `ContentImageProcessor`, and verified to normalize orientation, remove
-metadata, and re-encode output. PDF general attachments remain supported.
+metadata, and re-encode output. JPG, JPEG, PNG, and WebP all remain fail-closed when runtime
+capability is unavailable, including when the feature flag is enabled. PDF general attachments
+remain supported.
 
 Before any destructive test verification, run `test-database:verify` and inspect the printed
 environment, driver, host, and database. The default suite must resolve to SQLite `:memory:`. Local
@@ -188,6 +190,13 @@ PostgreSQL verification may use only `silappkasal_test`, with
 `TEST_DATABASE_CONFIRM=silappkasal_test` and `--confirm-database=silappkasal_test`. Never use
 `silappkasal`. PostgreSQL verification remains a release gate when a disposable test database is not
 available.
+
+The project test base verifies the effective configuration after Laravel application bootstrap and
+before database test traits run. Cached configuration that resolves to a non-testing environment,
+SQLite file, non-local PostgreSQL host, non-empty `DB_URL`, or any PostgreSQL database other than the
+explicitly confirmed `silappkasal_test` aborts setup. Ordinary test runs do not silently delete or
+rewrite the developer's configuration cache; use the repository `composer test` script when an
+explicit `config:clear` pre-step is intended.
 
 Rollback of the publication-table migration removes all C1 content data. Prefer restoring the
 verified pre-release database backup; never use a blind production rollback after editorial work has

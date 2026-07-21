@@ -101,6 +101,13 @@ test case use `TestDatabaseGuard`: only SQLite `:memory:` or local PostgreSQL `s
 `.env.testing.example` contains no secrets. `silappkasal` must never be used for automated tests or
 destructive verification.
 
+The base test case runs the guard immediately after `refreshApplication()` bootstraps Laravel and
+before Laravel calls `setUpTraits()`. Therefore `RefreshDatabase`, `DatabaseMigrations`, database
+truncation, and transaction setup cannot run first. A stale configuration cache is not trusted: if
+the effective cached environment or database resolves outside the allowlist, test setup fails
+without clearing or rewriting the developer's cache. Use `composer test` when a deliberate
+pre-test `config:clear` is required; direct PHPUnit/Artisan test runs remain fail-closed.
+
 ## Seeder boundary
 
 `ContentFoundationSeeder` creates four sections, ten storyboard categories, 41 global Article

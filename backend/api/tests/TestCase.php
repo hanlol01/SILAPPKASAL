@@ -7,10 +7,13 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
-    protected function setUp(): void
+    /**
+     * Assert the effective database after bootstrap and before Laravel runs test traits.
+     */
+    protected function refreshApplication()
     {
-        parent::setUp();
+        parent::refreshApplication();
 
-        app(TestDatabaseGuard::class)->assertSafe();
+        $this->app->make(TestDatabaseGuard::class)->assertSafe();
     }
 }
