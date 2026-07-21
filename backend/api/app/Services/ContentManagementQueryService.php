@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Enums\ContentLifecycleStatus;
 use App\Enums\ContentScope;
 use App\Enums\ContentType;
+use App\Models\ContentAttachment;
 use App\Models\ContentItem;
+use App\Models\ContentVersion;
 use App\Models\User;
 use App\Policies\ContentItemPolicy;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -75,16 +77,46 @@ class ContentManagementQueryService
         return $counts;
     }
 
-    public function item(User $actor, ContentItem $item): ContentItem
+    public function item(User $actor, string $publicId): ContentItem
     {
-        $actor->loadMissing('role.permissions');
-        if (! $this->policy->viewManagement($actor, $item)
-            || ! $actor->hasRole('admin')
-            || ! $actor->hasPermission('content.read.management.own_campus')) {
+        return $this->itemModel($actor, $publicId)->load($this->detailRelations());
+    }
+
+    public function itemModel(User $actor, string $publicId): ContentItem
+    {
+        $item = $this->campusItems($actor)
+            ->where('public_id', $publicId)
+            ->firstOrFail();
+
+        if (! $this->policy->viewManagement($actor, $item)) {
             throw $this->forbidden();
         }
 
-        return $item->load($this->detailRelations());
+        return $item;
+    }
+
+    public function version(User $actor, string $publicId): ContentVersion
+    {
+        $this->authorizeCampusManager($actor);
+
+        return ContentVersion::query()
+            ->where('public_id', $publicId)
+            ->whereHas('item', fn (Builder $item) => $item
+                ->where('scope', ContentScope::Campus->value)
+                ->where('university_id', $actor->university_id))
+            ->firstOrFail();
+    }
+
+    public function attachment(User $actor, string $publicId): ContentAttachment
+    {
+        $this->authorizeCampusManager($actor);
+
+        return ContentAttachment::query()
+            ->where('public_id', $publicId)
+            ->whereHas('version.item', fn (Builder $item) => $item
+                ->where('scope', ContentScope::Campus->value)
+                ->where('university_id', $actor->university_id))
+            ->firstOrFail();
     }
 
     /** @return Collection<int, ContentItem> */

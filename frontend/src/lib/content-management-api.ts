@@ -33,7 +33,7 @@ export interface ContentCategory {
 
 export interface DocumentMark {
   type: "bold" | "italic" | "link";
-  attrs?: { href?: string };
+  attrs?: { href?: string; title?: string };
 }
 
 export interface DocumentNode {
@@ -193,10 +193,10 @@ export function updateManagedContent(versionPublicId: string, payload: ContentPa
   });
 }
 
-export function submitManagedContent(versionPublicId: string) {
+export function submitManagedContent(versionPublicId: string, lockVersion: number) {
   return apiRequest<ManagedContentSummary>(
     `/content-management/versions/${versionPublicId}/submit`,
-    { method: "POST" },
+    { method: "POST", body: JSON.stringify({ lock_version: lockVersion }) },
   );
 }
 

@@ -21,13 +21,13 @@ const API_ERROR_KEYS: Record<string, string> = {
   case_assessment_required: "common:apiErrors.caseAssessmentRequired",
   case_investigation_completion_required: "common:apiErrors.caseInvestigationCompletionRequired",
   investigation_stage_activity_required: "common:apiErrors.investigationStageActivityRequired",
+  content_stale_version: "content:errors.stale",
+  content_archived: "content:errors.archived",
+  content_attachment_deletion_failed: "content:errors.attachmentDeletionFailed",
   "audit_export.too_many_rows": "common:apiErrors.auditExportTooManyRows",
 };
 
-export function apiErrorMessage(
-  error: unknown,
-  fallback = i18n.t("common:apiErrors.fallback"),
-) {
+export function apiErrorMessage(error: unknown, fallback = i18n.t("common:apiErrors.fallback")) {
   if (!(error instanceof ApiError) || !error.errorCode) return fallback;
 
   const key = API_ERROR_KEYS[error.errorCode];

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { loginRequest, logoutRequest, meRequest } from "@/lib/auth-api";
 import { ApiError } from "@/lib/api-client";
 import { AuthContext } from "@/lib/auth-context";
+import { AUTH_SESSION_INVALIDATED_EVENT } from "@/lib/auth-events";
 import {
   clearAuthToken,
   clearRegistrationState,
@@ -12,6 +13,7 @@ import {
   setRegistrationState,
 } from "@/lib/auth-storage";
 import type { ApiUser, ReporterRegistrationAuthState } from "@/lib/api-types";
+import { clearPrivateContentQueries } from "@/lib/private-query-cache";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
@@ -49,11 +51,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setUser(null);
     queryClient.removeQueries({ queryKey: ["auth"] });
+    void clearPrivateContentQueries(queryClient);
   }, [meQuery.error, queryClient]);
+
+  useEffect(() => {
+    const handleInvalidatedSession = () => {
+      setToken(null);
+      setUser(null);
+      setRegistrationValue(null);
+      queryClient.removeQueries({ queryKey: ["auth"] });
+      void clearPrivateContentQueries(queryClient);
+    };
+
+    window.addEventListener(AUTH_SESSION_INVALIDATED_EVENT, handleInvalidatedSession);
+    return () =>
+      window.removeEventListener(AUTH_SESSION_INVALIDATED_EVENT, handleInvalidatedSession);
+  }, [queryClient]);
 
   const setRegistration = (value: ReporterRegistrationAuthState | null) => {
     setRegistrationValue(value);
     if (value) {
+      void clearPrivateContentQueries(queryClient);
       clearAuthToken();
       setToken(null);
       setUser(null);
@@ -65,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (identifier: string, password: string, remember: boolean) => {
+    await clearPrivateContentQueries(queryClient);
     const result = await loginRequest(identifier, password);
 
     if (result.type === "registration") {
@@ -83,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    await clearPrivateContentQueries(queryClient);
     try {
       if (getAuthToken()) {
         await logoutRequest();
@@ -97,13 +117,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.removeQueries({ queryKey: ["dashboard"] });
       queryClient.removeQueries({ queryKey: ["master-data"] });
       queryClient.removeQueries({ queryKey: ["portal"] });
+      await clearPrivateContentQueries(queryClient);
     }
   };
 
   const roleCode = user?.role?.code ?? null;
   const isHydrating =
-    !isStorageBootstrapped
-    || Boolean(token) && !user && (meQuery.isPending || meQuery.isFetching);
+    !isStorageBootstrapped ||
+    (Boolean(token) && !user && (meQuery.isPending || meQuery.isFetching));
 
   return (
     <AuthContext.Provider

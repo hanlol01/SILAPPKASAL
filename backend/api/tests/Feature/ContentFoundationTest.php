@@ -362,7 +362,7 @@ class ContentFoundationTest extends TestCase
         $service = app(ContentPublicationService::class);
 
         $revisionItem = $service->createDraft($admin, $this->articlePayload(ContentScope::Campus, $this->campusA, 'Memerlukan Revisi'));
-        $service->submit($revisionItem->currentDraftVersion, $admin);
+        $service->submit($revisionItem->currentDraftVersion, $admin, (int) $revisionItem->lock_version);
         $service->startReview($revisionItem->currentDraftVersion->fresh(), $super);
         try {
             $service->requestRevision($revisionItem->currentDraftVersion->fresh(), $super, '   ');
@@ -380,7 +380,7 @@ class ContentFoundationTest extends TestCase
         $this->assertSame(ContentLifecycleStatus::Draft, $revisionItem->currentDraftVersion->lifecycle_status);
 
         $approvedItem = $service->createDraft($admin, $this->articlePayload(ContentScope::Campus, $this->campusA, 'Siap Diterbitkan'));
-        $approvedItem = $service->submit($approvedItem->currentDraftVersion, $admin);
+        $approvedItem = $service->submit($approvedItem->currentDraftVersion, $admin, (int) $approvedItem->lock_version);
         $approvedItem = $service->startReview($approvedItem->currentDraftVersion, $super);
         $approvedItem = $service->approve($approvedItem->currentDraftVersion, $super, 'Catatan persetujuan aman.');
         $approvedItem = $service->publishApproved($approvedItem->currentDraftVersion, $super);
@@ -492,7 +492,7 @@ class ContentFoundationTest extends TestCase
         Sanctum::actingAs($otherAdmin, ['*']);
         $this->get('/api/v1/content/attachments/'.$attachmentId)->assertForbidden();
 
-        $item = $service->submit($version->fresh(), $admin);
+        $item = $service->submit($version->fresh(), $admin, (int) $item->lock_version);
         $item = $service->startReview($item->currentDraftVersion, $super);
         $item = $service->approve($item->currentDraftVersion, $super);
         $service->publishApproved($item->currentDraftVersion, $super);
@@ -621,7 +621,7 @@ class ContentFoundationTest extends TestCase
         $item = $service->createDraft($admin, $this->articlePayload(ContentScope::Campus, $this->campusA, 'CTA Aman') + [
             'consultation_cta_public_id' => $globalCta->public_id,
         ]);
-        $item = $service->submit($item->currentDraftVersion, $admin);
+        $item = $service->submit($item->currentDraftVersion, $admin, (int) $item->lock_version);
         $item = $service->startReview($item->currentDraftVersion, $super);
         $item = $service->approve($item->currentDraftVersion, $super);
         $item = $service->publishApproved($item->currentDraftVersion, $super);
@@ -640,7 +640,7 @@ class ContentFoundationTest extends TestCase
         $pending = $service->createDraft($admin, $this->articlePayload(ContentScope::Campus, $this->campusA, 'CTA Kedaluwarsa') + [
             'consultation_cta_public_id' => $staleCta->public_id,
         ]);
-        $pending = $service->submit($pending->currentDraftVersion, $admin);
+        $pending = $service->submit($pending->currentDraftVersion, $admin, (int) $pending->lock_version);
         $pending = $service->startReview($pending->currentDraftVersion, $super);
         $pending = $service->approve($pending->currentDraftVersion, $super);
         $staleCta->forceFill(['archived_at' => now()])->save();

@@ -21,6 +21,7 @@ use App\Models\ContentVersion;
 use App\Models\FaqVersionContent;
 use App\Models\User;
 use App\Policies\ContentItemPolicy;
+use App\Support\ApiErrorCode;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\DB;
@@ -117,12 +118,17 @@ class ContentPublicationService
             $version = ContentVersion::query()->whereKey($version->id)->lockForUpdate()->firstOrFail();
             $item = ContentItem::query()->whereKey($version->content_item_id)->lockForUpdate()->firstOrFail();
 
+            $this->ensureNotArchived($item);
+
             if (! $this->policy->updateDraft($actor, $item, $version)) {
                 throw $this->forbidden();
             }
 
             if (isset($data['lock_version']) && (int) $data['lock_version'] !== (int) $item->lock_version) {
-                throw $this->conflict('Content was changed by another operation. Reload before continuing.');
+                throw $this->conflict(
+                    'Content changed after it was loaded. Reload the authoritative version before continuing.',
+                    ApiErrorCode::ContentStaleVersion,
+                );
             }
 
             if (array_key_exists('section_code', $data) || array_key_exists('category_public_id', $data)) {
@@ -167,15 +173,23 @@ class ContentPublicationService
         });
     }
 
-    public function submit(ContentVersion $version, User $actor): ContentItem
+    public function submit(ContentVersion $version, User $actor, int $expectedLockVersion): ContentItem
     {
-        return DB::transaction(function () use ($version, $actor): ContentItem {
+        return DB::transaction(function () use ($version, $actor, $expectedLockVersion): ContentItem {
             $actor = $this->lockedActor($actor);
             $version = ContentVersion::query()->whereKey($version->id)->lockForUpdate()->firstOrFail();
             $item = ContentItem::query()->whereKey($version->content_item_id)->lockForUpdate()->firstOrFail();
 
+            $this->ensureNotArchived($item);
+
             if (! $this->policy->submit($actor, $item, $version)) {
                 throw $this->forbidden();
+            }
+            if ($expectedLockVersion !== (int) $item->lock_version) {
+                throw $this->conflict(
+                    'Content changed after it was loaded. Reload the authoritative version before submitting.',
+                    ApiErrorCode::ContentStaleVersion,
+                );
             }
 
             $this->ensurePublishablePayload($version, false);
@@ -255,6 +269,12 @@ class ContentPublicationService
             if (! $this->policy->archive($actor) || $item->published_version_id === null) {
                 throw $this->forbidden();
             }
+            if ($item->current_draft_version_id !== null) {
+                throw $this->conflict(
+                    'Resolve the active authoring version before archiving this content item.',
+                    ApiErrorCode::ContentActiveAuthoringVersion,
+                );
+            }
             if ($reason === '') {
                 throw ValidationException::withMessages(['reason' => ['An archive reason is required.']]);
             }
@@ -289,6 +309,7 @@ class ContentPublicationService
             return DB::transaction(function () use ($item, $actor, &$clonedPaths): ContentItem {
                 $actor = $this->lockedActor($actor);
                 $item = ContentItem::query()->whereKey($item->id)->lockForUpdate()->firstOrFail();
+                $this->ensureNotArchived($item);
                 $published = ContentVersion::query()->whereKey($item->published_version_id)->first();
 
                 if ($published === null || ! $this->policy->createRevision($actor, $item)) {
@@ -965,12 +986,30 @@ class ContentPublicationService
         ], 403));
     }
 
-    private function conflict(string $message): HttpResponseException
+    private function ensureNotArchived(ContentItem $item): void
     {
-        return new HttpResponseException(response()->json([
+        if ($item->archived_at !== null) {
+            throw $this->conflict(
+                'Archived content is read-only and cannot be changed.',
+                ApiErrorCode::ContentArchived,
+            );
+        }
+    }
+
+    private function conflict(string $message, ?string $errorCode = null): HttpResponseException
+    {
+        $payload = [
             'success' => false,
             'message' => $message,
             'errors' => null,
-        ], 409));
+        ];
+        if ($errorCode !== null) {
+            $payload['error_code'] = $errorCode;
+        }
+
+        return new HttpResponseException(response()->json($payload, 409)->withHeaders([
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'Pragma' => 'no-cache',
+        ]));
     }
 }

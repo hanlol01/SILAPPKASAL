@@ -126,3 +126,12 @@ read/revision/PDF-removal endpoints documented in `CONTENT_MANAGEMENT.md`. Super
 Reporter Pusat Informasi, PWA manifest/service worker, notification delivery, scheduled publication,
 unauthenticated reading, comments, reactions, bookmarks, multilingual bodies, Flutter, and
 production deployment remain deferred.
+
+C2 integrity hardening treats `lock_version` as mandatory on submission and revalidates it after
+row locking. Archived items are read-only across every Admin mutation; an item with an active
+authoring version must be resolved before archive rather than silently retaining an editable draft.
+Management identifiers are resolved inside the actor's campus scope before mutation services run.
+Private PDF removal deletes storage first inside the guarded operation and removes metadata/audits
+only after storage confirms success. Structured documents retain their original JSON node-by-node:
+complex supported shapes that the simple editor cannot safely edit are shown read-only and are
+serialized unchanged.

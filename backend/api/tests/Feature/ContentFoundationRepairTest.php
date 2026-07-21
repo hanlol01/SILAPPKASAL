@@ -92,7 +92,7 @@ class ContentFoundationRepairTest extends TestCase
         }
 
         $service->updateDraft($revision, $admin, ['requires_editorial_review' => false]);
-        $revisionItem = $service->submit($revision->fresh(), $admin);
+        $revisionItem = $service->submit($revision->fresh(), $admin, (int) $revisionItem->fresh()->lock_version);
         $revisionItem = $service->startReview($revisionItem->currentDraftVersion, $super);
         $revisionItem = $service->approve($revisionItem->currentDraftVersion, $super);
         $revisionItem = $service->publishApproved($revisionItem->currentDraftVersion, $super);
@@ -151,7 +151,7 @@ class ContentFoundationRepairTest extends TestCase
         ])->save();
 
         try {
-            $service->submit($target->currentDraftVersion->fresh(), $admin);
+            $service->submit($target->currentDraftVersion->fresh(), $admin, (int) $target->fresh()->lock_version);
             $this->fail('Foreign attachment references were accepted at submit.');
         } catch (ValidationException) {
             $this->assertTrue(true);
@@ -172,7 +172,7 @@ class ContentFoundationRepairTest extends TestCase
         Storage::disk('content')->delete($missing->storage_path);
 
         $this->expectException(ValidationException::class);
-        $service->submit($target->currentDraftVersion->fresh(), $admin);
+        $service->submit($target->currentDraftVersion->fresh(), $admin, (int) $target->fresh()->lock_version);
     }
 
     public function test_consultation_cta_must_stay_active_and_reader_omits_stale_target(): void
@@ -206,7 +206,7 @@ class ContentFoundationRepairTest extends TestCase
         $pendingArticle = $service->createDraft($admin, $this->articlePayload('Pending CTA') + [
             'consultation_cta_public_id' => $pendingCta->public_id,
         ]);
-        $pendingArticle = $service->submit($pendingArticle->currentDraftVersion, $admin);
+        $pendingArticle = $service->submit($pendingArticle->currentDraftVersion, $admin, (int) $pendingArticle->lock_version);
         $pendingArticle = $service->startReview($pendingArticle->currentDraftVersion, $super);
         $pendingArticle = $service->approve($pendingArticle->currentDraftVersion, $super);
         $inactivePending = $service->createRevision($pendingCta, $super);
@@ -540,7 +540,8 @@ class ContentFoundationRepairTest extends TestCase
     private function publishCampusArticle(ContentItem $item, User $admin, User $super): ContentItem
     {
         $service = app(ContentPublicationService::class);
-        $item = $service->submit($item->currentDraftVersion->fresh(), $admin);
+        $item->refresh();
+        $item = $service->submit($item->currentDraftVersion->fresh(), $admin, (int) $item->lock_version);
         $item = $service->startReview($item->currentDraftVersion, $super);
         $item = $service->approve($item->currentDraftVersion, $super);
 

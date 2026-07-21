@@ -14,6 +14,7 @@ use App\Models\ContentItem;
 use App\Models\ContentVersion;
 use App\Models\User;
 use App\Policies\ContentItemPolicy;
+use App\Support\ApiErrorCode;
 use App\Support\ContentAttachmentFilename;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\UploadedFile;
@@ -57,6 +58,8 @@ class ContentAttachmentService
                 $actor = User::query()->with('role.permissions')->whereKey($actor->id)->lockForUpdate()->firstOrFail();
                 $version = ContentVersion::query()->whereKey($version->id)->lockForUpdate()->firstOrFail();
                 $item = ContentItem::query()->whereKey($version->content_item_id)->lockForUpdate()->firstOrFail();
+
+                $this->ensureNotArchived($item);
 
                 if (! $this->policy->manageAttachment($actor, $item, $version)) {
                     throw $this->forbidden();
@@ -189,44 +192,91 @@ class ContentAttachmentService
 
     public function remove(ContentAttachment $attachment, User $actor): void
     {
-        [$disk, $path] = DB::transaction(function () use ($attachment, $actor): array {
-            $actor = User::query()->with('role.permissions')->whereKey($actor->id)->lockForUpdate()->firstOrFail();
-            $attachment = ContentAttachment::query()->whereKey($attachment->id)->lockForUpdate()->firstOrFail();
-            $version = ContentVersion::query()->whereKey($attachment->content_version_id)->lockForUpdate()->firstOrFail();
-            $item = ContentItem::query()->whereKey($version->content_item_id)->lockForUpdate()->firstOrFail();
+        $diskName = null;
+        $path = null;
+        $backup = null;
+        $physicalFileRemoved = false;
 
-            if ($attachment->purpose !== ContentAttachmentPurpose::Attachment
-                || ! $this->policy->manageAttachment($actor, $item, $version)) {
-                throw $this->forbidden();
+        try {
+            DB::transaction(function () use (
+                $attachment,
+                $actor,
+                &$diskName,
+                &$path,
+                &$backup,
+                &$physicalFileRemoved,
+            ): void {
+                $actor = User::query()->with('role.permissions')->whereKey($actor->id)->lockForUpdate()->firstOrFail();
+                $attachment = ContentAttachment::query()->whereKey($attachment->id)->lockForUpdate()->firstOrFail();
+                $version = ContentVersion::query()->whereKey($attachment->content_version_id)->lockForUpdate()->firstOrFail();
+                $item = ContentItem::query()->whereKey($version->content_item_id)->lockForUpdate()->firstOrFail();
+
+                $this->ensureNotArchived($item);
+                if ($attachment->purpose !== ContentAttachmentPurpose::Attachment
+                    || ! $this->policy->manageAttachment($actor, $item, $version)) {
+                    throw $this->forbidden();
+                }
+
+                $diskName = $attachment->storage_disk;
+                $path = $attachment->storage_path;
+                try {
+                    $disk = Storage::disk($diskName);
+                    $exists = $disk->exists($path);
+                    $backup = $exists ? $disk->get($path) : null;
+                } catch (Throwable) {
+                    throw $this->deletionFailed();
+                }
+                if (! $exists || ! is_string($backup)) {
+                    throw $this->deletionFailed();
+                }
+
+                try {
+                    $deleted = $disk->delete($path);
+                    $fileStillExists = $disk->exists($path);
+                } catch (Throwable) {
+                    $physicalFileRemoved = true;
+                    throw $this->deletionFailed();
+                }
+                $physicalFileRemoved = ! $fileStillExists;
+                if (! $deleted || $fileStillExists) {
+                    throw $this->deletionFailed();
+                }
+
+                $publicId = $attachment->public_id;
+                $purpose = $attachment->purpose->value;
+                $attachment->delete();
+
+                $this->auditLogs->record(
+                    action: AuditAction::ContentAttachmentRemoved,
+                    category: AuditCategory::Content,
+                    severity: AuditSeverity::Info,
+                    actor: $actor,
+                    subject: $item,
+                    metadata: [
+                        'content_public_id' => $item->public_id,
+                        'version_number' => $version->version_number,
+                        'content_type' => $item->content_type->value,
+                        'scope' => $item->scope->value,
+                        'university_code' => $item->university()->value('code'),
+                        'attachment_public_id' => $publicId,
+                        'purpose' => $purpose,
+                    ],
+                );
+            });
+        } catch (Throwable $exception) {
+            if ($physicalFileRemoved && is_string($diskName) && is_string($path) && is_string($backup)) {
+                try {
+                    $disk = Storage::disk($diskName);
+                    if (! $disk->exists($path)) {
+                        $disk->put($path, $backup, ['visibility' => 'private']);
+                    }
+                } catch (Throwable) {
+                    // The database transaction is still rolled back; storage recovery is best-effort.
+                }
             }
 
-            $disk = $attachment->storage_disk;
-            $path = $attachment->storage_path;
-            $publicId = $attachment->public_id;
-            $purpose = $attachment->purpose->value;
-            $attachment->delete();
-
-            $this->auditLogs->record(
-                action: AuditAction::ContentAttachmentRemoved,
-                category: AuditCategory::Content,
-                severity: AuditSeverity::Info,
-                actor: $actor,
-                subject: $item,
-                metadata: [
-                    'content_public_id' => $item->public_id,
-                    'version_number' => $version->version_number,
-                    'content_type' => $item->content_type->value,
-                    'scope' => $item->scope->value,
-                    'university_code' => $item->university()->value('code'),
-                    'attachment_public_id' => $publicId,
-                    'purpose' => $purpose,
-                ],
-            );
-
-            return [$disk, $path];
-        });
-
-        Storage::disk($disk)->delete($path);
+            throw $exception;
+        }
     }
 
     /**
@@ -325,6 +375,34 @@ class ContentAttachmentService
             || ($item->scope === ContentScope::Campus
                 && $actor->university_id !== null
                 && (int) $item->university_id === (int) $actor->university_id);
+    }
+
+    private function ensureNotArchived(ContentItem $item): void
+    {
+        if ($item->archived_at !== null) {
+            throw new HttpResponseException(response()->json([
+                'success' => false,
+                'message' => 'Archived content is read-only and cannot be changed.',
+                'error_code' => ApiErrorCode::ContentArchived,
+                'errors' => null,
+            ], 409)->withHeaders([
+                'Cache-Control' => 'private, no-store, max-age=0',
+                'Pragma' => 'no-cache',
+            ]));
+        }
+    }
+
+    private function deletionFailed(): HttpResponseException
+    {
+        return new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => 'The private attachment could not be removed. Try again later.',
+            'error_code' => ApiErrorCode::ContentAttachmentDeletionFailed,
+            'errors' => null,
+        ], 503)->withHeaders([
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'Pragma' => 'no-cache',
+        ]));
     }
 
     private function forbidden(): HttpResponseException

@@ -1,4 +1,5 @@
-import { clearAuthToken, getAuthToken } from "@/lib/auth-storage";
+import { invalidateAuthSession } from "@/lib/auth-events";
+import { getAuthToken } from "@/lib/auth-storage";
 import type { ApiEnvelope, PaginationMeta } from "@/lib/api-types";
 import i18n from "@/i18n";
 
@@ -72,7 +73,7 @@ async function apiFetch<T, TMeta = PaginationMeta>(
 
   if (!response.ok || !payload?.success) {
     if (response.status === 401) {
-      clearAuthToken();
+      invalidateAuthSession();
     }
 
     throw new ApiError(
@@ -95,10 +96,7 @@ export async function apiRequest<T>(
   return payload.data;
 }
 
-export async function apiRequestEnvelope<
-  T,
-  TMeta = PaginationMeta,
->(
+export async function apiRequestEnvelope<T, TMeta = PaginationMeta>(
   path: string,
   init: RequestInit & { query?: Record<string, string | number | boolean | undefined> } = {},
 ) {
@@ -124,7 +122,7 @@ export function apiUpload<T>(
     request.addEventListener("load", () => {
       const payload = safeJson<ApiEnvelope<T>>(request.responseText);
       if (request.status < 200 || request.status >= 300 || !payload?.success) {
-        if (request.status === 401) clearAuthToken();
+        if (request.status === 401) invalidateAuthSession();
         reject(
           new ApiError(
             payload?.message || "Request failed",
@@ -165,7 +163,7 @@ export async function apiDownload(path: string, fallbackFilename: string) {
     const payload = (await response.json().catch(() => null)) as ApiEnvelope<unknown> | null;
 
     if (response.status === 401) {
-      clearAuthToken();
+      invalidateAuthSession();
     }
 
     throw new ApiError(
@@ -227,7 +225,7 @@ export async function apiFetchBlob(
     const payload = (await response.json().catch(() => null)) as ApiEnvelope<unknown> | null;
 
     if (response.status === 401) {
-      clearAuthToken();
+      invalidateAuthSession();
     }
 
     throw new ApiError(
@@ -247,12 +245,9 @@ export async function apiFetchBlob(
   return {
     blob: await response.blob(),
     contentType,
-    contentLength: Number.isFinite(parsedContentLength) && parsedContentLength >= 0
-      ? parsedContentLength
-      : null,
-    filename: contentDisposition
-      ? parseDownloadFilename(contentDisposition, "") || null
-      : null,
+    contentLength:
+      Number.isFinite(parsedContentLength) && parsedContentLength >= 0 ? parsedContentLength : null,
+    filename: contentDisposition ? parseDownloadFilename(contentDisposition, "") || null : null,
   };
 }
 

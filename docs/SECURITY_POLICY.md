@@ -1309,9 +1309,15 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
   reviewer identity, encrypted storage representation, and audit metadata remain excluded.
 - C2 keeps image authoring disabled. Private PDF removal deletes the authorized database record,
   removes the private object, and records `content.attachment_removed` without original filename,
-  contact data, body content, or review narrative.
+  contact data, body content, or review narrative. Metadata/audit commit only after private storage
+  confirms deletion; failure keeps the metadata and object consistent and returns a retryable error.
 - Draft content is not persisted to localStorage. Management and attachment responses remain
   `private, no-store`, and future service workers must exclude `/api` and `/dashboard/content`.
+- Submit requires the current `lock_version` and verifies it after row locking. Stable 409 codes
+  distinguish stale authoring state and archived read-only state. Own-campus query scoping precedes
+  lookup of item, version, and attachment public UUIDs, so foreign/global UUID probes return 404.
+- Every authentication invalidation, logout, and account switch cancels and removes all TanStack
+  queries rooted at `content-management` before another account can render management data.
 
 ---
 

@@ -29,7 +29,8 @@ class ContentManagementResource extends JsonResource
                 'excerpt' => $version->excerpt,
                 'requires_editorial_review' => $version->requires_editorial_review,
             ] : null,
-            'has_editable_version' => $this->currentDraftVersion?->lifecycle_status?->editable() ?? false,
+            'has_editable_version' => $this->archived_at === null
+                && ($this->currentDraftVersion?->lifecycle_status?->editable() ?? false),
             'published_version' => $this->publishedVersion ? [
                 'public_id' => $this->publishedVersion->public_id,
                 'version_number' => $this->publishedVersion->version_number,

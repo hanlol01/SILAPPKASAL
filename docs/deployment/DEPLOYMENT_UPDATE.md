@@ -213,3 +213,8 @@ same verified commit, then confirm the management routes with `php artisan route
 Image uploads remain disabled and must not be enabled for C2. PDF attachments stay on the private
 `content` disk; no public storage symlink is required. C2 automated verification must remain on
 SQLite `:memory:`. No production migration, seed, push, or deployment is claimed by this note.
+
+C2 integrity repair adds no dependency or migration. Deployment verification must additionally
+confirm mandatory submit `lock_version`, 404 non-disclosure for out-of-campus management UUIDs,
+archived read-only errors, private-query removal on auth changes, and rollback-safe private PDF
+deletion failure behavior.

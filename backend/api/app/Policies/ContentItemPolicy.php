@@ -50,7 +50,9 @@ class ContentItemPolicy extends BasePolicy
 
     public function updateDraft(User $user, ContentItem $item, ContentVersion $version): bool
     {
-        if (! $version->lifecycle_status?->editable() || (int) $version->content_item_id !== (int) $item->id) {
+        if ($item->archived_at !== null
+            || ! $version->lifecycle_status?->editable()
+            || (int) $version->content_item_id !== (int) $item->id) {
             return false;
         }
 
@@ -85,6 +87,10 @@ class ContentItemPolicy extends BasePolicy
 
     public function createRevision(User $user, ContentItem $item): bool
     {
+        if ($item->archived_at !== null) {
+            return false;
+        }
+
         if ($item->scope === ContentScope::Global) {
             return $this->createGlobal($user);
         }

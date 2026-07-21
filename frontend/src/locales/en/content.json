@@ -50,6 +50,11 @@
   "filteredEmptyTitle": "No results",
   "filteredEmptyDescription": "Change or clear the filters to see other content.",
   "loadError": "Content could not be loaded.",
+  "errors": {
+    "stale": "This draft changed in another session. Your unsaved changes are preserved; review the latest data before trying again.",
+    "archived": "Archived content is view-only and cannot be changed.",
+    "attachmentDeletionFailed": "The attachment could not be removed from private storage. Its record was preserved; please try again."
+  },
   "saved": "Draft saved.",
   "created": "Draft created.",
   "submittedSuccess": "Content submitted for review.",
@@ -131,6 +136,8 @@
     "moveDown": "Move down",
     "removeBlock": "Remove block",
     "listHelp": "One item per line",
-    "empty": "Start by adding a content block."
+    "empty": "Start by adding a content block.",
+    "preservedTitle": "Block preserved without changes",
+    "preservedDescription": "This block structure cannot be edited with the simple editor. It remains intact and will be saved as-is."
   }
 }

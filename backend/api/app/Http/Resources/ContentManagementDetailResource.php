@@ -26,7 +26,8 @@ class ContentManagementDetailResource extends JsonResource
             'category' => $this->category ? new ContentCategoryResource($this->category) : null,
             'lock_version' => $this->lock_version,
             'lifecycle_status' => $this->archived_at !== null ? 'archived' : $version?->lifecycle_status?->value,
-            'has_editable_version' => $this->currentDraftVersion?->lifecycle_status?->editable() ?? false,
+            'has_editable_version' => $this->archived_at === null
+                && ($this->currentDraftVersion?->lifecycle_status?->editable() ?? false),
             'version' => $version ? $this->version($version) : null,
             'published_version' => $this->publishedVersion ? [
                 'public_id' => $this->publishedVersion->public_id,

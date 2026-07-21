@@ -47,6 +47,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { ApiError } from "@/lib/api-client";
 import { documentHasText, documentHasUnsafeLink } from "@/lib/content-document";
+import { contentFieldName } from "@/lib/content-management-errors";
 import {
   contentManagementKeys,
   createManagedContent,
@@ -113,7 +114,14 @@ export function ContentEditor({ contentType, detail, onBack, onSaved }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const detailRef = useRef(detail);
   detailRef.current = detail;
-  const editable = detail ? detail.has_editable_version : true;
+  const permissions = new Set(user?.permissions ?? []);
+  const canCreate = permissions.has("content.create.campus");
+  const canUpdate = permissions.has("content.update.own_campus");
+  const canSubmit = permissions.has("content.submit.own_campus");
+  const canManageAttachments = permissions.has("content.attachment.manage.own_campus");
+  const editable = detail
+    ? detail.archived_at === null && detail.has_editable_version && canUpdate
+    : canCreate;
   const locale = i18n.resolvedLanguage?.startsWith("en") ? "en" : "id";
   const navigationBlocker = useBlocker({
     shouldBlockFn: () => dirty,
@@ -122,10 +130,10 @@ export function ContentEditor({ contentType, detail, onBack, onSaved }: Props) {
   });
 
   useEffect(() => {
+    if (dirty) return;
     setState(initialState(contentType, detailRef.current));
-    setDirty(false);
     setErrors({});
-  }, [contentType, detail?.public_id, detail?.version.public_id, detail?.lock_version]);
+  }, [contentType, detail?.public_id, detail?.version.public_id, detail?.lock_version, dirty]);
 
   const categoriesQuery = useQuery({
     queryKey: contentManagementKeys.categories(state.sectionCode),
@@ -148,6 +156,17 @@ export function ContentEditor({ contentType, detail, onBack, onSaved }: Props) {
     ]);
   };
 
+  const handleMutationError = (error: unknown) => {
+    setErrors(apiFieldErrors(error, contentType));
+    if (error instanceof ApiError && error.errorCode === "content_stale_version") {
+      toast.error(t("content:errors.stale"));
+      void invalidate(detail?.public_id);
+      return;
+    }
+
+    toast.error(apiErrorMessage(error, t("content:loadError")));
+  };
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const validation = validate(state, contentType, emergencyConfirmed, t);
@@ -167,23 +186,26 @@ export function ContentEditor({ contentType, detail, onBack, onSaved }: Props) {
         : createManagedContent(payload);
     },
     onSuccess: async (result) => {
-      setDirty(false);
       toast.success(t(detail ? "content:saved" : "content:created"));
       await invalidate(result.public_id);
       onSaved(result.public_id);
+      setDirty(false);
     },
     onError: (error) => {
       if (error instanceof ClientValidationError) return;
-      setErrors(apiFieldErrors(error));
-      toast.error(apiErrorMessage(error, t("content:loadError")));
+      handleMutationError(error);
     },
   });
 
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!detail) throw new Error("Save the draft before submitting.");
-      if (dirty) await saveMutation.mutateAsync();
-      return submitManagedContent(detail.version.public_id);
+      let lockVersion = detail.lock_version;
+      if (dirty) {
+        const saved = await saveMutation.mutateAsync();
+        lockVersion = saved.lock_version;
+      }
+      return submitManagedContent(detail.version.public_id, lockVersion);
     },
     onSuccess: async () => {
       setDirty(false);
@@ -192,8 +214,7 @@ export function ContentEditor({ contentType, detail, onBack, onSaved }: Props) {
       onBack();
     },
     onError: (error) => {
-      setErrors(apiFieldErrors(error));
-      toast.error(apiErrorMessage(error, t("content:loadError")));
+      handleMutationError(error);
     },
   });
 
@@ -243,7 +264,7 @@ export function ContentEditor({ contentType, detail, onBack, onSaved }: Props) {
   const requestBack = () => (dirty ? setConfirmLeave(true) : onBack());
 
   return (
-    <div className="space-y-5 pb-24">
+    <div className="space-y-5 pb-40 sm:pb-24">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Button variant="ghost" className="mb-2 -ml-3 min-h-11" onClick={requestBack}>
@@ -343,7 +364,7 @@ export function ContentEditor({ contentType, detail, onBack, onSaved }: Props) {
                   >
                     <FileText className="h-4 w-4 shrink-0" />
                     <span className="min-w-0 flex-1 truncate">{attachment.filename}</span>
-                    {editable && (
+                    {editable && canManageAttachments && (
                       <Button
                         size="icon"
                         variant="ghost"
@@ -363,7 +384,7 @@ export function ContentEditor({ contentType, detail, onBack, onSaved }: Props) {
                   <p className="text-sm text-muted-foreground">{t("content:noAttachments")}</p>
                 )}
               {!detail && <p className="text-sm text-muted-foreground">{t("content:saveDraft")}</p>}
-              {editable && detail && (
+              {editable && canManageAttachments && detail && (
                 <>
                   <Input
                     ref={fileInputRef}
@@ -406,14 +427,18 @@ export function ContentEditor({ contentType, detail, onBack, onSaved }: Props) {
       </div>
 
       {editable && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 p-3 backdrop-blur md:left-[var(--sidebar-width)]">
-          <div className="mx-auto flex max-w-6xl justify-end gap-2">
-            <Button variant="outline" className="min-h-11" onClick={() => setPreviewOpen(true)}>
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur md:left-[var(--sidebar-width)]">
+          <div className="mx-auto grid max-w-6xl grid-cols-2 gap-2 sm:flex sm:justify-end">
+            <Button
+              variant="outline"
+              className="min-h-11 w-full sm:w-auto"
+              onClick={() => setPreviewOpen(true)}
+            >
               <Eye className="mr-2 h-4 w-4" />
               {t("content:preview")}
             </Button>
             <Button
-              className="min-h-11"
+              className="min-h-11 w-full sm:w-auto"
               disabled={saveMutation.isPending || submitMutation.isPending}
               onClick={() => saveMutation.mutate()}
             >
@@ -424,9 +449,9 @@ export function ContentEditor({ contentType, detail, onBack, onSaved }: Props) {
               )}
               {t("content:saveDraft")}
             </Button>
-            {detail && (
+            {detail && canSubmit && (
               <Button
-                className="min-h-11"
+                className="col-span-2 min-h-11 w-full sm:col-auto sm:w-auto"
                 variant="secondary"
                 disabled={
                   saveMutation.isPending ||
@@ -462,6 +487,7 @@ export function ContentEditor({ contentType, detail, onBack, onSaved }: Props) {
         categoryName={
           categoriesQuery.data?.find((item) => item.public_id === state.categoryPublicId)?.name
         }
+        consultationOptions={consultationOptionsQuery.data ?? []}
       />
       <AlertDialog
         open={confirmLeave || navigationBlocker.status === "blocked"}
@@ -886,6 +912,7 @@ function ContentPreviewDialog({
   mobile,
   setMobile,
   categoryName,
+  consultationOptions,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -895,6 +922,7 @@ function ContentPreviewDialog({
   mobile: boolean;
   setMobile: (value: boolean) => void;
   categoryName?: string;
+  consultationOptions: Array<{ public_id: string; service_name: string; scope: string }>;
 }) {
   const { t } = useTranslation("content");
   const title =
@@ -904,6 +932,9 @@ function ContentPreviewDialog({
         ? state.question
         : state.serviceName;
   const document = contentType === "article" ? state.document : state.answerDocument;
+  const consultationCta = consultationOptions.find(
+    (item) => item.public_id === state.consultationCtaPublicId,
+  );
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
@@ -947,10 +978,32 @@ function ContentPreviewDialog({
               {state.email && <p>{state.email}</p>}
               {state.phone && <p>{state.phone}</p>}
               {state.whatsapp && <p>WhatsApp: {state.whatsapp}</p>}
+              {state.officeAddress && <p>{state.officeAddress}</p>}
               {state.operatingHours && <p>{state.operatingHours}</p>}
+              {state.emergencyAvailable && (
+                <Badge variant="destructive">{t("emergencyAvailable")}</Badge>
+              )}
+              {state.appointmentUrl && state.actionLabel && isValidUrl(state.appointmentUrl) && (
+                <Button asChild className="mt-2">
+                  <a href={state.appointmentUrl} target="_blank" rel="noreferrer noopener">
+                    {state.actionLabel}
+                  </a>
+                </Button>
+              )}
             </div>
           ) : (
             <ContentDocumentPreview document={document} />
+          )}
+          {contentType === "article" && consultationCta && (
+            <aside className="mt-6 rounded-lg border bg-muted/30 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t("consultationCta")}
+              </p>
+              <p className="mt-1 font-semibold">{consultationCta.service_name}</p>
+              <Badge variant="outline" className="mt-2">
+                {t(consultationCta.scope)}
+              </Badge>
+            </aside>
           )}
           {attachments.length > 0 && (
             <section className="mt-6">
@@ -1091,21 +1144,11 @@ function isValidUrl(value: string): boolean {
     return false;
   }
 }
-function apiFieldErrors(error: unknown): Record<string, string> {
-  const fieldNames: Record<string, string> = {
-    section_code: "sectionCode",
-    category_public_id: "categoryPublicId",
-    consultation_cta_public_id: "consultationCtaPublicId",
-    answer_document: "answerDocument",
-    service_name: "serviceName",
-    phone_display: "phone",
-    whatsapp_display: "whatsapp",
-    appointment_url: "appointmentUrl",
-  };
+function apiFieldErrors(error: unknown, contentType: ContentType): Record<string, string> {
   return error instanceof ApiError && error.errors
     ? Object.fromEntries(
         Object.entries(error.errors).map(([key, value]) => [
-          fieldNames[key] ?? key,
+          contentFieldName(contentType, key),
           value[0] ?? error.message,
         ]),
       )

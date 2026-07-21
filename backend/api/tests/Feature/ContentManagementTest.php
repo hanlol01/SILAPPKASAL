@@ -56,8 +56,8 @@ class ContentManagementTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.version.article.document.type', 'doc')
             ->assertJsonMissingPath('data.version.article.sanitized_html');
-        $this->getJson('/api/v1/content-management/items/'.$foreign->public_id)->assertForbidden();
-        $this->getJson('/api/v1/content-management/items/'.$global->public_id)->assertForbidden();
+        $this->getJson('/api/v1/content-management/items/'.$foreign->public_id)->assertNotFound();
+        $this->getJson('/api/v1/content-management/items/'.$global->public_id)->assertNotFound();
     }
 
     public function test_admin_can_create_each_campus_type_but_readers_cannot_manage_content(): void
@@ -102,7 +102,10 @@ class ContentManagementTest extends TestCase
         $this->patchJson('/api/v1/content-management/versions/'.$item->currentDraftVersion->public_id, [
             'title' => 'Alur Editorial Diperbarui', 'lock_version' => $item->lock_version,
         ])->assertOk()->assertJsonPath('data.version.title', 'Alur Editorial Diperbarui');
-        $this->postJson('/api/v1/content-management/versions/'.$item->currentDraftVersion->public_id.'/submit')
+        $item->refresh();
+        $this->postJson('/api/v1/content-management/versions/'.$item->currentDraftVersion->public_id.'/submit', [
+            'lock_version' => $item->lock_version,
+        ])
             ->assertOk()->assertJsonPath('data.lifecycle_status', 'submitted');
         $this->patchJson('/api/v1/content-management/versions/'.$item->currentDraftVersion->public_id, ['title' => 'Tidak Boleh'])
             ->assertForbidden();
@@ -115,7 +118,7 @@ class ContentManagementTest extends TestCase
             ->assertJsonPath('data.review_feedback.reason', 'Tambahkan sumber yang telah diverifikasi.');
 
         $item = $service->updateDraft($item->currentDraftVersion, $admin, ['excerpt' => 'Ringkasan revisi.']);
-        $item = $service->submit($item->currentDraftVersion, $admin);
+        $item = $service->submit($item->currentDraftVersion, $admin, (int) $item->lock_version);
         $item = $service->startReview($item->currentDraftVersion, $super);
         $item = $service->approve($item->currentDraftVersion, $super);
         $item = $service->publishApproved($item->currentDraftVersion, $super);
@@ -158,12 +161,12 @@ class ContentManagementTest extends TestCase
         $global = $service->createDraft($super, $this->consultationPayload(ContentScope::Global, null, 'Global Aktif'));
         $global = $service->directGlobalPublish($global->currentDraftVersion, $super);
         $own = $service->createDraft($adminA, $this->consultationPayload(ContentScope::Campus, $this->campusA, 'Kampus Aktif'));
-        $own = $service->submit($own->currentDraftVersion, $adminA);
+        $own = $service->submit($own->currentDraftVersion, $adminA, (int) $own->lock_version);
         $own = $service->startReview($own->currentDraftVersion, $super);
         $own = $service->approve($own->currentDraftVersion, $super);
         $own = $service->publishApproved($own->currentDraftVersion, $super);
         $foreign = $service->createDraft($adminB, $this->consultationPayload(ContentScope::Campus, $this->campusB, 'Kampus Asing'));
-        $foreign = $service->submit($foreign->currentDraftVersion, $adminB);
+        $foreign = $service->submit($foreign->currentDraftVersion, $adminB, (int) $foreign->lock_version);
         $foreign = $service->startReview($foreign->currentDraftVersion, $super);
         $foreign = $service->approve($foreign->currentDraftVersion, $super);
         $service->publishApproved($foreign->currentDraftVersion, $super);

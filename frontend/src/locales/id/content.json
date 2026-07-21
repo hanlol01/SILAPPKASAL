@@ -50,6 +50,11 @@
   "filteredEmptyTitle": "Tidak ada hasil",
   "filteredEmptyDescription": "Ubah atau kosongkan filter untuk melihat konten lain.",
   "loadError": "Konten tidak dapat dimuat.",
+  "errors": {
+    "stale": "Draf telah berubah di sesi lain. Perubahan Anda tetap dipertahankan; tinjau data terbaru sebelum mencoba lagi.",
+    "archived": "Konten yang telah diarsipkan hanya dapat dilihat dan tidak dapat diubah.",
+    "attachmentDeletionFailed": "Lampiran tidak dapat dihapus dari penyimpanan. Data lampiran tetap dipertahankan; silakan coba lagi."
+  },
   "saved": "Draf berhasil disimpan.",
   "created": "Draf berhasil dibuat.",
   "submittedSuccess": "Konten berhasil diajukan untuk peninjauan.",
@@ -131,6 +136,8 @@
     "moveDown": "Turunkan",
     "removeBlock": "Hapus blok",
     "listHelp": "Satu butir per baris",
-    "empty": "Mulai dengan menambahkan blok isi."
+    "empty": "Mulai dengan menambahkan blok isi.",
+    "preservedTitle": "Blok dipertahankan tanpa perubahan",
+    "preservedDescription": "Struktur blok ini tidak dapat diedit dengan editor sederhana. Blok tetap utuh dan akan disimpan apa adanya."
   }
 }

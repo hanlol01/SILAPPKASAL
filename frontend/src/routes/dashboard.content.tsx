@@ -56,6 +56,7 @@ import {
   type ContentType,
   type ManagedContentSummary,
 } from "@/lib/content-management-api";
+import { ApiError } from "@/lib/api-client";
 import { apiErrorMessage } from "@/lib/form-errors";
 import { DEFAULT_PAGE_SIZE } from "@/lib/list-controls";
 
@@ -67,6 +68,10 @@ function DashboardContentPage() {
   const queryClient = useQueryClient();
   const canAccess =
     roleCode === "admin" && user?.permissions?.includes("content.read.management.own_campus");
+  const permissions = new Set(user?.permissions ?? []);
+  const canCreate = permissions.has("content.create.campus");
+  const canUpdate = permissions.has("content.update.own_campus");
+  const canSubmit = permissions.has("content.submit.own_campus");
   const [search, setSearch] = useState("");
   const [contentType, setContentType] = useState("");
   const [status, setStatus] = useState("");
@@ -140,12 +145,18 @@ function DashboardContentPage() {
       queryClient.invalidateQueries({ queryKey: contentManagementKeys.summary() }),
     ]);
   const submitMutation = useMutation({
-    mutationFn: (item: ManagedContentSummary) => submitManagedContent(item.version.public_id),
+    mutationFn: (item: ManagedContentSummary) =>
+      submitManagedContent(item.version.public_id, item.lock_version),
     onSuccess: async () => {
       toast.success(t("content:submittedSuccess"));
       await invalidate();
     },
-    onError: (error) => toast.error(apiErrorMessage(error, t("content:loadError"))),
+    onError: (error) => {
+      if (error instanceof ApiError && error.errorCode === "content_stale_version") {
+        void invalidate();
+      }
+      toast.error(apiErrorMessage(error, t("content:loadError")));
+    },
   });
   const revisionMutation = useMutation({
     mutationFn: createContentRevision,
@@ -225,10 +236,12 @@ function DashboardContentPage() {
           <h1 className="text-2xl font-semibold tracking-tight">{t("content:title")}</h1>
           <p className="text-sm text-muted-foreground">{t("content:subtitle")}</p>
         </div>
-        <Button className="min-h-11" onClick={() => setCreateOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t("content:create")}
-        </Button>
+        {canCreate && (
+          <Button className="min-h-11" onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t("content:create")}
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -377,6 +390,8 @@ function DashboardContentPage() {
                             submit={(value) => submitMutation.mutate(value)}
                             createRevision={(id) => revisionMutation.mutate(id)}
                             pending={submitMutation.isPending || revisionMutation.isPending}
+                            canUpdate={canUpdate}
+                            canSubmit={canSubmit}
                           />
                         </td>
                       </tr>
@@ -406,6 +421,8 @@ function DashboardContentPage() {
                       submit={(value) => submitMutation.mutate(value)}
                       createRevision={(id) => revisionMutation.mutate(id)}
                       pending={submitMutation.isPending || revisionMutation.isPending}
+                      canUpdate={canUpdate}
+                      canSubmit={canSubmit}
                     />
                   </div>
                 ))}
@@ -502,6 +519,7 @@ function FilterControls({
     <div className="grid gap-3 md:grid-cols-5">
       <Input
         className="h-11"
+        aria-label={t("filters.search")}
         value={search}
         onChange={(event) => setSearch(event.target.value)}
         placeholder={t("filters.search")}
@@ -591,16 +609,22 @@ function ItemActions({
   submit,
   createRevision,
   pending,
+  canUpdate,
+  canSubmit,
 }: {
   item: ManagedContentSummary;
   open: (item: ManagedContentSummary) => void;
   submit: (item: ManagedContentSummary) => void;
   createRevision: (id: string) => void;
   pending: boolean;
+  canUpdate: boolean;
+  canSubmit: boolean;
 }) {
   const { t } = useTranslation("content");
-  const editable = item.has_editable_version;
+  const editable = item.archived_at === null && item.has_editable_version && canUpdate;
   const canCreateRevision =
+    item.archived_at === null &&
+    canUpdate &&
     !item.has_editable_version &&
     item.published_version !== null &&
     ["published", "rejected"].includes(item.lifecycle_status);
@@ -610,7 +634,7 @@ function ItemActions({
         {editable ? <Pencil className="mr-1 h-4 w-4" /> : <Eye className="mr-1 h-4 w-4" />}
         {t(editable ? "edit" : "view")}
       </Button>
-      {editable && item.lifecycle_status === "draft" && (
+      {editable && canSubmit && item.lifecycle_status === "draft" && (
         <Button size="sm" className="min-h-11" disabled={pending} onClick={() => submit(item)}>
           <Send className="mr-1 h-4 w-4" />
           {t("submit")}

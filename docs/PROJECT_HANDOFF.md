@@ -629,5 +629,14 @@ Milestone 22 Additional QA:
 - General PDF attachments remain private, use safe generated labels, report upload progress, and can
   be removed only from an editable authorized draft. Image controls remain disabled with an explicit
   capability notice.
+- C2 repair requires `lock_version` on submit, refetches on stable conflicts without discarding local
+  editor input, makes archived items read-only across direct APIs, returns 404 for foreign/global
+  management UUIDs, and clears all private management queries when authentication changes.
+- Structured-document round trips preserve mixed marks, nested/complex supported nodes, image
+  references, and unknown safe nodes. Shapes not safely editable in the simple editor remain visible
+  as read-only preserved blocks. The mobile action footer wraps at 320–360 px and respects safe-area
+  insets.
+- Private PDF removal commits metadata and audit only after storage deletion succeeds. A storage
+  failure leaves both metadata and bytes available and returns a stable retryable error.
 - C2 adds no dependency, migration, C3 review action, Reporter route, service worker, notification
   delivery, or production deployment.

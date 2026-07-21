@@ -72,15 +72,17 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/items', [ContentManagementController::class, 'index']);
         Route::get('/summary', [ContentManagementController::class, 'summary']);
         Route::get('/consultation-options', [ContentManagementController::class, 'consultationOptions']);
-        Route::get('/items/{item:public_id}', [ContentManagementController::class, 'show']);
+        Route::get('/items/{item}', [ContentManagementController::class, 'show'])->whereUuid('item');
         Route::post('/items', [ContentManagementController::class, 'store']);
-        Route::post('/items/{item:public_id}/revisions', [ContentManagementController::class, 'createRevision']);
-        Route::patch('/versions/{version:public_id}', [ContentManagementController::class, 'update']);
-        Route::post('/versions/{version:public_id}/submit', [ContentManagementController::class, 'submit']);
-        Route::post('/versions/{version:public_id}/attachments', [ContentManagementController::class, 'upload'])
+        Route::post('/items/{item}/revisions', [ContentManagementController::class, 'createRevision'])->whereUuid('item');
+        Route::patch('/versions/{version}', [ContentManagementController::class, 'update'])->whereUuid('version');
+        Route::post('/versions/{version}/submit', [ContentManagementController::class, 'submit'])->whereUuid('version');
+        Route::post('/versions/{version}/attachments', [ContentManagementController::class, 'upload'])
+            ->whereUuid('version')
             ->middleware('throttle:10,1')
             ->name('content.attachments.upload');
-        Route::delete('/attachments/{attachment:public_id}', [ContentManagementController::class, 'removeAttachment']);
+        Route::delete('/attachments/{attachment}', [ContentManagementController::class, 'removeAttachment'])
+            ->whereUuid('attachment');
     });
 
     Route::middleware('auth:sanctum')->prefix('master')->group(function (): void {

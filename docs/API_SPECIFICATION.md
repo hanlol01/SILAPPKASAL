@@ -2008,7 +2008,16 @@ project the controlled draft document, typed Article/FAQ/Consultation fields, ge
 metadata, and the author's revision/rejection feedback; review identities and internal IDs remain
 excluded. Revision creation requires a published campus item with no active authoring version.
 Attachment deletion is limited to general attachments on an editable authorized version and is
-audited as `content.attachment_removed`.
+audited as `content.attachment_removed` only after the private object and metadata are both removed.
+If private-storage deletion fails, the API returns `503` with
+`content_attachment_deletion_failed`; metadata and bytes remain available for a retry.
+
+`POST /content-management/versions/{versionPublicId}/submit` requires the integer
+`lock_version` returned by the management item/detail resource. The service locks and reloads the
+version and item, then returns `409 content_stale_version` when the submitted value is stale. Draft
+update uses the same conflict code. Archived content returns `409 content_archived` for update,
+submit, revision creation, attachment upload, and attachment removal. Item, version, and attachment
+UUIDs outside the Admin's campus—including global UUIDs—resolve as `404` on the management surface.
 
 Article reader resources expose public ID, slug, title, plain excerpt, safe section/category/scope,
 cover projection, publication time, computed reading time, and—for detail only—the controlled body,
