@@ -27,6 +27,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { canReadPublishedContent } from "@/lib/published-content-access";
 import type { ReactNode } from "react";
 
 /**
@@ -36,18 +37,29 @@ const nav = [
   { titleKey: "overview", url: "/portal" as const, icon: LayoutDashboard },
   { titleKey: "newReport", url: "/portal/reports/new" as const, icon: PlusCircle },
   { titleKey: "myReports", url: "/portal/reports" as const, icon: FileText },
-  { titleKey: "informationCenter", url: "/dashboard/information-center" as const, icon: Library },
+  {
+    titleKey: "informationCenter",
+    url: "/dashboard/information-center" as const,
+    icon: Library,
+    requiresPublishedContent: true,
+  },
   { titleKey: "notifications", url: "/portal/notifications" as const, icon: Bell },
   { titleKey: "account", url: "/portal/account" as const, icon: UserCog },
 ];
 
 function PortalNav() {
   const { t } = useTranslation(["portal"]);
+  const { user } = useAuth();
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const visibleNav = nav.filter(
+    (item) =>
+      !("requiresPublishedContent" in item && item.requiresPublishedContent) ||
+      canReadPublishedContent(user),
+  );
 
   return (
     <nav className="flex min-w-0 items-center gap-1 overflow-x-auto">
-      {nav.map((item) => {
+      {visibleNav.map((item) => {
         const active = item.url === "/portal" ? path === "/portal" : path.startsWith(item.url);
         return (
           <Button
@@ -71,8 +83,14 @@ function PortalNav() {
 
 function PortalMobileNav() {
   const { t } = useTranslation(["portal"]);
+  const { user } = useAuth();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
+  const visibleNav = nav.filter(
+    (item) =>
+      !("requiresPublishedContent" in item && item.requiresPublishedContent) ||
+      canReadPublishedContent(user),
+  );
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -96,7 +114,7 @@ function PortalMobileNav() {
           </SheetTitle>
         </SheetHeader>
         <nav className="grid gap-1 p-3">
-          {nav.map((item) => {
+          {visibleNav.map((item) => {
             const active = item.url === "/portal" ? path === "/portal" : path.startsWith(item.url);
             return (
               <Button

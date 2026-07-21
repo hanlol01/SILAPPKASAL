@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { carouselActionForKey } from "@/lib/carousel-keyboard";
 
 type CarouselApi = UseEmblaCarouselType[1];
 type UseCarouselParameters = Parameters<typeof useEmblaCarousel>;
@@ -71,10 +72,11 @@ const Carousel = React.forwardRef<
 
   const handleKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === "ArrowLeft") {
+      const action = carouselActionForKey(event.key);
+      if (action === "previous") {
         event.preventDefault();
         scrollPrev();
-      } else if (event.key === "ArrowRight") {
+      } else if (action === "next") {
         event.preventDefault();
         scrollNext();
       }

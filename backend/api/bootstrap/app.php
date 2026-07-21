@@ -91,7 +91,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->respond(function ($response, Throwable $exception, Request $request) {
-            if ($request->is('api/v1/content-governance*')) {
+            if ($request->is('api/v1/content*')) {
                 $response->headers->set('Cache-Control', 'private, no-store, max-age=0');
                 $response->headers->set('Pragma', 'no-cache');
             }

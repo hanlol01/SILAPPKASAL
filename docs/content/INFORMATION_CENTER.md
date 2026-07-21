@@ -61,6 +61,24 @@ assets require approved project-owned assets and a separate cache-security revie
 - Pages use one H1, ordered headings, labelled search/filter controls, live loading/error states, and
   controlled external links.
 
+## C4 reader repair
+
+- Portal navigation, dashboard shortcuts, and featured content are rendered only when the active
+  account has `content.read.published`; the route and backend remain independently authoritative.
+- Search, filters, pagination, and FAQ expansion create browser-history entries. Back and Forward can
+  restore prior reader state. Invalid, duplicate, overlong, or context-incompatible URL state is
+  canonicalized with replacement so normalization does not add history noise.
+- Filter controls use a bottom Sheet below `lg`; desktop controls wrap and use fluid widths. Section
+  and category Select triggers have stable IDs and programmatic labels in both layouts.
+- Published PDF controls meet the 44 px touch target. Preview remains single-flight, uses
+  authenticated bytes, falls back to authenticated download when popups are blocked, and revokes
+  temporary Object URLs.
+- Published reader APIs attach `private, no-store` to successful and error responses. Existing and
+  unknown unauthorized attachment UUIDs both resolve as 404, preventing an existence oracle.
+- Frontend regression tests execute production permission, URL-state, cache-clearing, consultation
+  destination, carousel-keyboard, and PDF lifecycle logic directly. Source assertions remain only
+  as secondary wiring and markup guards because the repository has no browser DOM test harness.
+
 ## Deferred
 
 Service-worker caching, offline private content, public unauthenticated access, image upload,

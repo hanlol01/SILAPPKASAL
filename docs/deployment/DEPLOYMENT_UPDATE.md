@@ -280,3 +280,11 @@ smoke-check:
 PWA installability remains limited by the available project-owned icon set. Do not manufacture icons
 or enable a service worker during deployment. PostgreSQL runtime verification remains a C5 release
 gate and is not claimed by C4.
+
+The C4 reader repair adds no dependency, migration, seed, service worker, or environment variable.
+Release smoke checks must also confirm that removing `content.read.published` removes the Reporter
+menu, shortcuts, and featured block; Back/Forward restores user-selected reader state; malformed FAQ
+and category URL state is replaced with its safe canonical form; filters do not overflow at 768 px;
+and Select labels and PDF controls remain keyboard/touch accessible. Verify 401, 403, 404, and 422
+reader responses include `Cache-Control: private, no-store`, and verify foreign and unknown published
+attachment UUIDs are both non-disclosing 404 responses.

@@ -14,13 +14,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { PublishedConsultation } from "@/lib/published-content-api";
+import {
+  normalizeConsultationPhone,
+  normalizeConsultationWhatsApp,
+  safeConsultationEmail,
+  safeConsultationHttpsUrl,
+} from "@/lib/consultation-actions";
 
 export function PublishedConsultationCard({ item }: { item: PublishedConsultation }) {
   const { t, i18n } = useTranslation("informationCenter");
-  const email = safeEmail(item.email);
-  const phone = normalizePhone(item.phone);
-  const whatsapp = normalizeWhatsApp(item.whatsapp);
-  const appointment = safeHttps(item.appointment_url);
+  const email = safeConsultationEmail(item.email);
+  const phone = normalizeConsultationPhone(item.phone);
+  const whatsapp = normalizeConsultationWhatsApp(item.whatsapp);
+  const appointment = safeConsultationHttpsUrl(item.appointment_url);
   const verifiedDate = item.verification_date
     ? new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium" }).format(
         new Date(item.verification_date),
@@ -153,36 +159,4 @@ function InfoRow({
       </div>
     </div>
   );
-}
-
-function safeEmail(value: string | null): string | null {
-  const trimmed = value?.trim() ?? "";
-  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed) ? trimmed : null;
-}
-
-function normalizePhone(value: string | null): string | null {
-  if (!value) return null;
-  const normalized = value
-    .trim()
-    .replace(/(?!^)\+/g, "")
-    .replace(/[^\d+]/g, "");
-  return /^\+?\d{6,15}$/.test(normalized) ? normalized : null;
-}
-
-function normalizeWhatsApp(value: string | null): string | null {
-  const phone = normalizePhone(value);
-  if (!phone) return null;
-  if (phone.startsWith("0")) return null;
-  const digits = phone.replace(/^\+/, "");
-  return /^\d{6,15}$/.test(digits) ? digits : null;
-}
-
-function safeHttps(value: string | null): string | null {
-  if (!value) return null;
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" && !url.username && !url.password ? url.toString() : null;
-  } catch {
-    return null;
-  }
 }

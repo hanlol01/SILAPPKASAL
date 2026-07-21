@@ -38,7 +38,7 @@ export function PublishedContentAttachment({ attachment }: { attachment: Content
           <p className="text-xs text-muted-foreground">{t("attachment.pdf")}</p>
         </div>
       </div>
-      <div className="flex min-h-11 flex-wrap items-center gap-2">
+      <div className="flex min-h-11 flex-wrap items-center gap-2 [&_button]:min-h-11 [&_button]:min-w-11">
         <SecureFilePreviewDialog
           fileKey={attachment.public_id}
           expectedMimeType="application/pdf"

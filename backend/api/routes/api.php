@@ -56,7 +56,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/account-status', [MeController::class, 'accountStatus']);
     });
 
-    Route::middleware('auth:sanctum')->prefix('content')->group(function (): void {
+    Route::middleware(['private.no-store', 'auth:sanctum'])->prefix('content')->group(function (): void {
         Route::get('/sections', [ContentController::class, 'sections']);
         Route::get('/categories', [ContentController::class, 'categories']);
         Route::get('/articles', [ContentController::class, 'articles']);
@@ -65,7 +65,8 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/faqs', [ContentController::class, 'faqs']);
         Route::get('/consultation', [ContentController::class, 'consultation']);
         Route::get('/featured', [ContentController::class, 'featured']);
-        Route::get('/attachments/{attachment:public_id}', [ContentAttachmentController::class, 'download'])
+        Route::get('/attachments/{attachment}', [ContentAttachmentController::class, 'download'])
+            ->whereUuid('attachment')
             ->name('content.attachments.download');
     });
 

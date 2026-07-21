@@ -701,3 +701,12 @@ Milestone 22 Additional QA:
   explicit cache-security design and approved project-owned PNG icons.
 - C4 adds no dependency, migration, image upload, notification delivery, public reader route, Flutter,
   PostgreSQL verification, production deployment, push, comments, reactions, or bookmarks.
+- The C4 reader repair gates every Reporter entry point with `content.read.published`, preserves
+  user-driven filter/FAQ/page browser history, canonicalizes invalid URL state by replacement, and
+  keeps category UUIDs consistent with the active section.
+- Filter controls now remain usable at 320/360/768/1024 CSS widths through a bottom Sheet below `lg`,
+  fluid desktop fields, stable Select labels, and 44 px PDF actions. Automated tests exercise the
+  production state/security helpers; live multi-device browser QA remains a C5 release check.
+- All `/api/v1/content*` exception responses are explicitly private/no-store. Published attachment
+  download uses controller-level UUID lookup inside that boundary and returns the same 404 shape for
+  unknown and unauthorized records.

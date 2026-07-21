@@ -12,8 +12,12 @@ class ContentAttachmentController extends Controller
 {
     public function __construct(private readonly ContentAttachmentService $attachments) {}
 
-    public function download(Request $request, ContentAttachment $attachment): StreamedResponse
+    public function download(Request $request, string $attachment): StreamedResponse
     {
-        return $this->attachments->download($attachment, $request->user());
+        $record = ContentAttachment::query()
+            ->where('public_id', $attachment)
+            ->firstOrFail();
+
+        return $this->attachments->download($record, $request->user());
     }
 }

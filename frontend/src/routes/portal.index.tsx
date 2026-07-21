@@ -25,6 +25,7 @@ import { portalQueryKeys, getPortalSummary, getPortalReports } from "@/lib/porta
 import { useAuth } from "@/hooks/use-auth";
 import { hasPortalAccess } from "@/lib/auth-roles";
 import { FeaturedArticleSection } from "@/components/content/featured-article-section";
+import { canReadPublishedContent } from "@/lib/published-content-access";
 
 export const Route = createFileRoute("/portal/")({
   component: PortalOverview,
@@ -41,8 +42,9 @@ export const Route = createFileRoute("/portal/")({
 
 function PortalOverview() {
   const { t } = useTranslation(["portal", "common", "informationCenter"]);
-  const { roleCode } = useAuth();
+  const { roleCode, user } = useAuth();
   const portalAccessible = hasPortalAccess(roleCode);
+  const publishedContentAccessible = canReadPublishedContent(user);
 
   const summaryQuery = useQuery({
     queryKey: portalQueryKeys.summary(),
@@ -140,44 +142,46 @@ function PortalOverview() {
         )}
       </CollapsibleDataCard>
 
-      <section aria-labelledby="portal-information-shortcuts" className="space-y-4">
-        <div>
-          <h2 id="portal-information-shortcuts" className="text-xl font-semibold">
-            {t("informationCenter:dashboard.title")}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t("informationCenter:dashboard.description")}
-          </p>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <InformationShortcut
-            icon={BookOpen}
-            title={t("informationCenter:sections.education.title")}
-            description={t("informationCenter:sections.education.description")}
-            search={{ section: "education" }}
-          />
-          <InformationShortcut
-            icon={Landmark}
-            title={t("informationCenter:sections.policy.title")}
-            description={t("informationCenter:sections.policy.description")}
-            search={{ section: "policy" }}
-          />
-          <InformationShortcut
-            icon={CircleHelp}
-            title={t("informationCenter:sections.faq.title")}
-            description={t("informationCenter:sections.faq.description")}
-            search={{ view: "faq" }}
-          />
-          <InformationShortcut
-            icon={MessageCircleHeart}
-            title={t("informationCenter:sections.consultation.title")}
-            description={t("informationCenter:sections.consultation.description")}
-            search={{ view: "consultation" }}
-          />
-        </div>
-      </section>
+      {publishedContentAccessible && (
+        <section aria-labelledby="portal-information-shortcuts" className="space-y-4">
+          <div>
+            <h2 id="portal-information-shortcuts" className="text-xl font-semibold">
+              {t("informationCenter:dashboard.title")}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t("informationCenter:dashboard.description")}
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <InformationShortcut
+              icon={BookOpen}
+              title={t("informationCenter:sections.education.title")}
+              description={t("informationCenter:sections.education.description")}
+              search={{ section: "education" }}
+            />
+            <InformationShortcut
+              icon={Landmark}
+              title={t("informationCenter:sections.policy.title")}
+              description={t("informationCenter:sections.policy.description")}
+              search={{ section: "policy" }}
+            />
+            <InformationShortcut
+              icon={CircleHelp}
+              title={t("informationCenter:sections.faq.title")}
+              description={t("informationCenter:sections.faq.description")}
+              search={{ view: "faq" }}
+            />
+            <InformationShortcut
+              icon={MessageCircleHeart}
+              title={t("informationCenter:sections.consultation.title")}
+              description={t("informationCenter:sections.consultation.description")}
+              search={{ view: "consultation" }}
+            />
+          </div>
+        </section>
+      )}
 
-      <FeaturedArticleSection compact />
+      {publishedContentAccessible && <FeaturedArticleSection compact />}
 
       <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
         <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />

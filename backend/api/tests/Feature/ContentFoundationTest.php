@@ -214,6 +214,32 @@ class ContentFoundationTest extends TestCase
         $this->getJson('/api/v1/content/articles')->assertForbidden();
     }
 
+    public function test_c4_reader_errors_are_private_no_store_and_non_disclosing(): void
+    {
+        $guest = $this->getJson('/api/v1/content/articles')->assertUnauthorized();
+        $this->assertStringContainsString('private', (string) $guest->headers->get('Cache-Control'));
+        $this->assertStringContainsString('no-store', (string) $guest->headers->get('Cache-Control'));
+
+        $permission = Permission::query()->where('code', 'content.read.published')->firstOrFail();
+        $reporterRole = Role::query()->where('code', 'reporter')->firstOrFail();
+        $reporterRole->permissions()->detach($permission->id);
+        Sanctum::actingAs($this->user('reporter', $this->campusA), ['*']);
+
+        $forbidden = $this->getJson('/api/v1/content/articles')->assertForbidden();
+        $this->assertStringContainsString('private', (string) $forbidden->headers->get('Cache-Control'));
+        $this->assertStringContainsString('no-store', (string) $forbidden->headers->get('Cache-Control'));
+
+        $reporterRole->permissions()->attach($permission->id);
+        Sanctum::actingAs($this->user('reporter', $this->campusA), ['*']);
+
+        $missing = $this->getJson('/api/v1/content/articles/'.Str::uuid())->assertNotFound();
+        $invalid = $this->getJson('/api/v1/content/articles?per_page=999')->assertUnprocessable();
+        foreach ([$missing, $invalid] as $response) {
+            $this->assertStringContainsString('private', (string) $response->headers->get('Cache-Control'));
+            $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+        }
+    }
+
     public function test_document_schema_rejects_h1_unsafe_nodes_and_unsafe_links_and_sanitizes_projection(): void
     {
         $documents = app(ContentDocumentService::class);
@@ -522,7 +548,12 @@ class ContentFoundationTest extends TestCase
         $attachmentId = $upload->json('data.public_id');
 
         Sanctum::actingAs($otherAdmin, ['*']);
-        $this->get('/api/v1/content/attachments/'.$attachmentId)->assertForbidden();
+        $foreign = $this->get('/api/v1/content/attachments/'.$attachmentId)->assertNotFound();
+        $unknown = $this->get('/api/v1/content/attachments/'.Str::uuid())->assertNotFound();
+        foreach ([$foreign, $unknown] as $response) {
+            $this->assertStringContainsString('private', (string) $response->headers->get('Cache-Control'));
+            $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+        }
 
         $item = $service->submit($version->fresh(), $admin, (int) $item->lock_version);
         $item = $service->startReview($item->currentDraftVersion, $super, (int) $item->lock_version);

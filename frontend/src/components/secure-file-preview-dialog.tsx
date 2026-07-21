@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import type { AuthenticatedBlobResponse } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { isPreviewableMimeType, normalizePreviewMimeType } from "@/lib/file-preview";
+import { createAuthenticatedPdfPreview, type PdfPreviewTab } from "@/lib/authenticated-pdf-preview";
 import {
   Dialog,
   DialogClose,
@@ -100,13 +101,15 @@ export function SecureFilePreviewDialog({
   const [fitActive, setFitActive] = useState(true);
   const [pdfOpening, setPdfOpening] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const pdfAbortRef = useRef<AbortController | null>(null);
-  const pdfCleanupRef = useRef<(() => void) | null>(null);
+  const pdfPreviewRef = useRef<ReturnType<typeof createAuthenticatedPdfPreview> | null>(null);
   const objectUrlRef = useRef<string | null>(null);
   const requestRef = useRef(0);
   const openRef = useRef(false);
+  const mountedRef = useRef(true);
   const loadPreviewRef = useRef(loadPreview);
   const onPreviewLoadedRef = useRef(onPreviewLoaded);
+  const onDownloadRef = useRef(onDownload);
+  const labelsRef = useRef(labels);
   const imageViewportRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{
     pointerId: number;
@@ -125,11 +128,22 @@ export function SecureFilePreviewDialog({
     onPreviewLoadedRef.current = onPreviewLoaded;
   }, [onPreviewLoaded]);
 
+  useEffect(() => {
+    onDownloadRef.current = onDownload;
+    labelsRef.current = labels;
+  }, [labels, onDownload]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   useEffect(
     () => () => {
-      pdfAbortRef.current?.abort();
-      pdfCleanupRef.current?.();
-      pdfCleanupRef.current = null;
+      pdfPreviewRef.current?.dispose();
+      pdfPreviewRef.current = null;
     },
     [],
   );
@@ -241,82 +255,33 @@ export function SecureFilePreviewDialog({
   }
 
   async function openPdfPreview() {
-    if (pdfAbortRef.current) return;
-
-    const previewTab = window.open("about:blank", "_blank");
-
-    if (!previewTab) {
-      if (onDownload) {
-        onDownload();
-      } else {
-        toast.error(labels.error);
-      }
-      return;
-    }
-
-    previewTab.opener = null;
-    previewTab.document.title = labels.pdfTitle;
-    previewTab.document.body.textContent = labels.loading;
-
-    pdfCleanupRef.current?.();
-    pdfCleanupRef.current = null;
-    const controller = new AbortController();
-    pdfAbortRef.current = controller;
-    setPdfOpening(true);
-
-    try {
-      const response = await loadPreviewRef.current(controller.signal);
-      validatePreviewResponse(response, "application/pdf");
-
-      if (controller.signal.aborted || previewTab.closed) {
-        if (!previewTab.closed) previewTab.close();
-        return;
-      }
-
-      const nextUrl = URL.createObjectURL(response.blob);
-      let revoked = false;
-      let fallbackTimer = 0;
-
-      const revokePdfUrl = () => {
-        if (revoked) return;
-        revoked = true;
-        window.clearTimeout(fallbackTimer);
-        URL.revokeObjectURL(nextUrl);
-        if (pdfCleanupRef.current === revokePdfUrl) pdfCleanupRef.current = null;
-      };
-
-      pdfCleanupRef.current = revokePdfUrl;
-
-      previewTab.addEventListener(
-        "load",
-        () => {
-          window.setTimeout(revokePdfUrl, 30_000);
-        },
-        { once: true },
-      );
-      fallbackTimer = window.setTimeout(revokePdfUrl, 300_000);
-      previewTab.location.replace(`${nextUrl}#toolbar=1&navpanes=1&view=FitH`);
-
-      try {
-        onPreviewLoadedRef.current?.();
-      } catch {
-        // Opening the private preview must not depend on secondary cache refreshes.
-      }
-    } catch (error) {
-      if (!previewTab.closed) previewTab.close();
-
-      if (
-        !controller.signal.aborted &&
-        !(error instanceof DOMException && error.name === "AbortError")
-      ) {
-        toast.error(labels.error);
-      }
-    } finally {
-      if (pdfAbortRef.current === controller) {
-        pdfAbortRef.current = null;
-      }
-      setPdfOpening(false);
-    }
+    pdfPreviewRef.current ??= createAuthenticatedPdfPreview({
+      load: (signal) => loadPreviewRef.current(signal),
+      validate: (response) => validatePreviewResponse(response, "application/pdf"),
+      openTab: () => window.open("about:blank", "_blank") as PdfPreviewTab | null,
+      createObjectUrl: (response) => URL.createObjectURL(response.blob),
+      revokeObjectUrl: (url) => URL.revokeObjectURL(url),
+      setTimer: (callback, delay) => window.setTimeout(callback, delay),
+      clearTimer: (timer) => window.clearTimeout(timer),
+      title: () => labelsRef.current.pdfTitle,
+      loadingText: () => labelsRef.current.loading,
+      onPending: (pending) => {
+        if (mountedRef.current) setPdfOpening(pending);
+      },
+      onPopupBlocked: () => {
+        if (onDownloadRef.current) onDownloadRef.current();
+        else toast.error(labelsRef.current.error);
+      },
+      onError: () => toast.error(labelsRef.current.error),
+      onLoaded: () => {
+        try {
+          onPreviewLoadedRef.current?.();
+        } catch {
+          // Opening the private preview must not depend on secondary cache refreshes.
+        }
+      },
+    });
+    await pdfPreviewRef.current.open();
   }
 
   const clampZoom = useCallback(

@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import {
   BookOpen,
   CircleHelp,
@@ -46,6 +46,15 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
+import i18n from "@/i18n";
+import {
+  categoryBelongsToReaderContext,
+  informationCenterSearchNeedsNormalization,
+  mergeInformationCenterSearch,
+  normalizeInformationCenterSearch,
+  type InformationCenterSearch,
+  type InformationCenterView as ReaderView,
+} from "@/lib/information-center-navigation";
 import {
   getPublishedArticles,
   getPublishedCategories,
@@ -55,44 +64,20 @@ import {
   type PublishedContentFilters,
 } from "@/lib/published-content-api";
 
-type ReaderView = "articles" | "faq" | "consultation";
-interface InformationCenterSearch {
-  view?: ReaderView;
-  section?: string;
-  category?: string;
-  q?: string;
-  page?: number;
-  open?: string;
-}
-
-const views: ReaderView[] = ["articles", "faq", "consultation"];
 const sectionCodes = ["education", "policy"];
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export const Route = createFileRoute("/dashboard/information-center/")({
-  validateSearch: (raw: Record<string, unknown>): InformationCenterSearch => ({
-    view: views.find((value) => value === raw.view),
-    section:
-      typeof raw.section === "string" && sectionCodes.includes(raw.section)
-        ? raw.section
-        : undefined,
-    category:
-      typeof raw.category === "string" && UUID_PATTERN.test(raw.category)
-        ? raw.category
-        : undefined,
-    q: typeof raw.q === "string" ? raw.q.slice(0, 100) : undefined,
-    page: Number.isInteger(Number(raw.page)) && Number(raw.page) > 0 ? Number(raw.page) : undefined,
-    open: typeof raw.open === "string" ? raw.open : undefined,
-  }),
+  validateSearch: normalizeInformationCenterSearch,
   component: InformationCenterPage,
-  head: () => ({ meta: [{ title: "Pusat Informasi - SILAPPKASAL" }] }),
+  head: () => ({ meta: [{ title: i18n.t("informationCenter:meta.title") }] }),
 });
 
 function InformationCenterPage() {
-  const { t } = useTranslation("informationCenter");
+  const { t, i18n: activeLocale } = useTranslation("informationCenter");
   const { user } = useAuth();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const rawSearchString = useRouterState({ select: (state) => state.location.searchStr });
   const view = search.view ?? "articles";
   const page = search.page ?? 1;
   const pageSize = 12;
@@ -102,6 +87,13 @@ function InformationCenterPage() {
 
   useEffect(() => pageHeadingRef.current?.focus({ preventScroll: true }), []);
   useEffect(() => setSearchInput(search.q ?? ""), [search.q]);
+  useEffect(() => {
+    document.title = t("meta.title");
+  }, [activeLocale.language, t]);
+  useEffect(() => {
+    if (!informationCenterSearchNeedsNormalization(rawSearchString, search)) return;
+    void navigate({ search, replace: true });
+  }, [navigate, rawSearchString, search]);
 
   const filters = useMemo<PublishedContentFilters>(
     () => ({
@@ -146,10 +138,27 @@ function InformationCenterPage() {
       : sectionCodes.includes(category.section_code ?? ""),
   );
 
+  useEffect(() => {
+    if (!search.category || !categoriesQuery.isSuccess) return;
+    const selected = categoriesQuery.data.find((item) => item.public_id === search.category);
+    if (categoryBelongsToReaderContext(selected, view, search.section)) return;
+    void navigate({
+      search: (current) =>
+        mergeInformationCenterSearch(current, { category: undefined, page: undefined }),
+      replace: true,
+    });
+  }, [
+    categoriesQuery.data,
+    categoriesQuery.isSuccess,
+    navigate,
+    search.category,
+    search.section,
+    view,
+  ]);
+
   function updateSearch(next: Partial<InformationCenterSearch>) {
     void navigate({
-      search: (current) => ({ ...current, ...next }),
-      replace: true,
+      search: (current) => mergeInformationCenterSearch(current, next),
     });
   }
 
@@ -249,8 +258,9 @@ function InformationCenterPage() {
 
         {view !== "consultation" && (
           <>
-            <div className="hidden items-end gap-3 md:flex">
+            <div className="hidden flex-wrap items-end gap-3 lg:flex">
               <FilterFields
+                idPrefix="desktop-information-filter"
                 view={view}
                 section={search.section}
                 category={search.category}
@@ -273,7 +283,7 @@ function InformationCenterPage() {
             </div>
             <Sheet open={filterOpen} onOpenChange={setFilterOpen}>
               <SheetTrigger asChild>
-                <Button variant="outline" className="min-h-11 md:hidden">
+                <Button variant="outline" className="min-h-11 lg:hidden">
                   <Filter className="h-4 w-4" aria-hidden="true" />
                   {t("filters.open")}
                 </Button>
@@ -288,6 +298,7 @@ function InformationCenterPage() {
                 </SheetHeader>
                 <div className="mt-5 grid gap-4">
                   <FilterFields
+                    idPrefix="mobile-information-filter"
                     view={view}
                     section={search.section}
                     category={search.category}
@@ -360,6 +371,7 @@ function ShortcutCard({
 }
 
 function FilterFields({
+  idPrefix,
   view,
   section,
   category,
@@ -368,24 +380,33 @@ function FilterFields({
   onCategory,
   t,
 }: {
+  idPrefix: string;
   view: ReaderView;
-  section?: string;
+  section?: InformationCenterSearch["section"];
   category?: string;
   categories: Array<{ public_id: string; name: string }>;
-  onSection: (value?: string) => void;
+  onSection: (value?: InformationCenterSearch["section"]) => void;
   onCategory: (value?: string) => void;
   t: (key: string) => string;
 }) {
   return (
     <>
       {view === "articles" && (
-        <div className="grid gap-2">
-          <Label>{t("filters.section")}</Label>
+        <div className="grid min-w-0 flex-1 gap-2">
+          <Label id={`${idPrefix}-section-label`} htmlFor={`${idPrefix}-section`}>
+            {t("filters.section")}
+          </Label>
           <Select
             value={section ?? "all"}
-            onValueChange={(value) => onSection(value === "all" ? undefined : value)}
+            onValueChange={(value) =>
+              onSection(value === "education" || value === "policy" ? value : undefined)
+            }
           >
-            <SelectTrigger className="h-11 min-w-48">
+            <SelectTrigger
+              id={`${idPrefix}-section`}
+              aria-labelledby={`${idPrefix}-section-label`}
+              className="h-11 w-full lg:w-48"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -396,13 +417,19 @@ function FilterFields({
           </Select>
         </div>
       )}
-      <div className="grid gap-2">
-        <Label>{t("filters.category")}</Label>
+      <div className="grid min-w-0 flex-1 gap-2">
+        <Label id={`${idPrefix}-category-label`} htmlFor={`${idPrefix}-category`}>
+          {t("filters.category")}
+        </Label>
         <Select
           value={category ?? "all"}
           onValueChange={(value) => onCategory(value === "all" ? undefined : value)}
         >
-          <SelectTrigger className="h-11 min-w-56">
+          <SelectTrigger
+            id={`${idPrefix}-category`}
+            aria-labelledby={`${idPrefix}-category-label`}
+            className="h-11 w-full lg:w-56"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

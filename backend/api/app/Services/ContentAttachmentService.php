@@ -155,7 +155,7 @@ class ContentAttachmentService
             && $this->inReaderScope($item, $actor);
 
         if (! $management && ! $published) {
-            throw $this->forbidden();
+            abort(404);
         }
 
         $disk = Storage::disk($attachment->storage_disk);
