@@ -1,0 +1,128 @@
+{
+  "eyebrow": "Informasi pendukung untuk komunitas kampus",
+  "title": "Pusat Informasi",
+  "introduction": "Temukan materi edukasi, kebijakan, jawaban atas pertanyaan umum, dan kanal konsultasi yang telah ditinjau serta diterbitkan.",
+  "dashboard": {
+    "title": "Jelajahi Pusat Informasi",
+    "description": "Informasi pendukung tersedia tanpa mengurangi prioritas pelaporan dan pemantauan laporan Anda."
+  },
+  "sections": {
+    "title": "Pilih informasi yang dibutuhkan",
+    "description": "Buka bagian yang paling sesuai dengan kebutuhan Anda saat ini.",
+    "education": {
+      "title": "Edukasi",
+      "description": "Materi untuk memahami pencegahan, dukungan, dan lingkungan kampus yang aman."
+    },
+    "policy": {
+      "title": "Seputar Kebijakan",
+      "description": "Informasi kebijakan yang telah ditinjau dan diterbitkan melalui proses resmi."
+    },
+    "faq": {
+      "title": "FAQ",
+      "description": "Jawaban terbit untuk pertanyaan yang sering diajukan."
+    },
+    "consultation": {
+      "title": "Konsultasi",
+      "description": "Kanal bantuan institusional yang telah diverifikasi."
+    }
+  },
+  "featured": {
+    "title": "Informasi Pilihan",
+    "description": "Materi terbit yang dipilih untuk membantu Anda menemukan informasi penting.",
+    "empty": "Belum ada informasi pilihan yang diterbitkan. Materi lain tetap dapat dijelajahi di bawah.",
+    "error": "Informasi pilihan belum dapat dimuat. Fitur pelaporan Anda tetap tersedia.",
+    "carouselLabel": "Artikel pilihan",
+    "position": "Posisi {{current}} dari {{total}}",
+    "previous": "Artikel sebelumnya",
+    "next": "Artikel berikutnya"
+  },
+  "views": {
+    "articles": {
+      "title": "Artikel Terbit",
+      "description": "Jelajahi artikel edukasi dan kebijakan yang tersedia untuk Anda."
+    },
+    "faq": {
+      "title": "Pertanyaan yang Sering Diajukan",
+      "description": "Buka pertanyaan untuk membaca jawaban yang telah diterbitkan."
+    },
+    "consultation": {
+      "title": "Layanan Konsultasi",
+      "description": "Gunakan hanya kanal resmi yang ditampilkan dan periksa ketersediaan layanannya."
+    }
+  },
+  "filters": {
+    "searchLabel": "Cari informasi terbit",
+    "searchPlaceholder": "Cari judul atau topik...",
+    "search": "Cari",
+    "open": "Filter",
+    "title": "Filter informasi",
+    "description": "Batasi hasil berdasarkan bagian dan kategori.",
+    "section": "Bagian",
+    "category": "Kategori",
+    "allSections": "Semua bagian",
+    "allCategories": "Semua kategori",
+    "apply": "Terapkan filter",
+    "reset": "Atur ulang"
+  },
+  "empty": {
+    "articlesTitle": "Belum ada artikel terbit",
+    "articlesDescription": "Tidak ada artikel yang cocok dengan pilihan saat ini.",
+    "faqTitle": "Belum ada FAQ terbit",
+    "faqDescription": "Tidak ada pertanyaan yang cocok dengan pilihan saat ini.",
+    "consultationTitle": "Belum ada layanan konsultasi terbit",
+    "consultationDescription": "Hubungi pengelola kampus melalui kanal resmi lain yang telah Anda verifikasi."
+  },
+  "errors": {
+    "articles": "Artikel terbit tidak dapat dimuat.",
+    "article": "Artikel ini tidak dapat dimuat.",
+    "faq": "FAQ terbit tidak dapat dimuat.",
+    "consultation": "Informasi konsultasi tidak dapat dimuat."
+  },
+  "article": {
+    "open": "Baca artikel {{title}}",
+    "read": "Baca artikel",
+    "back": "Kembali ke Pusat Informasi",
+    "notFoundTitle": "Artikel tidak ditemukan",
+    "notFoundDescription": "Artikel tidak tersedia, belum diterbitkan, atau tidak dapat diakses dari kampus Anda.",
+    "readingTime_one": "{{count}} menit baca",
+    "readingTime_other": "{{count}} menit baca",
+    "related": "Artikel Terkait",
+    "consultationTitle": "Butuh dukungan lebih lanjut?",
+    "consultationDescription": "Kanal konsultasi berikut telah ditautkan pada artikel ini."
+  },
+  "consultation": {
+    "emergency": "Dukungan darurat",
+    "standard": "Layanan reguler",
+    "hours": "Jam layanan",
+    "address": "Alamat",
+    "verified": "Terakhir diverifikasi",
+    "email": "Kirim email",
+    "phone": "Hubungi telepon",
+    "whatsapp": "Buka WhatsApp",
+    "appointment": "Buat janji",
+    "confirmPhone": "Hubungi {{service}} melalui telepon? Jangan sertakan rincian laporan sensitif jika tidak diminta melalui prosedur resmi.",
+    "confirmWhatsapp": "Buka WhatsApp untuk {{service}}? Jangan sertakan identitas atau rincian laporan sensitif dalam pesan awal.",
+    "emergencyNotice": "Layanan ini ditandai memiliki dukungan darurat oleh pengelola konten. Periksa jam dan kanal yang tersedia sebelum menghubungi."
+  },
+  "attachment": {
+    "title": "Lampiran Artikel",
+    "description": "Lampiran PDF dibuka melalui akses terautentikasi dan tidak disimpan oleh aplikasi.",
+    "pdf": "Dokumen PDF",
+    "preview": "Pratinjau",
+    "previewTitle": "Pratinjau {{name}}",
+    "previewDescription": "Dokumen dimuat secara aman menggunakan sesi Anda.",
+    "loading": "Memuat dokumen...",
+    "error": "Dokumen tidak dapat dibuka. Coba unduh kembali.",
+    "retry": "Coba lagi",
+    "close": "Tutup",
+    "download": "Unduh",
+    "downloading": "Mengunduh...",
+    "downloadSuccess": "Dokumen berhasil diunduh.",
+    "fallback": "Jika pratinjau tidak terbuka, gunakan unduhan terautentikasi.",
+    "zoomIn": "Perbesar",
+    "zoomOut": "Perkecil",
+    "resetZoom": "Atur ke 100%",
+    "fit": "Sesuaikan ke layar",
+    "controls": "Kontrol pratinjau"
+  }
+}

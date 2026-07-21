@@ -184,7 +184,7 @@ evidence.upload, evidence.view.case      ← future capability
 
 The Super Admin Cases sidebar link is hidden in R3. This navigation change does not revoke direct read-only Case authorization, Report-to-Case links, or Activity Log references.
 
-## 7. REV-CONTENT-01 C1-C3 Permissions
+## 7. REV-CONTENT-01 C1-C4 Permissions
 
 | Capability | Reporter | Satgas | Campus Admin | Super Admin |
 |---|---:|---:|---:|---:|
@@ -220,3 +220,10 @@ Campus content is read-only to Super Admin outside the decision operations: dire
 contact, or attachment mutations resolve as non-disclosing 404 through the global authoring query.
 Global content is never visible to Campus Admin management queries. Review services reject the item
 creator and the version author/editor, so global authoring requires a different Super Admin reviewer.
+
+C4 presents `/dashboard/information-center` only when the authenticated active user has
+`content.read.published`. Reporter is admitted to this dashboard subtree only; other operational
+dashboard routes remain denied. Satgas, Campus Admin, and Super Admin retain their existing dashboard
+access and see the reader navigation only when the same permission is present. The frontend route and
+navigation checks are presentation controls; every reader query and attachment download repeats the
+permission, published-pointer, archive, and campus-scope checks on the backend.

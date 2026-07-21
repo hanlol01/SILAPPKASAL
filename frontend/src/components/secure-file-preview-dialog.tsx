@@ -1,12 +1,25 @@
-import { Download, Eye, FileWarning, Loader2, Maximize2, Minus, Plus, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import {
+  Download,
+  Eye,
+  FileWarning,
+  Loader2,
+  Maximize2,
+  Minus,
+  Plus,
+  RefreshCw,
+} from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
 import { toast } from "sonner";
 import type { AuthenticatedBlobResponse } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
-import {
-  isPreviewableMimeType,
-  normalizePreviewMimeType,
-} from "@/lib/file-preview";
+import { isPreviewableMimeType, normalizePreviewMimeType } from "@/lib/file-preview";
 import {
   Dialog,
   DialogClose,
@@ -42,19 +55,16 @@ const MIN_IMAGE_ZOOM = 0.01;
 const MAX_IMAGE_ZOOM = 4;
 const IMAGE_ZOOM_LEVELS = [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4] as const;
 
-function validatePreviewResponse(
-  response: AuthenticatedBlobResponse,
-  expectedMimeType: string,
-) {
+function validatePreviewResponse(response: AuthenticatedBlobResponse, expectedMimeType: string) {
   const responseMime = normalizePreviewMimeType(response.contentType);
   const blobMime = normalizePreviewMimeType(response.blob.type);
 
   if (
-    !isPreviewableMimeType(responseMime)
-    || responseMime !== expectedMimeType
-    || blobMime !== expectedMimeType
-    || (response.contentLength !== null && response.contentLength !== response.blob.size)
-    || typeof URL.createObjectURL !== "function"
+    !isPreviewableMimeType(responseMime) ||
+    responseMime !== expectedMimeType ||
+    blobMime !== expectedMimeType ||
+    (response.contentLength !== null && response.contentLength !== response.blob.size) ||
+    typeof URL.createObjectURL !== "function"
   ) {
     throw new Error("Preview response metadata is inconsistent");
   }
@@ -91,6 +101,7 @@ export function SecureFilePreviewDialog({
   const [pdfOpening, setPdfOpening] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const pdfAbortRef = useRef<AbortController | null>(null);
+  const pdfCleanupRef = useRef<(() => void) | null>(null);
   const objectUrlRef = useRef<string | null>(null);
   const requestRef = useRef(0);
   const openRef = useRef(false);
@@ -114,9 +125,14 @@ export function SecureFilePreviewDialog({
     onPreviewLoadedRef.current = onPreviewLoaded;
   }, [onPreviewLoaded]);
 
-  useEffect(() => () => {
-    pdfAbortRef.current?.abort();
-  }, []);
+  useEffect(
+    () => () => {
+      pdfAbortRef.current?.abort();
+      pdfCleanupRef.current?.();
+      pdfCleanupRef.current = null;
+    },
+    [],
+  );
 
   const revokeObjectUrl = useCallback(() => {
     if (objectUrlRef.current) {
@@ -145,11 +161,7 @@ export function SecureFilePreviewDialog({
     try {
       const response = await loadPreviewRef.current(controller.signal);
 
-      if (
-        controller.signal.aborted
-        || requestId !== requestRef.current
-        || !openRef.current
-      ) {
+      if (controller.signal.aborted || requestId !== requestRef.current || !openRef.current) {
         return;
       }
 
@@ -157,11 +169,7 @@ export function SecureFilePreviewDialog({
 
       const nextUrl = URL.createObjectURL(response.blob);
 
-      if (
-        controller.signal.aborted
-        || requestId !== requestRef.current
-        || !openRef.current
-      ) {
+      if (controller.signal.aborted || requestId !== requestRef.current || !openRef.current) {
         URL.revokeObjectURL(nextUrl);
         return;
       }
@@ -178,10 +186,10 @@ export function SecureFilePreviewDialog({
       }
     } catch (error) {
       if (
-        controller.signal.aborted
-        || requestId !== requestRef.current
-        || !openRef.current
-        || (error instanceof DOMException && error.name === "AbortError")
+        controller.signal.aborted ||
+        requestId !== requestRef.current ||
+        !openRef.current ||
+        (error instanceof DOMException && error.name === "AbortError")
       ) {
         return;
       }
@@ -233,10 +241,16 @@ export function SecureFilePreviewDialog({
   }
 
   async function openPdfPreview() {
+    if (pdfAbortRef.current) return;
+
     const previewTab = window.open("about:blank", "_blank");
 
     if (!previewTab) {
-      toast.error(labels.error);
+      if (onDownload) {
+        onDownload();
+      } else {
+        toast.error(labels.error);
+      }
       return;
     }
 
@@ -244,7 +258,8 @@ export function SecureFilePreviewDialog({
     previewTab.document.title = labels.pdfTitle;
     previewTab.document.body.textContent = labels.loading;
 
-    pdfAbortRef.current?.abort();
+    pdfCleanupRef.current?.();
+    pdfCleanupRef.current = null;
     const controller = new AbortController();
     pdfAbortRef.current = controller;
     setPdfOpening(true);
@@ -267,11 +282,18 @@ export function SecureFilePreviewDialog({
         revoked = true;
         window.clearTimeout(fallbackTimer);
         URL.revokeObjectURL(nextUrl);
+        if (pdfCleanupRef.current === revokePdfUrl) pdfCleanupRef.current = null;
       };
 
-      previewTab.addEventListener("load", () => {
-        window.setTimeout(revokePdfUrl, 30_000);
-      }, { once: true });
+      pdfCleanupRef.current = revokePdfUrl;
+
+      previewTab.addEventListener(
+        "load",
+        () => {
+          window.setTimeout(revokePdfUrl, 30_000);
+        },
+        { once: true },
+      );
       fallbackTimer = window.setTimeout(revokePdfUrl, 300_000);
       previewTab.location.replace(`${nextUrl}#toolbar=1&navpanes=1&view=FitH`);
 
@@ -284,8 +306,8 @@ export function SecureFilePreviewDialog({
       if (!previewTab.closed) previewTab.close();
 
       if (
-        !controller.signal.aborted
-        && !(error instanceof DOMException && error.name === "AbortError")
+        !controller.signal.aborted &&
+        !(error instanceof DOMException && error.name === "AbortError")
       ) {
         toast.error(labels.error);
       }
@@ -297,37 +319,48 @@ export function SecureFilePreviewDialog({
     }
   }
 
-  const clampZoom = useCallback((value: number) => (
-    Math.min(MAX_IMAGE_ZOOM, Math.max(MIN_IMAGE_ZOOM, value))
-  ), []);
+  const clampZoom = useCallback(
+    (value: number) => Math.min(MAX_IMAGE_ZOOM, Math.max(MIN_IMAGE_ZOOM, value)),
+    [],
+  );
 
-  const clampPan = useCallback((nextPan: { x: number; y: number }, nextZoom = zoom) => {
-    const viewport = imageViewportRef.current;
-    if (!viewport || !naturalSize.width || !naturalSize.height) return { x: 0, y: 0 };
+  const clampPan = useCallback(
+    (nextPan: { x: number; y: number }, nextZoom = zoom) => {
+      const viewport = imageViewportRef.current;
+      if (!viewport || !naturalSize.width || !naturalSize.height) return { x: 0, y: 0 };
 
-    const bounds = viewport.getBoundingClientRect();
-    const maxX = Math.max(0, (naturalSize.width * nextZoom - bounds.width) / 2);
-    const maxY = Math.max(0, (naturalSize.height * nextZoom - bounds.height) / 2);
+      const bounds = viewport.getBoundingClientRect();
+      const maxX = Math.max(0, (naturalSize.width * nextZoom - bounds.width) / 2);
+      const maxY = Math.max(0, (naturalSize.height * nextZoom - bounds.height) / 2);
 
-    return {
-      x: Math.min(maxX, Math.max(-maxX, nextPan.x)),
-      y: Math.min(maxY, Math.max(-maxY, nextPan.y)),
-    };
-  }, [naturalSize.height, naturalSize.width, zoom]);
+      return {
+        x: Math.min(maxX, Math.max(-maxX, nextPan.x)),
+        y: Math.min(maxY, Math.max(-maxY, nextPan.y)),
+      };
+    },
+    [naturalSize.height, naturalSize.width, zoom],
+  );
 
   useEffect(() => {
     const viewport = imageViewportRef.current;
-    if (!viewport || status !== "ready" || !resolvedMimeType?.startsWith("image/") || !naturalSize.width) {
+    if (
+      !viewport ||
+      status !== "ready" ||
+      !resolvedMimeType?.startsWith("image/") ||
+      !naturalSize.width
+    ) {
       return;
     }
 
     const updateFit = () => {
       const bounds = viewport.getBoundingClientRect();
-      const nextFit = clampZoom(Math.min(
-        1,
-        Math.max(1, bounds.width - 24) / naturalSize.width,
-        Math.max(1, bounds.height - 24) / naturalSize.height,
-      ));
+      const nextFit = clampZoom(
+        Math.min(
+          1,
+          Math.max(1, bounds.width - 24) / naturalSize.width,
+          Math.max(1, bounds.height - 24) / naturalSize.height,
+        ),
+      );
       setFitScale(nextFit);
       if (fitActive) {
         setZoom(nextFit);
@@ -355,9 +388,10 @@ export function SecureFilePreviewDialog({
   function stepZoom(direction: "in" | "out") {
     const levels = Array.from(new Set([fitScale, ...IMAGE_ZOOM_LEVELS])).sort((a, b) => a - b);
     const epsilon = 0.001;
-    const nextZoom = direction === "in"
-      ? levels.find((level) => level > zoom + epsilon) ?? MAX_IMAGE_ZOOM
-      : [...levels].reverse().find((level) => level < zoom - epsilon) ?? fitScale;
+    const nextZoom =
+      direction === "in"
+        ? (levels.find((level) => level > zoom + epsilon) ?? MAX_IMAGE_ZOOM)
+        : ([...levels].reverse().find((level) => level < zoom - epsilon) ?? fitScale);
 
     changeZoom(nextZoom);
   }
@@ -375,7 +409,12 @@ export function SecureFilePreviewDialog({
   }
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
-    if (event.pointerType === "touch" || status !== "ready" || !resolvedMimeType?.startsWith("image/")) return;
+    if (
+      event.pointerType === "touch" ||
+      status !== "ready" ||
+      !resolvedMimeType?.startsWith("image/")
+    )
+      return;
 
     dragRef.current = {
       pointerId: event.pointerId,
@@ -392,10 +431,12 @@ export function SecureFilePreviewDialog({
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId || event.pointerType === "touch") return;
 
-    setPan(clampPan({
-      x: drag.originX + event.clientX - drag.startX,
-      y: drag.originY + event.clientY - drag.startY,
-    }));
+    setPan(
+      clampPan({
+        x: drag.originX + event.clientX - drag.startX,
+        y: drag.originY + event.clientY - drag.startY,
+      }),
+    );
     event.preventDefault();
   }
 
@@ -413,10 +454,14 @@ export function SecureFilePreviewDialog({
     else if (event.key === "-") stepZoom("out");
     else if (event.key === "0") resetZoom();
     else if (event.key.toLowerCase() === "f") fitImage();
-    else if (event.key === "ArrowLeft") setPan((current) => clampPan({ ...current, x: current.x + panStep }));
-    else if (event.key === "ArrowRight") setPan((current) => clampPan({ ...current, x: current.x - panStep }));
-    else if (event.key === "ArrowUp") setPan((current) => clampPan({ ...current, y: current.y + panStep }));
-    else if (event.key === "ArrowDown") setPan((current) => clampPan({ ...current, y: current.y - panStep }));
+    else if (event.key === "ArrowLeft")
+      setPan((current) => clampPan({ ...current, x: current.x + panStep }));
+    else if (event.key === "ArrowRight")
+      setPan((current) => clampPan({ ...current, x: current.x - panStep }));
+    else if (event.key === "ArrowUp")
+      setPan((current) => clampPan({ ...current, y: current.y + panStep }));
+    else if (event.key === "ArrowDown")
+      setPan((current) => clampPan({ ...current, y: current.y - panStep }));
     else return;
 
     event.preventDefault();
@@ -474,7 +519,10 @@ export function SecureFilePreviewDialog({
           onPointerCancel={handlePointerEnd}
         >
           {status === "loading" && (
-            <div className="flex min-w-0 flex-col items-center gap-3 text-center text-sm text-white/70" role="status">
+            <div
+              className="flex min-w-0 flex-col items-center gap-3 text-center text-sm text-white/70"
+              role="status"
+            >
               <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
               <span className="break-words [overflow-wrap:anywhere]">{labels.loading}</span>
             </div>
@@ -483,10 +531,18 @@ export function SecureFilePreviewDialog({
           {status === "error" && (
             <div className="flex max-w-md min-w-0 flex-col items-center gap-3 rounded-md border border-destructive/30 bg-background p-4 text-center">
               <FileWarning className="h-6 w-6 text-destructive" aria-hidden="true" />
-              <p className="min-w-0 break-words text-sm text-destructive [overflow-wrap:anywhere]" role="alert">
+              <p
+                className="min-w-0 break-words text-sm text-destructive [overflow-wrap:anywhere]"
+                role="alert"
+              >
                 {labels.error}
               </p>
-              <Button type="button" variant="outline" size="sm" onClick={() => void requestPreview()}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void requestPreview()}
+              >
                 <RefreshCw className="h-4 w-4" aria-hidden="true" />
                 {labels.retry}
               </Button>
@@ -498,10 +554,12 @@ export function SecureFilePreviewDialog({
               src={objectUrl}
               alt={labels.imageAlt}
               draggable={false}
-              onLoad={(event) => setNaturalSize({
-                width: event.currentTarget.naturalWidth,
-                height: event.currentTarget.naturalHeight,
-              })}
+              onLoad={(event) =>
+                setNaturalSize({
+                  width: event.currentTarget.naturalWidth,
+                  height: event.currentTarget.naturalHeight,
+                })
+              }
               className="absolute left-1/2 top-1/2 max-w-none cursor-grab select-none object-contain active:cursor-grabbing motion-safe:transition-transform motion-safe:duration-150"
               style={{
                 width: naturalSize.width || undefined,
@@ -518,19 +576,50 @@ export function SecureFilePreviewDialog({
               aria-label={labels.controls}
               onPointerDown={(event) => event.stopPropagation()}
             >
-              <Button type="button" variant="ghost" size="icon" onClick={() => stepZoom("out")} aria-label={labels.zoomOut} title={labels.zoomOut}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => stepZoom("out")}
+                aria-label={labels.zoomOut}
+                title={labels.zoomOut}
+              >
                 <Minus className="h-4 w-4" aria-hidden="true" />
               </Button>
-              <span className="w-12 shrink-0 text-center text-xs tabular-nums text-muted-foreground" aria-live="polite">
+              <span
+                className="w-12 shrink-0 text-center text-xs tabular-nums text-muted-foreground"
+                aria-live="polite"
+              >
                 {Math.round(zoom * 100)}%
               </span>
-              <Button type="button" variant="ghost" size="icon" onClick={() => stepZoom("in")} aria-label={labels.zoomIn} title={labels.zoomIn}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => stepZoom("in")}
+                aria-label={labels.zoomIn}
+                title={labels.zoomIn}
+              >
                 <Plus className="h-4 w-4" aria-hidden="true" />
               </Button>
-              <Button type="button" variant="ghost" size="sm" onClick={resetZoom} aria-label={labels.resetZoom} title={labels.resetZoom}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={resetZoom}
+                aria-label={labels.resetZoom}
+                title={labels.resetZoom}
+              >
                 100%
               </Button>
-              <Button type="button" variant="ghost" size="icon" onClick={fitImage} aria-label={labels.fit} title={labels.fit}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={fitImage}
+                aria-label={labels.fit}
+                title={labels.fit}
+              >
                 <Maximize2 className="h-4 w-4" aria-hidden="true" />
               </Button>
             </div>
@@ -539,7 +628,9 @@ export function SecureFilePreviewDialog({
 
         <DialogFooter className="min-w-0 shrink-0 border-t bg-background px-4 py-3 [&_button]:w-full sm:px-6 sm:[&_button]:w-auto">
           <DialogClose asChild>
-            <Button type="button" variant="outline">{labels.close}</Button>
+            <Button type="button" variant="outline">
+              {labels.close}
+            </Button>
           </DialogClose>
           {onDownload && (
             <Button type="button" onClick={onDownload} disabled={downloadPending}>

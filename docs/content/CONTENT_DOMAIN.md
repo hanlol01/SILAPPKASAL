@@ -115,18 +115,21 @@ drafts, and eight global FAQ drafts using stable keys. Seeded versions require e
 have no published pointer, and are not overwritten on rerun. Article bodies and FAQ answers are not
 fabricated. No Consultation contact is seeded.
 
-## Cache and future frontend boundary
+## Cache and reader frontend boundary
 
 All authenticated published, management, and attachment responses are private and non-cacheable.
-C4 must exclude `/api`, `/dashboard/content`, `/portal/reports`, all Report/Case/Evidence routes,
-private attachments, and authenticated management pages from any service-worker response cache.
+C4 adds no service worker and therefore creates no offline response cache. The web manifest starts at
+the non-content `/login` shell. Any future service worker must exclude `/api`, `/dashboard/content`,
+`/portal/reports`, all Report/Case/Evidence routes, private attachments, authenticated reader pages,
+and authenticated management pages.
 
 C2 implements the campus Admin management UI at `/dashboard/content`. C3 implements Super Admin
 review, distinct approval/publication, global authoring, archive, decision history, and featured
 placement governance at `/dashboard/content-governance`, as documented in `CONTENT_MANAGEMENT.md`.
-Reporter Pusat Informasi, the featured carousel, PWA manifest/service worker, notification delivery,
-scheduled publication, unauthenticated reading, comments, reactions, bookmarks, multilingual bodies,
-Flutter, and production deployment remain deferred.
+Reporter/Satgas Pusat Informasi, the featured carousel, authenticated Article/FAQ/Consultation reader,
+and a manifest-only app-shell foundation are implemented in C4. Service-worker caching, notification
+delivery, scheduled publication, unauthenticated reading, comments, reactions, bookmarks,
+multilingual bodies, Flutter, and production deployment remain deferred.
 
 C2 integrity hardening treats `lock_version` as mandatory on submission and revalidates it after
 row locking. Archived items are read-only across every Admin mutation; an item with an active

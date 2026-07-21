@@ -9,6 +9,7 @@ import {
   Menu,
   Moon,
   Sun,
+  Library,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -21,13 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "react-i18next";
@@ -41,6 +36,7 @@ const nav = [
   { titleKey: "overview", url: "/portal" as const, icon: LayoutDashboard },
   { titleKey: "newReport", url: "/portal/reports/new" as const, icon: PlusCircle },
   { titleKey: "myReports", url: "/portal/reports" as const, icon: FileText },
+  { titleKey: "informationCenter", url: "/dashboard/information-center" as const, icon: Library },
   { titleKey: "notifications", url: "/portal/notifications" as const, icon: Bell },
   { titleKey: "account", url: "/portal/account" as const, icon: UserCog },
 ];
@@ -52,10 +48,7 @@ function PortalNav() {
   return (
     <nav className="flex min-w-0 items-center gap-1 overflow-x-auto">
       {nav.map((item) => {
-        const active =
-          item.url === "/portal"
-            ? path === "/portal"
-            : path.startsWith(item.url);
+        const active = item.url === "/portal" ? path === "/portal" : path.startsWith(item.url);
         return (
           <Button
             key={item.url}
@@ -104,10 +97,7 @@ function PortalMobileNav() {
         </SheetHeader>
         <nav className="grid gap-1 p-3">
           {nav.map((item) => {
-            const active =
-              item.url === "/portal"
-                ? path === "/portal"
-                : path.startsWith(item.url);
+            const active = item.url === "/portal" ? path === "/portal" : path.startsWith(item.url);
             return (
               <Button
                 key={item.url}
@@ -152,9 +142,7 @@ function PortalTopbar() {
           <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-primary/10">
             <img src="/Logo.ico" alt="" aria-hidden="true" className="h-6 w-6 object-contain" />
           </div>
-          <span className="truncate text-sm font-semibold">
-            SILAPPKASAL
-          </span>
+          <span className="truncate text-sm font-semibold">SILAPPKASAL</span>
         </Link>
 
         <div className="hidden min-w-0 md:block">
@@ -164,17 +152,8 @@ function PortalTopbar() {
         {/* Right side */}
         <div className="ml-auto flex items-center gap-2">
           <LanguageSwitcher />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggle}
-            aria-label={t("toggleTheme")}
-          >
-            {theme === "dark" ? (
-              <Sun className="h-4 w-4" />
-            ) : (
-              <Moon className="h-4 w-4" />
-            )}
+          <Button variant="ghost" size="icon" onClick={toggle} aria-label={t("toggleTheme")}>
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -184,9 +163,7 @@ function PortalTopbar() {
                     {initials}
                   </AvatarFallback>
                 </Avatar>
-                <span className="hidden text-sm font-medium md:inline">
-                  {user?.name}
-                </span>
+                <span className="hidden text-sm font-medium md:inline">{user?.name}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">

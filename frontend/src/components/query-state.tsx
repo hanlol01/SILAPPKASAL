@@ -8,7 +8,7 @@ export function QueryErrorState({ message, onRetry }: { message: string; onRetry
   const { t } = useTranslation(["common"]);
 
   return (
-    <Card>
+    <Card role="alert" aria-live="polite">
       <CardContent className="flex items-center justify-between gap-4 p-5">
         <div className="flex items-center gap-3">
           <AlertCircle className="h-5 w-5 text-destructive" />

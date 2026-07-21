@@ -1,0 +1,188 @@
+import {
+  CalendarCheck,
+  Clock3,
+  ExternalLink,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Phone,
+  ShieldCheck,
+} from "lucide-react";
+import { useTranslation } from "react-i18next";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import type { PublishedConsultation } from "@/lib/published-content-api";
+
+export function PublishedConsultationCard({ item }: { item: PublishedConsultation }) {
+  const { t, i18n } = useTranslation("informationCenter");
+  const email = safeEmail(item.email);
+  const phone = normalizePhone(item.phone);
+  const whatsapp = normalizeWhatsApp(item.whatsapp);
+  const appointment = safeHttps(item.appointment_url);
+  const verifiedDate = item.verification_date
+    ? new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium" }).format(
+        new Date(item.verification_date),
+      )
+    : null;
+
+  function confirmContact(message: string) {
+    return typeof window !== "undefined" && window.confirm(message);
+  }
+
+  return (
+    <Card className="h-full min-w-0 overflow-hidden rounded-2xl">
+      <CardHeader className="space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <Badge variant={item.emergency_available ? "destructive" : "secondary"}>
+            {item.emergency_available ? t("consultation.emergency") : t("consultation.standard")}
+          </Badge>
+        </div>
+        <h3 className="text-xl font-semibold leading-snug tracking-tight">{item.service_name}</h3>
+        {item.description && (
+          <p className="text-sm leading-6 text-muted-foreground">{item.description}</p>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <dl className="space-y-3 text-sm">
+          {item.operating_hours && (
+            <InfoRow icon={Clock3} label={t("consultation.hours")} value={item.operating_hours} />
+          )}
+          {item.office_address && (
+            <InfoRow icon={MapPin} label={t("consultation.address")} value={item.office_address} />
+          )}
+          {email && <InfoRow icon={Mail} label={t("consultation.email")} value={email} />}
+          {item.phone && (
+            <InfoRow icon={Phone} label={t("consultation.phone")} value={item.phone} />
+          )}
+          {item.whatsapp && (
+            <InfoRow
+              icon={MessageCircle}
+              label={t("consultation.whatsapp")}
+              value={item.whatsapp}
+            />
+          )}
+          {verifiedDate && (
+            <InfoRow icon={CalendarCheck} label={t("consultation.verified")} value={verifiedDate} />
+          )}
+        </dl>
+
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {email && (
+            <Button asChild variant="outline" className="min-h-11 justify-start">
+              <a href={`mailto:${email}`}>
+                <Mail className="h-4 w-4" aria-hidden="true" />
+                {t("consultation.email")}
+              </a>
+            </Button>
+          )}
+          {phone && (
+            <Button asChild variant="outline" className="min-h-11 justify-start">
+              <a
+                href={`tel:${phone}`}
+                onClick={(event) => {
+                  if (
+                    !confirmContact(t("consultation.confirmPhone", { service: item.service_name }))
+                  )
+                    event.preventDefault();
+                }}
+              >
+                <Phone className="h-4 w-4" aria-hidden="true" />
+                {t("consultation.phone")}
+              </a>
+            </Button>
+          )}
+          {whatsapp && (
+            <Button asChild variant="outline" className="min-h-11 justify-start">
+              <a
+                href={`https://wa.me/${whatsapp}`}
+                target="_blank"
+                rel="noreferrer noopener"
+                onClick={(event) => {
+                  if (
+                    !confirmContact(
+                      t("consultation.confirmWhatsapp", { service: item.service_name }),
+                    )
+                  )
+                    event.preventDefault();
+                }}
+              >
+                <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                {t("consultation.whatsapp")}
+              </a>
+            </Button>
+          )}
+          {appointment && (
+            <Button asChild className="min-h-11 justify-start">
+              <a href={appointment} target="_blank" rel="noreferrer noopener">
+                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                {item.action_label || t("consultation.appointment")}
+              </a>
+            </Button>
+          )}
+        </div>
+        {item.emergency_available && (
+          <p className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive" role="note">
+            {t("consultation.emergencyNotice")}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function InfoRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Clock3;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <div className="min-w-0">
+        <dt className="font-medium">{label}</dt>
+        <dd className="break-words text-muted-foreground">{value}</dd>
+      </div>
+    </div>
+  );
+}
+
+function safeEmail(value: string | null): string | null {
+  const trimmed = value?.trim() ?? "";
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed) ? trimmed : null;
+}
+
+function normalizePhone(value: string | null): string | null {
+  if (!value) return null;
+  const normalized = value
+    .trim()
+    .replace(/(?!^)\+/g, "")
+    .replace(/[^\d+]/g, "");
+  return /^\+?\d{6,15}$/.test(normalized) ? normalized : null;
+}
+
+function normalizeWhatsApp(value: string | null): string | null {
+  const phone = normalizePhone(value);
+  if (!phone) return null;
+  if (phone.startsWith("0")) return null;
+  const digits = phone.replace(/^\+/, "");
+  return /^\d{6,15}$/.test(digits) ? digits : null;
+}
+
+function safeHttps(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}

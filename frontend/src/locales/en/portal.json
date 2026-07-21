@@ -19,7 +19,7 @@
   "recentReportsSubtitle": "A summary of the reports you recently submitted.",
   "viewAllReports": "View all reports",
   "noRecentReports": "You have not submitted any reports yet.",
-  
+
   "reports": "Reports",
   "newReport": "Create Report",
   "newReportSubtitle": "Submit a new report safely through the reporter portal.",
@@ -112,6 +112,7 @@
     "unknown": "Report status"
   },
   "myReports": "My Reports",
+  "informationCenter": "Information Center",
   "myReportsSubtitle": "All reports you have submitted.",
   "searchPlaceholder": "Search by registration number, status, category...",
   "reportsLoadError": "Your reports could not be loaded.",
@@ -121,7 +122,7 @@
   "noReportsSubmitted": "You haven't submitted any reports.",
   "showingReports_one": "Showing {{count}} of {{total}} report.",
   "showingReports_other": "Showing {{count}} of {{total}} reports.",
-  
+
   "reportLoadError": "This report could not be loaded.",
   "reportNotFoundOrNoAccess": "Report not found or you do not have access.",
   "reportInformation": "Report Information",
@@ -326,7 +327,7 @@
   },
   "completionTitle": "Your case has been completed.",
   "completionMessage": "For further information, please contact the official Satgas PPKS channel.",
-  
+
   "notifications": "Notifications",
   "unreadNotifications_one": "{{count}} unread notification",
   "unreadNotifications_other": "{{count}} unread notifications",
@@ -388,7 +389,7 @@
       "type": "Notification"
     }
   },
-  
+
   "account": "Account",
   "accountSubtitle": "Manage your profile and security settings.",
   "profileLoadError": "Profile could not be loaded.",

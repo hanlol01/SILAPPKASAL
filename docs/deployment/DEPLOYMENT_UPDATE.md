@@ -255,3 +255,28 @@ Keep image uploads disabled. C3 adds neither scheduled publication nor the Repor
 date windows affect only placement visibility after an Article is already published. Automated tests
 must continue to run on SQLite `:memory:`; any later PostgreSQL verification is limited to the
 explicitly confirmed local `silappkasal_test` database and remains a release gate.
+
+## REV-CONTENT-01 C4 Release Note (Not Yet Deployed)
+
+C4 adds the authenticated `/dashboard/information-center` reader, Reporter dashboard shortcuts,
+featured carousel, Article/FAQ/Consultation presentation, private PDF hardening, account-scoped query
+cleanup, and `manifest.webmanifest`. It adds no dependency, migration, seed, production environment
+change, service worker, or offline private-content cache. No push or deployment is claimed.
+
+A future C5 release must deploy the backend and client/SSR artifacts from the same reviewed commit and
+smoke-check:
+
+- Reporter remains landed on `/portal` and can enter only the Information Center dashboard subtree;
+- Satgas navigation appears only with `content.read.published` and contains no authoring controls;
+- draft, submitted, rejected, approved-only, future, archived, and other-campus content is absent;
+- featured order/window/fallback matches `/api/v1/content/featured`;
+- Article, FAQ, and Consultation filters call paginated/scoped reader APIs;
+- Article bodies use controlled JSON and private PDFs require authenticated bytes;
+- logout/account replacement removes `published-content`, management, and governance queries;
+- the manifest loads from the built client while no service worker controls `/api` or private routes;
+- 320 px, 360 px, tablet, desktop, keyboard, reduced-motion, popup-blocked PDF, and iOS Safari manual
+  checks are completed with disposable non-production accounts.
+
+PWA installability remains limited by the available project-owned icon set. Do not manufacture icons
+or enable a service worker during deployment. PostgreSQL runtime verification remains a C5 release
+gate and is not claimed by C4.

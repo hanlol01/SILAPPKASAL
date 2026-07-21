@@ -182,6 +182,38 @@ class ContentFoundationTest extends TestCase
             ->assertJsonMissing(['Versi Revisi Belum Terbit']);
     }
 
+    public function test_c4_reporter_and_satgas_readers_require_explicit_permission_and_receive_private_responses(): void
+    {
+        $this->publishedArticle(ContentScope::Global, null, 'Artikel C4 Terbit');
+
+        foreach (['reporter', 'satgas_ppks'] as $roleCode) {
+            $reader = $this->user($roleCode, $this->campusA);
+            Sanctum::actingAs($reader, ['*']);
+
+            $response = $this->getJson('/api/v1/content/articles?section=education&per_page=12')
+                ->assertOk()
+                ->assertJsonPath('meta.per_page', 12)
+                ->assertJsonMissing(['creator_id'])
+                ->assertJsonMissing(['published_version_id']);
+
+            $this->assertStringContainsString('private', (string) $response->headers->get('Cache-Control'));
+            $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+        }
+
+        $permission = Permission::query()->where('code', 'content.read.published')->firstOrFail();
+        $satgasRole = Role::query()->where('code', 'satgas_ppks')->firstOrFail();
+        $satgasRole->permissions()->detach($permission->id);
+
+        $denied = $this->user('satgas_ppks', $this->campusA);
+        Sanctum::actingAs($denied, ['*']);
+        $this->getJson('/api/v1/content/articles')->assertForbidden();
+
+        $inactive = $this->user('reporter', $this->campusA);
+        $inactive->forceFill(['is_active' => false])->save();
+        Sanctum::actingAs($inactive, ['*']);
+        $this->getJson('/api/v1/content/articles')->assertForbidden();
+    }
+
     public function test_document_schema_rejects_h1_unsafe_nodes_and_unsafe_links_and_sanitizes_projection(): void
     {
         $documents = app(ContentDocumentService::class);

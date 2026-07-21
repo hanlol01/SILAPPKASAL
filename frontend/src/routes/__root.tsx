@@ -59,52 +59,53 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
-  {
-    head: () => ({
-      meta: [
-        { charSet: "utf-8" },
-        { name: "viewport", content: "width=device-width, initial-scale=1" },
-        {
-          title: "SILAPPKASAL - Sistem Layanan PPKS Kampus",
-        },
-        {
-          name: "description",
-          content:
-            "SILAPPKASAL: dashboard aman untuk Satgas PPKS kampus dalam mengelola laporan dan alur penanganan.",
-        },
-        {
-          property: "og:title",
-          content: "SILAPPKASAL - Sistem Layanan PPKS Kampus",
-        },
-        {
-          name: "twitter:title",
-          content: "SILAPPKASAL - Sistem Layanan PPKS Kampus",
-        },
-        {
-          property: "og:description",
-          content:
-            "SILAPPKASAL adalah dashboard web untuk pengelolaan layanan PPKS kampus.",
-        },
-        {
-          name: "twitter:description",
-          content:
-            "SILAPPKASAL adalah dashboard web untuk pengelolaan layanan PPKS kampus.",
-        },
-        { name: "twitter:card", content: "summary_large_image" },
-        { property: "og:type", content: "website" },
-      ],
-      links: [
-        { rel: "icon", type: "image/x-icon", href: "/Logo.ico" },
-        { rel: "stylesheet", href: appCss },
-      ],
-    }),
-    shellComponent: RootShell,
-    component: RootComponent,
-    notFoundComponent: NotFoundComponent,
-    errorComponent: ErrorComponent,
-  },
-);
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  head: () => ({
+    meta: [
+      { charSet: "utf-8" },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      {
+        title: "SILAPPKASAL - Sistem Layanan PPKS Kampus",
+      },
+      {
+        name: "description",
+        content:
+          "SILAPPKASAL: dashboard aman untuk Satgas PPKS kampus dalam mengelola laporan dan alur penanganan.",
+      },
+      {
+        property: "og:title",
+        content: "SILAPPKASAL - Sistem Layanan PPKS Kampus",
+      },
+      {
+        name: "twitter:title",
+        content: "SILAPPKASAL - Sistem Layanan PPKS Kampus",
+      },
+      {
+        property: "og:description",
+        content: "SILAPPKASAL adalah dashboard web untuk pengelolaan layanan PPKS kampus.",
+      },
+      {
+        name: "twitter:description",
+        content: "SILAPPKASAL adalah dashboard web untuk pengelolaan layanan PPKS kampus.",
+      },
+      { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:type", content: "website" },
+      { name: "theme-color", content: "#1f365c" },
+      { name: "application-name", content: "SILAPPKASAL" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+    ],
+    links: [
+      { rel: "icon", type: "image/x-icon", href: "/Logo.ico" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "stylesheet", href: appCss },
+    ],
+  }),
+  shellComponent: RootShell,
+  component: RootComponent,
+  notFoundComponent: NotFoundComponent,
+  errorComponent: ErrorComponent,
+});
 
 function RootShell({ children }: { children: React.ReactNode }) {
   const { i18n } = useTranslation();

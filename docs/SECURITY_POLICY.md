@@ -1268,6 +1268,7 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
 | REV-CONTENT-01-C1 | 2026-07-21 | Campus-scoped published content, immutable versions, controlled rich text, private attachments, redacted content audit, and non-cacheable authenticated readers. |
 | REV-CONTENT-01-C2 | 2026-07-21 | Campus-scoped Admin authoring UI/API, author-visible review feedback, controlled drafts, and audited editable-PDF removal. |
 | REV-CONTENT-01-C3 | 2026-07-21 | Super Admin editorial governance, second-review global authoring, published archive, opaque featured concurrency, and private cache isolation. |
+| REV-CONTENT-01-C4 | 2026-07-21 | Authenticated Reporter/Satgas Information Center, reader cache isolation, temporary attachment/cover Blob URLs, and manifest-only PWA foundation. |
 
 ## 22. Content publication security (REV-CONTENT-01 C1)
 
@@ -1346,6 +1347,28 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
   and remove TanStack queries rooted at both `content-management` and `content-governance`.
   Governance read requests forward cancellation signals so obsolete transport work cannot complete
   into a later account context.
+
+### 22.3 C4 authenticated reader boundary
+
+- `/dashboard/information-center` requires an active authenticated user with
+  `content.read.published`. Reporter access is limited to this dashboard subtree; C4 does not grant
+  operational Admin or Satgas permissions.
+- Reader queries consume only authenticated `/content/*` responses. The published pointer, archive
+  exclusion, active publication time, and global-plus-own-campus scope remain backend-authoritative.
+- TanStack keys rooted at `published-content` include the current account identity and are cancelled
+  and removed before logout, account replacement, registration-mode replacement, or authentication
+  invalidation. Reader bodies and contact records are not written to localStorage or sessionStorage.
+- Article and FAQ rendering uses controlled structured JSON. The reader never executes `body_html`,
+  arbitrary HTML, editorial notes, review narratives, or lifecycle management data.
+- PDF and optional legacy cover bytes use authenticated fetch without tokens in URLs. Temporary Blob
+  URLs are revoked on replacement, close, failure, and unmount. Popup failure falls back to an
+  authenticated download; attachment bytes are never persisted by the client.
+- Consultation actions allow only validated `mailto:`, `tel:`, `https://wa.me/`, and HTTPS appointment
+  destinations. Phone/WhatsApp actions require user confirmation and never prefill Report or identity
+  data.
+- C4 ships a web manifest and app-shell metadata only. It registers no service worker and caches no
+  authenticated API response, Article body, FAQ answer, Consultation record, PDF, Report, Case, or
+  Evidence data offline. Future offline behavior requires a separate security review.
 
 ---
 

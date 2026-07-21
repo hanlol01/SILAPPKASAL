@@ -27,6 +27,7 @@ import { Route as DashboardSettingsRouteImport } from './routes/dashboard.settin
 import { Route as DashboardRegistrationsRouteImport } from './routes/dashboard.registrations'
 import { Route as DashboardNotificationsRouteImport } from './routes/dashboard.notifications'
 import { Route as DashboardMasterDataRouteImport } from './routes/dashboard.master-data'
+import { Route as DashboardInformationCenterRouteImport } from './routes/dashboard.information-center'
 import { Route as DashboardContentGovernanceRouteImport } from './routes/dashboard.content-governance'
 import { Route as DashboardContentRouteImport } from './routes/dashboard.content'
 import { Route as DashboardBreakGlassRouteImport } from './routes/dashboard.break-glass'
@@ -34,6 +35,7 @@ import { Route as DashboardAnalyticsRouteImport } from './routes/dashboard.analy
 import { Route as DashboardActivityLogRouteImport } from './routes/dashboard.activity-log'
 import { Route as PortalReportsIndexRouteImport } from './routes/portal.reports.index'
 import { Route as DashboardReportsIndexRouteImport } from './routes/dashboard.reports.index'
+import { Route as DashboardInformationCenterIndexRouteImport } from './routes/dashboard.information-center.index'
 import { Route as DashboardCasesIndexRouteImport } from './routes/dashboard.cases.index'
 import { Route as PortalReportsNewRouteImport } from './routes/portal.reports.new'
 import { Route as PortalReportsRegistrationNumberRouteImport } from './routes/portal.reports.$registrationNumber'
@@ -44,6 +46,7 @@ import { Route as DashboardMasterDataUniversitiesRouteImport } from './routes/da
 import { Route as DashboardMasterDataStudyProgramsRouteImport } from './routes/dashboard.master-data.study-programs'
 import { Route as DashboardMasterDataFacultiesRouteImport } from './routes/dashboard.master-data.faculties'
 import { Route as DashboardCasesIdRouteImport } from './routes/dashboard.cases.$id'
+import { Route as DashboardInformationCenterArticlesArticleIdRouteImport } from './routes/dashboard.information-center.articles.$articleId'
 
 const TrackRoute = TrackRouteImport.update({
   id: '/track',
@@ -135,6 +138,12 @@ const DashboardMasterDataRoute = DashboardMasterDataRouteImport.update({
   path: '/master-data',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardInformationCenterRoute =
+  DashboardInformationCenterRouteImport.update({
+    id: '/information-center',
+    path: '/information-center',
+    getParentRoute: () => DashboardRoute,
+  } as any)
 const DashboardContentGovernanceRoute =
   DashboardContentGovernanceRouteImport.update({
     id: '/content-governance',
@@ -171,6 +180,12 @@ const DashboardReportsIndexRoute = DashboardReportsIndexRouteImport.update({
   path: '/reports/',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardInformationCenterIndexRoute =
+  DashboardInformationCenterIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => DashboardInformationCenterRoute,
+  } as any)
 const DashboardCasesIndexRoute = DashboardCasesIndexRouteImport.update({
   id: '/cases/',
   path: '/cases/',
@@ -226,6 +241,12 @@ const DashboardCasesIdRoute = DashboardCasesIdRouteImport.update({
   path: '/cases/$id',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardInformationCenterArticlesArticleIdRoute =
+  DashboardInformationCenterArticlesArticleIdRouteImport.update({
+    id: '/articles/$articleId',
+    path: '/articles/$articleId',
+    getParentRoute: () => DashboardInformationCenterRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -239,6 +260,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/break-glass': typeof DashboardBreakGlassRoute
   '/dashboard/content': typeof DashboardContentRoute
   '/dashboard/content-governance': typeof DashboardContentGovernanceRoute
+  '/dashboard/information-center': typeof DashboardInformationCenterRouteWithChildren
   '/dashboard/master-data': typeof DashboardMasterDataRouteWithChildren
   '/dashboard/notifications': typeof DashboardNotificationsRoute
   '/dashboard/registrations': typeof DashboardRegistrationsRouteWithChildren
@@ -261,8 +283,10 @@ export interface FileRoutesByFullPath {
   '/portal/reports/$registrationNumber': typeof PortalReportsRegistrationNumberRoute
   '/portal/reports/new': typeof PortalReportsNewRoute
   '/dashboard/cases/': typeof DashboardCasesIndexRoute
+  '/dashboard/information-center/': typeof DashboardInformationCenterIndexRoute
   '/dashboard/reports/': typeof DashboardReportsIndexRoute
   '/portal/reports/': typeof PortalReportsIndexRoute
+  '/dashboard/information-center/articles/$articleId': typeof DashboardInformationCenterArticlesArticleIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -296,8 +320,10 @@ export interface FileRoutesByTo {
   '/portal/reports/$registrationNumber': typeof PortalReportsRegistrationNumberRoute
   '/portal/reports/new': typeof PortalReportsNewRoute
   '/dashboard/cases': typeof DashboardCasesIndexRoute
+  '/dashboard/information-center': typeof DashboardInformationCenterIndexRoute
   '/dashboard/reports': typeof DashboardReportsIndexRoute
   '/portal/reports': typeof PortalReportsIndexRoute
+  '/dashboard/information-center/articles/$articleId': typeof DashboardInformationCenterArticlesArticleIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -312,6 +338,7 @@ export interface FileRoutesById {
   '/dashboard/break-glass': typeof DashboardBreakGlassRoute
   '/dashboard/content': typeof DashboardContentRoute
   '/dashboard/content-governance': typeof DashboardContentGovernanceRoute
+  '/dashboard/information-center': typeof DashboardInformationCenterRouteWithChildren
   '/dashboard/master-data': typeof DashboardMasterDataRouteWithChildren
   '/dashboard/notifications': typeof DashboardNotificationsRoute
   '/dashboard/registrations': typeof DashboardRegistrationsRouteWithChildren
@@ -334,8 +361,10 @@ export interface FileRoutesById {
   '/portal/reports/$registrationNumber': typeof PortalReportsRegistrationNumberRoute
   '/portal/reports/new': typeof PortalReportsNewRoute
   '/dashboard/cases/': typeof DashboardCasesIndexRoute
+  '/dashboard/information-center/': typeof DashboardInformationCenterIndexRoute
   '/dashboard/reports/': typeof DashboardReportsIndexRoute
   '/portal/reports/': typeof PortalReportsIndexRoute
+  '/dashboard/information-center/articles/$articleId': typeof DashboardInformationCenterArticlesArticleIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -351,6 +380,7 @@ export interface FileRouteTypes {
     | '/dashboard/break-glass'
     | '/dashboard/content'
     | '/dashboard/content-governance'
+    | '/dashboard/information-center'
     | '/dashboard/master-data'
     | '/dashboard/notifications'
     | '/dashboard/registrations'
@@ -373,8 +403,10 @@ export interface FileRouteTypes {
     | '/portal/reports/$registrationNumber'
     | '/portal/reports/new'
     | '/dashboard/cases/'
+    | '/dashboard/information-center/'
     | '/dashboard/reports/'
     | '/portal/reports/'
+    | '/dashboard/information-center/articles/$articleId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -408,8 +440,10 @@ export interface FileRouteTypes {
     | '/portal/reports/$registrationNumber'
     | '/portal/reports/new'
     | '/dashboard/cases'
+    | '/dashboard/information-center'
     | '/dashboard/reports'
     | '/portal/reports'
+    | '/dashboard/information-center/articles/$articleId'
   id:
     | '__root__'
     | '/'
@@ -423,6 +457,7 @@ export interface FileRouteTypes {
     | '/dashboard/break-glass'
     | '/dashboard/content'
     | '/dashboard/content-governance'
+    | '/dashboard/information-center'
     | '/dashboard/master-data'
     | '/dashboard/notifications'
     | '/dashboard/registrations'
@@ -445,8 +480,10 @@ export interface FileRouteTypes {
     | '/portal/reports/$registrationNumber'
     | '/portal/reports/new'
     | '/dashboard/cases/'
+    | '/dashboard/information-center/'
     | '/dashboard/reports/'
     | '/portal/reports/'
+    | '/dashboard/information-center/articles/$articleId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -588,6 +625,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardMasterDataRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/information-center': {
+      id: '/dashboard/information-center'
+      path: '/information-center'
+      fullPath: '/dashboard/information-center'
+      preLoaderRoute: typeof DashboardInformationCenterRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/content-governance': {
       id: '/dashboard/content-governance'
       path: '/content-governance'
@@ -636,6 +680,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard/reports/'
       preLoaderRoute: typeof DashboardReportsIndexRouteImport
       parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/information-center/': {
+      id: '/dashboard/information-center/'
+      path: '/'
+      fullPath: '/dashboard/information-center/'
+      preLoaderRoute: typeof DashboardInformationCenterIndexRouteImport
+      parentRoute: typeof DashboardInformationCenterRoute
     }
     '/dashboard/cases/': {
       id: '/dashboard/cases/'
@@ -707,8 +758,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardCasesIdRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/information-center/articles/$articleId': {
+      id: '/dashboard/information-center/articles/$articleId'
+      path: '/articles/$articleId'
+      fullPath: '/dashboard/information-center/articles/$articleId'
+      preLoaderRoute: typeof DashboardInformationCenterArticlesArticleIdRouteImport
+      parentRoute: typeof DashboardInformationCenterRoute
+    }
   }
 }
+
+interface DashboardInformationCenterRouteChildren {
+  DashboardInformationCenterIndexRoute: typeof DashboardInformationCenterIndexRoute
+  DashboardInformationCenterArticlesArticleIdRoute: typeof DashboardInformationCenterArticlesArticleIdRoute
+}
+
+const DashboardInformationCenterRouteChildren: DashboardInformationCenterRouteChildren =
+  {
+    DashboardInformationCenterIndexRoute: DashboardInformationCenterIndexRoute,
+    DashboardInformationCenterArticlesArticleIdRoute:
+      DashboardInformationCenterArticlesArticleIdRoute,
+  }
+
+const DashboardInformationCenterRouteWithChildren =
+  DashboardInformationCenterRoute._addFileChildren(
+    DashboardInformationCenterRouteChildren,
+  )
 
 interface DashboardMasterDataRouteChildren {
   DashboardMasterDataFacultiesRoute: typeof DashboardMasterDataFacultiesRoute
@@ -745,6 +820,7 @@ interface DashboardRouteChildren {
   DashboardBreakGlassRoute: typeof DashboardBreakGlassRoute
   DashboardContentRoute: typeof DashboardContentRoute
   DashboardContentGovernanceRoute: typeof DashboardContentGovernanceRoute
+  DashboardInformationCenterRoute: typeof DashboardInformationCenterRouteWithChildren
   DashboardMasterDataRoute: typeof DashboardMasterDataRouteWithChildren
   DashboardNotificationsRoute: typeof DashboardNotificationsRoute
   DashboardRegistrationsRoute: typeof DashboardRegistrationsRouteWithChildren
@@ -764,6 +840,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardBreakGlassRoute: DashboardBreakGlassRoute,
   DashboardContentRoute: DashboardContentRoute,
   DashboardContentGovernanceRoute: DashboardContentGovernanceRoute,
+  DashboardInformationCenterRoute: DashboardInformationCenterRouteWithChildren,
   DashboardMasterDataRoute: DashboardMasterDataRouteWithChildren,
   DashboardNotificationsRoute: DashboardNotificationsRoute,
   DashboardRegistrationsRoute: DashboardRegistrationsRouteWithChildren,

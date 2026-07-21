@@ -14,10 +14,11 @@
     "registrations": "Registrations",
     "users": "Users",
     "masterData": "Master Data",
+    "informationCenter": "Information Center",
     "breakGlass": "Break-glass",
     "activityLog": "Activity Log",
-      "contentManagement": "Content Management",
-      "contentGovernance": "Content Governance",
+    "contentManagement": "Content Management",
+    "contentGovernance": "Content Governance",
     "settings": "Settings"
   },
   "topbar": {

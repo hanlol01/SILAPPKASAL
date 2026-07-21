@@ -14,10 +14,11 @@
     "registrations": "Pendaftaran",
     "users": "Pengguna",
     "masterData": "Master Data",
+    "informationCenter": "Pusat Informasi",
     "breakGlass": "Akses Darurat",
     "activityLog": "Log Aktivitas",
-      "contentManagement": "Manajemen Konten",
-      "contentGovernance": "Tata Kelola Konten",
+    "contentManagement": "Manajemen Konten",
+    "contentGovernance": "Tata Kelola Konten",
     "settings": "Pengaturan"
   },
   "topbar": {

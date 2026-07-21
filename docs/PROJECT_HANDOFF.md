@@ -678,3 +678,26 @@ Milestone 22 Additional QA:
   PWA/service worker, notification delivery, image upload, scheduled publication, comments,
   reactions, bookmarks, Flutter, PostgreSQL runtime verification, and production deployment remain
   outside this commit.
+
+## REV-CONTENT-01 C4 Handoff
+
+- `/dashboard/information-center` is the authenticated published-content reader for Reporter, Satgas,
+  Campus Admin, and Super Admin with `content.read.published`. Reporter is admitted only to this
+  dashboard subtree and retains `/portal` as the landing page.
+- Reporter dashboard retains report creation, status summaries, recent reports, and safety messaging,
+  and adds four supporting shortcuts plus an isolated featured-Article carousel.
+- The Information Center provides server-driven Article/FAQ search, section/category filters,
+  pagination, URL-restored filter state, published Article detail, controlled FAQ accordion rendering,
+  and active published Consultation cards. It never displays seeded drafts or governance metadata.
+- Article cards use semantic full-card TanStack links, controlled section visuals, and a complete
+  no-image state. Remote/fabricated images and paid-reading concepts are absent. Legacy published cover
+  bytes are fetched only through authenticated temporary Blob URLs.
+- Private PDF preview/download now prevents duplicate work, falls back to authenticated download when
+  a popup is blocked, and revokes active Object URLs on replacement, failure, close, and unmount.
+- Published TanStack queries include account identity, consume AbortSignal, and join the private cache
+  cleanup performed before logout/account replacement. No content or attachment bytes are persisted.
+- C4 adds a project-owned web manifest and app-shell metadata but no service worker. Offline private
+  content, iOS install icon expansion, and service-worker update behavior remain deferred pending an
+  explicit cache-security design and approved project-owned PNG icons.
+- C4 adds no dependency, migration, image upload, notification delivery, public reader route, Flutter,
+  PostgreSQL verification, production deployment, push, comments, reactions, or bookmarks.

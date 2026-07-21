@@ -16,6 +16,7 @@ import {
   ScrollText,
   LibraryBig,
   BookOpenCheck,
+  Library,
 } from "lucide-react";
 import {
   Sidebar,
@@ -107,6 +108,13 @@ const nav: {
     roles: ["super_admin"],
   },
   {
+    key: "informationCenter",
+    url: "/dashboard/information-center",
+    icon: Library,
+    roles: ["super_admin", "admin", "satgas_ppks", "reporter"],
+    permission: "content.read.published",
+  },
+  {
     key: "contentManagement",
     url: "/dashboard/content",
     icon: LibraryBig,
@@ -150,9 +158,12 @@ function AppSidebar() {
   const { isMobile, setOpenMobile } = useSidebar();
   const { roleCode, user } = useAuth();
   const { t } = useTranslation(["dashboard"]);
-  const items = nav.filter((item) => roleCode
-    && item.roles.includes(roleCode)
-    && (!item.permission || user?.permissions?.includes(item.permission)));
+  const items = nav.filter(
+    (item) =>
+      roleCode &&
+      item.roles.includes(roleCode) &&
+      (!item.permission || user?.permissions?.includes(item.permission)),
+  );
   const closeMobileSidebar = useCallback(() => {
     if (isMobile) setOpenMobile(false);
   }, [isMobile, setOpenMobile]);
@@ -166,11 +177,20 @@ function AppSidebar() {
       <SidebarHeader className="border-b border-sidebar-border group-data-[collapsible=icon]:p-0">
         <div className="flex min-w-0 items-center gap-2 px-2 py-2 group-data-[collapsible=icon]:h-12 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-sidebar-primary/10 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8">
-            <img src="/Logo.ico" alt="" aria-hidden="true" className="h-7 w-7 object-contain group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:w-6" />
+            <img
+              src="/Logo.ico"
+              alt=""
+              aria-hidden="true"
+              className="h-7 w-7 object-contain group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:w-6"
+            />
           </div>
           <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-semibold text-sidebar-foreground">{t("dashboard:brand.name")}</span>
-            <span className="text-xs text-sidebar-foreground/60">{t("dashboard:brand.console")}</span>
+            <span className="text-sm font-semibold text-sidebar-foreground">
+              {t("dashboard:brand.name")}
+            </span>
+            <span className="text-xs text-sidebar-foreground/60">
+              {t("dashboard:brand.console")}
+            </span>
           </div>
         </div>
       </SidebarHeader>
@@ -181,12 +201,14 @@ function AppSidebar() {
             <SidebarMenu>
               {items.map((item) => {
                 const active =
-                  item.url === "/dashboard"
-                    ? path === "/dashboard"
-                    : path.startsWith(item.url);
+                  item.url === "/dashboard" ? path === "/dashboard" : path.startsWith(item.url);
                 return (
                   <SidebarMenuItem key={item.url}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={t(`dashboard:nav.${item.key}`)}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={active}
+                      tooltip={t(`dashboard:nav.${item.key}`)}
+                    >
                       <Link to={item.url} onClick={closeMobileSidebar}>
                         <item.icon className="h-4 w-4" />
                         <span>{t(`dashboard:nav.${item.key}`)}</span>
@@ -226,7 +248,12 @@ function Topbar() {
       <div className="ml-2 flex-1" aria-hidden="true" />
       <div className="ml-auto flex items-center gap-2">
         <LanguageSwitcher />
-        <Button variant="ghost" size="icon" onClick={toggle} aria-label={t("dashboard:topbar.toggleTheme")}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggle}
+          aria-label={t("dashboard:topbar.toggleTheme")}
+        >
           {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
         <DropdownMenu>
@@ -239,14 +266,22 @@ function Topbar() {
               </Avatar>
               <div className="hidden text-left leading-tight md:block">
                 <div className="text-sm font-medium">{user?.name}</div>
-                <div className="text-xs text-muted-foreground">{formatRoleLabel(t, user?.role?.code ?? null)}</div>
+                <div className="text-xs text-muted-foreground">
+                  {formatRoleLabel(t, user?.role?.code ?? null)}
+                </div>
               </div>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate({ to: "/dashboard/settings" })}>
+            <DropdownMenuItem
+              onClick={() =>
+                navigate({
+                  to: user?.role?.code === "reporter" ? "/portal/account" : "/dashboard/settings",
+                })
+              }
+            >
               <Settings className="mr-2 h-4 w-4" /> {t("dashboard:topbar.settings")}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -282,10 +317,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     setDesktopOpen(nextOpen);
 
     if (preferenceRestoredRef.current) {
-      setSessionStorageItem(
-        DASHBOARD_SIDEBAR_STATE_KEY,
-        nextOpen ? "expanded" : "collapsed",
-      );
+      setSessionStorageItem(DASHBOARD_SIDEBAR_STATE_KEY, nextOpen ? "expanded" : "collapsed");
     }
   }, []);
 

@@ -19,7 +19,7 @@
   "recentReportsSubtitle": "Ringkasan laporan terakhir yang Anda kirimkan.",
   "viewAllReports": "Lihat semua laporan",
   "noRecentReports": "Belum ada laporan yang Anda kirim.",
-  
+
   "reports": "Laporan",
   "newReport": "Buat Laporan",
   "newReportSubtitle": "Kirim laporan baru secara aman melalui portal pelapor.",
@@ -112,6 +112,7 @@
     "unknown": "Status laporan"
   },
   "myReports": "Laporan Saya",
+  "informationCenter": "Pusat Informasi",
   "myReportsSubtitle": "Semua laporan yang telah Anda kirimkan.",
   "searchPlaceholder": "Cari berdasarkan nomor registrasi, status, kategori...",
   "reportsLoadError": "Laporan Anda tidak dapat dimuat.",
@@ -121,7 +122,7 @@
   "noReportsSubmitted": "Anda belum mengirimkan laporan apapun.",
   "showingReports_one": "Menampilkan {{count}} dari {{total}} laporan.",
   "showingReports_other": "Menampilkan {{count}} dari {{total}} laporan.",
-  
+
   "reportLoadError": "Laporan ini tidak dapat dimuat.",
   "reportNotFoundOrNoAccess": "Laporan tidak ditemukan atau Anda tidak memiliki akses.",
   "reportInformation": "Informasi Laporan",
@@ -326,7 +327,7 @@
   },
   "completionTitle": "Kasus Anda telah selesai ditangani.",
   "completionMessage": "Untuk informasi lanjutan silakan hubungi kanal resmi Satgas PPKS.",
-  
+
   "notifications": "Notifikasi",
   "unreadNotifications_one": "{{count}} notifikasi belum dibaca",
   "unreadNotifications_other": "{{count}} notifikasi belum dibaca",
@@ -388,7 +389,7 @@
       "type": "Notifikasi"
     }
   },
-  
+
   "account": "Akun",
   "accountSubtitle": "Kelola profil dan pengaturan keamanan Anda.",
   "profileLoadError": "Profil tidak dapat dimuat.",

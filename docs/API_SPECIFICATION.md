@@ -2103,3 +2103,29 @@ campus-scoped, rank 1-5, active flag, and optional active window. Update and del
 current published Article pointer and returns `content_featured_stale` or
 `content_featured_conflict` on concurrency/rank conflicts. Placement windows do not schedule content
 publication.
+
+## 18.9 REV-CONTENT-01 C4 Authenticated Reader Client
+
+C4 consumes the existing authenticated endpoints in section 18.7 without changing the publication
+lifecycle or adding public routes. Reporter, Satgas, Campus Admin, and Super Admin may read only when
+their active account has `content.read.published`. Every response remains `private, no-store` and
+contains global plus own-campus published content only.
+
+The client routes are:
+
+```text
+GET /dashboard/information-center
+GET /dashboard/information-center/articles/{articlePublicId}
+```
+
+The landing page keeps Article/FAQ search, section, category, page, and open FAQ state in URL search
+parameters. Article and FAQ filters are forwarded to the server; pages are not synthesized from a
+full client-side data load. Featured Articles preserve the `/content/featured` collection order,
+including placement rank/window handling and the backend deterministic fallback.
+
+Article cards and detail use only the published resource fields already defined in section 18.7.
+Detail renders the controlled `body` JSON and does not execute `body_html`. Safe PDF resources are
+retrieved from `/content/attachments/{attachmentPublicId}` with the Bearer session; tokens never enter
+the URL. Optional cover bytes use the same authenticated endpoint only when a published safe cover
+projection actually exists. Consultation actions do not place Report, registration, identity, or
+incident data into an outbound URL.

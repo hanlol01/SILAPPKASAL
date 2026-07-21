@@ -10,11 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import {
-  PAGE_SIZE_OPTIONS,
-  paginationRange,
-  type PaginationLike,
-} from "@/lib/list-controls";
+import { PAGE_SIZE_OPTIONS, paginationRange, type PaginationLike } from "@/lib/list-controls";
 
 interface ListPaginationProps {
   meta: PaginationLike | undefined | null;
@@ -24,6 +20,7 @@ interface ListPaginationProps {
   onPageSizeChange: (size: number) => void;
   isFetching?: boolean;
   className?: string;
+  hidePageSize?: boolean;
 }
 
 /**
@@ -46,6 +43,7 @@ export function ListPagination({
   onPageSizeChange,
   isFetching,
   className,
+  hidePageSize = false,
 }: ListPaginationProps) {
   const { t } = useTranslation(["dashboard"]);
   const lastPage = meta?.last_page ?? 1;
@@ -69,27 +67,29 @@ export function ListPagination({
             : ""}
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-2">
-          <span className="text-xs uppercase tracking-wide">
-            {t("dashboard:pagination.perPage")}
-          </span>
-          <Select
-            value={String(pageSize)}
-            onValueChange={(value) => onPageSizeChange(Number(value))}
-            disabled={isFetching}
-          >
-            <SelectTrigger className="h-8 w-[80px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PAGE_SIZE_OPTIONS.map((option) => (
-                <SelectItem key={option} value={String(option)}>
-                  {option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </label>
+        {!hidePageSize && (
+          <label className="flex items-center gap-2">
+            <span className="text-xs uppercase tracking-wide">
+              {t("dashboard:pagination.perPage")}
+            </span>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(value) => onPageSizeChange(Number(value))}
+              disabled={isFetching}
+            >
+              <SelectTrigger className="h-8 w-[80px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PAGE_SIZE_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={String(option)}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+        )}
         <div className="flex items-center gap-1">
           <Button
             variant="outline"
@@ -104,7 +104,10 @@ export function ListPagination({
             </span>
           </Button>
           <span className="px-2 text-xs">
-            {t("dashboard:pagination.pageOf", { current: meta?.current_page ?? page, last: Math.max(1, lastPage) })}
+            {t("dashboard:pagination.pageOf", {
+              current: meta?.current_page ?? page,
+              last: Math.max(1, lastPage),
+            })}
           </span>
           <Button
             variant="outline"
@@ -113,9 +116,7 @@ export function ListPagination({
             disabled={!canNext}
             aria-label={t("dashboard:pagination.next")}
           >
-            <span className="sr-only sm:not-sr-only sm:mr-1">
-              {t("dashboard:pagination.next")}
-            </span>
+            <span className="sr-only sm:not-sr-only sm:mr-1">{t("dashboard:pagination.next")}</span>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>

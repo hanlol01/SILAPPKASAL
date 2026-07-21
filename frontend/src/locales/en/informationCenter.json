@@ -1,0 +1,128 @@
+{
+  "eyebrow": "Supporting information for the campus community",
+  "title": "Information Center",
+  "introduction": "Find educational materials, policies, frequently asked questions, and consultation channels that have been reviewed and published.",
+  "dashboard": {
+    "title": "Explore the Information Center",
+    "description": "Supporting information is available without reducing the priority of reporting and tracking your reports."
+  },
+  "sections": {
+    "title": "Choose the information you need",
+    "description": "Open the section that best fits your current needs.",
+    "education": {
+      "title": "Education",
+      "description": "Materials for understanding prevention, support, and a safer campus environment."
+    },
+    "policy": {
+      "title": "About Policies",
+      "description": "Policy information reviewed and published through the official process."
+    },
+    "faq": {
+      "title": "FAQ",
+      "description": "Published answers to frequently asked questions."
+    },
+    "consultation": {
+      "title": "Consultation",
+      "description": "Verified institutional support channels."
+    }
+  },
+  "featured": {
+    "title": "Featured Information",
+    "description": "Published materials selected to help you find important information.",
+    "empty": "No featured information has been published yet. Other materials can still be explored below.",
+    "error": "Featured information could not be loaded. Your reporting features remain available.",
+    "carouselLabel": "Featured articles",
+    "position": "Position {{current}} of {{total}}",
+    "previous": "Previous article",
+    "next": "Next article"
+  },
+  "views": {
+    "articles": {
+      "title": "Published Articles",
+      "description": "Explore educational and policy articles available to you."
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "description": "Open a question to read its published answer."
+    },
+    "consultation": {
+      "title": "Consultation Services",
+      "description": "Use only the official channels shown and check their service availability."
+    }
+  },
+  "filters": {
+    "searchLabel": "Search published information",
+    "searchPlaceholder": "Search titles or topics...",
+    "search": "Search",
+    "open": "Filters",
+    "title": "Information filters",
+    "description": "Narrow results by section and category.",
+    "section": "Section",
+    "category": "Category",
+    "allSections": "All sections",
+    "allCategories": "All categories",
+    "apply": "Apply filters",
+    "reset": "Reset"
+  },
+  "empty": {
+    "articlesTitle": "No published articles yet",
+    "articlesDescription": "No articles match the current selection.",
+    "faqTitle": "No published FAQs yet",
+    "faqDescription": "No questions match the current selection.",
+    "consultationTitle": "No published consultation services yet",
+    "consultationDescription": "Contact your campus administrator through another official channel that you have verified."
+  },
+  "errors": {
+    "articles": "Published articles could not be loaded.",
+    "article": "This article could not be loaded.",
+    "faq": "Published FAQs could not be loaded.",
+    "consultation": "Consultation information could not be loaded."
+  },
+  "article": {
+    "open": "Read article {{title}}",
+    "read": "Read article",
+    "back": "Back to the Information Center",
+    "notFoundTitle": "Article not found",
+    "notFoundDescription": "The article is unavailable, unpublished, or inaccessible from your campus.",
+    "readingTime_one": "{{count}} minute read",
+    "readingTime_other": "{{count}} minute read",
+    "related": "Related Articles",
+    "consultationTitle": "Need further support?",
+    "consultationDescription": "The following consultation channel is linked to this article."
+  },
+  "consultation": {
+    "emergency": "Emergency support",
+    "standard": "Regular service",
+    "hours": "Service hours",
+    "address": "Address",
+    "verified": "Last verified",
+    "email": "Send email",
+    "phone": "Call",
+    "whatsapp": "Open WhatsApp",
+    "appointment": "Book an appointment",
+    "confirmPhone": "Call {{service}}? Do not include sensitive report details unless requested through an official procedure.",
+    "confirmWhatsapp": "Open WhatsApp for {{service}}? Do not include identity or sensitive report details in the initial message.",
+    "emergencyNotice": "This service is marked as offering emergency support by the content manager. Check the available hours and channels before contacting it."
+  },
+  "attachment": {
+    "title": "Article Attachments",
+    "description": "PDF attachments open through authenticated access and are not stored by the application.",
+    "pdf": "PDF document",
+    "preview": "Preview",
+    "previewTitle": "Preview {{name}}",
+    "previewDescription": "The document is loaded securely using your session.",
+    "loading": "Loading document...",
+    "error": "The document could not be opened. Try downloading it again.",
+    "retry": "Try again",
+    "close": "Close",
+    "download": "Download",
+    "downloading": "Downloading...",
+    "downloadSuccess": "The document was downloaded.",
+    "fallback": "If the preview does not open, use the authenticated download.",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "resetZoom": "Reset to 100%",
+    "fit": "Fit to screen",
+    "controls": "Preview controls"
+  }
+}

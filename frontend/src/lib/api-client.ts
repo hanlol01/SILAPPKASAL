@@ -209,7 +209,7 @@ export async function apiFetchBlob(
   options: { signal?: AbortSignal } = {},
 ): Promise<AuthenticatedBlobResponse> {
   const token = getAuthToken();
-  const headers = new Headers({ Accept: "application/pdf, image/jpeg, image/png" });
+  const headers = new Headers({ Accept: "application/pdf, image/jpeg, image/png, image/webp" });
   headers.set("Accept-Language", activeApiLocale());
 
   if (token) {

@@ -1,0 +1,19 @@
+{
+  "name": "SILAPPKASAL",
+  "short_name": "SILAPPKASAL",
+  "description": "Sistem layanan pelaporan dan informasi PPKS kampus.",
+  "lang": "id",
+  "start_url": "/login",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f9fafc",
+  "theme_color": "#1f365c",
+  "icons": [
+    {
+      "src": "/Logo.ico",
+      "sizes": "any",
+      "type": "image/x-icon",
+      "purpose": "any"
+    }
+  ]
+}
