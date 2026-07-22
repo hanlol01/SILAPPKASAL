@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\AuditAction;
 use App\Enums\AuditCategory;
+use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\DecisionOutcome;
 use App\Enums\DecisionStatus as DecisionStatusEnum;
 use App\Enums\RecommendationStatus as RecommendationStatusEnum;
@@ -24,8 +24,8 @@ use App\Models\Recovery;
 use App\Models\RecoveryStatus;
 use App\Models\Report;
 use App\Models\Role;
-use App\Models\User;
 use App\Models\University;
+use App\Models\User;
 use App\Services\AuditLogService;
 use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\MasterDataSeeder;
@@ -430,9 +430,9 @@ class RecoveryFoundationTest extends TestCase
             'subject_id' => $recovery->id,
         ]);
 
-        $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-20')->count());
-        $this->assertSame(1, $otherSatgas->notifications()->where('data->notification_type_code', 'NOTIF-20')->count());
-        $this->assertSame(0, $admin->notifications()->where('data->notification_type_code', 'NOTIF-20')->count());
+        $this->assertSame(1, $this->notificationsByType($satgas, 'NOTIF-20')->count());
+        $this->assertSame(1, $this->notificationsByType($otherSatgas, 'NOTIF-20')->count());
+        $this->assertSame(0, $this->notificationsByType($admin, 'NOTIF-20')->count());
 
         $this->patchJson("/api/v1/recoveries/{$recovery->id}", [
             'recovery_plan' => 'Rencana pemulihan yang diperbarui dan tetap sensitif.',
@@ -458,9 +458,9 @@ class RecoveryFoundationTest extends TestCase
             'subject_id' => $recovery->id,
         ]);
 
-        $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-21')->count());
-        $this->assertSame(1, $otherSatgas->notifications()->where('data->notification_type_code', 'NOTIF-21')->count());
-        $this->assertSame(0, $admin->notifications()->where('data->notification_type_code', 'NOTIF-21')->count());
+        $this->assertSame(1, $this->notificationsByType($satgas, 'NOTIF-21')->count());
+        $this->assertSame(1, $this->notificationsByType($otherSatgas, 'NOTIF-21')->count());
+        $this->assertSame(0, $this->notificationsByType($admin, 'NOTIF-21')->count());
 
         $this->actingAsApi($satgas);
         $this->postJson("/api/v1/recoveries/{$recovery->id}/monitoring", $this->monitoringPayload())
@@ -471,7 +471,7 @@ class RecoveryFoundationTest extends TestCase
             'category' => AuditCategory::Recovery->value,
         ]);
 
-        $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-21')->count());
+        $this->assertSame(1, $this->notificationsByType($satgas, 'NOTIF-21')->count());
 
         $auditJson = AuditLog::query()
             ->whereIn('action', [
@@ -685,8 +685,7 @@ class RecoveryFoundationTest extends TestCase
         string $roleCode,
         string $email,
         string $universityCode = 'DEMO-UNIV',
-    ): User
-    {
+    ): User {
         $role = Role::query()->where('code', $roleCode)->firstOrFail();
 
         return User::query()->create([

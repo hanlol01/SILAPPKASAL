@@ -4,9 +4,7 @@ Date: 2026-07-22
 
 Branch: `feature/rev-content-01-information-center`
 
-Verified baseline: `a563ef3b2222097f6a20a9741249af41e66cd88b`
-
-C5 commit: the commit containing this checklist; resolve with `git rev-parse HEAD` after review.
+Verified starting baseline: `84138ada36b5f36ab8345aec5bc7870df003469f`
 
 Deployment status: not deployed and not pushed.
 
@@ -16,62 +14,52 @@ Status values are `PASS`, `FAIL`, `BLOCKED`, `NOT RUN`, and `NOTE`.
 
 | Gate | Status | Evidence or required action |
 |---|---|---|
-| Exact baseline and clean pre-C5 worktree | PASS | Branch and 40-character baseline were verified before edits. |
-| SQLite database guard | PASS | Effective target was `testing / sqlite / :memory:`. |
-| Focused backend content tests | PASS | 61 tests, 564 assertions. |
-| Full backend suite after C5 hardening | PASS | 413 tests, 4,230 assertions. |
-| SQLite migrate, seed, repair rollback/re-apply | PASS | Guarded `content:verify-sqlite-migrations` completed. |
+| Exact baseline and clean pre-verification worktree | PASS | Branch and 40-character baseline were verified before C5 completion work. |
+| Test database guard | PASS | SQLite resolves to `testing / sqlite / :memory:`. PostgreSQL resolves only to `testing / pgsql / 127.0.0.1 / silappkasal_test` with matching explicit confirmation and empty `DB_URL`. |
+| PostgreSQL migration, seed, rollback, and constraints | PASS | Guarded `content:verify-postgresql-migrations` completed against `silappkasal_test`; the development database was never targeted. |
+| PostgreSQL focused regression suite | PASS | 113 tests, 936 assertions, one profile-specific skip. |
+| PostgreSQL content suite | PASS | 61 tests, 564 assertions. |
+| PostgreSQL full backend suite | PASS | 413 tests, 4,227 assertions, one profile-specific skip. |
+| SQLite full backend suite | PASS | 413 tests, 4,230 assertions. |
 | Frontend content tests | PASS | 27 tests. |
 | TypeScript | PASS | `tsc --noEmit`. |
 | ESLint | PASS | Zero errors; six existing Fast Refresh warnings. |
-| Client and SSR production build | PASS | Both build targets completed. |
-| Manifest | PASS | Valid JSON, `/login` start URL, project-owned icon exists, no service worker. |
-| Backend health | PASS | Guarded local `/api/v1/health` returned 200 and `status=ok`. |
-| Frontend artifact smoke | PASS | Local preview returned 200 for the manifest and `/login`. This does not qualify as authenticated browser QA. |
-| CORS and auth response privacy | PASS | Configured origin preflight works; untrusted origin is not echoed; login and `/auth/me` are private/no-store. |
-| PostgreSQL migration and content suite | BLOCKED | Local server has no `silappkasal_test`; no database was created and `silappkasal` was never targeted. |
-| Authenticated browser QA | BLOCKED | No browser automation harness and no persistent disposable application database were available. |
-| 320/360/768/1024/desktop live viewport QA | NOT RUN | Must be completed with disposable accounts before deployment. |
-| Permission matrix smoke | PASS | Backend policy/service tests plus frontend permission tests pass; live UI role smoke remains part of browser gate. |
-| Campus content lifecycle smoke | PASS | Automated tests cover draft, revision request, resubmission, approval, publication, prior-pointer preservation, rejection, archive, and audit history. |
-| Global second-review smoke | PASS | Automated tests enforce distinct author/reviewer and approved-only publication. |
-| Featured-content smoke | PASS | Automated tests cover eligibility, ranks, windows, scope, conflicts, stale tokens, order, fallback, and removal. |
-| Private attachment integrity | PASS | Automated tests cover PDF validation, authorization, safe projection/name, audit, clone integrity, deletion failure, and non-disclosing denial. |
+| Client and SSR production build | PASS | `npm run build` completed both build targets; the existing large-chunk warning remains. |
+| Authenticated role and viewport smoke | PASS | Chrome 150 headless covered Reporter at 320/360, Satgas at 768, Admin at 1024, and Super Admin at 1440 with disposable PostgreSQL data. |
+| Login, logout, account replacement, and cache isolation | PASS | Real sessions changed between roles; the private reader cache did not cross account boundaries. |
+| Reader permission denial | PASS | Removing `content.read.published` hid Reporter navigation; direct UI access was denied and the API returned private/no-store 403. Permission was restored after the check. |
+| Browser history and mobile filters | PASS | Back/Forward restored Information Center URL state; the mobile filter Sheet and associated labels worked. |
+| Campus authoring to Super Admin publication | PASS | A disposable campus Article was created, saved, submitted, reviewed, approved, published, and became visible to Reporter. |
+| Browser PDF popup/fallback | BLOCKED | No safe published PDF fixture was available for a browser-level run. Automated behavior and backend authorization tests pass. |
+| Browser keyboard Select/Carousel/Accordion matrix | BLOCKED | Component behavior tests pass, but the complete real-keyboard matrix was not executed for every target viewport. |
+| Post-fix browser overflow/touch recheck | BLOCKED | Initial run found a 1024 px editor overflow and sub-44 px controls. Scoped fixes build and lint successfully, but preview restart was unavailable, so rendered remeasurement is still required. |
 | Composer validation | PASS | `composer validate --strict`. |
-| Composer advisory audit | BLOCKED | Packagist was unreachable in the restricted environment. Rerun with release-network access. |
-| Targeted REV-CONTENT Pint | PASS | All 99 REV-CONTENT PHP files pass. |
-| Whole-repository Pint | NOTE | Existing formatting debt outside REV-CONTENT remains; no unrelated mass rewrite was made. |
-| PHP syntax | PASS | All 99 REV-CONTENT PHP files pass `php -l`. |
-| Secret/generated-file scan | PASS | No C5 secret, database, dependency directory, Graphify file, or service worker was added. |
-| Production environment confirmation | BLOCKED | Real production values and secrets were intentionally not read or changed. |
-| Production database backup | NOT RUN | No deployment was authorized. Backup must include PostgreSQL and private content bytes. |
-| Frontend production runtime selection | BLOCKED | The VPS guide uses `vite preview` for demo only; approve a supported production runtime/adapter before production deployment. |
-| Rollback readiness | PASS | Procedure is documented in `REV_CONTENT_01_C5_ROLLBACK.md`; backup creation/restore rehearsal remains an operator gate. |
-| Deployment | NOT RUN | Explicitly prohibited for C5 preparation. |
+| Composer advisory audit | PASS | Guzzle security updates are locked; `composer audit --locked --no-interaction` reports no advisories. |
+| Targeted formatting and PHP syntax | PASS | Changed PHP files pass Pint and `php -l`. |
+| Route, locale, manifest, and diff inspection | PASS | Content/audit routes, ID/EN behavior tests, manifest JSON/no-service-worker boundary, and `git diff --check` pass. |
+| Credential rotation review | BLOCKED | A key value was transiently present in the example environment file during workspace inspection and was removed before commit. If that value belongs to any active environment, rotate it before release; the value is not recorded here. |
+| Frontend production runtime | BLOCKED | Cloudflare Workers is the intended candidate, but the build emits no `.wrangler/deploy/config.json` or generated output `wrangler.json`; direct Wrangler dry-run tries to bundle source virtual modules and fails. `vite preview` is QA-only. |
+| Production environment confirmation | BLOCKED | Actual production environment values were intentionally not read or changed. |
+| Restorable production backup evidence | BLOCKED | No production deployment was authorized; PostgreSQL and private-content backup creation/restore evidence was not supplied. |
+| Deployment | NOT RUN | Explicitly prohibited. |
 
 ## Release decision
 
-Do not deploy REV-CONTENT-01 until all `BLOCKED` gates above are closed. In particular, a disposable
-PostgreSQL run, authenticated multi-role browser QA, production environment confirmation, restorable
-backup evidence, and an approved frontend production runtime are mandatory.
+Do not deploy REV-CONTENT-01 yet. PostgreSQL, Composer, and the core authenticated role flow now pass,
+but the supported frontend deployment artifact, remaining live browser matrix, actual production
+environment confirmation, and restorable backup evidence are mandatory open gates.
 
 ## Pre-deployment operator checklist
 
-- [ ] Review the final local C5 commit and confirm the branch has not diverged.
-- [ ] Run Composer advisory audit with approved network access.
-- [ ] Create or receive an explicitly disposable local `silappkasal_test`; run the guarded PostgreSQL
-  report procedure without using the development database.
-- [ ] Complete every browser matrix row in `REV_CONTENT_01_C5_BROWSER_QA.md`.
-- [ ] Confirm `APP_ENV=production`, `APP_DEBUG=false`, HTTPS URLs, exact CORS origin allowlist,
-  `CONTENT_IMAGE_UPLOADS_ENABLED=false`, private storage permissions, queue worker, and log retention.
-- [ ] Select and rehearse the frontend production runtime. Do not promote `vite preview` as a
-  production server.
-- [ ] Capture a verified PostgreSQL backup and a matching backup of `storage/app/private/content`.
-- [ ] Preserve `APP_KEY` and audit fingerprint keys; confirm backup restoration in an isolated target.
-- [ ] Enable maintenance mode, deploy reviewed code and matching client/SSR artifacts, install locked
-  dependencies, migrate, cache configuration/routes, restart PHP/queue/frontend services, and then
-  leave maintenance mode.
-- [ ] Smoke-check `/up`, `/api/v1/health`, login/logout, all four roles, the full content lifecycle,
-  reader visibility, PDF access, featured ordering, and audit history.
-- [ ] Monitor 401/403/404/409/422/429/5xx rates, queue failures, PHP/frontend service logs, storage
-  errors, and database health after release.
+- [ ] Rebuild and prove a supported Cloudflare Workers output configuration and successful local
+  `wrangler deploy --dry-run`; do not deploy `src/server.ts` directly.
+- [ ] Restart the built preview and remeasure the corrected 1024 px editor and all 44 px targets.
+- [ ] Complete keyboard Select/Carousel/Accordion and authenticated PDF popup/fallback browser checks.
+- [ ] Confirm `APP_ENV=production`, `APP_DEBUG=false`, HTTPS URLs, the exact CORS origin allowlist,
+  `CONTENT_IMAGE_UPLOADS_ENABLED=false`, private storage permissions, worker health, and log retention.
+- [ ] Capture matching PostgreSQL and `storage/app/private/content` backups and prove restoration in an
+  isolated target. Preserve `APP_KEY` and audit fingerprint keys without exposing them.
+- [ ] Deploy backend and frontend artifacts from the same reviewed commit only after every blocked gate
+  above is closed.
+- [ ] Smoke-check `/up`, `/api/v1/health`, login/logout, all four roles, the content lifecycle, reader
+  visibility, private PDF access, featured ordering, and audit history.

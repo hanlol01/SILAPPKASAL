@@ -94,6 +94,7 @@ export function ListPagination({
           <Button
             variant="outline"
             size="sm"
+            className="min-h-11 min-w-11"
             onClick={() => onPageChange(page - 1)}
             disabled={!canPrev}
             aria-label={t("dashboard:pagination.previous")}
@@ -112,6 +113,7 @@ export function ListPagination({
           <Button
             variant="outline"
             size="sm"
+            className="min-h-11 min-w-11"
             onClick={() => onPageChange(page + 1)}
             disabled={!canNext}
             aria-label={t("dashboard:pagination.next")}

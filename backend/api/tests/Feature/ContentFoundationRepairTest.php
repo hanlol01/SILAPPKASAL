@@ -505,15 +505,19 @@ class ContentFoundationRepairTest extends TestCase
     public function test_test_database_guard_allows_only_explicit_disposable_targets(): void
     {
         $guard = app(TestDatabaseGuard::class);
-        $this->assertSame(':memory:', $guard->assertSafe()['database']);
         $original = [
             'env' => config('app.env'),
             'default' => config('database.default'),
+            'sqlite' => config('database.connections.sqlite'),
             'pgsql' => config('database.connections.pgsql'),
             'confirmation' => config('database.testing_confirmation'),
         ];
 
         try {
+            config()->set('database.default', 'sqlite');
+            config()->set('database.connections.sqlite.database', ':memory:');
+            $this->assertSame(':memory:', $guard->assertSafe()['database']);
+
             config()->set('database.default', 'pgsql');
             config()->set('database.connections.pgsql.url', null);
             config()->set('database.connections.pgsql.host', '127.0.0.1');
@@ -532,6 +536,7 @@ class ContentFoundationRepairTest extends TestCase
         } finally {
             config()->set('app.env', $original['env']);
             config()->set('database.default', $original['default']);
+            config()->set('database.connections.sqlite', $original['sqlite']);
             config()->set('database.connections.pgsql', $original['pgsql']);
             config()->set('database.testing_confirmation', $original['confirmation']);
         }

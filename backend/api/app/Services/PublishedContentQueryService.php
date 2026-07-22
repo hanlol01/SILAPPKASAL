@@ -213,10 +213,10 @@ class PublishedContentQueryService
         if (! empty($filters['search'])) {
             $needle = '%'.$this->escapeLike(mb_strtolower(trim((string) $filters['search']))).'%';
             $query->where(function (Builder $search) use ($needle, $faq): void {
-                $search->whereRaw("LOWER(content_versions.title) LIKE ? ESCAPE '\\'", [$needle])
-                    ->orWhereRaw("LOWER(COALESCE(content_versions.excerpt, '')) LIKE ? ESCAPE '\\'", [$needle]);
+                $search->whereRaw("LOWER(content_versions.title) LIKE ? ESCAPE '!'", [$needle])
+                    ->orWhereRaw("LOWER(COALESCE(content_versions.excerpt, '')) LIKE ? ESCAPE '!'", [$needle]);
                 if ($faq) {
-                    $search->orWhereRaw("LOWER(COALESCE(faq_version_contents.plain_search_text, '')) LIKE ? ESCAPE '\\'", [$needle]);
+                    $search->orWhereRaw("LOWER(COALESCE(faq_version_contents.plain_search_text, '')) LIKE ? ESCAPE '!'", [$needle]);
                 }
             });
         }
@@ -235,7 +235,7 @@ class PublishedContentQueryService
 
     private function escapeLike(string $value): string
     {
-        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
+        return str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value);
     }
 
     private function authorizeReader(User $actor): void

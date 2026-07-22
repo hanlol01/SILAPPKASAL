@@ -67,7 +67,7 @@ class ContentGovernanceQueryService
         if (! empty($filters['search'])) {
             $needle = '%'.$this->escapeLike(mb_strtolower(trim((string) $filters['search']))).'%';
             $query->whereHas('currentDraftVersion', fn (Builder $version) => $version
-                ->whereRaw("LOWER(content_versions.title) LIKE ? ESCAPE '\\'", [$needle]));
+                ->whereRaw("LOWER(content_versions.title) LIKE ? ESCAPE '!'", [$needle]));
         }
 
         return $query
@@ -187,7 +187,7 @@ class ContentGovernanceQueryService
         if (! empty($filters['search'])) {
             $needle = '%'.$this->escapeLike(mb_strtolower(trim((string) $filters['search']))).'%';
             $query->whereHas($versionRelation, fn (Builder $version) => $version
-                ->whereRaw("LOWER(content_versions.title) LIKE ? ESCAPE '\\'", [$needle]));
+                ->whereRaw("LOWER(content_versions.title) LIKE ? ESCAPE '!'", [$needle]));
         }
     }
 
@@ -284,7 +284,7 @@ class ContentGovernanceQueryService
 
     private function escapeLike(string $value): string
     {
-        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
+        return str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value);
     }
 
     private function forbidden(): HttpResponseException

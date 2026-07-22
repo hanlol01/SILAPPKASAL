@@ -714,22 +714,27 @@ Milestone 22 Additional QA:
 ## REV-CONTENT-01 C5 Handoff
 
 - C5 verified the complete backend suite on guarded SQLite `:memory:`: 413 tests and 4,230 assertions
-  pass. The focused content suite passes 61 tests/564 assertions; frontend content tests pass 27 tests;
-  TypeScript, ESLint, client+SSR build, manifest validation, targeted REV-CONTENT Pint, PHP syntax,
-  route inspection, SQLite migrate/seed/rollback/re-apply, backend health, and frontend artifact smoke
-  also pass.
+  pass. Guarded PostgreSQL `silappkasal_test` migration/seed/constraint/rollback verification passes,
+  as do the 61-test content suite and full 413-test/4,227-assertion backend suite. The development
+  database `silappkasal` was never targeted.
+- PostgreSQL portability hardening removes unsupported aggregate row locking, uses an explicit
+  wildcard escape across content queries, constrains audit route identifiers to UUIDs, and makes
+  notification/constraint tests portable across SQLite and PostgreSQL.
+- Frontend content tests pass 27 tests; TypeScript, ESLint, client+SSR build, Composer validation and
+  advisory audit, targeted Pint, PHP syntax, route inspection, and manifest validation pass. Guzzle
+  security updates are locked and the final advisory audit reports no known vulnerabilities.
 - Auth login/logout/me responses now run through `private.no-store`, preventing bearer tokens and user
   permission projections from being cacheable. Executable CORS configuration uses an exact
   environment allowlist and exposes only the response headers needed by authenticated downloads and
   request correlation. CORS never replaces Sanctum authentication or backend authorization.
-- The PostgreSQL safety guard resolved only `testing/pgsql/127.0.0.1/silappkasal_test`, but that
-  database does not exist. No database was created, `silappkasal` was never targeted, and PostgreSQL
-  migration/constraint/test verification remains blocked.
-- Authenticated multi-role browser QA remains blocked because the repository has no browser harness
-  and no persistent disposable application database was available. Source/behavior tests are not
-  represented as live viewport results.
-- Production deployment remains blocked until PostgreSQL verification, the complete browser matrix,
-  Composer advisory audit, real environment/backup confirmation, and a supported frontend production
-  runtime are approved. The existing `vite preview` VPS instructions are demo-only.
+- Authenticated Chrome QA covered Reporter at 320/360 px, Satgas at 768 px, Campus Admin at 1024 px,
+  and Super Admin at 1440 px, including permission denial and an Admin-to-reviewer-to-Reporter
+  publication handoff. Scoped editor-overflow and 44 px touch-target fixes pass static/build gates.
+  Rendered post-fix remeasurement, real-keyboard Select/Carousel/Accordion checks, and authenticated
+  PDF popup/fallback remain open.
+- Production deployment remains blocked by those browser checks, actual environment and restorable
+  backup evidence, and an unresolved production frontend artifact. Cloudflare Workers is the intended
+  candidate, but the build does not emit the generated Wrangler deployment configuration and direct
+  dry-run source bundling fails. The existing `vite preview` instructions remain QA/demo-only.
 - Release checklist, PostgreSQL report, browser matrix, and coordinated backup-first rollback plan are
   in `docs/deployment/REV_CONTENT_01_C5_*.md`. No push or deployment occurred.

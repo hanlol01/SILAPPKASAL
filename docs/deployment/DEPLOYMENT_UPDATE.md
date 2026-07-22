@@ -291,30 +291,43 @@ attachment UUIDs are both non-disclosing 404 responses.
 
 ## REV-CONTENT-01 C5 Release Hardening (Not Yet Deployed)
 
-C5 adds no product feature, dependency, migration, seed, image processing, service worker, public
-reader, notification delivery, Graphify integration, or production deployment. It adds two release
-security controls:
+C5 adds no product feature, dependency family, migration, seed, image processing, service worker,
+public reader, notification delivery, Graphify integration, or production deployment. It updates the
+existing Guzzle dependency family within compatible locked versions to close security advisories and
+adds two release security controls:
 
 - all `/api/v1/auth/*` responses are `private, no-store`, including token-bearing login and permission
   projections;
 - `config/cors.php` enforces the exact comma-separated `CORS_ALLOWED_ORIGINS` allowlist (falling back
   to `FRONTEND_URL`) for `api/*`. Production must use HTTPS origins without a wildcard.
 
-The guarded SQLite suite and build gates pass. PostgreSQL verification is blocked because the local
-`silappkasal_test` database does not exist. Authenticated browser QA is blocked because no browser
-harness or persistent disposable runtime database is available. Neither gate may be represented as
-passed, and `silappkasal` must never be used as a substitute.
+Guarded PostgreSQL verification now passes exclusively against local disposable
+`silappkasal_test`: the migration/seed/constraint/rollback procedure, 61-test content suite, and full
+413-test backend suite pass. The matching SQLite suite also passes. PostgreSQL portability repairs
+cover transaction-safe version allocation, explicit wildcard escaping, UUID route binding, portable
+notification assertions, and savepoint-safe constraint tests. The development database
+`silappkasal` was never targeted.
+
+Authenticated Chrome QA exercised Reporter at 320/360 px, Satgas at 768 px, Campus Admin at 1024 px,
+and Super Admin at 1440 px. Login/logout/account replacement, permission denial, reader navigation,
+Back/Forward state, mobile filters, campus authoring, Super Admin review/publication, and Reporter
+visibility passed. The run found an editor overflow and undersized mobile controls; scoped source
+fixes pass tests and builds, but rendered post-fix remeasurement, the complete keyboard matrix, and
+browser PDF popup/fallback remain release gates.
+
+Composer validation passes. Guzzle packages were updated within their compatible locked ranges after
+an advisory audit, and the final networked audit reports no known advisories.
 
 Before production deployment, close every blocked item in
 `REV_CONTENT_01_C5_RELEASE_CHECKLIST.md`. In particular:
 
-1. run the guarded PostgreSQL procedure in `REV_CONTENT_01_C5_POSTGRESQL_VERIFICATION.md`;
-2. complete `REV_CONTENT_01_C5_BROWSER_QA.md` with disposable accounts at all target widths;
-3. run Composer advisory audit with approved network access;
-4. select and rehearse a supported production frontend runtime/adapter—the current VPS
-   `vite preview` service is for demo use only;
-5. capture and verify both PostgreSQL and `storage/app/private/content` backups;
-6. verify the production environment uses `APP_ENV=production`, `APP_DEBUG=false`, HTTPS URLs, exact
+1. restart the built preview and complete the remaining remeasurement, keyboard, and authenticated
+   PDF scenarios in `REV_CONTENT_01_C5_BROWSER_QA.md`;
+2. correct and rehearse the Cloudflare Workers production output: the current build does not emit the
+   generated Wrangler deployment configuration, and direct source bundling fails; `vite preview`
+   remains QA-only;
+3. capture and verify both PostgreSQL and `storage/app/private/content` backups;
+4. verify the production environment uses `APP_ENV=production`, `APP_DEBUG=false`, HTTPS URLs, exact
    CORS origins, `CONTENT_IMAGE_UPLOADS_ENABLED=false`, private storage, database-backed cache/session/
    queue where planned, healthy workers, and protected secrets.
 

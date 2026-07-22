@@ -2,13 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Enums\AuditAction;
+use App\Enums\AuditCategory;
 use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\DecisionOutcome;
 use App\Enums\DecisionStatus as DecisionStatusEnum;
 use App\Enums\RecommendationStatus as RecommendationStatusEnum;
 use App\Enums\ReportStatus;
-use App\Enums\AuditAction;
-use App\Enums\AuditCategory;
 use App\Models\AuditLog;
 use App\Models\CaseAssignment;
 use App\Models\CaseRecord;
@@ -22,8 +22,8 @@ use App\Models\Recommendation;
 use App\Models\RecommendationStatus;
 use App\Models\Report;
 use App\Models\Role;
-use App\Models\User;
 use App\Models\University;
+use App\Models\User;
 use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
@@ -372,9 +372,9 @@ class DecisionFoundationTest extends TestCase
             'subject_id' => $decision->id,
         ]);
 
-        $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-18')->count());
-        $this->assertSame(1, $otherSatgas->notifications()->where('data->notification_type_code', 'NOTIF-18')->count());
-        $this->assertSame(0, $admin->notifications()->where('data->notification_type_code', 'NOTIF-18')->count());
+        $this->assertSame(1, $this->notificationsByType($satgas, 'NOTIF-18')->count());
+        $this->assertSame(1, $this->notificationsByType($otherSatgas, 'NOTIF-18')->count());
+        $this->assertSame(0, $this->notificationsByType($admin, 'NOTIF-18')->count());
 
         $this->patchJson("/api/v1/decisions/{$decision->id}", [
             'decision_summary' => 'Ringkasan keputusan yang diperbarui dan tetap sensitif.',
@@ -401,18 +401,18 @@ class DecisionFoundationTest extends TestCase
             'subject_id' => $decision->id,
         ]);
 
-        $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-19')->count());
-        $this->assertSame(1, $otherSatgas->notifications()->where('data->notification_type_code', 'NOTIF-19')->count());
-        $this->assertSame(0, $admin->notifications()->where('data->notification_type_code', 'NOTIF-19')->count());
+        $this->assertSame(1, $this->notificationsByType($satgas, 'NOTIF-19')->count());
+        $this->assertSame(1, $this->notificationsByType($otherSatgas, 'NOTIF-19')->count());
+        $this->assertSame(0, $this->notificationsByType($admin, 'NOTIF-19')->count());
 
         $this->patchJson("/api/v1/decisions/{$decision->id}/status", [
             'status' => DecisionStatusEnum::Finalized->value,
         ])
             ->assertOk();
 
-        $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-15')->count());
-        $this->assertSame(1, $otherSatgas->notifications()->where('data->notification_type_code', 'NOTIF-15')->count());
-        $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-19')->count());
+        $this->assertSame(1, $this->notificationsByType($satgas, 'NOTIF-15')->count());
+        $this->assertSame(1, $this->notificationsByType($otherSatgas, 'NOTIF-15')->count());
+        $this->assertSame(1, $this->notificationsByType($satgas, 'NOTIF-19')->count());
 
         $auditJson = AuditLog::query()
             ->whereIn('action', [
@@ -604,8 +604,7 @@ class DecisionFoundationTest extends TestCase
         string $roleCode,
         string $email,
         string $universityCode = 'DEMO-UNIV',
-    ): User
-    {
+    ): User {
         $role = Role::query()->where('code', $roleCode)->firstOrFail();
 
         return User::query()->create([

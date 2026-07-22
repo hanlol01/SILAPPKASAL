@@ -164,28 +164,38 @@ class AuditSecurityControlsTest extends TestCase
         );
         $this->assertNotNull($valid->expires_at);
 
-        try {
-            app(AuditLogService::class)->record(
-                action: AuditAction::SecurityAccessDenied,
-                category: AuditCategory::Security,
-                metadata: ['operation_code' => 'audit.detail', 'reason_code' => 'denied'],
-                result: AuditResult::Denied,
-                expiresAt: now()->addDay(),
-            );
-            $this->fail('A non-login audit expiry must be rejected.');
-        } catch (QueryException) {
-            $this->assertTrue(true);
-        }
+        $assertConstraintRejected = function (callable $operation): void {
+            $transactionLevel = DB::transactionLevel();
+            DB::beginTransaction();
+
+            try {
+                $operation();
+                $this->fail('An invalid audit expiry was accepted.');
+            } catch (QueryException) {
+                $this->assertTrue(true);
+            } finally {
+                while (DB::transactionLevel() > $transactionLevel) {
+                    DB::rollBack();
+                }
+            }
+        };
+
+        $assertConstraintRejected(fn () => app(AuditLogService::class)->record(
+            action: AuditAction::SecurityAccessDenied,
+            category: AuditCategory::Security,
+            metadata: ['operation_code' => 'audit.detail', 'reason_code' => 'denied'],
+            result: AuditResult::Denied,
+            expiresAt: now()->addDay(),
+        ));
 
         $actor = $this->makeUser('admin', 'Admin', 'admin2@example.test');
-        $this->expectException(QueryException::class);
-        app(AuditLogService::class)->record(
+        $assertConstraintRejected(fn () => app(AuditLogService::class)->record(
             action: AuditAction::AuthLoginFailed,
             category: AuditCategory::Auth,
             actor: $actor,
             result: AuditResult::Failed,
             expiresAt: now()->addDay(),
-        );
+        ));
     }
 
     public function test_retention_purge_deletes_only_expired_anonymous_login_failures(): void

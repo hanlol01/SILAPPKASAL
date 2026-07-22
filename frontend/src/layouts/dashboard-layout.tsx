@@ -207,6 +207,7 @@ function AppSidebar() {
                     <SidebarMenuButton
                       asChild
                       isActive={active}
+                      className="h-11 md:h-8"
                       tooltip={t(`dashboard:nav.${item.key}`)}
                     >
                       <Link to={item.url} onClick={closeMobileSidebar}>
@@ -251,6 +252,7 @@ function Topbar() {
         <Button
           variant="ghost"
           size="icon"
+          className="h-11 w-11"
           onClick={toggle}
           aria-label={t("dashboard:topbar.toggleTheme")}
         >
@@ -258,7 +260,7 @@ function Topbar() {
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="gap-2 px-2" aria-label={t("common:userMenu")}>
+            <Button variant="ghost" className="min-h-11 gap-2 px-2" aria-label={t("common:userMenu")}>
               <Avatar className="h-7 w-7">
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                   {initials}

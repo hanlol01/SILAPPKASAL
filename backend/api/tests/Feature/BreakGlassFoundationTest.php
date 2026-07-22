@@ -61,7 +61,7 @@ class BreakGlassFoundationTest extends TestCase
             'category' => AuditCategory::Privacy->value,
             'severity' => AuditSeverity::Critical->value,
         ]);
-        $this->assertSame(1, $admin->notifications()->where('data->notification_type_code', 'break_glass_request')->count());
+        $this->assertSame(1, $this->notificationsByType($admin, 'break_glass_request')->count());
     }
 
     public function test_request_validation_rejects_invalid_duration_short_reason_and_non_anonymous_case(): void
@@ -194,9 +194,7 @@ class BreakGlassFoundationTest extends TestCase
             'action' => AuditAction::BreakGlassApproved->value,
         ]);
 
-        $privacyNotice = $reporter->notifications()
-            ->where('data->notification_type_code', 'privacy_notice')
-            ->firstOrFail()->data;
+        $privacyNotice = $this->notificationsByType($reporter, 'privacy_notice')->firstOrFail()->data;
         $this->assertArrayNotHasKey('requestor_id', $privacyNotice);
         $this->assertArrayNotHasKey('approver_id', $privacyNotice);
         $this->assertArrayNotHasKey('reason', $privacyNotice);
@@ -466,7 +464,7 @@ class BreakGlassFoundationTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $reporterOverrides
+     * @param  array<string, mixed>  $reporterOverrides
      * @return array{CaseRecord, User, User, User, University, University}
      */
     private function anonymousCase(array $reporterOverrides = []): array

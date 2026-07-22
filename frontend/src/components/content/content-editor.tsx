@@ -268,7 +268,7 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
   const requestBack = () => (dirty ? setConfirmLeave(true) : onBack());
 
   return (
-    <div className="space-y-5 pb-40 sm:pb-24">
+    <div className="min-w-0 space-y-5 pb-40 sm:pb-24">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Button variant="ghost" className="mb-2 -ml-3 min-h-11" onClick={requestBack}>
@@ -305,8 +305,8 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
         </Alert>
       )}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <Card>
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle>{t(`content:${contentType}`)}</CardTitle>
             <CardDescription>{t("content:subtitle")}</CardDescription>

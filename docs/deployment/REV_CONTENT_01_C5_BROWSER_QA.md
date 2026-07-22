@@ -2,77 +2,58 @@
 
 Date: 2026-07-22
 
-Status: `BLOCKED`
+Status: `PARTIAL — RELEASE BLOCKERS REMAIN`
 
-Production data used: no.
+Browser: Chrome 150 headless through the DevTools protocol.
 
-## Why the gate is blocked
+Data: disposable identities and content in guarded local PostgreSQL `silappkasal_test` only.
 
-The repository contains no Playwright, Cypress, Puppeteer, WebDriver, or equivalent browser harness.
-The guarded test suite must use SQLite `:memory:`, while the local disposable PostgreSQL database does
-not exist. A persistent disposable authenticated runtime with safe test accounts therefore was not
-available. Development PostgreSQL `silappkasal` was not used as a substitute.
+## Executed matrix
 
-The following checks did run:
+| Actor / width | Result | Verified behavior |
+|---|---|---|
+| Reporter / 320 px | PASS | Login, Information Center navigation, mobile filter Sheet, labels, search/filter URL history, no horizontal reader overflow. |
+| Reporter / 360 px | PASS | Login, reader navigation, mobile controls, no horizontal reader overflow. |
+| Satgas / 768 px | PASS | Published-content permission and Information Center access. |
+| Campus Admin / 1024 px | PASS WITH FIX | Campus Article create, save, and submit. Initial editor overflow was identified and corrected in source. |
+| Super Admin / 1440 px | PASS | Governance queue, review start, approval, publication, and desktop reader access. |
+| Reporter without published permission | PASS | Menu hidden, direct route denied, API 403 with `private, no-store`; permission restored after test. |
+
+The publication handoff was verified end to end: a disposable campus Article was authored and
+submitted by Admin, approved and published by Super Admin, and then appeared to Reporter. Logout,
+login as another role, and account replacement were exercised with real authenticated sessions.
+Back/Forward restored selected Information Center state.
+
+## Findings and scoped fixes
+
+The first rendered run found two responsive defects:
+
+- the structured-document link row expanded the Admin editor to 1,328 px at a 1,024 px viewport;
+- several mobile header and pagination controls were smaller than the 44 px target.
+
+The editor containers and URL input now use `min-w-0`, while navigation, language, theme, user,
+sidebar, and pagination controls use 44 px mobile targets. Frontend behavior tests, TypeScript,
+ESLint, and client/SSR builds pass after these changes. A built-preview restart was unavailable in
+the execution environment, so rendered post-fix remeasurement remains a release gate.
+
+## Remaining live checks
+
+| Scenario | Status | Required evidence |
+|---|---|---|
+| Post-fix 320/360/768/1024/1440 overflow and touch remeasurement | BLOCKED | Restart the built preview and record final dimensions. |
+| Keyboard Select, Carousel, and Accordion across target widths | BLOCKED | Execute real keyboard navigation, focus order, activation, and Escape behavior. |
+| Authenticated PDF preview and popup-blocked fallback | BLOCKED | Publish a disposable safe PDF fixture and verify bearer fetch, fallback download, and Object URL cleanup. |
+| Rejected and archived visibility in rendered reader | NOTE | PostgreSQL lifecycle tests pass; add browser evidence before deployment. |
+| iOS/Safari manifest and responsive smoke | NOTE | Not available in this local Windows/Chrome run. |
+
+## Automated supporting evidence
 
 - frontend content behavior tests: 27 passed;
-- TypeScript and ESLint: passed (six existing Fast Refresh warnings);
-- client and SSR production build: passed;
-- manifest and `/login` preview HTTP smoke: 200;
-- source review for permission guards, semantic links, labels, focus classes, reduced motion, 44 px
-  controls, URL history, Accordion/Carousel primitives, authenticated PDF lifecycle, and cache cleanup.
+- TypeScript: passed;
+- ESLint: zero errors and six pre-existing Fast Refresh warnings;
+- client and SSR build: passed with the pre-existing large-chunk warning;
+- backend reader, authorization, publication-pointer, rejection, archive, attachment, and cache
+  boundaries pass on both PostgreSQL and SQLite.
 
-These checks are evidence, but they are not a replacement for a rendered authenticated browser run.
-
-## Required account matrix
-
-Use disposable non-production identities and content only.
-
-| Actor | Required state |
-|---|---|
-| Reporter A | active, own campus, `content.read.published` |
-| Reporter B | active, same or separate campus, permission removed |
-| Satgas | active, `content.read.published` |
-| Campus Admin A | active, campus A authoring permissions |
-| Campus Admin B | active, campus B authoring permissions |
-| Super Admin Author | active, global authoring/governance permissions |
-| Super Admin Reviewer | active, distinct from global author/editor |
-
-Never use real reports, identities, evidence, consultation contacts, or production content.
-
-## Viewport matrix
-
-Repeat the applicable scenarios at 320 px, 360 px, 768 px, 1024 px, and a desktop width of at least
-1440 px. Record browser/version, OS, result, screenshot reference, and defect ID.
-
-| Scenario | 320 | 360 | 768 | 1024 | Desktop |
-|---|---:|---:|---:|---:|---:|
-| Login/logout and account replacement cache clearing | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-| Reporter reporting actions remain visible | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-| Permission-aware navigation and four shortcuts | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-| Featured swipe, arrows, keyboard, and server order | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-| Back/Forward restores search/filter/page/view/FAQ | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-| Mobile filter Sheet and desktop filter row | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-| Select and Accordion keyboard behavior | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-| Article card/detail structured rendering | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-| Consultation safe actions | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-| Authenticated PDF preview/download/popup fallback | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-| Duplicate-click and Object URL cleanup | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-| Unauthorized direct-route rejection | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-| Admin authoring and revision flow | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-| Super Admin review, second review, publish, archive | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-| Published pointer visibility before/after publication | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-| No horizontal overflow, visible focus, 44 px targets | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-| Indonesian/English route titles and labels | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
-
-## Browser acceptance criteria
-
-- Reporter without permission has no menu/shortcut/featured entry and direct route is denied.
-- Reporter/Satgas see only global plus own-campus published-pointer records.
-- Admin sees only own-campus management and cannot review/publish/global-author/cross-campus mutate.
-- Super Admin cannot rewrite campus bodies and cannot review a version they authored or edited.
-- Draft, submitted, in-review, revision-requested, rejected, approved-only, future, archived, and
-  other-campus reader records remain absent.
-- Every target viewport has no horizontal overflow and all keyboard/focus/touch requirements pass.
-- Private PDF requests use bearer-authenticated fetch, never a tokenized URL, and leave no persistent
-  Blob storage.
+Automated evidence does not replace the remaining rendered keyboard/PDF/remeasurement checks. No
+production data, production credential, production database, push, or deployment was used.

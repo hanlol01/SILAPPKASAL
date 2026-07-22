@@ -98,7 +98,7 @@ function PortalMobileNav() {
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden"
+          className="h-11 w-11 md:hidden"
           aria-label={t("portal:openNavigation")}
         >
           <Menu className="h-5 w-5" />
@@ -170,12 +170,12 @@ function PortalTopbar() {
         {/* Right side */}
         <div className="ml-auto flex items-center gap-2">
           <LanguageSwitcher />
-          <Button variant="ghost" size="icon" onClick={toggle} aria-label={t("toggleTheme")}>
+          <Button variant="ghost" size="icon" className="h-11 w-11" onClick={toggle} aria-label={t("toggleTheme")}>
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="gap-2 px-2" aria-label={t("common:userMenu")}>
+              <Button variant="ghost" className="min-h-11 gap-2 px-2" aria-label={t("common:userMenu")}>
                 <Avatar className="h-7 w-7">
                   <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                     {initials}

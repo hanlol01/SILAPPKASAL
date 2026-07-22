@@ -2,13 +2,15 @@
 
 Date: 2026-07-22
 
-Status: `BLOCKED`
+Status: `PASS`
 
-Production database touched: no.
+Target: local disposable `silappkasal_test` only.
 
-## Observed result
+Development database touched: no.
 
-The safety guard resolved exactly:
+## Safety boundary
+
+Before every destructive database command, the effective test configuration was confirmed as:
 
 ```text
 APP_ENV=testing
@@ -19,47 +21,42 @@ DB_URL=<empty>
 TEST_DATABASE_CONFIRM=silappkasal_test
 ```
 
-`test-database:verify --confirm-database=silappkasal_test` passed. The guarded migration command then
-stopped before migration because PostgreSQL reported that `silappkasal_test` does not exist. C5 did
-not create a database, try unrelated credentials, weaken the guard, or fall back to `silappkasal`.
+`test-database:verify --env=testing --confirm-database=silappkasal_test` passed. The main local
+environment remained `APP_ENV=local` with database `silappkasal` and was never used for verification.
+No password, application key, bearer token, or other secret was printed or recorded.
 
-Consequently PostgreSQL `migrate:fresh`, seed verification, constraint/trigger inspection, repair
-rollback/re-apply, migration rollback, and the PostgreSQL content suite are blocked release gates.
+## Migration and database result
 
-## Authorized rerun procedure
+`content:verify-postgresql-migrations --env=testing` passed. It exercised the complete migration
+chain, idempotent content seeding, publication constraints and triggers, repair rollback, and repair
+re-application against the disposable target. A separate guarded `migrate:fresh --seed` also
+completed the full Foundation and demo seed chain.
 
-An operator must first provision an explicitly disposable local database named exactly
-`silappkasal_test` and supply its credentials through a secure local environment. Never copy the
-commands below into a production shell without first inspecting the effective target.
+The run exposed and repaired PostgreSQL portability defects that SQLite did not surface:
 
-1. Set only these non-secret safety values in the test process:
+- aggregate version-number allocation no longer applies unsupported `FOR UPDATE` to `MAX(...)`;
+  the content item row remains the transaction lock;
+- safe wildcard escaping uses an explicit `!` escape character across reader, management,
+  governance, and featured queries;
+- audit-log route binding rejects non-UUID identifiers before PostgreSQL receives the query;
+- test notification assertions decode the framework's text-backed JSON projection portably;
+- expected constraint failures use nested savepoints so they do not poison the outer test
+  transaction.
 
-   ```text
-   APP_ENV=testing
-   DB_CONNECTION=pgsql
-   DB_HOST=127.0.0.1
-   DB_DATABASE=silappkasal_test
-   DB_URL=
-   TEST_DATABASE_CONFIRM=silappkasal_test
-   ```
+## Test results
 
-2. Load the dedicated test username/password from an approved secret source. Do not print them.
-3. Run `php artisan test-database:verify --confirm-database=silappkasal_test`.
-4. Stop immediately unless every printed safe target value matches this document.
-5. Run `php artisan content:verify-postgresql-migrations`.
-6. Run `php artisan test --configuration phpunit.postgresql.xml`.
-7. Record migration, seed, constraints, indexes, triggers, rollback/re-apply, and suite results.
-8. Confirm again that no connection or command targeted `silappkasal`.
+| Suite | Result |
+|---|---|
+| Focused PostgreSQL regression | PASS — 113 tests, 936 assertions, one alternate-profile skip |
+| PostgreSQL C1-C4 content suite | PASS — 61 tests, 564 assertions |
+| Full PostgreSQL backend suite | PASS — 413 tests, 4,227 assertions, one alternate-profile skip |
+| Full SQLite backend suite after repairs | PASS — 413 tests, 4,230 assertions |
 
-`phpunit.postgresql.xml` includes all C1-C4 content suites: audit visibility, foundation, foundation
-repair, fail-closed images, management, management repair, and governance.
+The skip is the intentional assertion that PHPUnit defaults to SQLite; it is not applicable while
+the explicitly selected PostgreSQL profile is active.
 
-## Acceptance criteria
+## Release use
 
-- Guard and explicit confirmation pass.
-- Full migration chain applies on PostgreSQL.
-- Seed counts are exact and seeded reader visibility remains zero.
-- PostgreSQL constraints and partial unique indexes are present and enforce expected failures.
-- Repair migration rollback/re-apply passes.
-- All configured PostgreSQL content tests pass.
-- No production/development database was contacted or modified.
+This report proves local PostgreSQL compatibility only. It does not authorize production migration,
+seeding, or deployment. Production still requires a verified backup, maintenance window, reviewed
+environment, and the coordinated rollback procedure.

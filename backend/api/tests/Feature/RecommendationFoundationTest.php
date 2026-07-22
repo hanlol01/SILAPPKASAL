@@ -2,25 +2,24 @@
 
 namespace Tests\Feature;
 
+use App\Enums\AuditAction;
+use App\Enums\AuditCategory;
 use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Enums\RecommendationStatus as RecommendationStatusEnum;
 use App\Enums\ReportStatus;
-use App\Enums\AuditAction;
-use App\Enums\AuditCategory;
 use App\Models\AuditLog;
 use App\Models\CaseAssignment;
 use App\Models\CaseRecord;
 use App\Models\CaseStatus;
 use App\Models\Investigation;
 use App\Models\InvestigationStatus;
-use App\Models\Permission;
 use App\Models\Recommendation;
 use App\Models\RecommendationStatus as RecommendationStatusModel;
 use App\Models\Report;
 use App\Models\Role;
-use App\Models\User;
 use App\Models\University;
+use App\Models\User;
 use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
@@ -348,9 +347,9 @@ class RecommendationFoundationTest extends TestCase
         $this->assertArrayNotHasKey('recommendation_id', $createdLog->metadata);
         $this->assertArrayNotHasKey('case_id', $createdLog->metadata);
         $this->assertArrayNotHasKey('investigation_id', $createdLog->metadata);
-        $this->assertSame(0, $admin->notifications()->where('data->notification_type_code', 'NOTIF-16')->count());
-        $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'NOTIF-16')->count());
-        $this->assertSame(0, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-16')->count());
+        $this->assertSame(0, $this->notificationsByType($admin, 'NOTIF-16')->count());
+        $this->assertSame(0, $this->notificationsByType($superAdmin, 'NOTIF-16')->count());
+        $this->assertSame(0, $this->notificationsByType($satgas, 'NOTIF-16')->count());
 
         $this->patchJson("/api/v1/recommendations/{$recommendation->id}", [
             'recommended_actions' => 'Tindakan rekomendasi yang diperbarui dan tetap sensitif.',
@@ -376,17 +375,17 @@ class RecommendationFoundationTest extends TestCase
             'subject_id' => $recommendation->id,
         ]);
 
-        $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-17')->count());
-        $this->assertSame(1, $otherSatgas->notifications()->where('data->notification_type_code', 'NOTIF-17')->count());
-        $this->assertSame(0, $admin->notifications()->where('data->notification_type_code', 'NOTIF-17')->count());
-        $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'NOTIF-17')->count());
+        $this->assertSame(1, $this->notificationsByType($satgas, 'NOTIF-17')->count());
+        $this->assertSame(1, $this->notificationsByType($otherSatgas, 'NOTIF-17')->count());
+        $this->assertSame(0, $this->notificationsByType($admin, 'NOTIF-17')->count());
+        $this->assertSame(0, $this->notificationsByType($superAdmin, 'NOTIF-17')->count());
 
         $this->postJson("/api/v1/recommendations/{$recommendation->id}/submit")
             ->assertOk();
 
-        $this->assertSame(1, $admin->notifications()->where('data->notification_type_code', 'NOTIF-14')->count());
-        $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'NOTIF-14')->count());
-        $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-17')->count());
+        $this->assertSame(1, $this->notificationsByType($admin, 'NOTIF-14')->count());
+        $this->assertSame(0, $this->notificationsByType($superAdmin, 'NOTIF-14')->count());
+        $this->assertSame(1, $this->notificationsByType($satgas, 'NOTIF-17')->count());
 
         $this->actingAsApi($admin);
         $revisionNote = 'Perbaiki dasar analisis sebelum rekomendasi dikirim kembali.';
@@ -395,8 +394,8 @@ class RecommendationFoundationTest extends TestCase
             'revision_note' => $revisionNote,
         ])->assertOk();
 
-        $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'NOTIF-23')->count());
-        $this->assertSame(1, $otherSatgas->notifications()->where('data->notification_type_code', 'NOTIF-23')->count());
+        $this->assertSame(1, $this->notificationsByType($satgas, 'NOTIF-23')->count());
+        $this->assertSame(1, $this->notificationsByType($otherSatgas, 'NOTIF-23')->count());
 
         $auditJson = AuditLog::query()
             ->whereIn('action', [
@@ -413,7 +412,7 @@ class RecommendationFoundationTest extends TestCase
         $this->assertStringNotContainsString('Tindakan rekomendasi yang diperbarui', $auditJson);
         $this->assertStringNotContainsString($revisionNote, $auditJson);
 
-        $payload = $satgas->notifications()->where('data->notification_type_code', 'NOTIF-17')->firstOrFail()->data;
+        $payload = $this->notificationsByType($satgas, 'NOTIF-17')->firstOrFail()->data;
         $this->assertSame($case->id, $payload['case_id']);
         $this->assertSame($recommendation->id, $payload['recommendation_id']);
         $this->assertArrayNotHasKey('conclusion', $payload);
@@ -462,8 +461,8 @@ class RecommendationFoundationTest extends TestCase
 
         $this->assertSame(CaseStatusEnum::Decision->value, $case->refresh()->status->name);
         $this->assertNotNull($recommendation->refresh()->approved_at);
-        $this->assertSame(0, $admin->notifications()->where('data->notification_type_code', 'NOTIF-24')->count());
-        $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'NOTIF-24')->count());
+        $this->assertSame(0, $this->notificationsByType($admin, 'NOTIF-24')->count());
+        $this->assertSame(0, $this->notificationsByType($superAdmin, 'NOTIF-24')->count());
         $this->assertDatabaseHas('audit_logs', [
             'action' => AuditAction::RecommendationApproved->value,
             'subject_id' => $recommendation->id,

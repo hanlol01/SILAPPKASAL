@@ -228,7 +228,7 @@ export function StructuredDocumentEditor({
                     onChange={(event) => patchBlock(index, { text: event.target.value })}
                   />
                   {!block.kind.endsWith("List") && (
-                    <div className="mt-2 flex items-center gap-2">
+                    <div className="mt-2 flex min-w-0 items-center gap-2">
                       <Link2
                         className="h-4 w-4 shrink-0 text-muted-foreground"
                         aria-hidden="true"
@@ -242,6 +242,7 @@ export function StructuredDocumentEditor({
                         value={block.link}
                         disabled={disabled}
                         placeholder={t("editor.linkPlaceholder")}
+                        className="min-w-0 flex-1"
                         onChange={(event) => patchBlock(index, { link: event.target.value })}
                       />
                     </div>

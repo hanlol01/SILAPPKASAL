@@ -38,6 +38,10 @@ final class TestDatabaseGuardTest extends TestCase
 
     public function test_default_phpunit_target_is_sqlite_memory(): void
     {
+        if (config('database.default') !== 'sqlite') {
+            $this->markTestSkipped('This assertion applies only to the default SQLite PHPUnit profile.');
+        }
+
         $target = app(TestDatabaseGuard::class)->assertSafe();
 
         $this->assertSame('testing', $target['environment']);

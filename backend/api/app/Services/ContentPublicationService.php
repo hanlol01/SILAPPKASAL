@@ -326,7 +326,10 @@ class ContentPublicationService
                     throw $this->conflict('An authoring version already exists for this content item.');
                 }
 
-                $nextVersion = (int) $item->versions()->lockForUpdate()->max('version_number') + 1;
+                // The content item row above serializes revision creation. PostgreSQL
+                // rejects FOR UPDATE on aggregate queries, so the aggregate itself
+                // must not carry a row lock.
+                $nextVersion = (int) $item->versions()->max('version_number') + 1;
                 $revision = ContentVersion::query()->create([
                     'content_item_id' => $item->id,
                     'version_number' => $nextVersion,

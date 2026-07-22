@@ -265,7 +265,9 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/summary', [AuditLogController::class, 'summary'])->name('audit.oversight');
         Route::get('/oversight', [AuditLogController::class, 'oversight'])->name('audit.oversight.items');
         Route::get('/export', [AuditLogController::class, 'export'])->name('audit.export');
-        Route::get('/{auditLog:public_id}', [AuditLogController::class, 'show'])->name('audit.show');
+        Route::get('/{auditLog:public_id}', [AuditLogController::class, 'show'])
+            ->whereUuid('auditLog')
+            ->name('audit.show');
     });
 
     Route::middleware('auth:sanctum')->prefix('break-glass')->group(function (): void {

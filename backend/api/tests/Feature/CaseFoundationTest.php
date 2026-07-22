@@ -10,8 +10,8 @@ use App\Models\CaseRecord;
 use App\Models\CaseStatus;
 use App\Models\Report;
 use App\Models\Role;
-use App\Models\User;
 use App\Models\University;
+use App\Models\User;
 use App\Services\AuditLogService;
 use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\MasterDataSeeder;
@@ -308,11 +308,12 @@ class CaseFoundationTest extends TestCase
         ]);
 
         $this->actingAsApi($admin);
-        $this->getJson('/api/v1/cases?quick_filter=active')
+        $activeResponse = $this->getJson('/api/v1/cases?quick_filter=active')
             ->assertOk()
-            ->assertJsonPath('meta.total', 3)
-            ->assertJsonFragment(['id' => $activeCase->id])
-            ->assertJsonMissing(['id' => $closedCase->id]);
+            ->assertJsonPath('meta.total', 3);
+        $activeIds = collect($activeResponse->json('data'))->pluck('id');
+        $this->assertTrue($activeIds->contains($activeCase->id));
+        $this->assertFalse($activeIds->contains($closedCase->id));
 
         $this->getJson('/api/v1/cases?quick_filter=pending_decision')
             ->assertOk()
@@ -484,7 +485,7 @@ class CaseFoundationTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $overrides
+     * @param  array<string, mixed>  $overrides
      */
     private function makeReport(array $overrides = []): Report
     {
@@ -513,7 +514,7 @@ class CaseFoundationTest extends TestCase
     }
 
     /**
-     * @param list<User> $satgasUsers
+     * @param  list<User>  $satgasUsers
      */
     private function forwardedCase(User $admin, array $satgasUsers, User $lead): CaseRecord
     {
@@ -535,8 +536,7 @@ class CaseFoundationTest extends TestCase
         string $roleCode,
         string $email,
         ?string $universityCode = 'DEMO-UNIV',
-    ): User
-    {
+    ): User {
         $role = Role::query()->where('code', $roleCode)->firstOrFail();
 
         return User::query()->create([

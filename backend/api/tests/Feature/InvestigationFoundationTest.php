@@ -2,11 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Enums\AuditAction;
+use App\Enums\AuditCategory;
 use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Enums\ReportStatus;
-use App\Enums\AuditAction;
-use App\Enums\AuditCategory;
 use App\Models\AuditLog;
 use App\Models\CaseAssignment;
 use App\Models\CaseRecord;
@@ -17,9 +17,9 @@ use App\Models\Report;
 use App\Models\Role;
 use App\Models\University;
 use App\Models\User;
+use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
-use Database\Seeders\CampusMasterDataSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Sanctum;
@@ -302,9 +302,9 @@ class InvestigationFoundationTest extends TestCase
             'subject_id' => $investigation->id,
         ]);
 
-        $this->assertSame(1, $admin->notifications()->where('data->notification_type_code', 'investigation_created')->count());
-        $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'investigation_created')->count());
-        $this->assertSame(0, $satgas->notifications()->where('data->notification_type_code', 'investigation_created')->count());
+        $this->assertSame(1, $this->notificationsByType($admin, 'investigation_created')->count());
+        $this->assertSame(0, $this->notificationsByType($superAdmin, 'investigation_created')->count());
+        $this->assertSame(0, $this->notificationsByType($satgas, 'investigation_created')->count());
 
         $activityId = $this->postJson("/api/v1/investigations/{$investigation->id}/activities", [
             'activity_type' => 'document_review',
@@ -339,14 +339,14 @@ class InvestigationFoundationTest extends TestCase
             'subject_id' => $investigation->id,
         ]);
 
-        $this->assertSame(1, $satgas->notifications()->where('data->notification_type_code', 'investigation_status_changed')->count());
-        $this->assertSame(1, $otherSatgas->notifications()->where('data->notification_type_code', 'investigation_status_changed')->count());
-        $this->assertSame(0, $admin->notifications()->where('data->notification_type_code', 'investigation_status_changed')->count());
-        $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'investigation_status_changed')->count());
-        $this->assertSame(1, $admin->notifications()->where('data->notification_type_code', 'investigation_completed')->count());
-        $this->assertSame(0, $superAdmin->notifications()->where('data->notification_type_code', 'investigation_completed')->count());
+        $this->assertSame(1, $this->notificationsByType($satgas, 'investigation_status_changed')->count());
+        $this->assertSame(1, $this->notificationsByType($otherSatgas, 'investigation_status_changed')->count());
+        $this->assertSame(0, $this->notificationsByType($admin, 'investigation_status_changed')->count());
+        $this->assertSame(0, $this->notificationsByType($superAdmin, 'investigation_status_changed')->count());
+        $this->assertSame(1, $this->notificationsByType($admin, 'investigation_completed')->count());
+        $this->assertSame(0, $this->notificationsByType($superAdmin, 'investigation_completed')->count());
 
-        $payload = $satgas->notifications()->where('data->notification_type_code', 'investigation_status_changed')->firstOrFail()->data;
+        $payload = $this->notificationsByType($satgas, 'investigation_status_changed')->firstOrFail()->data;
         $this->assertSame($case->case_number, $payload['case_number']);
         $this->assertSame(InvestigationStatusEnum::Planning->value, $payload['from_status']);
         $this->assertSame(InvestigationStatusEnum::Completed->value, $payload['to_status']);
