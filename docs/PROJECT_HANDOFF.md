@@ -741,3 +741,34 @@ Milestone 22 Additional QA:
   instructions remain QA/demo-only.
 - Release checklist, PostgreSQL report, browser matrix, and coordinated backup-first rollback plan are
   in `docs/deployment/REV_CONTENT_01_C5_*.md`. No push or deployment occurred.
+
+## REV-CONTENT-01 Demo Readiness Closure
+
+- REV-CONTENT-01 is closed for local development and demonstration at commit
+  `56d4915ed6b7562147e1bcfe432a650ea796034f`. This closure does not authorize or claim a production
+  deployment.
+- Local API and Vite startup, authentication, Reporter and Satgas published-reader access, Campus
+  Admin authoring, Super Admin review/publication, account replacement, cache isolation, browser
+  history, and the end-to-end Admin-to-reviewer-to-Reporter publication handoff have verified demo
+  evidence. No known fatal application runtime defect remains.
+- Automated evidence includes passing guarded SQLite and disposable PostgreSQL backend suites,
+  content lifecycle and permission tests, frontend content tests, TypeScript, ESLint with only the
+  existing warnings, client and SSR builds, Composer validation/audit, Pint, PHP syntax, and route
+  inspection.
+- A fresh content seed intentionally contains 41 Article drafts and eight FAQ drafts, not published
+  content. It contains no fabricated Consultation contacts. Prepare visible Information Center
+  records through the normal Campus Admin submission and distinct Super Admin review/publication
+  workflow before a presentation.
+- Local startup, safe demo-account patterns, content preparation, and the smoke sequence are recorded
+  in `docs/DEMO_DATASET_SPEC.md`. Passwords are deliberately excluded from documentation and must be
+  supplied through an approved local secret channel.
+- The interrupted temporary CDP run did not conclusively reproduce an application defect. Full
+  viewport, real-keyboard Select/Carousel/Accordion, and authenticated PDF popup/fallback matrices
+  are deferred to `REV-QA-01`, together with a permanent Playwright QA harness; they are not local
+  demo blockers under this milestone.
+- Production environment and secret verification, backup/restore rehearsal, VPS or Cloudflare
+  deployment, and additional production hardening are deferred to dedicated production milestones.
+  Existing Cloudflare runtime output is optional future deployment readiness only.
+- Image upload, notification delivery, public unauthenticated content, offline authenticated-content
+  caching, Flutter, and Graphify remain deferred. No production push or deployment occurred.
+- Demo-readiness verdict: `DEMO_READY_WITH_NOTES`.

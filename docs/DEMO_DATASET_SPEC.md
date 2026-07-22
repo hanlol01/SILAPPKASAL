@@ -1,513 +1,178 @@
-# DEMO\_DATASET\_[SPEC.md](http://SPEC.md) 
- 
-**Project:** SILAPPKASAL
- 
-**Version:** 2.0
- 
-**Status:** Frozen
- 
-**Purpose**
- 
-Dokumen ini mendefinisikan dataset demo resmi SILAPPKASAL.
- 
-Dataset ini digunakan untuk:
- 
+# SILAPPKASAL Local Demo Dataset and Startup
 
-*   Internal Demo
-     
-*   Smoke Testing
-     
-*   User Acceptance Test (UAT)
-     
-*   QA
-     
-*   Developer Onboarding
-     
-*   Regression Testing
-     
+**Version:** 2.1
 
-Dataset harus bersifat:
- 
+**Status:** Active local-demo contract
 
-*   realistis
-     
-*   konsisten
-     
-*   idempotent
-     
-*   merepresentasikan seluruh workflow bisnis
-     
-*   siap dipakai tanpa konfigurasi tambahan
-     
+**Last verified:** 22 July 2026
 
----
- 
+## 1. Purpose and boundary
 
-# 1\. General Principles
- 
-Dataset **bukan** data acak.
- 
-Dataset harus membentuk alur bisnis nyata dari awal sampai akhir.
- 
-Semua dashboard harus memiliki data.
- 
-Tidak boleh ada halaman utama yang kosong.
- 
-Semua foreign key harus valid.
- 
-Semua seeder harus idempotent.
- 
-Gunakan updateOrCreate() bila memungkinkan.
- 
----
- 
+This document defines the repository-owned dataset and startup procedure for local development,
+demonstration, smoke testing, UAT, and developer onboarding. It is not a production deployment
+runbook.
 
-# 2\. Demo Login Accounts
- 
-Semua akun menggunakan password:
- 
+Use an explicitly selected local or disposable demo database. Never run destructive database
+commands against production or against a database whose target has not been verified. Production
+deployment, infrastructure, secrets, backup/restore rehearsal, and security hardening are deferred
+to dedicated milestones.
 
-    Demo123@
-    
+## 2. Seeder composition
 
-## Platform
- 
-Super Admin
- 
+`DatabaseSeeder` runs the following foundation and demo seeders in order:
 
-    superadmin@silappkasal.test
-    
+1. RBAC foundation.
+2. Master data.
+3. Campus master data.
+4. Content foundation.
+5. Transactional demo dataset.
 
-## Per Kampus
- 
-Untuk setiap kampus dibuat:
- 
-Administrator
- 
+The transactional demo dataset creates users, registration examples, reports, cases,
+investigations, recommendations, decisions, recovery and monitoring data, Evidence metadata,
+notifications, and audit records. The seeders use stable lookups and `updateOrCreate` patterns where
+appropriate so reruns do not intentionally duplicate their records.
 
-    admin.<kodekampus>@silappkasal.test
-    
+## 3. Demo accounts
 
-Satgas
- 
+Passwords are intentionally not recorded in this repository document. Obtain the current local
+demo credential from the authorized project owner or approved local secret channel. Never include
+it in screenshots, tutorials, commits, chat logs, or demo recordings.
 
-    satgas.<kodekampus>@silappkasal.test
-    
+Repository-owned account identifiers are:
 
-Reporter Approved
- 
+- Super Admin: `superadmin@silappkasal.test`.
+- Campus Admin: `admin.<campus-code>@silappkasal.test`.
+- Assigned Satgas: `satgas.<campus-code>@silappkasal.test` and
+  `satgas2.<campus-code>@silappkasal.test`.
+- Reporter: `reporter.<campus-code>@silappkasal.test` and
+  `reporter2.<campus-code>@silappkasal.test`.
 
-    reporter.<kodekampus>@silappkasal.test
-    
+The actual `<campus-code>` values come from seeded campus master data. Pending and rejected
+registration examples are Reporter Registration records, not active login accounts.
 
-Reporter Pending
- 
+Each campus receives one Admin, two Satgas users, and two active Reporter users. The dataset also
+contains pending, approved, and rejected registration states so registration review can be
+demonstrated separately from login.
 
-    pending.<kodekampus>@silappkasal.test
-    
+## 4. Workflow coverage
 
-Reporter Rejected
- 
+The dataset supplies representative records across the application workflow, including:
 
-    rejected.<kodekampus>@silappkasal.test
-    
+- Reporter registration and campus review.
+- Reporter report submission and tracking.
+- Case assignment, assessment, and investigation.
+- Recommendation review and Decision.
+- Recovery, monitoring, and Case closure.
+- Role-specific notifications, audit history, and dashboard data.
 
----
- 
+All demo Evidence is metadata or safe fixture data. Do not substitute real identities, incidents,
+or sensitive files.
 
-# 3\. Universities
- 
-Seed universitas berikut.
- 
+## 5. Information Center seed behavior
 
-1.  STAI Sebelas April
-     
-2.  STAI Al Musaddadiyah Garut
-     
-3.  Universitas Islam KH. Ilyas Ruhiyat
-     
-4.  Institut Nahdlatul Ulama Tasikmalaya
-     
-5.  Universitas Islam Darussalam Ciamis
-     
-6.  Sekolah Tinggi Ilmu Tarbiyah Nahdlatul Ulama Al-Farabi
-     
-7.  Institut Miftahul Azhar Banjar
-     
+`ContentFoundationSeeder` creates four stable sections, ten storyboard categories, 41 global
+Article drafts, and eight global FAQ drafts. These records require editorial review, have no
+published pointer, and never auto-publish. Seeder reruns do not overwrite editorial changes.
 
-Gunakan data nyata sejauh memungkinkan.
- 
----
- 
+No Consultation contact is seeded because institutional contact details must be verified rather
+than fabricated. Consequently, a fresh seed alone does not guarantee populated featured Articles,
+FAQ answers, or Consultation cards in the published reader.
 
-# 4\. Faculties & Study Programs
- 
-Gunakan struktur akademik yang realistis.
- 
-Untuk sekolah tinggi:
- 
+Before an Information Center demonstration, use the normal application workflow on the selected
+demo database:
 
-    has_faculties = false
-    
+1. A Campus Admin creates or completes safe campus content and submits it.
+2. A different authorized Super Admin reviewer reviews and publishes it.
+3. Super Admin adds an eligible published Article to featured placement when the carousel is part
+   of the demonstration.
+4. Consultation content is created only with verified demo-safe institutional contact details.
+5. Reporter signs in again or refreshes the published reader and verifies the published result.
 
-Program studi langsung berada di bawah universitas.
- 
-Untuk universitas:
- 
-Gunakan struktur fakultas dan program studi yang benar.
- 
----
- 
+Do not publish by editing database pointers directly, bypass second-review rules, or invent contact
+details merely to fill the page.
 
-# 5\. Users
- 
-Minimal:
- 
+## 6. Local startup
 
-*   1 Super Admin
-     
+Prerequisites must already be installed; this procedure does not install dependencies.
 
-Per kampus:
- 
+### Backend
 
-*   1 Admin
-     
-*   2 Satgas
-     
-*   2 Reporter Approved
-     
-*   1 Reporter Pending
-     
-*   1 Reporter Rejected
-     
+1. In `backend/api`, configure `.env` for the intended local/demo database and local frontend
+   origin. Inspect the effective database target without printing passwords, application keys, or
+   tokens.
+2. For a brand-new, explicitly disposable demo database only, run:
 
-Semua user memiliki:
- 
+   ```text
+   php artisan migrate:fresh --seed
+   ```
 
-*   nama realistis
-     
-*   email konsisten
-     
-*   nomor telepon
-     
-*   universitas
-     
-*   fakultas bila ada
-     
-*   program studi
-     
+   This command is destructive and must not be used on an existing database that must be retained.
+3. For an existing intended demo database, apply the normal non-destructive migration and seeding
+   path after reviewing the target:
 
----
- 
+   ```text
+   php artisan migrate --seed
+   ```
 
-# 6\. Reporter Registrations
- 
-Harus tersedia contoh:
- 
-Pending
- 
-Approved
- 
-Rejected
- 
-Rejected harus memiliki:
- 
+4. Start the local API:
 
-*   rejection\_reason
-     
-*   reviewed\_by
-     
-*   reviewed\_at
-     
+   ```text
+   php artisan serve --host=127.0.0.1 --port=8000
+   ```
 
-Pending belum memiliki reviewer.
- 
-Approved sudah berubah menjadi User aktif.
- 
----
- 
+5. Confirm `GET http://127.0.0.1:8000/api/v1/health` succeeds.
 
-# 7\. Reports
- 
-Seed berbagai jenis laporan.
- 
-Gunakan narasi realistis.
- 
-Tidak menggunakan lorem ipsum.
- 
-Kategori bervariasi.
- 
-Tanggal bervariasi.
- 
----
- 
+### Frontend
 
-# 8\. Cases
- 
-Buat kasus pada seluruh status workflow.
- 
-Contoh:
- 
-Submitted
- 
-Verification
- 
-Investigation
- 
-Recommendation
- 
-Decision
- 
-Recovery
- 
-Closed
- 
----
- 
+1. In `frontend`, verify the local environment points `VITE_API_BASE_URL` to
+   `http://127.0.0.1:8000/api/v1` or the equivalent canonical local API origin.
+2. Start the development frontend:
 
-# 9\. Investigations
- 
-Buat investigasi:
- 
-ongoing
- 
-completed
- 
-Assign investigator.
- 
----
- 
+   ```text
+   npm run dev -- --host localhost --port 5173
+   ```
 
-# 10\. Recommendations
- 
-Gunakan berbagai status.
- 
-Minimal:
- 
-draft
- 
-submitted
- 
-accepted
- 
-rejected
- 
----
- 
+3. Open `http://localhost:5173/login` and use an approved repository-owned demo account.
 
-# 11\. Decisions
- 
-Minimal:
- 
-accepted
- 
-partially accepted
- 
-rejected
- 
-deferred
- 
----
- 
+The Vite development runtime is the supported local demo runtime. Cloudflare Workers output is
+optional future deployment readiness and is not required for this milestone.
 
-# 12\. Recoveries
- 
-Minimal:
- 
-planning
- 
-ongoing
- 
-completed
- 
-Monitoring juga tersedia.
- 
----
- 
+## 7. Demo smoke sequence
 
-# 13\. Evidence
- 
-Gunakan metadata realistis.
- 
-Tidak perlu file fisik.
- 
----
- 
+Use the following short readiness check before presenting:
 
-# 14\. Notifications
- 
-Setiap role memiliki notifikasi.
- 
-Contoh:
- 
-Laporan baru
- 
-Investigasi selesai
- 
-Rekomendasi dibuat
- 
-Recovery selesai
- 
-Keputusan difinalisasi
- 
----
- 
+1. Confirm API and frontend health.
+2. Log in as Reporter and verify the Reporter dashboard.
+3. Open **Pusat Informasi** and verify featured Article, Article detail, FAQ, and available verified
+   Consultation actions.
+4. Log out and log in as Campus Admin; create or edit safe content and submit it.
+5. Log out and log in as Super Admin; review and publish the submitted version.
+6. Return as Reporter and verify that the authoritative published version is visible.
+7. Verify an account without `content.read.published` cannot open the reader.
 
-# 15\. Audit Logs
- 
-Minimal 100 audit log.
- 
-Harus mencakup seluruh workflow.
- 
-Audit harus terlihat realistis.
- 
----
- 
+## 8. Known demo limitations and deferred work
 
-# 16\. Dashboard Readiness
- 
-Dashboard tidak boleh kosong.
- 
-Semua widget memiliki data.
- 
-Analytics memiliki nilai.
- 
-Timeline memiliki aktivitas.
- 
----
- 
+- Image upload remains disabled because the audited PHP environment cannot safely process images.
+- Seeded Article and FAQ records start as drafts; published demo content requires the normal review
+  workflow described above.
+- Consultation contacts are not seeded and must use verified demo-safe information.
+- Notification delivery, comments, reactions, bookmarks, scheduled publication, Flutter, and
+  public unauthenticated content remain deferred.
+- Complete viewport, keyboard-interaction, and popup-blocked PDF browser matrices are deferred to
+  `REV-QA-01`, including a permanent Playwright QA harness. Existing automated checks and completed
+  role-based browser smoke tests remain the current demo evidence.
+- Production environment verification, secret rotation, deployment, infrastructure, and
+  backup/restore rehearsal are deferred to dedicated production milestones.
+- Graphify remains deferred.
 
-# 17\. Story-driven Dataset
- 
-Dataset harus membentuk alur berikut:
- 
-Reporter Registration
- 
-↓
- 
-Approval
- 
-↓
- 
-Login Reporter
- 
-↓
- 
-Create Report
- 
-↓
- 
-Case
- 
-↓
- 
-Investigation
- 
-↓
- 
-Recommendation
- 
-↓
- 
-Decision
- 
-↓
- 
-Recovery
- 
-↓
- 
-Monitoring
- 
-↓
- 
-Case Closed
- 
-Minimal terdapat beberapa kasus yang berhenti di setiap tahapan sehingga semua workflow dapat didemokan.
- 
----
- 
+## 9. Demo acceptance
 
-# 18\. Seeder Architecture
- 
-Disarankan dipisahkan menjadi:
- 
+The local demo is ready when:
 
-*   CampusDemoSeeder
-     
-*   UserDemoSeeder
-     
-*   ReporterRegistrationDemoSeeder
-     
-*   ReportDemoSeeder
-     
-*   CaseDemoSeeder
-     
-*   InvestigationDemoSeeder
-     
-*   RecommendationDemoSeeder
-     
-*   DecisionDemoSeeder
-     
-*   RecoveryDemoSeeder
-     
-*   NotificationDemoSeeder
-     
-*   AuditDemoSeeder
-     
-
-DatabaseSeeder hanya menjadi orchestrator.
- 
----
- 
-
-# 19\. Acceptance Criteria
- 
-Dataset dinyatakan selesai apabila:
- 
-
-*   migrate:fresh --seed berhasil
-     
-*   seluruh test tetap hijau
-     
-*   seluruh dashboard memiliki data
-     
-*   seluruh workflow dapat didemokan
-     
-*   registrasi mahasiswa dapat diuji
-     
-*   tracking dapat diuji
-     
-*   admin kampus memiliki data
-     
-*   satgas memiliki tugas
-     
-*   super admin melihat seluruh kampus
-     
-*   seluruh foreign key valid
-     
-*   tidak ada duplicate seed
-     
-*   seeder bersifat idempotent
-     
-
----
- 
-
-# 20\. Out of Scope
- 
-Dataset ini tidak mengubah:
- 
-
-*   struktur database
-     
-*   API
-     
-*   RBAC
-     
-*   frontend
-     
-*   workflow bisnis
-     
-
-Dataset hanya menyediakan data demo yang realistis dan siap digunakan.
+- Backend and frontend start successfully on the documented local origins.
+- Repository-owned demo accounts can authenticate.
+- Required seeded workflow data is available.
+- Reporter, Campus Admin, Satgas, and Super Admin core role flows open without a fatal runtime error.
+- Information Center content prepared through the normal lifecycle is visible only to authorized
+  published readers.
+- Current backend and frontend automated verification remains passing.
