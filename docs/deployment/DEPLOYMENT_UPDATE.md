@@ -323,13 +323,18 @@ Before production deployment, close every blocked item in
 
 1. restart the built preview and complete the remaining remeasurement, keyboard, and authenticated
    PDF scenarios in `REV_CONTENT_01_C5_BROWSER_QA.md`;
-2. correct and rehearse the Cloudflare Workers production output: the current build does not emit the
-   generated Wrangler deployment configuration, and direct source bundling fails; `vite preview`
-   remains QA-only;
+2. use the verified `npm run build` output and generated redirected Wrangler configuration; repeat
+   `npx wrangler deploy --dry-run` from the reviewed release commit before any authorized deployment;
 3. capture and verify both PostgreSQL and `storage/app/private/content` backups;
 4. verify the production environment uses `APP_ENV=production`, `APP_DEBUG=false`, HTTPS URLs, exact
    CORS origins, `CONTENT_IMAGE_UPLOADS_ENABLED=false`, private storage, database-backed cache/session/
    queue where planned, healthy workers, and protected secrets.
+
+C5-RUNTIME-01 enables the wrapper's supported self-hosted Nitro path with `nitro: true`. The default
+`cloudflare-module` preset now emits `dist/server/index.mjs`, `dist/server/wrangler.json`,
+`.wrangler/deploy/config.json`, and a `dist/client` assets binding. Wrangler 4.98.0 follows that
+redirected configuration and completes `npx wrangler deploy --dry-run` without credentials or a
+deployment. Generated artifacts remain ignored build output; `vite preview` remains a QA command.
 
 Deploy backend code and matching client/SSR artifacts from the same reviewed commit. Enter maintenance
 mode, capture backups, install locked dependencies, migrate, rebuild caches/artifacts, restart

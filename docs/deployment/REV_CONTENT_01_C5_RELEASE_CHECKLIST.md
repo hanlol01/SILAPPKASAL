@@ -38,21 +38,22 @@ Status values are `PASS`, `FAIL`, `BLOCKED`, `NOT RUN`, and `NOTE`.
 | Targeted formatting and PHP syntax | PASS | Changed PHP files pass Pint and `php -l`. |
 | Route, locale, manifest, and diff inspection | PASS | Content/audit routes, ID/EN behavior tests, manifest JSON/no-service-worker boundary, and `git diff --check` pass. |
 | Credential rotation review | BLOCKED | A key value was transiently present in the example environment file during workspace inspection and was removed before commit. If that value belongs to any active environment, rotate it before release; the value is not recorded here. |
-| Frontend production runtime | BLOCKED | Cloudflare Workers is the intended candidate, but the build emits no `.wrangler/deploy/config.json` or generated output `wrangler.json`; direct Wrangler dry-run tries to bundle source virtual modules and fails. `vite preview` is QA-only. |
+| Frontend production runtime | PASS | Explicit supported Nitro Cloudflare activation now emits `dist/server/index.mjs`, `dist/server/wrangler.json`, `.wrangler/deploy/config.json`, and the `dist/client` assets binding. `npx wrangler deploy --dry-run` uses the redirected config and exits successfully without deployment. |
 | Production environment confirmation | BLOCKED | Actual production environment values were intentionally not read or changed. |
 | Restorable production backup evidence | BLOCKED | No production deployment was authorized; PostgreSQL and private-content backup creation/restore evidence was not supplied. |
 | Deployment | NOT RUN | Explicitly prohibited. |
 
 ## Release decision
 
-Do not deploy REV-CONTENT-01 yet. PostgreSQL, Composer, and the core authenticated role flow now pass,
-but the supported frontend deployment artifact, remaining live browser matrix, actual production
-environment confirmation, and restorable backup evidence are mandatory open gates.
+Do not deploy REV-CONTENT-01 yet. PostgreSQL, Composer, the core authenticated role flow, and the
+Cloudflare Workers build/dry-run contract now pass, but the remaining live browser matrix, credential
+rotation review, actual production environment confirmation, and restorable backup evidence are
+mandatory open gates.
 
 ## Pre-deployment operator checklist
 
-- [ ] Rebuild and prove a supported Cloudflare Workers output configuration and successful local
-  `wrangler deploy --dry-run`; do not deploy `src/server.ts` directly.
+- [x] Build the supported Nitro Cloudflare output and pass `npx wrangler deploy --dry-run` through the
+  generated redirected configuration. No deployment was performed.
 - [ ] Restart the built preview and remeasure the corrected 1024 px editor and all 44 px targets.
 - [ ] Complete keyboard Select/Carousel/Accordion and authenticated PDF popup/fallback browser checks.
 - [ ] Confirm `APP_ENV=production`, `APP_DEBUG=false`, HTTPS URLs, the exact CORS origin allowlist,

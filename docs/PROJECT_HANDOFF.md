@@ -732,9 +732,12 @@ Milestone 22 Additional QA:
   publication handoff. Scoped editor-overflow and 44 px touch-target fixes pass static/build gates.
   Rendered post-fix remeasurement, real-keyboard Select/Carousel/Accordion checks, and authenticated
   PDF popup/fallback remain open.
-- Production deployment remains blocked by those browser checks, actual environment and restorable
-  backup evidence, and an unresolved production frontend artifact. Cloudflare Workers is the intended
-  candidate, but the build does not emit the generated Wrangler deployment configuration and direct
-  dry-run source bundling fails. The existing `vite preview` instructions remain QA/demo-only.
+- C5-RUNTIME-01 restores the supported Cloudflare Workers artifact contract by explicitly enabling
+  the Lovable wrapper's Nitro Cloudflare deployment path. The build emits the Worker entry, generated
+  Wrangler config, redirected deploy config, and client-assets binding; Wrangler 4.98.0 completes the
+  official dry-run command without credentials or deployment.
+- Production deployment remains blocked by the remaining browser checks, credential rotation review,
+  actual environment confirmation, and restorable backup evidence. The existing `vite preview`
+  instructions remain QA/demo-only.
 - Release checklist, PostgreSQL report, browser matrix, and coordinated backup-first rollback plan are
   in `docs/deployment/REV_CONTENT_01_C5_*.md`. No push or deployment occurred.
