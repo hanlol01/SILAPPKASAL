@@ -34,6 +34,8 @@ class AuthEndpointsTest extends TestCase
         ]);
 
         $response->assertOk()
+            ->assertHeader('Cache-Control', 'max-age=0, no-store, private')
+            ->assertHeader('Pragma', 'no-cache')
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.token_type', 'Bearer')
             ->assertJsonPath('data.expires_in', 86400)
@@ -141,6 +143,8 @@ class AuthEndpointsTest extends TestCase
         $this->withToken($token)
             ->getJson('/api/v1/auth/me')
             ->assertOk()
+            ->assertHeader('Cache-Control', 'max-age=0, no-store, private')
+            ->assertHeader('Pragma', 'no-cache')
             ->assertJsonPath('data.id', $user->id)
             ->assertJsonPath('data.role.code', 'reporter')
             ->assertJsonFragment(['reports.create']);
@@ -186,8 +190,35 @@ class AuthEndpointsTest extends TestCase
         ]);
     }
 
+    public function test_auth_cors_allows_the_configured_frontend_origin(): void
+    {
+        $allowed = $this->call('OPTIONS', '/api/v1/auth/login', server: [
+            'HTTP_ORIGIN' => 'http://localhost:5173',
+            'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'POST',
+            'HTTP_ACCESS_CONTROL_REQUEST_HEADERS' => 'authorization,content-type',
+        ]);
+
+        $allowed->assertNoContent()
+            ->assertHeader('Access-Control-Allow-Origin', 'http://localhost:5173')
+            ->assertHeader('Access-Control-Allow-Methods');
+    }
+
+    public function test_auth_cors_does_not_echo_an_untrusted_origin(): void
+    {
+        $denied = $this->call('OPTIONS', '/api/v1/auth/login', server: [
+            'HTTP_ORIGIN' => 'https://untrusted.example',
+            'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'POST',
+            'HTTP_ACCESS_CONTROL_REQUEST_HEADERS' => 'authorization,content-type',
+        ]);
+
+        $this->assertNotSame(
+            'https://untrusted.example',
+            $denied->headers->get('Access-Control-Allow-Origin'),
+        );
+    }
+
     /**
-     * @param array<string, mixed> $overrides
+     * @param  array<string, mixed>  $overrides
      */
     private function makeUser(array $overrides = []): User
     {

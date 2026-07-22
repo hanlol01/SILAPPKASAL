@@ -9,6 +9,10 @@
             <file>tests/Feature/ContentAuditVisibilityRepairTest.php</file>
             <file>tests/Feature/ContentFoundationRepairTest.php</file>
             <file>tests/Feature/ContentFoundationTest.php</file>
+            <file>tests/Feature/ContentImageFailClosedTest.php</file>
+            <file>tests/Feature/ContentManagementRepairTest.php</file>
+            <file>tests/Feature/ContentManagementTest.php</file>
+            <file>tests/Feature/ContentGovernanceTest.php</file>
         </testsuite>
     </testsuites>
     <source>

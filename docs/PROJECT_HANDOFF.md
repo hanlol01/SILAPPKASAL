@@ -710,3 +710,26 @@ Milestone 22 Additional QA:
 - All `/api/v1/content*` exception responses are explicitly private/no-store. Published attachment
   download uses controller-level UUID lookup inside that boundary and returns the same 404 shape for
   unknown and unauthorized records.
+
+## REV-CONTENT-01 C5 Handoff
+
+- C5 verified the complete backend suite on guarded SQLite `:memory:`: 413 tests and 4,230 assertions
+  pass. The focused content suite passes 61 tests/564 assertions; frontend content tests pass 27 tests;
+  TypeScript, ESLint, client+SSR build, manifest validation, targeted REV-CONTENT Pint, PHP syntax,
+  route inspection, SQLite migrate/seed/rollback/re-apply, backend health, and frontend artifact smoke
+  also pass.
+- Auth login/logout/me responses now run through `private.no-store`, preventing bearer tokens and user
+  permission projections from being cacheable. Executable CORS configuration uses an exact
+  environment allowlist and exposes only the response headers needed by authenticated downloads and
+  request correlation. CORS never replaces Sanctum authentication or backend authorization.
+- The PostgreSQL safety guard resolved only `testing/pgsql/127.0.0.1/silappkasal_test`, but that
+  database does not exist. No database was created, `silappkasal` was never targeted, and PostgreSQL
+  migration/constraint/test verification remains blocked.
+- Authenticated multi-role browser QA remains blocked because the repository has no browser harness
+  and no persistent disposable application database was available. Source/behavior tests are not
+  represented as live viewport results.
+- Production deployment remains blocked until PostgreSQL verification, the complete browser matrix,
+  Composer advisory audit, real environment/backup confirmation, and a supported frontend production
+  runtime are approved. The existing `vite preview` VPS instructions are demo-only.
+- Release checklist, PostgreSQL report, browser matrix, and coordinated backup-first rollback plan are
+  in `docs/deployment/REV_CONTENT_01_C5_*.md`. No push or deployment occurred.

@@ -9,6 +9,7 @@ Code:
 
 Data:
 - PostgreSQL
+- Private content and Evidence storage
 
 Knowledge:
 - Documentation
@@ -49,6 +50,8 @@ Simpan:
 - Database dump terbaru
 - Copy file .env
 - Copy deployment docs
+- Encrypted copy of `backend/api/storage/app/private/content`
+- Encrypted copy of other required private storage according to the Evidence retention policy
 
 ---
 
@@ -67,19 +70,29 @@ psql silappkasal_test < backup.sql
 
 ## Restore Procedure
 
+Never restore directly over production as the first verification. Restore the database into an
+isolated disposable target, restore the matching private-storage snapshot, and verify integrity before
+an approved production recovery window. Preserve the failed-state database and files for audit and
+incident review.
+
 Create database:
 
-CREATE DATABASE silappkasal;
+CREATE DATABASE <DISPOSABLE_RESTORE_DATABASE>;
 
 Restore:
 
-psql silappkasal < backup-latest.sql
+psql <DISPOSABLE_RESTORE_DATABASE> < backup-latest.sql
 
 Verifikasi:
 
 php artisan tinker
 
 App\Models\User::count();
+
+For REV-CONTENT-01, also reconcile content attachment rows with
+`storage/app/private/content`. Database and private bytes must come from the same recovery point.
+Only after this isolated restore passes may an authorized incident procedure restore the exact
+production target while the application remains in maintenance mode.
 
 ---
 
@@ -100,3 +113,7 @@ Weekly
 Monthly
 
 [ ] Restore test berhasil
+
+[ ] PostgreSQL and private-content backups share one recovery point
+
+[ ] Content attachment rows and private bytes reconcile

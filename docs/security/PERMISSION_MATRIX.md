@@ -227,3 +227,9 @@ dashboard routes remain denied. Satgas, Campus Admin, and Super Admin retain the
 access and see the reader navigation only when the same permission is present. The frontend route and
 navigation checks are presentation controls; every reader query and attachment download repeats the
 permission, published-pointer, archive, and campus-scope checks on the backend.
+
+C5 does not add or widen any role permission. The new CORS origin allowlist controls which browser
+origins may read API responses; it grants no identity, role, permission, campus, item, or attachment
+access. Sanctum bearer authentication, policy checks, scoped queries, and locked service
+reauthorization remain authoritative. Auth responses containing bearer tokens or permission
+projections are explicitly private/no-store.

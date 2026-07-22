@@ -10,11 +10,23 @@ APP_ENV=production
 
 APP_DEBUG=false
 
+APP_KEY=<APP_KEY_FROM_SECRET_STORE>
+
 APP_URL=https://<API_DOMAIN>
 
 FRONTEND_URL=https://<APP_DOMAIN>
 
+CORS_ALLOWED_ORIGINS=https://<APP_DOMAIN>
+
 SANCTUM_STATEFUL_DOMAINS=<APP_DOMAIN>
+
+SANCTUM_EXPIRATION=1440
+
+SESSION_SECURE_COOKIE=true
+
+CONTENT_IMAGE_UPLOADS_ENABLED=false
+
+SUPER_ADMIN_CROSS_CAMPUS_SENSITIVE_READ=false
 
 DB_CONNECTION=pgsql
 
@@ -37,6 +49,13 @@ SESSION_DRIVER=database
 LOG_CHANNEL=stack
 
 LOG_LEVEL=info
+
+AUDIT_LOGIN_FINGERPRINT_VERSION=v1
+
+AUDIT_LOGIN_FINGERPRINT_KEY_V1=<AUDIT_KEY_FROM_SECRET_STORE>
+
+# Set APP_KEY and audit fingerprint keys through the approved secret store.
+# Preserve them across deployments and rollback; never commit their values.
 
 ---
 

@@ -84,3 +84,16 @@ assets require approved project-owned assets and a separate cache-security revie
 Service-worker caching, offline private content, public unauthenticated access, image upload,
 notification delivery, scheduled publication, comments, reactions, bookmarks, analytics expansion,
 Flutter, production deployment, and PostgreSQL runtime verification remain outside C4.
+
+## C5 release verification status
+
+C5 automated verification passes for published-pointer isolation, campus scope, reader permissions,
+management/governance boundaries, lifecycle transitions, featured placements, private attachments,
+query-cache clearing, URL state, localization parity, TypeScript, lint, and client/SSR production
+build. Auth responses are now private/no-store and the executable API CORS allowlist is driven by
+`CORS_ALLOWED_ORIGINS`/`FRONTEND_URL`.
+
+This does not mean production release gates are complete. Disposable PostgreSQL verification and
+authenticated browser QA at 320, 360, 768, 1024, and desktop widths remain blocked and are documented
+in the C5 deployment reports. Image upload remains fail-closed, the PWA remains manifest-only, no
+service worker or offline private cache exists, and Graphify remains deferred.
