@@ -1,13 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api-client";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, BookOpen, Clock3, FileText, MessageCircleHeart } from "lucide-react";
+import { ArrowLeft, BookOpen, Clock3, FileText } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ContentDocumentPreview } from "@/components/content/content-document-preview";
 import { PublishedArticleCard } from "@/components/content/published-article-card";
-import { PublishedConsultationCard } from "@/components/content/published-consultation-card";
 import { PublishedContentAttachment } from "@/components/content/published-content-attachment";
 import { QueryErrorState } from "@/components/query-state";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +15,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import {
   getPublishedArticle,
-  getPublishedConsultation,
   publishedContentKeys,
 } from "@/lib/published-content-api";
 
@@ -34,12 +32,6 @@ function PublishedArticlePage() {
     queryFn: ({ signal }) => getPublishedArticle(articleId, signal),
     staleTime: 2 * 60 * 1000,
     retry: (count, error) => !(error instanceof ApiError && error.status === 404) && count < 2,
-  });
-  const consultationQuery = useQuery({
-    queryKey: publishedContentKeys.consultation(user?.id),
-    queryFn: ({ signal }) => getPublishedConsultation(signal),
-    enabled: Boolean(articleQuery.data?.consultation_cta_public_id),
-    staleTime: 2 * 60 * 1000,
   });
 
   useEffect(() => {
@@ -70,9 +62,6 @@ function PublishedArticlePage() {
   const sectionLabel = article.section.label[i18n.language.startsWith("en") ? "en" : "id"];
   const publishedDate = new Intl.DateTimeFormat(i18n.language, { dateStyle: "long" }).format(
     new Date(article.published_at),
-  );
-  const consultation = consultationQuery.data?.find(
-    (item) => item.public_id === article.consultation_cta_public_id,
   );
 
   return (
@@ -133,27 +122,6 @@ function PublishedArticlePage() {
           ))}
         </section>
       ) : null}
-
-      {consultation && (
-        <section
-          aria-labelledby="article-consultation-title"
-          className="mx-auto mt-10 max-w-3xl space-y-4"
-        >
-          <div>
-            <h2
-              id="article-consultation-title"
-              className="flex items-center gap-2 text-xl font-semibold"
-            >
-              <MessageCircleHeart className="h-5 w-5" aria-hidden="true" />
-              {t("article.consultationTitle")}
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {t("article.consultationDescription")}
-            </p>
-          </div>
-          <PublishedConsultationCard item={consultation} />
-        </section>
-      )}
 
       {article.related_articles?.length ? (
         <section aria-labelledby="related-articles-title" className="mt-12 space-y-5">

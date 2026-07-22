@@ -30,6 +30,18 @@ class ContentManagementQueryService
         if (! empty($filters['category'])) {
             $query->whereHas('category', fn (Builder $category) => $category->where('public_id', $filters['category']));
         }
+        if (! empty($filters['article_category'])) {
+            $categoryName = mb_strtolower(trim((string) $filters['article_category']));
+            $query->where('content_type', ContentType::Article->value)
+                ->where(function (Builder $category) use ($categoryName): void {
+                    $category->whereRaw('LOWER(content_items.category_name) = ?', [$categoryName])
+                        ->orWhere(function (Builder $legacy) use ($categoryName): void {
+                            $legacy->whereNull('content_items.category_name')
+                                ->whereHas('category', fn (Builder $relation) => $relation
+                                    ->whereRaw('LOWER(content_categories.name) = ?', [$categoryName]));
+                        });
+                });
+        }
         if (! empty($filters['lifecycle_status'])) {
             $status = (string) $filters['lifecycle_status'];
             $query->where(function (Builder $statusQuery) use ($status): void {
@@ -115,32 +127,21 @@ class ContentManagementQueryService
             ->firstOrFail();
     }
 
-    /** @return Collection<int, ContentItem> */
-    public function eligibleConsultations(User $actor): Collection
+    /** @return Collection<int, string> */
+    public function articleCategoryNames(User $actor, ?string $sectionCode = null): Collection
     {
-        $this->authorizeManager($actor);
-
-        return ContentItem::query()
-            ->where('content_type', ContentType::Consultation->value)
-            ->whereNull('archived_at')
-            ->whereNotNull('published_version_id')
-            ->where(function (Builder $scope) use ($actor): void {
-                $scope->where('scope', ContentScope::Global->value);
-                if ($actor->hasRole('admin')) {
-                    $scope->orWhere(fn (Builder $campus) => $campus
-                        ->where('scope', ContentScope::Campus->value)
-                        ->where('university_id', $actor->university_id));
-                }
-            })
-            ->whereHas('publishedVersion', fn (Builder $version) => $version
-                ->where('lifecycle_status', ContentLifecycleStatus::Published->value)
-                ->whereNotNull('published_at')
-                ->where('published_at', '<=', now())
-                ->whereHas('consultationContent', fn (Builder $content) => $content->where('is_active', true)))
-            ->with('publishedVersion.consultationContent')
-            ->orderByRaw("CASE WHEN scope = 'campus' THEN 0 ELSE 1 END")
-            ->orderBy('public_id')
-            ->get();
+        return $this->manageableItems($actor)
+            ->where('content_type', ContentType::Article->value)
+            ->whereNotNull('category_name')
+            ->when($sectionCode, fn (Builder $query, string $code) => $query->whereHas(
+                'section', fn (Builder $section) => $section->where('code', $code)
+            ))
+            ->select('category_name')
+            ->distinct()
+            ->orderBy('category_name')
+            ->pluck('category_name')
+            ->filter(fn (mixed $name): bool => is_string($name) && trim($name) !== '')
+            ->values();
     }
 
     /** @return Builder<ContentItem> */
@@ -188,13 +189,13 @@ class ContentManagementQueryService
     {
         return [
             'section', 'category', 'university',
-            'currentDraftVersion.articleContent.consultationCta.publishedVersion.consultationContent',
+            'currentDraftVersion.articleContent.coverAttachment',
             'currentDraftVersion.faqContent', 'currentDraftVersion.consultationContent',
             'currentDraftVersion.attachments', 'currentDraftVersion.reviewDecisions',
-            'publishedVersion.articleContent.consultationCta.publishedVersion.consultationContent',
+            'publishedVersion.articleContent.coverAttachment',
             'publishedVersion.faqContent', 'publishedVersion.consultationContent',
             'publishedVersion.attachments', 'publishedVersion.reviewDecisions',
-            'latestVersion.articleContent.consultationCta.publishedVersion.consultationContent',
+            'latestVersion.articleContent.coverAttachment',
             'latestVersion.faqContent', 'latestVersion.consultationContent',
             'latestVersion.attachments', 'latestVersion.reviewDecisions',
         ];

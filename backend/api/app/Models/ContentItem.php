@@ -23,6 +23,7 @@ class ContentItem extends Model
         'content_type',
         'section_id',
         'category_id',
+        'category_name',
         'slug',
         'scope',
         'university_id',

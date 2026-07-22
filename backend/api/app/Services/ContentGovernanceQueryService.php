@@ -252,11 +252,11 @@ class ContentGovernanceQueryService
         return [
             'section', 'category', 'university', 'creator.role',
             'currentDraftVersion.author.role',
-            'currentDraftVersion.articleContent.consultationCta.publishedVersion.consultationContent',
+            'currentDraftVersion.articleContent',
             'currentDraftVersion.faqContent', 'currentDraftVersion.consultationContent',
             'currentDraftVersion.attachments', 'currentDraftVersion.reviewDecisions.reviewer.role',
             'publishedVersion.author.role',
-            'publishedVersion.articleContent.consultationCta.publishedVersion.consultationContent',
+            'publishedVersion.articleContent',
             'publishedVersion.faqContent', 'publishedVersion.consultationContent',
             'publishedVersion.attachments',
             'latestVersion.author.role', 'latestVersion.articleContent', 'latestVersion.faqContent',

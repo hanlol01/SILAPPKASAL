@@ -76,24 +76,26 @@ function DashboardContentPage() {
   const [contentType, setContentType] = useState("");
   const [status, setStatus] = useState("");
   const [category, setCategory] = useState("");
+  const [articleCategory, setArticleCategory] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [createOpen, setCreateOpen] = useState(false);
   const [editorType, setEditorType] = useState<ContentType | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const filtersActive = Boolean(search || contentType || status || category);
+  const filtersActive = Boolean(search || contentType || status || category || articleCategory);
 
-  useEffect(() => setPage(1), [search, contentType, status, category, pageSize]);
+  useEffect(() => setPage(1), [search, contentType, status, category, articleCategory, pageSize]);
   const filters = useMemo(
     () => ({
       search: search || undefined,
       content_type: contentType || undefined,
       lifecycle_status: status || undefined,
       category: category || undefined,
+      article_category: articleCategory || undefined,
       page,
       per_page: pageSize,
     }),
-    [search, contentType, status, category, page, pageSize],
+    [search, contentType, status, category, articleCategory, page, pageSize],
   );
   const listQuery = useQuery({
     queryKey: contentManagementKeys.list(filters),
@@ -222,6 +224,7 @@ function DashboardContentPage() {
     setContentType("");
     setStatus("");
     setCategory("");
+    setArticleCategory("");
     setPage(1);
   };
   const openItem = (item: ManagedContentSummary) => {
@@ -285,6 +288,8 @@ function DashboardContentPage() {
             setStatus={setStatus}
             category={category}
             setCategory={setCategory}
+            articleCategory={articleCategory}
+            setArticleCategory={setArticleCategory}
             categories={categories}
             reset={resetFilters}
           />
@@ -313,6 +318,8 @@ function DashboardContentPage() {
                 setStatus={setStatus}
                 category={category}
                 setCategory={setCategory}
+                articleCategory={articleCategory}
+                setArticleCategory={setArticleCategory}
                 categories={categories}
                 reset={resetFilters}
               />
@@ -361,7 +368,7 @@ function DashboardContentPage() {
                         <td className="p-3">
                           <div className="font-medium">{item.version.title}</div>
                           <div className="mt-1 text-xs text-muted-foreground">
-                            {item.category?.name ?? "—"}
+                            {item.category_name ?? item.category?.name ?? "—"}
                           </div>
                           {item.version.requires_editorial_review && (
                             <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">
@@ -413,7 +420,7 @@ function DashboardContentPage() {
                       <StatusBadge status={item.lifecycle_status} />
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {item.category?.name ??
+                      {item.category_name ?? item.category?.name ??
                         item.section.label[i18n.resolvedLanguage?.startsWith("en") ? "en" : "id"]}
                     </p>
                     <ItemActions
@@ -501,6 +508,8 @@ function FilterControls({
   setStatus,
   category,
   setCategory,
+  articleCategory,
+  setArticleCategory,
   categories,
   reset,
 }: {
@@ -512,12 +521,14 @@ function FilterControls({
   setStatus: (v: string) => void;
   category: string;
   setCategory: (v: string) => void;
+  articleCategory: string;
+  setArticleCategory: (v: string) => void;
   categories: Array<{ public_id: string; name: string }>;
   reset: () => void;
 }) {
   const { t } = useTranslation("content");
   return (
-    <div className="grid gap-3 md:grid-cols-5">
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
       <Input
         className="h-11"
         aria-label={t("filters.search")}
@@ -551,6 +562,14 @@ function FilterControls({
         onChange={setCategory}
         label={t("filters.allCategories")}
         options={categories.map((item) => ({ value: item.public_id, label: item.name }))}
+      />
+      <Input
+        className="h-11"
+        aria-label={t("filters.articleCategory")}
+        value={articleCategory}
+        onChange={(event) => setArticleCategory(event.target.value)}
+        placeholder={t("filters.articleCategory")}
+        maxLength={100}
       />
       <Button variant="outline" className="min-h-11" onClick={reset}>
         {t("filters.reset")}

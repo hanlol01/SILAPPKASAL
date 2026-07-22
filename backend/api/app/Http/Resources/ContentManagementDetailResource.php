@@ -24,6 +24,7 @@ class ContentManagementDetailResource extends JsonResource
             'scope' => $this->scope?->value,
             'section' => new ContentSectionResource($this->section),
             'category' => $this->category ? new ContentCategoryResource($this->category) : null,
+            'category_name' => $this->category_name ?? $this->category?->name,
             'lock_version' => $this->lock_version,
             'lifecycle_status' => $this->archived_at !== null ? 'archived' : $version?->lifecycle_status?->value,
             'has_editable_version' => $this->archived_at === null
@@ -66,7 +67,6 @@ class ContentManagementDetailResource extends JsonResource
                 'document' => $article->document_json,
                 'estimated_reading_minutes' => $article->estimated_reading_minutes,
                 'cover_alt_text' => $article->cover_alt_text,
-                'consultation_cta_public_id' => $article->consultationCta?->public_id,
             ] : null,
             'faq' => $faq ? [
                 'question' => $faq->question,
@@ -76,11 +76,14 @@ class ContentManagementDetailResource extends JsonResource
             'consultation' => $consultation ? [
                 'service_name' => $consultation->service_name,
                 'description' => $consultation->description,
+                'service_type' => $consultation->service_type,
                 'email' => $consultation->email,
                 'phone_display' => $consultation->phone_display,
                 'whatsapp_display' => $consultation->whatsapp_display,
                 'office_address' => $consultation->office_address,
                 'operating_hours' => $consultation->operating_hours,
+                'procedure' => $consultation->procedure,
+                'confidentiality_info' => $consultation->confidentiality_info,
                 'emergency_available' => $consultation->emergency_available,
                 'appointment_url' => $consultation->appointment_url,
                 'action_label' => $consultation->action_label,

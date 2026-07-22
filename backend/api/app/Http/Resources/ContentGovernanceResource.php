@@ -20,6 +20,7 @@ class ContentGovernanceResource extends JsonResource
             'scope' => $this->scope?->value,
             'section' => new ContentSectionResource($this->section),
             'category' => $this->category ? new ContentCategoryResource($this->category) : null,
+            'category_name' => $this->category_name ?? $this->category?->name,
             'university' => $this->university ? [
                 'code' => $this->university->code,
                 'name' => $this->university->name,

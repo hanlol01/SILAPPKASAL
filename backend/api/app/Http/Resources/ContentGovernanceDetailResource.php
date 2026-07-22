@@ -45,7 +45,6 @@ class ContentGovernanceDetailResource extends ContentGovernanceResource
                 'document' => $article->document_json,
                 'estimated_reading_minutes' => $article->estimated_reading_minutes,
                 'cover_alt_text' => $article->cover_alt_text,
-                'consultation_cta_public_id' => $article->consultationCta?->public_id,
             ] : null,
             'faq' => $faq ? [
                 'question' => $faq->question,
@@ -55,11 +54,14 @@ class ContentGovernanceDetailResource extends ContentGovernanceResource
             'consultation' => $consultation ? [
                 'service_name' => $consultation->service_name,
                 'description' => $consultation->description,
+                'service_type' => $consultation->service_type,
                 'email' => $consultation->email,
                 'phone_display' => $consultation->phone_display,
                 'whatsapp_display' => $consultation->whatsapp_display,
                 'office_address' => $consultation->office_address,
                 'operating_hours' => $consultation->operating_hours,
+                'procedure' => $consultation->procedure,
+                'confidentiality_info' => $consultation->confidentiality_info,
                 'emergency_available' => $consultation->emergency_available,
                 'appointment_url' => $consultation->appointment_url,
                 'action_label' => $consultation->action_label,

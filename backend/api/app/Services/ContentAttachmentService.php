@@ -42,6 +42,12 @@ class ContentAttachmentService
         private readonly ContentImageProcessor $imageProcessor,
     ) {}
 
+    public function imageUploadsAvailable(): bool
+    {
+        return (bool) config('content.attachments.image_uploads_enabled', false)
+            && $this->imageProcessor->isAvailable();
+    }
+
     /** @param array<string, mixed> $data */
     public function upload(ContentVersion $version, User $actor, UploadedFile $file, array $data): ContentAttachment
     {

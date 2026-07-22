@@ -19,6 +19,7 @@ class ContentManagementResource extends JsonResource
             'scope' => $this->scope?->value,
             'section' => new ContentSectionResource($this->whenLoaded('section')),
             'category' => $this->category ? new ContentCategoryResource($this->category) : null,
+            'category_name' => $this->category_name ?? $this->category?->name,
             'lock_version' => $this->lock_version,
             'lifecycle_status' => $status,
             'version' => $version ? [

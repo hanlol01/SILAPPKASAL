@@ -64,6 +64,7 @@ class ContentFoundationSeeder extends Seeder
                         'content_type' => ContentType::Article,
                         'section_id' => $category->section_id,
                         'category_id' => $category->id,
+                        'category_name' => $category->name,
                         'slug' => Str::slug($title).'-'.$categoryCode,
                         'scope' => ContentScope::Global,
                         'scope_key' => ContentScope::Global->value,

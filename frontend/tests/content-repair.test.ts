@@ -13,6 +13,8 @@ import {
   isPrivateContentQueryKey,
 } from "../src/lib/private-query-cache.ts";
 
+const source = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
+
 test("structured content makes a lossless round trip for every supported complex shape", () => {
   const document: DocumentNode = {
     type: "doc",
@@ -92,10 +94,18 @@ test("editing one simple block does not mutate preserved complex siblings", () =
 test("FAQ document validation errors map to the visible answer editor", () => {
   assert.equal(contentFieldName("faq", "document"), "answerDocument");
   assert.equal(contentFieldName("faq", "answer_document"), "answerDocument");
-  assert.equal(
-    contentFieldName("article", "consultation_cta_public_id"),
-    "consultationCtaPublicId",
+  assert.equal(contentFieldName("article", "category_name"), "categoryName");
+});
+
+test("article section changes clear legacy category placement and defer errors until interaction", async () => {
+  const editor = await source("src/components/content/content-editor.tsx");
+
+  assert.match(
+    editor,
+    /set\("sectionCode", event\.target\.value\);\s+set\("categoryName", ""\);\s+set\("categoryPublicId", ""\);/,
   );
+  assert.match(editor, /saveAttempted \|\| touchedFields\.has\("categoryName"\)/);
+  assert.match(editor, /onBlur=\{onCategoryBlur\}/);
 });
 
 test("private content queries are cancelled and removed without touching public queries", async () => {
@@ -187,6 +197,9 @@ test("Indonesian and English content locale keys remain in parity", async () => 
   assert.deepEqual(keys(id).sort(), keys(en).sort());
   assert.equal(typeof id.errors.stale, "string");
   assert.equal(typeof en.editor.preservedDescription, "string");
+  assert.equal(id.validation.category, "Kategori wajib diisi.");
+  assert.equal("consultationCta" in id, false);
+  assert.equal("noCta" in en, false);
 });
 
 test("content governance review filters stay server-driven and campus content stays read-only", async () => {

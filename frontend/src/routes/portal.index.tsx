@@ -24,7 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { portalQueryKeys, getPortalSummary, getPortalReports } from "@/lib/portal-api";
 import { useAuth } from "@/hooks/use-auth";
 import { hasPortalAccess } from "@/lib/auth-roles";
-import { FeaturedArticleSection } from "@/components/content/featured-article-section";
+import { EducationSpotlight } from "@/components/content/education-spotlight";
 import { canReadPublishedContent } from "@/lib/published-content-access";
 
 export const Route = createFileRoute("/portal/")({
@@ -94,6 +94,27 @@ function PortalOverview() {
         </CardContent>
       </Card>
 
+      {publishedContentAccessible && <EducationSpotlight />}
+
+      {publishedContentAccessible && (
+        <section aria-labelledby="portal-information-shortcuts" className="space-y-4">
+          <div>
+            <h2 id="portal-information-shortcuts" className="text-xl font-semibold">
+              {t("informationCenter:dashboard.title")}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t("informationCenter:dashboard.description")}
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <InformationShortcut icon={BookOpen} title={t("informationCenter:sections.education.title")} description={t("informationCenter:sections.education.description")} to="/portal/information-center/education" />
+            <InformationShortcut icon={Landmark} title={t("informationCenter:sections.policy.title")} description={t("informationCenter:sections.policy.description")} to="/portal/information-center/policies" />
+            <InformationShortcut icon={CircleHelp} title={t("informationCenter:sections.faq.title")} description={t("informationCenter:sections.faq.description")} to="/portal/information-center/faq" />
+            <InformationShortcut icon={MessageCircleHeart} title={t("informationCenter:sections.consultation.title")} description={t("informationCenter:sections.consultation.description")} to="/portal/information-center/consultation" />
+          </div>
+        </section>
+      )}
+
       <CollapsibleDataCard
         title={t("recentReports")}
         description={t("recentReportsSubtitle")}
@@ -142,47 +163,6 @@ function PortalOverview() {
         )}
       </CollapsibleDataCard>
 
-      {publishedContentAccessible && (
-        <section aria-labelledby="portal-information-shortcuts" className="space-y-4">
-          <div>
-            <h2 id="portal-information-shortcuts" className="text-xl font-semibold">
-              {t("informationCenter:dashboard.title")}
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {t("informationCenter:dashboard.description")}
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <InformationShortcut
-              icon={BookOpen}
-              title={t("informationCenter:sections.education.title")}
-              description={t("informationCenter:sections.education.description")}
-              search={{ section: "education" }}
-            />
-            <InformationShortcut
-              icon={Landmark}
-              title={t("informationCenter:sections.policy.title")}
-              description={t("informationCenter:sections.policy.description")}
-              search={{ section: "policy" }}
-            />
-            <InformationShortcut
-              icon={CircleHelp}
-              title={t("informationCenter:sections.faq.title")}
-              description={t("informationCenter:sections.faq.description")}
-              search={{ view: "faq" }}
-            />
-            <InformationShortcut
-              icon={MessageCircleHeart}
-              title={t("informationCenter:sections.consultation.title")}
-              description={t("informationCenter:sections.consultation.description")}
-              search={{ view: "consultation" }}
-            />
-          </div>
-        </section>
-      )}
-
-      {publishedContentAccessible && <FeaturedArticleSection compact />}
-
       <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
         <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
         <p>{t("overviewSlaNotice")}</p>
@@ -195,17 +175,16 @@ function InformationShortcut({
   icon: Icon,
   title,
   description,
-  search,
+  to,
 }: {
   icon: typeof BookOpen;
   title: string;
   description: string;
-  search: { view?: "faq" | "consultation"; section?: "education" | "policy" };
+  to: "/portal/information-center/education" | "/portal/information-center/policies" | "/portal/information-center/faq" | "/portal/information-center/consultation";
 }) {
   return (
     <Link
-      to="/dashboard/information-center"
-      search={search}
+      to={to}
       className="group min-h-11 rounded-2xl border bg-card p-4 text-card-foreground shadow-sm transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transform-none motion-reduce:transition-none"
     >
       <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">

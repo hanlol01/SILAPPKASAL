@@ -696,7 +696,7 @@ function ReviewMetadata({ item }: { item: GovernanceContentDetail }) {
         <Meta label={t("contentGovernance:review.origin")} value={item.university?.name ?? t("content:global")} />
         <Meta label={t("contentGovernance:review.author")} value={item.author?.name ?? "—"} />
         <Meta label={t("content:section")} value={item.section.label[i18n.resolvedLanguage?.startsWith("en") ? "en" : "id"]} />
-        <Meta label={t("content:category")} value={item.category?.name ?? "—"} />
+        <Meta label={t("content:category")} value={item.category_name ?? item.category?.name ?? "—"} />
       </dl>
     </div>
   );

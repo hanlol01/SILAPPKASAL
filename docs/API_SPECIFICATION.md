@@ -1977,11 +1977,13 @@ and send `Cache-Control: private, no-store`.
 ```text
 GET  /api/v1/content/sections
 GET  /api/v1/content/categories?section={code}
-GET  /api/v1/content/articles?section={code}&category={publicId}&search={text}&per_page={1..50}
+GET  /api/v1/content/article-categories?section={education|policy}
+GET  /api/v1/content/articles?section={code}&category={legacyPublicId}&article_category={text}&search={text}&per_page={1..50}
 GET  /api/v1/content/articles/{publicId}
+GET  /api/v1/content/articles/slug/{section}/{slug}
 GET  /api/v1/content/faqs?category={publicId}&search={text}&per_page={1..50}
 GET  /api/v1/content/consultation
-GET  /api/v1/content/featured
+GET  /api/v1/content/featured?section=education
 GET  /api/v1/content/attachments/{attachmentPublicId}
 ```
 
@@ -1993,7 +1995,8 @@ surface. These routes do not provide review decisions.
 ```text
 GET    /api/v1/content-management/items
 GET    /api/v1/content-management/summary
-GET    /api/v1/content-management/consultation-options
+GET    /api/v1/content-management/capabilities
+GET    /api/v1/content-management/article-categories?section={education|policy}
 GET    /api/v1/content-management/items/{itemPublicId}
 POST   /api/v1/content-management/items
 POST   /api/v1/content-management/items/{itemPublicId}/revisions
@@ -2003,8 +2006,10 @@ POST   /api/v1/content-management/versions/{versionPublicId}/attachments
 DELETE /api/v1/content-management/attachments/{attachmentPublicId}
 ```
 
-The list accepts `content_type`, `lifecycle_status`, category public ID, escaped search, `page`, and
-`per_page`. Campus Admin list/detail/summary results include only the authenticated Admin's campus;
+The list accepts `content_type`, `lifecycle_status`, legacy category public ID, free-text
+`article_category`, escaped search, `page`, and `per_page`. `article_category` matches the Article's
+trimmed `category_name`, with a fallback to the retained legacy category relation. Campus Admin
+list/detail/summary results include only the authenticated Admin's campus;
 Super Admin authoring results include only global scope. Foreign-scope records return no list result
 and cannot be opened directly. Detail responses
 project the controlled draft document, typed Article/FAQ/Consultation fields, generic attachment
@@ -2024,16 +2029,27 @@ UUIDs outside the Admin's campus—including global UUIDs—resolve as `404` on 
 
 Article reader resources expose public ID, slug, title, plain excerpt, safe section/category/scope,
 cover projection, publication time, computed reading time, and—for detail only—the controlled body,
-sanitized projection, safe attachments, related published scope-safe Articles, and optional
-Consultation CTA public reference. FAQ and Consultation resources expose only approved reader fields.
+sanitized projection, safe attachments, and related published scope-safe Articles. Consultation is a
+dedicated reader resource and is not accepted, projected, or resolved as an Article CTA. The legacy
+Article CTA database relation remains nullable only for backward-compatible data retention. FAQ and
+Consultation resources expose only approved reader fields.
 No reader resource contains internal numeric IDs, author/editor/reviewer identifiers, review reasons,
 draft pointers, private paths, checksums, encrypted narratives, or unpublished versions.
 
-Article detail accepts a UUID public ID only. Slug and public-ID resolution are not combined; a slug
-placed in the detail segment returns 404. Consultation CTA projection is nullable and is omitted when
-the target is inactive, archived, unpublished, future-published, or outside the Article scope.
+Article authoring requires trimmed free-text `category_name` (maximum 100 characters). The nullable
+legacy `category_public_id` remains accepted only as a compatibility bridge, and resources fall back
+to the retained category relation when historical `category_name` is null. Consultation authoring and
+reader resources support nullable `service_type`, `procedure`, and `confidentiality_info` fields in
+addition to the verified institutional contact fields.
 
-Current C1 attachment upload policy is PDF-only for general attachments. Image attempts return 422
+Article detail supports the existing UUID public-ID route and the section-aware slug route
+`/content/articles/slug/{section}/{slug}`, where `section` is `education` or `policy`. The reader first
+filters the requested section and published lifecycle, then prefers the actor's own-campus Article over
+the global Article with the same slug. Draft, review, rejected, archived, and future-published versions
+return 404. A slug without an explicit section is not a valid route.
+
+Current C1 attachment upload policy is PDF-only for general attachments. `GET /content-management/capabilities`
+reports whether image upload is available. Image attempts return 422
 unless both the explicit feature flag and a verified safe re-encoding processor are available. File
 resources and download headers use generated names such as `lampiran-{attachmentPublicId}.pdf`; the
 protected client filename is never serialized or used as a response filename.
@@ -2111,17 +2127,25 @@ lifecycle or adding public routes. Reporter, Satgas, Campus Admin, and Super Adm
 their active account has `content.read.published`. Every response remains `private, no-store` and
 contains global plus own-campus published content only.
 
-The client routes are:
+Reporter Information Center routes are:
 
 ```text
-GET /dashboard/information-center
-GET /dashboard/information-center/articles/{articlePublicId}
+GET /portal/information-center
+GET /portal/information-center/education
+GET /portal/information-center/education/{slug}
+GET /portal/information-center/policies
+GET /portal/information-center/policies/{slug}
+GET /portal/information-center/faq
+GET /portal/information-center/consultation
 ```
 
-The landing page keeps Article/FAQ search, section, category, page, and open FAQ state in URL search
-parameters. Article and FAQ filters are forwarded to the server; pages are not synthesized from a
-full client-side data load. Featured Articles preserve the `/content/featured` collection order,
-including placement rank/window handling and the backend deterministic fallback.
+`/portal/information-center` is a directory only. Article search and category state live on the
+dedicated Education and Policy routes and are forwarded to the server; FAQ and Consultation have
+dedicated routes. Reporter detail navigation uses section-aware slugs and breadcrumbs. The Reporter
+dashboard's Sorotan Edukasi requests the explicit `education` filter and preserves active placement
+rank/window order. Featured governance accepts only published Education Articles; a Policy placement
+is never projected into Sorotan Edukasi. If a safe cover is absent or cannot be loaded, the client
+renders an Education-themed CSS fallback.
 
 Article cards and detail use only the published resource fields already defined in section 18.7.
 Detail renders the controlled `body` JSON and does not execute `body_html`. Safe PDF resources are

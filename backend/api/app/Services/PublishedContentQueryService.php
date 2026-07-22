@@ -68,6 +68,20 @@ class PublishedContentQueryService
             ->paginate((int) ($filters['per_page'] ?? 15));
     }
 
+    /** @return Collection<int, string> */
+    public function articleCategories(User $actor, string $sectionCode): Collection
+    {
+        return $this->publishedItems($actor, ContentType::Article)
+            ->whereHas('section', fn (Builder $section) => $section->where('code', $sectionCode))
+            ->whereNotNull('content_items.category_name')
+            ->select('content_items.category_name')
+            ->distinct()
+            ->orderBy('content_items.category_name')
+            ->pluck('content_items.category_name')
+            ->filter(fn (mixed $name): bool => is_string($name) && trim($name) !== '')
+            ->values();
+    }
+
     public function article(User $actor, string $publicId): ContentItem
     {
         return $this->publishedItems($actor, ContentType::Article)
@@ -76,17 +90,36 @@ class PublishedContentQueryService
             ->firstOrFail();
     }
 
+    public function articleBySlug(User $actor, string $section, string $slug): ContentItem
+    {
+        return $this->publishedItems($actor, ContentType::Article)
+            ->with($this->articleRelations())
+            ->where('content_items.slug', $slug)
+            ->whereHas('section', fn (Builder $query) => $query->where('code', $section))
+            ->orderByRaw("CASE WHEN content_items.scope = 'campus' THEN 0 ELSE 1 END")
+            ->orderBy('content_items.public_id')
+            ->firstOrFail();
+    }
+
     /** @return Collection<int, ContentItem> */
     public function relatedArticles(User $actor, ContentItem $article, int $limit = 4): Collection
     {
-        if ($article->category_id === null) {
+        $categoryName = trim((string) ($article->category_name ?? $article->category?->name));
+        if ($categoryName === '' && $article->category_id === null) {
             return new Collection;
         }
 
-        return $this->publishedItems($actor, ContentType::Article)
+        $query = $this->publishedItems($actor, ContentType::Article)
             ->with($this->articleRelations())
-            ->where('content_items.category_id', $article->category_id)
-            ->whereKeyNot($article->id)
+            ->whereKeyNot($article->id);
+
+        if ($categoryName !== '') {
+            $query->whereRaw('LOWER(content_items.category_name) = ?', [mb_strtolower($categoryName)]);
+        } else {
+            $query->where('content_items.category_id', $article->category_id);
+        }
+
+        return $query
             ->orderByDesc('content_versions.published_at')
             ->orderBy('content_items.public_id')
             ->limit($limit)
@@ -121,7 +154,8 @@ class PublishedContentQueryService
     }
 
     /** @return Collection<int, ContentItem> */
-    public function featured(User $actor): Collection
+    /** @param array<string, mixed> $filters @return Collection<int, ContentItem> */
+    public function featured(User $actor, array $filters = []): Collection
     {
         $this->authorizeReader($actor);
         $now = now();
@@ -137,29 +171,21 @@ class PublishedContentQueryService
             ->where(fn (Builder $query) => $query->whereNull('active_from')->orWhere('active_from', '<=', $now))
             ->where(fn (Builder $query) => $query->whereNull('active_until')->orWhere('active_until', '>=', $now))
             ->whereHas('item', fn (Builder $query) => $this->constrainPublishedItem($query, $actor, ContentType::Article))
+            ->whereHas('item.section', fn (Builder $section) => $section->where('code', 'education'))
+            ->when((bool) ($filters['require_cover'] ?? false), fn (Builder $query) => $query->whereHas(
+                'item.publishedVersion.articleContent.coverAttachment'
+            ))
             ->orderByRaw("CASE WHEN scope = 'campus' THEN 0 ELSE 1 END")
             ->orderBy('rank')
             ->orderBy('public_id')
-            ->limit(5)
+            ->limit((int) ($filters['limit'] ?? 5))
             ->get()
             ->pluck('item')
             ->filter()
             ->unique('id')
             ->values();
 
-        if ($placements->count() >= 5) {
-            return $placements;
-        }
-
-        $fallback = $this->publishedItems($actor, ContentType::Article)
-            ->with($this->articleRelations())
-            ->whereNotIn('content_items.id', $placements->pluck('id'))
-            ->orderByDesc('content_versions.published_at')
-            ->orderBy('content_items.public_id')
-            ->limit(5 - $placements->count())
-            ->get();
-
-        return $placements->concat($fallback)->values();
+        return $placements;
     }
 
     /** @return Builder<ContentItem> */
@@ -210,6 +236,12 @@ class PublishedContentQueryService
                 ->where('public_id', $filters['category']));
         }
 
+
+        if (! empty($filters['article_category'])) {
+            $categoryName = mb_strtolower(trim((string) $filters['article_category']));
+            $query->whereRaw('LOWER(content_items.category_name) = ?', [$categoryName]);
+        }
+
         if (! empty($filters['search'])) {
             $needle = '%'.$this->escapeLike(mb_strtolower(trim((string) $filters['search']))).'%';
             $query->where(function (Builder $search) use ($needle, $faq): void {
@@ -228,7 +260,6 @@ class PublishedContentQueryService
         return [
             'section', 'category',
             'publishedVersion.articleContent.coverAttachment',
-            'publishedVersion.articleContent.consultationCta.publishedVersion.consultationContent',
             'publishedVersion.attachments',
         ];
     }

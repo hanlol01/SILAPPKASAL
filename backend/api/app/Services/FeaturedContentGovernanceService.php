@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\ContentImageProcessor;
 use App\Enums\AuditAction;
 use App\Enums\AuditCategory;
 use App\Enums\AuditSeverity;
@@ -27,6 +28,7 @@ class FeaturedContentGovernanceService
     public function __construct(
         private readonly ContentItemPolicy $policy,
         private readonly AuditLogService $auditLogs,
+        private readonly ContentImageProcessor $imageProcessor,
     ) {}
 
     /** @param array<string, mixed> $filters @return Collection<int, FeaturedContent> */
@@ -67,6 +69,7 @@ class FeaturedContentGovernanceService
         $university = $this->resolveUniversity($scope, $universityCode);
         $query = ContentItem::query()
             ->where('content_type', ContentType::Article->value)
+            ->whereHas('section', fn (Builder $section) => $section->where('code', 'education'))
             ->where('scope', $scope->value)
             ->where('university_id', $university?->id)
             ->whereNull('archived_at')
@@ -75,6 +78,8 @@ class FeaturedContentGovernanceService
                 ->where('lifecycle_status', ContentLifecycleStatus::Published->value)
                 ->whereNotNull('published_at')
                 ->where('published_at', '<=', now()))
+            ->when($this->coverRequired(), fn (Builder $item) => $item
+                ->whereHas('publishedVersion.articleContent.coverAttachment'))
             ->with(['section', 'category', 'university', 'publishedVersion']);
         if (filled($search)) {
             $needle = '%'.$this->escapeLike(mb_strtolower(trim((string) $search))).'%';
@@ -194,6 +199,7 @@ class FeaturedContentGovernanceService
         return ContentItem::query()
             ->where('public_id', $publicId)
             ->where('content_type', ContentType::Article->value)
+            ->whereHas('section', fn (Builder $section) => $section->where('code', 'education'))
             ->where('scope', $scope->value)
             ->where('university_id', $universityId)
             ->whereNull('archived_at')
@@ -202,8 +208,16 @@ class FeaturedContentGovernanceService
                 ->where('lifecycle_status', ContentLifecycleStatus::Published->value)
                 ->whereNotNull('published_at')
                 ->where('published_at', '<=', now()))
+            ->when($this->coverRequired(), fn (Builder $item) => $item
+                ->whereHas('publishedVersion.articleContent.coverAttachment'))
             ->lockForUpdate()
             ->firstOrFail();
+    }
+
+    private function coverRequired(): bool
+    {
+        return (bool) config('content.attachments.image_uploads_enabled', false)
+            && $this->imageProcessor->isAvailable();
     }
 
     private function resolveUniversity(ContentScope $scope, mixed $code, bool $lock = false): ?University

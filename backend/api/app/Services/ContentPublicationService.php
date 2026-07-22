@@ -62,6 +62,9 @@ class ContentPublicationService
                 ->firstOrFail();
             $category = $this->resolveCategory($data['category_public_id'] ?? null, $section, $scope, $universityId);
             $this->validateTypePlacement($type, $section, $category);
+            $categoryName = $type === ContentType::Article
+                ? $this->articleCategoryName($data['category_name'] ?? $category?->name)
+                : null;
 
             $title = trim((string) $data['title']);
             $slug = $this->availableSlug($type, $scope, $universityId, (string) ($data['slug'] ?? $title));
@@ -71,6 +74,7 @@ class ContentPublicationService
                     'content_type' => $type,
                     'section_id' => $section->id,
                     'category_id' => $category?->id,
+                    'category_name' => $categoryName,
                     'slug' => $slug,
                     'scope' => $scope,
                     'university_id' => $universityId,
@@ -150,6 +154,10 @@ class ContentPublicationService
                 }
                 $item->section_id = $section->id;
                 $item->category_id = $category?->id;
+            }
+
+            if ($item->content_type === ContentType::Article && array_key_exists('category_name', $data)) {
+                $item->category_name = $this->articleCategoryName($data['category_name']);
             }
 
             $fromStatus = $version->lifecycle_status->value;
@@ -505,13 +513,6 @@ class ContentPublicationService
         if (array_key_exists('cover_alt_text', $data)) {
             $attributes['cover_alt_text'] = $data['cover_alt_text'];
         }
-        if (array_key_exists('consultation_cta_public_id', $data)) {
-            $attributes['consultation_cta_item_id'] = $this->resolveConsultationCta(
-                $version,
-                $data['consultation_cta_public_id'],
-            );
-        }
-
         ArticleVersionContent::query()->updateOrCreate(
             ['content_version_id' => $version->id],
             $attributes + ($partial ? [] : ['estimated_reading_minutes' => $attributes['estimated_reading_minutes'] ?? 0]),
@@ -551,8 +552,9 @@ class ContentPublicationService
     private function writeConsultation(ContentVersion $version, array $data, bool $partial): void
     {
         $fields = [
-            'service_name', 'description', 'email', 'phone_display', 'whatsapp_display',
-            'office_address', 'operating_hours', 'emergency_available', 'appointment_url',
+            'service_name', 'description', 'service_type', 'email', 'phone_display', 'whatsapp_display',
+            'office_address', 'operating_hours', 'procedure', 'confidentiality_info',
+            'emergency_available', 'appointment_url',
             'action_label', 'icon_code', 'sort_order', 'is_active', 'verification_date', 'verified_owner',
         ];
         $attributes = [];
@@ -610,8 +612,9 @@ class ContentPublicationService
             ContentType::Consultation => ConsultationVersionContent::query()->create([
                 'content_version_id' => $target->id,
                 ...$source->consultationContent()->firstOrFail()->only([
-                    'service_name', 'description', 'email', 'phone_display', 'phone_normalized',
+                    'service_name', 'description', 'service_type', 'email', 'phone_display', 'phone_normalized',
                     'whatsapp_display', 'whatsapp_normalized', 'office_address', 'operating_hours',
+                    'procedure', 'confidentiality_info',
                     'emergency_available', 'appointment_url', 'action_label', 'icon_code', 'sort_order',
                     'is_active', 'verification_date', 'verified_owner',
                 ]),
@@ -652,7 +655,7 @@ class ContentPublicationService
             'estimated_reading_minutes' => $prepared['reading_minutes'] ?? 0,
             'cover_attachment_id' => $coverAttachmentId,
             'cover_alt_text' => $article->cover_alt_text,
-            'consultation_cta_item_id' => $article->consultation_cta_item_id,
+            'consultation_cta_item_id' => null,
         ]);
     }
 
@@ -745,16 +748,6 @@ class ContentPublicationService
 
         $this->assertArticleAttachmentsAvailable($version, $content);
 
-        if ($content->consultation_cta_item_id !== null) {
-            $consultation = $content->consultationCta()->first();
-            if ($consultation === null) {
-                throw ValidationException::withMessages([
-                    'consultation_cta_public_id' => ['The Consultation CTA is no longer available for publication.'],
-                ]);
-            }
-            $this->resolveConsultationCta($version, $consultation->public_id);
-        }
-
         return true;
     }
 
@@ -827,47 +820,10 @@ class ContentPublicationService
         return $category;
     }
 
-    private function resolveConsultationCta(ContentVersion $version, mixed $publicId): ?int
-    {
-        if ($publicId === null || $publicId === '') {
-            return null;
-        }
-
-        $item = $version->item()->firstOrFail();
-        $consultation = ContentItem::query()
-            ->where('public_id', $publicId)
-            ->where('content_type', ContentType::Consultation->value)
-            ->whereNull('archived_at')
-            ->whereNotNull('published_version_id')
-            ->whereHas('publishedVersion', fn ($query) => $query
-                ->where('lifecycle_status', ContentLifecycleStatus::Published->value)
-                ->whereNotNull('published_at')
-                ->where('published_at', '<=', now())
-                ->whereHas('consultationContent', fn ($content) => $content->where('is_active', true)))
-            ->lockForUpdate()
-            ->first();
-
-        $scopeAllowed = $consultation !== null && (
-            ($item->scope === ContentScope::Global && $consultation->scope === ContentScope::Global)
-            || ($item->scope === ContentScope::Campus && (
-                $consultation->scope === ContentScope::Global
-                || ($consultation->scope === ContentScope::Campus
-                    && (int) $consultation->university_id === (int) $item->university_id)
-            ))
-        );
-        if (! $scopeAllowed) {
-            throw ValidationException::withMessages([
-                'consultation_cta_public_id' => ['The Consultation CTA must be published and visible within this content scope.'],
-            ]);
-        }
-
-        return $consultation->id;
-    }
-
     private function validateTypePlacement(ContentType $type, ContentSection $section, ?ContentCategory $category): void
     {
         $valid = match ($type) {
-            ContentType::Article => in_array($section->code, ['education', 'policy'], true) && $category !== null,
+            ContentType::Article => in_array($section->code, ['education', 'policy'], true),
             ContentType::Faq => $section->code === 'faq',
             ContentType::Consultation => $section->code === 'consultation' && $category === null,
         };
@@ -875,6 +831,18 @@ class ContentPublicationService
         if (! $valid) {
             throw ValidationException::withMessages(['section_code' => ['The section and category do not match the content type.']]);
         }
+    }
+
+    private function articleCategoryName(mixed $value): string
+    {
+        $name = trim((string) $value);
+        if ($name === '') {
+            throw ValidationException::withMessages([
+                'category_name' => ['An Article category is required.'],
+            ]);
+        }
+
+        return mb_substr($name, 0, 100);
     }
 
     private function authorizeCreation(User $actor, ContentScope $scope, ?int $universityId): void

@@ -12,6 +12,7 @@
   "sections": {
     "title": "Choose the information you need",
     "description": "Open the section that best fits your current needs.",
+    "open": "Open section",
     "education": {
       "title": "Education",
       "description": "Materials for understanding prevention, support, and a safer campus environment."
@@ -28,6 +29,16 @@
       "title": "Consultation",
       "description": "Verified institutional support channels."
     }
+  },
+  "spotlight": {
+    "title": "Education Spotlight",
+    "description": "Featured published education material with a verified cover.",
+    "read": "Read Article",
+    "all": "View All Education"
+  },
+  "articleLists": {
+    "education": { "description": "Search published education materials by topic and category." },
+    "policy": { "description": "Find reviewed campus policy and regulation information." }
   },
   "featured": {
     "title": "Featured Information",
@@ -56,7 +67,9 @@
   "filters": {
     "searchLabel": "Search published information",
     "searchPlaceholder": "Search titles or topics...",
+    "faqSearchPlaceholder": "Search questions...",
     "search": "Search",
+    "searchAction": "Search",
     "open": "Filters",
     "title": "Information filters",
     "description": "Narrow results by section and category.",
@@ -82,16 +95,16 @@
     "consultation": "Consultation information could not be loaded."
   },
   "article": {
+    "defaultCover": "Default poster for {{title}}",
     "open": "Read article {{title}}",
     "read": "Read article",
     "back": "Back to the Information Center",
+    "backToSection": "Back to {{section}}",
     "notFoundTitle": "Article not found",
     "notFoundDescription": "The article is unavailable, unpublished, or inaccessible from your campus.",
     "readingTime_one": "{{count}} minute read",
     "readingTime_other": "{{count}} minute read",
-    "related": "Related Articles",
-    "consultationTitle": "Need further support?",
-    "consultationDescription": "The following consultation channel is linked to this article."
+    "related": "Related Articles"
   },
   "consultation": {
     "emergency": "Emergency support",
@@ -103,9 +116,16 @@
     "phone": "Call",
     "whatsapp": "Open WhatsApp",
     "appointment": "Book an appointment",
+    "procedure": "Service procedure",
+    "confidentiality": "Confidentiality",
     "confirmPhone": "Call {{service}}? Do not include sensitive report details unless requested through an official procedure.",
     "confirmWhatsapp": "Open WhatsApp for {{service}}? Do not include identity or sensitive report details in the initial message.",
     "emergencyNotice": "This service is marked as offering emergency support by the content manager. Check the available hours and channels before contacting it."
+  },
+  "reportCta": {
+    "title": "Need to submit a report?",
+    "description": "Use the official report form so your report can follow the established handling process.",
+    "action": "Create Report"
   },
   "attachment": {
     "title": "Article Attachments",

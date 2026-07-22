@@ -175,70 +175,64 @@ class ContentFoundationRepairTest extends TestCase
         $service->submit($target->currentDraftVersion->fresh(), $admin, (int) $target->fresh()->lock_version);
     }
 
-    public function test_consultation_cta_must_stay_active_and_reader_omits_stale_target(): void
+    public function test_consultation_is_a_dedicated_reader_type_not_an_article_cta(): void
     {
         $admin = $this->user('admin', $this->campusA);
         $super = $this->user('super_admin');
         $service = app(ContentPublicationService::class);
-        $cta = $this->publishedGlobalConsultation($super, 'CTA active');
-        $article = $service->createDraft($admin, $this->articlePayload('Article CTA') + [
+        $cta = $this->publishedGlobalConsultation($super, 'Layanan Konsultasi');
+        $article = $service->createDraft($admin, $this->articlePayload('Article without CTA') + [
             'consultation_cta_public_id' => $cta->public_id,
         ]);
         $article = $this->publishCampusArticle($article, $admin, $super);
-
         Sanctum::actingAs($this->user('reporter', $this->campusA), ['*']);
         $this->getJson('/api/v1/content/articles/'.$article->public_id)
             ->assertOk()
-            ->assertJsonPath('data.consultation_cta_public_id', $cta->public_id);
-
-        $inactiveRevision = $service->createRevision($cta, $super, (int) $cta->lock_version);
-        $service->updateDraft($inactiveRevision->currentDraftVersion, $super, [
-            'is_active' => false,
-            'requires_editorial_review' => false,
-        ]);
-        $this->publishGlobalItem($inactiveRevision, $super);
-
-        $this->getJson('/api/v1/content/articles/'.$article->public_id)
-            ->assertOk()
-            ->assertJsonPath('data.consultation_cta_public_id', null);
-
-        $pendingCta = $this->publishedGlobalConsultation($super, 'CTA pending inactive');
-        $pendingArticle = $service->createDraft($admin, $this->articlePayload('Pending CTA') + [
-            'consultation_cta_public_id' => $pendingCta->public_id,
-        ]);
-        $pendingArticle = $service->submit($pendingArticle->currentDraftVersion, $admin, (int) $pendingArticle->lock_version);
-        $pendingArticle = $service->startReview($pendingArticle->currentDraftVersion, $super, (int) $pendingArticle->lock_version);
-        $pendingArticle = $service->approve($pendingArticle->currentDraftVersion, $super, (int) $pendingArticle->lock_version);
-        $inactivePending = $service->createRevision($pendingCta, $super, (int) $pendingCta->lock_version);
-        $service->updateDraft($inactivePending->currentDraftVersion, $super, [
-            'is_active' => false,
-            'requires_editorial_review' => false,
-        ]);
-        $this->publishGlobalItem($inactivePending, $super);
-
-        $this->expectException(ValidationException::class);
-        $service->publishApproved($pendingArticle->currentDraftVersion, $super, (int) $pendingArticle->lock_version);
+            ->assertJsonMissingPath('data.consultation_cta_public_id');
+        $this->getJson('/api/v1/content/consultation')->assertOk()
+            ->assertJsonFragment(['public_id' => $cta->public_id, 'service_name' => 'Layanan Konsultasi']);
     }
 
-    public function test_article_detail_is_public_id_only_and_never_resolves_visible_duplicate_slugs(): void
+    public function test_article_slug_detail_is_section_aware_scope_safe_and_published_only(): void
     {
         $reader = $this->user('reporter', $this->campusA);
-        $global = $this->manualPublishedArticle(ContentScope::Global, null, 'Global duplicate');
-        $own = $this->manualPublishedArticle(ContentScope::Campus, $this->campusA, 'Own duplicate');
-        $foreign = $this->manualPublishedArticle(ContentScope::Campus, $this->campusB, 'Foreign duplicate');
-        foreach ([$global, $own, $foreign] as $item) {
+        $globalEducation = $this->manualPublishedArticle(ContentScope::Global, null, 'Global Education', sectionCode: 'education');
+        $ownPolicy = $this->manualPublishedArticle(ContentScope::Campus, $this->campusA, 'Own Policy', sectionCode: 'policy');
+        $foreignEducation = $this->manualPublishedArticle(ContentScope::Campus, $this->campusB, 'Foreign Education', sectionCode: 'education');
+        foreach ([$globalEducation, $ownPolicy, $foreignEducation] as $item) {
             $item->forceFill(['slug' => 'shared-slug'])->save();
         }
 
+        $future = $this->manualPublishedArticle(ContentScope::Global, null, 'Future Education');
+        $future->forceFill(['slug' => 'future-hidden'])->save();
+        DB::table('content_versions')->where('id', $future->published_version_id)
+            ->update(['published_at' => now()->addDay()]);
+
+        $draft = app(ContentPublicationService::class)->createDraft(
+            $this->user('admin', $this->campusA),
+            $this->articlePayload('Draft Education'),
+        );
+        $draft->forceFill(['slug' => 'draft-hidden'])->save();
+
         Sanctum::actingAs($reader, ['*']);
-        $this->getJson('/api/v1/content/articles/'.$global->public_id)
+        $this->getJson('/api/v1/content/articles/'.$globalEducation->public_id)
             ->assertOk()
-            ->assertJsonPath('data.public_id', $global->public_id);
-        $this->getJson('/api/v1/content/articles/'.$own->public_id)
+            ->assertJsonPath('data.public_id', $globalEducation->public_id);
+        $this->getJson('/api/v1/content/articles/'.$ownPolicy->public_id)
             ->assertOk()
-            ->assertJsonPath('data.public_id', $own->public_id);
-        $this->getJson('/api/v1/content/articles/'.$foreign->public_id)->assertNotFound();
-        $this->getJson('/api/v1/content/articles/shared-slug')->assertNotFound();
+            ->assertJsonPath('data.public_id', $ownPolicy->public_id);
+        $this->getJson('/api/v1/content/articles/'.$foreignEducation->public_id)->assertNotFound();
+        $this->getJson('/api/v1/content/articles/slug/education/shared-slug')
+            ->assertOk()
+            ->assertJsonPath('data.public_id', $globalEducation->public_id)
+            ->assertJsonPath('data.section.code', 'education');
+        $this->getJson('/api/v1/content/articles/slug/policy/shared-slug')
+            ->assertOk()
+            ->assertJsonPath('data.public_id', $ownPolicy->public_id)
+            ->assertJsonPath('data.section.code', 'policy');
+        $this->getJson('/api/v1/content/articles/slug/education/future-hidden')->assertNotFound();
+        $this->getJson('/api/v1/content/articles/slug/education/draft-hidden')->assertNotFound();
+        $this->getJson('/api/v1/content/articles/slug/shared-slug')->assertNotFound();
     }
 
     public function test_database_constraints_reject_invalid_scope_type_lifecycle_rank_and_window(): void
@@ -328,7 +322,7 @@ class ContentFoundationRepairTest extends TestCase
             'creator_id' => $creator->id,
         ]);
         $featuredIds = collect($this->getJson('/api/v1/content/featured')->assertOk()->json('data'))->pluck('public_id');
-        $this->assertSame(array_slice($ids, 0, 5), $featuredIds->all());
+        $this->assertSame([], $featuredIds->all());
         $this->assertFalse($featuredIds->contains($future->public_id));
 
         $expiredItem = ContentItem::query()->where('public_id', $ids[0])->firstOrFail();
@@ -592,6 +586,7 @@ class ContentFoundationRepairTest extends TestCase
             'content_type' => 'article',
             'section_code' => 'education',
             'category_public_id' => $category->public_id,
+            'category_name' => $category->name,
             'scope' => 'campus',
             'university_id' => $this->campusA->id,
             'title' => $title.' '.Str::random(6),
@@ -605,14 +600,19 @@ class ContentFoundationRepairTest extends TestCase
         ?University $campus,
         string $title,
         ?string $publicId = null,
+        string $sectionCode = 'education',
     ): ContentItem {
-        $section = ContentSection::query()->where('code', 'education')->firstOrFail();
-        $category = ContentCategory::query()->where('code', 'perspective_psychology')->firstOrFail();
+        $section = ContentSection::query()->where('code', $sectionCode)->firstOrFail();
+        $category = ContentCategory::query()
+            ->where('section_id', $section->id)
+            ->where('scope', ContentScope::Global->value)
+            ->firstOrFail();
         $item = ContentItem::query()->create([
             'public_id' => $publicId,
             'content_type' => ContentType::Article,
             'section_id' => $section->id,
             'category_id' => $category->id,
+            'category_name' => $category->name,
             'slug' => Str::slug($title).'-'.Str::lower(Str::random(6)),
             'scope' => $scope,
             'university_id' => $campus?->id,

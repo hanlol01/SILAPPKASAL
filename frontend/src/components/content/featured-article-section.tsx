@@ -1,6 +1,5 @@
 import type { CarouselApi } from "@/components/ui/carousel";
 import { useQuery } from "@tanstack/react-query";
-import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -14,16 +13,28 @@ import {
 } from "@/components/ui/carousel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
-import { getFeaturedContent, publishedContentKeys } from "@/lib/published-content-api";
+import {
+  getFeaturedContent,
+  publishedContentKeys,
+  type FeaturedContentFilters,
+} from "@/lib/published-content-api";
 
-export function FeaturedArticleSection({ compact = false }: { compact?: boolean }) {
+export function FeaturedArticleSection({
+  compact = false,
+  portal = false,
+  filters = {},
+}: {
+  compact?: boolean;
+  portal?: boolean;
+  filters?: FeaturedContentFilters;
+}) {
   const { t } = useTranslation("informationCenter");
   const { user } = useAuth();
   const [api, setApi] = useState<CarouselApi>();
   const [selected, setSelected] = useState(0);
   const query = useQuery({
-    queryKey: publishedContentKeys.featured(user?.id),
-    queryFn: ({ signal }) => getFeaturedContent(signal),
+    queryKey: publishedContentKeys.featured(user?.id, filters),
+    queryFn: ({ signal }) => getFeaturedContent(filters, signal),
     enabled: Boolean(user?.permissions?.includes("content.read.published")),
     staleTime: 2 * 60 * 1000,
   });
@@ -53,32 +64,10 @@ export function FeaturedArticleSection({ compact = false }: { compact?: boolean 
     );
   }
 
-  if (query.isError) {
-    return (
-      <section aria-labelledby="featured-content-title" className="space-y-4">
-        <FeaturedHeading compact={compact} />
-        <div
-          className="rounded-2xl border border-dashed p-5 text-sm text-muted-foreground"
-          role="status"
-        >
-          {t("featured.error")}
-        </div>
-      </section>
-    );
-  }
+  if (query.isError) return null;
 
   const articles = query.data ?? [];
-  if (articles.length === 0) {
-    return (
-      <section aria-labelledby="featured-content-title" className="space-y-4">
-        <FeaturedHeading compact={compact} />
-        <div className="flex items-center gap-3 rounded-2xl border border-dashed p-5 text-sm text-muted-foreground">
-          <Sparkles className="h-5 w-5 shrink-0" aria-hidden="true" />
-          <p>{t("featured.empty")}</p>
-        </div>
-      </section>
-    );
-  }
+  if (articles.length === 0) return null;
 
   return (
     <section aria-labelledby="featured-content-title" className="min-w-0 space-y-4">
@@ -91,7 +80,7 @@ export function FeaturedArticleSection({ compact = false }: { compact?: boolean 
         <CarouselContent className="items-stretch">
           {articles.map((article) => (
             <CarouselItem key={article.public_id} className="basis-[88%] sm:basis-1/2 lg:basis-1/3">
-              <PublishedArticleCard article={article} featured className="h-full" />
+              <PublishedArticleCard article={article} featured portal={portal} className="h-full" />
             </CarouselItem>
           ))}
         </CarouselContent>

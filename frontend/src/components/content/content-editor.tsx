@@ -51,12 +51,14 @@ import { contentFieldName } from "@/lib/content-management-errors";
 import {
   contentManagementKeys,
   createManagedContent,
-  getConsultationOptions,
+  getContentManagementCapabilities,
   getContentCategories,
+  getManagedArticleCategories,
   removeContentAttachment,
   submitManagedContent,
   updateManagedContent,
   uploadContentPdf,
+  uploadContentCover,
   type ContentPayload,
   type ContentType,
   type DocumentNode,
@@ -76,20 +78,24 @@ interface Props {
 interface EditorState {
   sectionCode: string;
   categoryPublicId: string;
+  categoryName: string;
   title: string;
   excerpt: string;
   document: DocumentNode | null;
-  consultationCtaPublicId: string;
+  coverAltText: string;
   question: string;
   answerDocument: DocumentNode | null;
   displayOrder: string;
   serviceName: string;
   description: string;
+  serviceType: string;
   email: string;
   phone: string;
   whatsapp: string;
   officeAddress: string;
   operatingHours: string;
+  procedure: string;
+  confidentialityInfo: string;
   emergencyAvailable: boolean;
   appointmentUrl: string;
   actionLabel: string;
@@ -107,12 +113,15 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
   const [state, setState] = useState<EditorState>(() => initialState(contentType, detail));
   const [dirty, setDirty] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touchedFields, setTouchedFields] = useState<Set<keyof EditorState>>(new Set());
+  const [saveAttempted, setSaveAttempted] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [mobilePreview, setMobilePreview] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [emergencyConfirmed, setEmergencyConfirmed] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const detailRef = useRef(detail);
   detailRef.current = detail;
   const permissions = new Set(user?.permissions ?? []);
@@ -136,17 +145,24 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
     if (dirty) return;
     setState(initialState(contentType, detailRef.current));
     setErrors({});
+    setTouchedFields(new Set());
+    setSaveAttempted(false);
   }, [contentType, detail?.public_id, detail?.version.public_id, detail?.lock_version, dirty]);
 
   const categoriesQuery = useQuery({
     queryKey: contentManagementKeys.categories(state.sectionCode),
     queryFn: () => getContentCategories(state.sectionCode),
-    enabled: contentType !== "consultation" && Boolean(state.sectionCode),
+    enabled: contentType === "faq" && Boolean(state.sectionCode),
   });
-  const consultationOptionsQuery = useQuery({
-    queryKey: contentManagementKeys.consultationOptions(),
-    queryFn: getConsultationOptions,
+  const articleCategoriesQuery = useQuery({
+    queryKey: contentManagementKeys.articleCategories(state.sectionCode),
+    queryFn: () => getManagedArticleCategories(state.sectionCode),
     enabled: contentType === "article",
+  });
+  const capabilitiesQuery = useQuery({
+    queryKey: contentManagementKeys.capabilities(),
+    queryFn: getContentManagementCapabilities,
+    staleTime: 5 * 60 * 1000,
   });
 
   const invalidate = async (publicId?: string) => {
@@ -172,6 +188,7 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      setSaveAttempted(true);
       const validation = validate(state, contentType, emergencyConfirmed, t);
       if (Object.keys(validation).length) {
         setErrors(validation);
@@ -194,6 +211,8 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
       await invalidate(result.public_id);
       onSaved(result.public_id);
       setDirty(false);
+      setTouchedFields(new Set());
+      setSaveAttempted(false);
     },
     onError: (error) => {
       if (error instanceof ClientValidationError) return;
@@ -251,6 +270,21 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
     },
   });
 
+  const coverMutation = useMutation({
+    mutationFn: (file: File) => {
+      if (!detail) throw new Error("Save the draft before uploading a cover.");
+      if (!state.coverAltText.trim()) throw new ClientValidationError(t("content:validation.coverAlt"));
+      if (file.size < 1 || file.size > 5 * 1024 * 1024) throw new ClientValidationError(t("content:validation.cover"));
+      return uploadContentCover(detail.version.public_id, file, state.coverAltText.trim());
+    },
+    onSuccess: async () => {
+      if (coverInputRef.current) coverInputRef.current.value = "";
+      toast.success(t("content:coverUploaded"));
+      await invalidate(detail?.public_id);
+    },
+    onError: (error) => toast.error(error instanceof ClientValidationError ? error.message : apiErrorMessage(error, t("content:loadError"))),
+  });
+
   const removeMutation = useMutation({
     mutationFn: removeContentAttachment,
     onSuccess: async () => {
@@ -264,6 +298,21 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
     setState((current) => ({ ...current, [key]: value }));
     setDirty(true);
     setErrors((current) => ({ ...current, [key]: "" }));
+  };
+  const markTouched = (key: keyof EditorState) => {
+    setTouchedFields((current) => new Set(current).add(key));
+  };
+  const handleCategoryBlur = () => {
+    markTouched("categoryName");
+    const categoryName = state.categoryName.trim();
+    setErrors((current) => ({
+      ...current,
+      categoryName: !categoryName
+        ? t("content:validation.category")
+        : categoryName.length > 100
+          ? t("content:validation.categoryLength")
+          : "",
+    }));
   };
   const requestBack = () => (dirty ? setConfirmLeave(true) : onBack());
 
@@ -318,8 +367,9 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
                 set={set}
                 editable={editable}
                 errors={errors}
-                categories={categoriesQuery.data ?? []}
-                consultationOptions={consultationOptionsQuery.data ?? []}
+                categoryError={saveAttempted || touchedFields.has("categoryName") ? errors.categoryName : undefined}
+                onCategoryBlur={handleCategoryBlur}
+                categorySuggestions={articleCategoriesQuery.data ?? []}
                 locale={locale}
               />
             )}
@@ -346,10 +396,19 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
         </Card>
 
         <div className="space-y-5">
-          <Alert>
-            <ImageOff className="h-4 w-4" />
-            <AlertDescription>{t("content:imageUnavailable")}</AlertDescription>
-          </Alert>
+          {contentType === "article" && !capabilitiesQuery.data?.image_upload_available && (
+            <Alert><ImageOff className="h-4 w-4" /><AlertDescription>{t("content:imageUnavailable")}</AlertDescription></Alert>
+          )}
+          {contentType === "article" && capabilitiesQuery.data?.image_upload_available && (
+            <Card>
+              <CardHeader><CardTitle className="text-base">{t("content:coverTitle")}</CardTitle><CardDescription>{t("content:coverHelp")}</CardDescription></CardHeader>
+              <CardContent className="space-y-3">
+                <Field label={t("content:coverAltText")} error={errors.coverAltText}><Input maxLength={500} disabled={!editable} value={state.coverAltText} onChange={(event) => set("coverAltText", event.target.value)} /></Field>
+                {detail?.version.attachments.filter((item) => item.purpose === "cover").map((cover) => <div key={cover.public_id} className="flex items-center gap-2 rounded-md border p-3 text-sm"><span className="min-w-0 flex-1 truncate">{cover.filename}</span></div>)}
+                {editable && canManageAttachments && detail ? <><Input ref={coverInputRef} className="sr-only" id="content-cover" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) coverMutation.mutate(file); }} /><Button type="button" variant="outline" className="min-h-11 w-full" disabled={coverMutation.isPending} onClick={() => coverInputRef.current?.click()}>{coverMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{t("content:chooseCover")}</Button></> : <p className="text-sm text-muted-foreground">{t("content:saveDraft")}</p>}
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -488,10 +547,7 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
         attachments={detail?.version.attachments ?? []}
         mobile={mobilePreview}
         setMobile={setMobilePreview}
-        categoryName={
-          categoriesQuery.data?.find((item) => item.public_id === state.categoryPublicId)?.name
-        }
-        consultationOptions={consultationOptionsQuery.data ?? []}
+        categoryName={contentType === "article" ? state.categoryName : categoriesQuery.data?.find((item) => item.public_id === state.categoryPublicId)?.name}
       />
       <AlertDialog
         open={confirmLeave || navigationBlocker.status === "blocked"}
@@ -531,16 +587,18 @@ function ArticleFields({
   set,
   editable,
   errors,
-  categories,
-  consultationOptions,
+  categoryError,
+  onCategoryBlur,
+  categorySuggestions,
   locale,
 }: {
   state: EditorState;
   set: Setter;
   editable: boolean;
   errors: Record<string, string>;
-  categories: Array<{ public_id: string; name: string; section_code?: string | null }>;
-  consultationOptions: Array<{ public_id: string; service_name: string; scope: string }>;
+  categoryError?: string;
+  onCategoryBlur: () => void;
+  categorySuggestions: string[];
   locale: "id" | "en";
 }) {
   const { t } = useTranslation("content");
@@ -554,6 +612,7 @@ function ArticleFields({
             value={state.sectionCode}
             onChange={(event) => {
               set("sectionCode", event.target.value);
+              set("categoryName", "");
               set("categoryPublicId", "");
             }}
           >
@@ -561,20 +620,9 @@ function ArticleFields({
             <option value="policy">{locale === "en" ? "Policy" : "Seputar Kebijakan"}</option>
           </select>
         </Field>
-        <Field label={t("category")} error={errors.categoryPublicId}>
-          <select
-            className="h-11 w-full rounded-md border bg-background px-3"
-            disabled={!editable}
-            value={state.categoryPublicId}
-            onChange={(event) => set("categoryPublicId", event.target.value)}
-          >
-            <option value="">{t("selectCategory")}</option>
-            {categories.map((category) => (
-              <option key={category.public_id} value={category.public_id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
+        <Field label={t("category")} error={categoryError} description={t("categoryFreeTextHelp")}>
+          <Input list="article-category-suggestions" maxLength={100} disabled={!editable} value={state.categoryName} onBlur={onCategoryBlur} onChange={(event) => set("categoryName", event.target.value)} />
+          <datalist id="article-category-suggestions">{categorySuggestions.map((name) => <option key={name} value={name} />)}</datalist>
         </Field>
       </div>
       <Field label={t("titleField")} error={errors.title}>
@@ -598,23 +646,7 @@ function ArticleFields({
           disabled={!editable}
           value={state.document}
           onChange={(value) => set("document", value)}
-          error={errors.document}
         />
-      </Field>
-      <Field label={t("consultationCta")} error={errors.consultationCtaPublicId}>
-        <select
-          className="h-11 w-full rounded-md border bg-background px-3"
-          disabled={!editable}
-          value={state.consultationCtaPublicId}
-          onChange={(event) => set("consultationCtaPublicId", event.target.value)}
-        >
-          <option value="">{t("noCta")}</option>
-          {consultationOptions.map((item) => (
-            <option key={item.public_id} value={item.public_id}>
-              {item.service_name} ({t(item.scope)})
-            </option>
-          ))}
-        </select>
       </Field>
     </>
   );
@@ -665,7 +697,6 @@ function FaqFields({
           disabled={!editable}
           value={state.answerDocument}
           onChange={(value) => set("answerDocument", value)}
-          error={errors.answerDocument}
         />
       </Field>
       <Field label={t("displayOrder")}>
@@ -720,6 +751,7 @@ function ConsultationFields({
           onChange={(event) => set("description", event.target.value)}
         />
       </Field>
+      <Field label={t("serviceType")}><Input maxLength={150} disabled={!editable} value={state.serviceType} onChange={(event) => set("serviceType", event.target.value)} /></Field>
       <div className="grid gap-4 md:grid-cols-2">
         <Field label={t("email")} error={errors.email}>
           <Input
@@ -772,6 +804,8 @@ function ConsultationFields({
           onChange={(event) => set("operatingHours", event.target.value)}
         />
       </Field>
+      <Field label={t("procedure")}><Textarea maxLength={5000} disabled={!editable} value={state.procedure} onChange={(event) => set("procedure", event.target.value)} /></Field>
+      <Field label={t("confidentialityInfo")}><Textarea maxLength={5000} disabled={!editable} value={state.confidentialityInfo} onChange={(event) => set("confidentialityInfo", event.target.value)} /></Field>
       <div className="grid gap-4 md:grid-cols-2">
         <Field label={t("actionLabel")}>
           <Input
@@ -916,7 +950,6 @@ function ContentPreviewDialog({
   mobile,
   setMobile,
   categoryName,
-  consultationOptions,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -926,7 +959,6 @@ function ContentPreviewDialog({
   mobile: boolean;
   setMobile: (value: boolean) => void;
   categoryName?: string;
-  consultationOptions: Array<{ public_id: string; service_name: string; scope: string }>;
 }) {
   const { t } = useTranslation("content");
   const title =
@@ -936,9 +968,6 @@ function ContentPreviewDialog({
         ? state.question
         : state.serviceName;
   const document = contentType === "article" ? state.document : state.answerDocument;
-  const consultationCta = consultationOptions.find(
-    (item) => item.public_id === state.consultationCtaPublicId,
-  );
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
@@ -978,12 +1007,15 @@ function ContentPreviewDialog({
           {contentType === "consultation" ? (
             <div className="space-y-3 rounded-lg border p-4">
               <h2 className="text-xl font-semibold">{state.serviceName}</h2>
+              {state.serviceType && <Badge variant="outline">{state.serviceType}</Badge>}
               <p>{state.description}</p>
               {state.email && <p>{state.email}</p>}
               {state.phone && <p>{state.phone}</p>}
               {state.whatsapp && <p>WhatsApp: {state.whatsapp}</p>}
               {state.officeAddress && <p>{state.officeAddress}</p>}
               {state.operatingHours && <p>{state.operatingHours}</p>}
+              {state.procedure && <p className="whitespace-pre-line">{state.procedure}</p>}
+              {state.confidentialityInfo && <p className="whitespace-pre-line">{state.confidentialityInfo}</p>}
               {state.emergencyAvailable && (
                 <Badge variant="destructive">{t("emergencyAvailable")}</Badge>
               )}
@@ -997,17 +1029,6 @@ function ContentPreviewDialog({
             </div>
           ) : (
             <ContentDocumentPreview document={document} />
-          )}
-          {contentType === "article" && consultationCta && (
-            <aside className="mt-6 rounded-lg border bg-muted/30 p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t("consultationCta")}
-              </p>
-              <p className="mt-1 font-semibold">{consultationCta.service_name}</p>
-              <Badge variant="outline" className="mt-2">
-                {t(consultationCta.scope)}
-              </Badge>
-            </aside>
           )}
           {attachments.length > 0 && (
             <section className="mt-6">
@@ -1034,20 +1055,24 @@ function initialState(contentType: ContentType, detail?: ManagedContentDetail): 
   return {
     sectionCode: detail?.section.code ?? (contentType === "article" ? "education" : contentType),
     categoryPublicId: detail?.category?.public_id ?? "",
+    categoryName: detail?.category_name ?? detail?.category?.name ?? "",
     title: detail?.version.title ?? "",
     excerpt: detail?.version.excerpt ?? "",
     document: article?.document ?? null,
-    consultationCtaPublicId: article?.consultation_cta_public_id ?? "",
+    coverAltText: article?.cover_alt_text ?? "",
     question: faq?.question ?? "",
     answerDocument: faq?.answer_document ?? null,
     displayOrder: String(faq?.display_order ?? 0),
     serviceName: consultation?.service_name ?? "",
     description: consultation?.description ?? "",
+    serviceType: consultation?.service_type ?? "",
     email: consultation?.email ?? "",
     phone: consultation?.phone_display ?? "",
     whatsapp: consultation?.whatsapp_display ?? "",
     officeAddress: consultation?.office_address ?? "",
     operatingHours: consultation?.operating_hours ?? "",
+    procedure: consultation?.procedure ?? "",
+    confidentialityInfo: consultation?.confidentiality_info ?? "",
     emergencyAvailable: consultation?.emergency_available ?? false,
     appointmentUrl: consultation?.appointment_url ?? "",
     actionLabel: consultation?.action_label ?? "",
@@ -1078,9 +1103,10 @@ function payloadFromState(
     return {
       ...common,
       title: state.title.trim(),
+      category_name: state.categoryName.trim(),
       excerpt: state.excerpt.trim() || null,
+      cover_alt_text: state.coverAltText.trim() || null,
       document: state.document ?? undefined,
-      consultation_cta_public_id: state.consultationCtaPublicId || null,
     };
   if (type === "faq")
     return {
@@ -1095,11 +1121,14 @@ function payloadFromState(
     title: state.serviceName.trim(),
     service_name: state.serviceName.trim(),
     description: state.description.trim() || null,
+    service_type: state.serviceType.trim() || null,
     email: state.email.trim() || null,
     phone_display: state.phone.trim() || null,
     whatsapp_display: state.whatsapp.trim() || null,
     office_address: state.officeAddress.trim() || null,
     operating_hours: state.operatingHours.trim() || null,
+    procedure: state.procedure.trim() || null,
+    confidentiality_info: state.confidentialityInfo.trim() || null,
     emergency_available: state.emergencyAvailable,
     appointment_url: state.appointmentUrl.trim() || null,
     action_label: state.actionLabel.trim() || null,
@@ -1120,7 +1149,8 @@ function validate(
   const errors: Record<string, string> = {};
   if (type === "article") {
     if (!state.title.trim()) errors.title = t("content:validation.required");
-    if (!state.categoryPublicId) errors.categoryPublicId = t("content:validation.category");
+    if (!state.categoryName.trim()) errors.categoryName = t("content:validation.category");
+    else if (state.categoryName.trim().length > 100) errors.categoryName = t("content:validation.categoryLength");
     if (!documentHasText(state.document)) errors.document = t("content:validation.document");
     else if (documentHasUnsafeLink(state.document)) errors.document = t("content:validation.https");
   } else if (type === "faq") {

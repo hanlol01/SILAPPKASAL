@@ -20,7 +20,7 @@ class FeaturedEligibleContentResource extends JsonResource
             'excerpt' => $this->publishedVersion?->excerpt,
             'published_at' => $this->publishedVersion?->published_at?->toJSON(),
             'section' => $this->section?->code,
-            'category' => $this->category?->name,
+            'category' => $this->category_name ?? $this->category?->name,
         ];
     }
 }

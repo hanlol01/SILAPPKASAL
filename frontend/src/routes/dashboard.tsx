@@ -25,6 +25,10 @@ function DashboardShell() {
     return <Navigate to="/login" search={{ redirect: redirectTo }} replace />;
   }
 
+  if (canEnterInformationCenterPath(roleCode, pathname)) {
+    return <Navigate to="/portal/information-center" replace />;
+  }
+
   if (
     isAuthenticated &&
     !hasDashboardAccess(roleCode) &&

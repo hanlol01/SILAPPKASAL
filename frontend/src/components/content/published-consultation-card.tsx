@@ -49,6 +49,7 @@ export function PublishedConsultationCard({ item }: { item: PublishedConsultatio
           </Badge>
         </div>
         <h3 className="text-xl font-semibold leading-snug tracking-tight">{item.service_name}</h3>
+        {item.service_type && <Badge variant="outline" className="w-fit">{item.service_type}</Badge>}
         {item.description && (
           <p className="text-sm leading-6 text-muted-foreground">{item.description}</p>
         )}
@@ -61,7 +62,7 @@ export function PublishedConsultationCard({ item }: { item: PublishedConsultatio
           {item.office_address && (
             <InfoRow icon={MapPin} label={t("consultation.address")} value={item.office_address} />
           )}
-          {email && <InfoRow icon={Mail} label={t("consultation.email")} value={email} />}
+          {email && <InfoRow icon={Mail} label={t("consultation.email")} value={email} href={`mailto:${email}`} />}
           {item.phone && (
             <InfoRow icon={Phone} label={t("consultation.phone")} value={item.phone} />
           )}
@@ -70,12 +71,17 @@ export function PublishedConsultationCard({ item }: { item: PublishedConsultatio
               icon={MessageCircle}
               label={t("consultation.whatsapp")}
               value={item.whatsapp}
+              href={whatsapp ? `https://wa.me/${whatsapp}` : undefined}
+              external
             />
           )}
           {verifiedDate && (
             <InfoRow icon={CalendarCheck} label={t("consultation.verified")} value={verifiedDate} />
           )}
         </dl>
+
+        {item.procedure && <div className="rounded-xl bg-muted/50 p-4"><h4 className="font-medium">{t("consultation.procedure")}</h4><p className="mt-1 whitespace-pre-line text-sm leading-6 text-muted-foreground">{item.procedure}</p></div>}
+        {item.confidentiality_info && <div className="rounded-xl border border-primary/20 bg-primary/5 p-4"><h4 className="font-medium">{t("consultation.confidentiality")}</h4><p className="mt-1 whitespace-pre-line text-sm leading-6 text-muted-foreground">{item.confidentiality_info}</p></div>}
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {email && (
@@ -145,17 +151,23 @@ function InfoRow({
   icon: Icon,
   label,
   value,
+  href,
+  external = false,
 }: {
   icon: typeof Clock3;
   label: string;
   value: string;
+  href?: string;
+  external?: boolean;
 }) {
   return (
     <div className="flex items-start gap-3">
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       <div className="min-w-0">
         <dt className="font-medium">{label}</dt>
-        <dd className="break-words text-muted-foreground">{value}</dd>
+        <dd className="break-words text-muted-foreground">
+          {href ? <a className="underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground" href={href} target={external ? "_blank" : undefined} rel={external ? "noreferrer noopener" : undefined}>{value}</a> : value}
+        </dd>
       </div>
     </div>
   );

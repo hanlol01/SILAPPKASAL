@@ -20,6 +20,7 @@ class ContentManagementIndexRequest extends FormRequest
             'content_type' => ['nullable', Rule::enum(ContentType::class)],
             'lifecycle_status' => ['nullable', Rule::enum(ContentLifecycleStatus::class)],
             'category' => ['nullable', 'uuid'],
+            'article_category' => ['nullable', 'string', 'max:100'],
             'search' => ['nullable', 'string', 'max:150'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:5', 'max:50'],

@@ -72,6 +72,7 @@ export interface ManagedContentSummary {
   scope: "campus" | "global";
   section: ContentSection;
   category: ContentCategory | null;
+  category_name: string | null;
   lock_version: number;
   lifecycle_status: ContentLifecycleStatus;
   version: ContentVersionSummary;
@@ -91,17 +92,19 @@ export interface ManagedContentDetail extends Omit<ManagedContentSummary, "versi
       document: DocumentNode | null;
       estimated_reading_minutes: number;
       cover_alt_text: string | null;
-      consultation_cta_public_id: string | null;
     } | null;
     faq: { question: string; answer_document: DocumentNode | null; display_order: number } | null;
     consultation: {
       service_name: string;
       description: string | null;
+      service_type: string | null;
       email: string | null;
       phone_display: string | null;
       whatsapp_display: string | null;
       office_address: string | null;
       operating_hours: string | null;
+      procedure: string | null;
+      confidentiality_info: string | null;
       emergency_available: boolean;
       appointment_url: string | null;
       action_label: string | null;
@@ -124,22 +127,26 @@ export interface ContentPayload {
   content_type?: ContentType;
   section_code?: string;
   category_public_id?: string | null;
+  category_name?: string | null;
   scope?: "campus" | "global";
   university_id?: number;
   title?: string;
   excerpt?: string | null;
+  cover_alt_text?: string | null;
   document?: DocumentNode;
-  consultation_cta_public_id?: string | null;
   question?: string;
   answer_document?: DocumentNode;
   display_order?: number;
   service_name?: string;
   description?: string | null;
+  service_type?: string | null;
   email?: string | null;
   phone_display?: string | null;
   whatsapp_display?: string | null;
   office_address?: string | null;
   operating_hours?: string | null;
+  procedure?: string | null;
+  confidentiality_info?: string | null;
   emergency_available?: boolean;
   appointment_url?: string | null;
   action_label?: string | null;
@@ -160,7 +167,8 @@ export const contentManagementKeys = {
     [...contentManagementKeys.lists(), filters] as const,
   summary: () => [...contentManagementKeys.all, "summary"] as const,
   detail: (publicId: string) => [...contentManagementKeys.all, "detail", publicId] as const,
-  consultationOptions: () => [...contentManagementKeys.all, "consultation-options"] as const,
+  capabilities: () => [...contentManagementKeys.all, "capabilities"] as const,
+  articleCategories: (section: string) => [...contentManagementKeys.all, "article-categories", section] as const,
   categories: (section: string) => [...contentManagementKeys.all, "categories", section] as const,
 };
 
@@ -223,6 +231,14 @@ export function uploadContentPdf(
   );
 }
 
+export function uploadContentCover(versionPublicId: string, file: File, altText: string) {
+  const data = new FormData();
+  data.append("purpose", "cover");
+  data.append("file", file);
+  data.append("alt_text", altText);
+  return apiUpload<ContentAttachment>(`/content-management/versions/${versionPublicId}/attachments`, data);
+}
+
 export function removeContentAttachment(publicId: string) {
   return apiRequest<null>(`/content-management/attachments/${publicId}`, { method: "DELETE" });
 }
@@ -231,8 +247,10 @@ export function getContentCategories(section: string) {
   return apiRequest<ContentCategory[]>("/content/categories", { query: { section } });
 }
 
-export function getConsultationOptions() {
-  return apiRequest<Array<{ public_id: string; scope: "global" | "campus"; service_name: string }>>(
-    "/content-management/consultation-options",
-  );
+export function getContentManagementCapabilities() {
+  return apiRequest<{ image_upload_available: boolean }>("/content-management/capabilities");
+}
+
+export function getManagedArticleCategories(section: string) {
+  return apiRequest<string[]>("/content-management/article-categories", { query: { section } });
 }

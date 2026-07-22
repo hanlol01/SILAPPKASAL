@@ -39,7 +39,7 @@ const nav = [
   { titleKey: "myReports", url: "/portal/reports" as const, icon: FileText },
   {
     titleKey: "informationCenter",
-    url: "/dashboard/information-center" as const,
+    url: "/portal/information-center" as const,
     icon: Library,
     requiresPublishedContent: true,
   },

@@ -17,6 +17,9 @@ function InformationCenterShell() {
   if (!canReadPublishedContent(user)) {
     return <AccessDenied backTo={roleCode === "reporter" ? "/portal" : "/dashboard"} />;
   }
+  if (roleCode === "reporter") {
+    return <Navigate to="/portal/information-center" replace />;
+  }
 
   return <Outlet />;
 }

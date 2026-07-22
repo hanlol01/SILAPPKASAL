@@ -12,6 +12,7 @@
   "sections": {
     "title": "Pilih informasi yang dibutuhkan",
     "description": "Buka bagian yang paling sesuai dengan kebutuhan Anda saat ini.",
+    "open": "Buka bagian",
     "education": {
       "title": "Edukasi",
       "description": "Materi untuk memahami pencegahan, dukungan, dan lingkungan kampus yang aman."
@@ -28,6 +29,16 @@
       "title": "Konsultasi",
       "description": "Kanal bantuan institusional yang telah diverifikasi."
     }
+  },
+  "spotlight": {
+    "title": "Sorotan Edukasi",
+    "description": "Materi edukasi pilihan dengan poster yang telah diterbitkan.",
+    "read": "Baca Artikel",
+    "all": "Lihat Semua Edukasi"
+  },
+  "articleLists": {
+    "education": { "description": "Cari materi edukasi terbit berdasarkan topik dan kategori." },
+    "policy": { "description": "Temukan informasi kebijakan kampus dan peraturan yang telah ditinjau." }
   },
   "featured": {
     "title": "Informasi Pilihan",
@@ -56,7 +67,9 @@
   "filters": {
     "searchLabel": "Cari informasi terbit",
     "searchPlaceholder": "Cari judul atau topik...",
+    "faqSearchPlaceholder": "Cari pertanyaan...",
     "search": "Cari",
+    "searchAction": "Cari",
     "open": "Filter",
     "title": "Filter informasi",
     "description": "Batasi hasil berdasarkan bagian dan kategori.",
@@ -82,16 +95,16 @@
     "consultation": "Informasi konsultasi tidak dapat dimuat."
   },
   "article": {
+    "defaultCover": "Poster bawaan untuk {{title}}",
     "open": "Baca artikel {{title}}",
     "read": "Baca artikel",
     "back": "Kembali ke Pusat Informasi",
+    "backToSection": "Kembali ke {{section}}",
     "notFoundTitle": "Artikel tidak ditemukan",
     "notFoundDescription": "Artikel tidak tersedia, belum diterbitkan, atau tidak dapat diakses dari kampus Anda.",
     "readingTime_one": "{{count}} menit baca",
     "readingTime_other": "{{count}} menit baca",
-    "related": "Artikel Terkait",
-    "consultationTitle": "Butuh dukungan lebih lanjut?",
-    "consultationDescription": "Kanal konsultasi berikut telah ditautkan pada artikel ini."
+    "related": "Artikel Terkait"
   },
   "consultation": {
     "emergency": "Dukungan darurat",
@@ -103,9 +116,16 @@
     "phone": "Hubungi telepon",
     "whatsapp": "Buka WhatsApp",
     "appointment": "Buat janji",
+    "procedure": "Prosedur layanan",
+    "confidentiality": "Kerahasiaan",
     "confirmPhone": "Hubungi {{service}} melalui telepon? Jangan sertakan rincian laporan sensitif jika tidak diminta melalui prosedur resmi.",
     "confirmWhatsapp": "Buka WhatsApp untuk {{service}}? Jangan sertakan identitas atau rincian laporan sensitif dalam pesan awal.",
     "emergencyNotice": "Layanan ini ditandai memiliki dukungan darurat oleh pengelola konten. Periksa jam dan kanal yang tersedia sebelum menghubungi."
+  },
+  "reportCta": {
+    "title": "Perlu menyampaikan laporan?",
+    "description": "Gunakan formulir pelaporan resmi agar laporan dapat ditangani sesuai alur yang berlaku.",
+    "action": "Buat Laporan"
   },
   "attachment": {
     "title": "Lampiran Artikel",

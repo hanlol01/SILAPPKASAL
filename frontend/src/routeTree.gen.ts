@@ -13,6 +13,7 @@ import { Route as TrackRouteImport } from './routes/track'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as InformationCenterRouteImport } from './routes/information-center'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PortalIndexRouteImport } from './routes/portal.index'
@@ -20,6 +21,7 @@ import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as RegistrationPendingRouteImport } from './routes/registration.pending'
 import { Route as RegistrationCorrectionRouteImport } from './routes/registration.correction'
 import { Route as PortalNotificationsRouteImport } from './routes/portal.notifications'
+import { Route as PortalInformationCenterRouteImport } from './routes/portal.information-center'
 import { Route as PortalAccountRouteImport } from './routes/portal.account'
 import { Route as DashboardWorkflowRouteImport } from './routes/dashboard.workflow'
 import { Route as DashboardUsersRouteImport } from './routes/dashboard.users'
@@ -34,18 +36,25 @@ import { Route as DashboardBreakGlassRouteImport } from './routes/dashboard.brea
 import { Route as DashboardAnalyticsRouteImport } from './routes/dashboard.analytics'
 import { Route as DashboardActivityLogRouteImport } from './routes/dashboard.activity-log'
 import { Route as PortalReportsIndexRouteImport } from './routes/portal.reports.index'
+import { Route as PortalInformationCenterIndexRouteImport } from './routes/portal.information-center.index'
 import { Route as DashboardReportsIndexRouteImport } from './routes/dashboard.reports.index'
 import { Route as DashboardInformationCenterIndexRouteImport } from './routes/dashboard.information-center.index'
 import { Route as DashboardCasesIndexRouteImport } from './routes/dashboard.cases.index'
 import { Route as PortalReportsNewRouteImport } from './routes/portal.reports.new'
 import { Route as PortalReportsRegistrationNumberRouteImport } from './routes/portal.reports.$registrationNumber'
 import { Route as PortalReportsSplatRouteImport } from './routes/portal.reports.$'
+import { Route as PortalInformationCenterPoliciesRouteImport } from './routes/portal.information-center.policies'
+import { Route as PortalInformationCenterFaqRouteImport } from './routes/portal.information-center.faq'
+import { Route as PortalInformationCenterEducationRouteImport } from './routes/portal.information-center.education'
+import { Route as PortalInformationCenterConsultationRouteImport } from './routes/portal.information-center.consultation'
 import { Route as DashboardReportsIdRouteImport } from './routes/dashboard.reports.$id'
 import { Route as DashboardRegistrationsIdRouteImport } from './routes/dashboard.registrations.$id'
 import { Route as DashboardMasterDataUniversitiesRouteImport } from './routes/dashboard.master-data.universities'
 import { Route as DashboardMasterDataStudyProgramsRouteImport } from './routes/dashboard.master-data.study-programs'
 import { Route as DashboardMasterDataFacultiesRouteImport } from './routes/dashboard.master-data.faculties'
 import { Route as DashboardCasesIdRouteImport } from './routes/dashboard.cases.$id'
+import { Route as PortalInformationCenterPoliciesSlugRouteImport } from './routes/portal.information-center.policies.$slug'
+import { Route as PortalInformationCenterEducationSlugRouteImport } from './routes/portal.information-center.education.$slug'
 import { Route as DashboardInformationCenterArticlesArticleIdRouteImport } from './routes/dashboard.information-center.articles.$articleId'
 
 const TrackRoute = TrackRouteImport.update({
@@ -66,6 +75,11 @@ const PortalRoute = PortalRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InformationCenterRoute = InformationCenterRouteImport.update({
+  id: '/information-center',
+  path: '/information-center',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -101,6 +115,11 @@ const RegistrationCorrectionRoute = RegistrationCorrectionRouteImport.update({
 const PortalNotificationsRoute = PortalNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalInformationCenterRoute = PortalInformationCenterRouteImport.update({
+  id: '/information-center',
+  path: '/information-center',
   getParentRoute: () => PortalRoute,
 } as any)
 const PortalAccountRoute = PortalAccountRouteImport.update({
@@ -175,6 +194,12 @@ const PortalReportsIndexRoute = PortalReportsIndexRouteImport.update({
   path: '/reports/',
   getParentRoute: () => PortalRoute,
 } as any)
+const PortalInformationCenterIndexRoute =
+  PortalInformationCenterIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => PortalInformationCenterRoute,
+  } as any)
 const DashboardReportsIndexRoute = DashboardReportsIndexRouteImport.update({
   id: '/reports/',
   path: '/reports/',
@@ -207,6 +232,30 @@ const PortalReportsSplatRoute = PortalReportsSplatRouteImport.update({
   path: '/reports/$',
   getParentRoute: () => PortalRoute,
 } as any)
+const PortalInformationCenterPoliciesRoute =
+  PortalInformationCenterPoliciesRouteImport.update({
+    id: '/policies',
+    path: '/policies',
+    getParentRoute: () => PortalInformationCenterRoute,
+  } as any)
+const PortalInformationCenterFaqRoute =
+  PortalInformationCenterFaqRouteImport.update({
+    id: '/faq',
+    path: '/faq',
+    getParentRoute: () => PortalInformationCenterRoute,
+  } as any)
+const PortalInformationCenterEducationRoute =
+  PortalInformationCenterEducationRouteImport.update({
+    id: '/education',
+    path: '/education',
+    getParentRoute: () => PortalInformationCenterRoute,
+  } as any)
+const PortalInformationCenterConsultationRoute =
+  PortalInformationCenterConsultationRouteImport.update({
+    id: '/consultation',
+    path: '/consultation',
+    getParentRoute: () => PortalInformationCenterRoute,
+  } as any)
 const DashboardReportsIdRoute = DashboardReportsIdRouteImport.update({
   id: '/reports/$id',
   path: '/reports/$id',
@@ -241,6 +290,18 @@ const DashboardCasesIdRoute = DashboardCasesIdRouteImport.update({
   path: '/cases/$id',
   getParentRoute: () => DashboardRoute,
 } as any)
+const PortalInformationCenterPoliciesSlugRoute =
+  PortalInformationCenterPoliciesSlugRouteImport.update({
+    id: '/$slug',
+    path: '/$slug',
+    getParentRoute: () => PortalInformationCenterPoliciesRoute,
+  } as any)
+const PortalInformationCenterEducationSlugRoute =
+  PortalInformationCenterEducationSlugRouteImport.update({
+    id: '/$slug',
+    path: '/$slug',
+    getParentRoute: () => PortalInformationCenterEducationRoute,
+  } as any)
 const DashboardInformationCenterArticlesArticleIdRoute =
   DashboardInformationCenterArticlesArticleIdRouteImport.update({
     id: '/articles/$articleId',
@@ -251,6 +312,7 @@ const DashboardInformationCenterArticlesArticleIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/information-center': typeof InformationCenterRoute
   '/login': typeof LoginRoute
   '/portal': typeof PortalRouteWithChildren
   '/register': typeof RegisterRoute
@@ -268,6 +330,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/workflow': typeof DashboardWorkflowRoute
   '/portal/account': typeof PortalAccountRoute
+  '/portal/information-center': typeof PortalInformationCenterRouteWithChildren
   '/portal/notifications': typeof PortalNotificationsRoute
   '/registration/correction': typeof RegistrationCorrectionRoute
   '/registration/pending': typeof RegistrationPendingRoute
@@ -279,17 +342,25 @@ export interface FileRoutesByFullPath {
   '/dashboard/master-data/universities': typeof DashboardMasterDataUniversitiesRoute
   '/dashboard/registrations/$id': typeof DashboardRegistrationsIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
+  '/portal/information-center/consultation': typeof PortalInformationCenterConsultationRoute
+  '/portal/information-center/education': typeof PortalInformationCenterEducationRouteWithChildren
+  '/portal/information-center/faq': typeof PortalInformationCenterFaqRoute
+  '/portal/information-center/policies': typeof PortalInformationCenterPoliciesRouteWithChildren
   '/portal/reports/$': typeof PortalReportsSplatRoute
   '/portal/reports/$registrationNumber': typeof PortalReportsRegistrationNumberRoute
   '/portal/reports/new': typeof PortalReportsNewRoute
   '/dashboard/cases/': typeof DashboardCasesIndexRoute
   '/dashboard/information-center/': typeof DashboardInformationCenterIndexRoute
   '/dashboard/reports/': typeof DashboardReportsIndexRoute
+  '/portal/information-center/': typeof PortalInformationCenterIndexRoute
   '/portal/reports/': typeof PortalReportsIndexRoute
   '/dashboard/information-center/articles/$articleId': typeof DashboardInformationCenterArticlesArticleIdRoute
+  '/portal/information-center/education/$slug': typeof PortalInformationCenterEducationSlugRoute
+  '/portal/information-center/policies/$slug': typeof PortalInformationCenterPoliciesSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/information-center': typeof InformationCenterRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/track': typeof TrackRoute
@@ -316,19 +387,27 @@ export interface FileRoutesByTo {
   '/dashboard/master-data/universities': typeof DashboardMasterDataUniversitiesRoute
   '/dashboard/registrations/$id': typeof DashboardRegistrationsIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
+  '/portal/information-center/consultation': typeof PortalInformationCenterConsultationRoute
+  '/portal/information-center/education': typeof PortalInformationCenterEducationRouteWithChildren
+  '/portal/information-center/faq': typeof PortalInformationCenterFaqRoute
+  '/portal/information-center/policies': typeof PortalInformationCenterPoliciesRouteWithChildren
   '/portal/reports/$': typeof PortalReportsSplatRoute
   '/portal/reports/$registrationNumber': typeof PortalReportsRegistrationNumberRoute
   '/portal/reports/new': typeof PortalReportsNewRoute
   '/dashboard/cases': typeof DashboardCasesIndexRoute
   '/dashboard/information-center': typeof DashboardInformationCenterIndexRoute
   '/dashboard/reports': typeof DashboardReportsIndexRoute
+  '/portal/information-center': typeof PortalInformationCenterIndexRoute
   '/portal/reports': typeof PortalReportsIndexRoute
   '/dashboard/information-center/articles/$articleId': typeof DashboardInformationCenterArticlesArticleIdRoute
+  '/portal/information-center/education/$slug': typeof PortalInformationCenterEducationSlugRoute
+  '/portal/information-center/policies/$slug': typeof PortalInformationCenterPoliciesSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/information-center': typeof InformationCenterRoute
   '/login': typeof LoginRoute
   '/portal': typeof PortalRouteWithChildren
   '/register': typeof RegisterRoute
@@ -346,6 +425,7 @@ export interface FileRoutesById {
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/workflow': typeof DashboardWorkflowRoute
   '/portal/account': typeof PortalAccountRoute
+  '/portal/information-center': typeof PortalInformationCenterRouteWithChildren
   '/portal/notifications': typeof PortalNotificationsRoute
   '/registration/correction': typeof RegistrationCorrectionRoute
   '/registration/pending': typeof RegistrationPendingRoute
@@ -357,20 +437,28 @@ export interface FileRoutesById {
   '/dashboard/master-data/universities': typeof DashboardMasterDataUniversitiesRoute
   '/dashboard/registrations/$id': typeof DashboardRegistrationsIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
+  '/portal/information-center/consultation': typeof PortalInformationCenterConsultationRoute
+  '/portal/information-center/education': typeof PortalInformationCenterEducationRouteWithChildren
+  '/portal/information-center/faq': typeof PortalInformationCenterFaqRoute
+  '/portal/information-center/policies': typeof PortalInformationCenterPoliciesRouteWithChildren
   '/portal/reports/$': typeof PortalReportsSplatRoute
   '/portal/reports/$registrationNumber': typeof PortalReportsRegistrationNumberRoute
   '/portal/reports/new': typeof PortalReportsNewRoute
   '/dashboard/cases/': typeof DashboardCasesIndexRoute
   '/dashboard/information-center/': typeof DashboardInformationCenterIndexRoute
   '/dashboard/reports/': typeof DashboardReportsIndexRoute
+  '/portal/information-center/': typeof PortalInformationCenterIndexRoute
   '/portal/reports/': typeof PortalReportsIndexRoute
   '/dashboard/information-center/articles/$articleId': typeof DashboardInformationCenterArticlesArticleIdRoute
+  '/portal/information-center/education/$slug': typeof PortalInformationCenterEducationSlugRoute
+  '/portal/information-center/policies/$slug': typeof PortalInformationCenterPoliciesSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/information-center'
     | '/login'
     | '/portal'
     | '/register'
@@ -388,6 +476,7 @@ export interface FileRouteTypes {
     | '/dashboard/users'
     | '/dashboard/workflow'
     | '/portal/account'
+    | '/portal/information-center'
     | '/portal/notifications'
     | '/registration/correction'
     | '/registration/pending'
@@ -399,17 +488,25 @@ export interface FileRouteTypes {
     | '/dashboard/master-data/universities'
     | '/dashboard/registrations/$id'
     | '/dashboard/reports/$id'
+    | '/portal/information-center/consultation'
+    | '/portal/information-center/education'
+    | '/portal/information-center/faq'
+    | '/portal/information-center/policies'
     | '/portal/reports/$'
     | '/portal/reports/$registrationNumber'
     | '/portal/reports/new'
     | '/dashboard/cases/'
     | '/dashboard/information-center/'
     | '/dashboard/reports/'
+    | '/portal/information-center/'
     | '/portal/reports/'
     | '/dashboard/information-center/articles/$articleId'
+    | '/portal/information-center/education/$slug'
+    | '/portal/information-center/policies/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/information-center'
     | '/login'
     | '/register'
     | '/track'
@@ -436,18 +533,26 @@ export interface FileRouteTypes {
     | '/dashboard/master-data/universities'
     | '/dashboard/registrations/$id'
     | '/dashboard/reports/$id'
+    | '/portal/information-center/consultation'
+    | '/portal/information-center/education'
+    | '/portal/information-center/faq'
+    | '/portal/information-center/policies'
     | '/portal/reports/$'
     | '/portal/reports/$registrationNumber'
     | '/portal/reports/new'
     | '/dashboard/cases'
     | '/dashboard/information-center'
     | '/dashboard/reports'
+    | '/portal/information-center'
     | '/portal/reports'
     | '/dashboard/information-center/articles/$articleId'
+    | '/portal/information-center/education/$slug'
+    | '/portal/information-center/policies/$slug'
   id:
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/information-center'
     | '/login'
     | '/portal'
     | '/register'
@@ -465,6 +570,7 @@ export interface FileRouteTypes {
     | '/dashboard/users'
     | '/dashboard/workflow'
     | '/portal/account'
+    | '/portal/information-center'
     | '/portal/notifications'
     | '/registration/correction'
     | '/registration/pending'
@@ -476,19 +582,27 @@ export interface FileRouteTypes {
     | '/dashboard/master-data/universities'
     | '/dashboard/registrations/$id'
     | '/dashboard/reports/$id'
+    | '/portal/information-center/consultation'
+    | '/portal/information-center/education'
+    | '/portal/information-center/faq'
+    | '/portal/information-center/policies'
     | '/portal/reports/$'
     | '/portal/reports/$registrationNumber'
     | '/portal/reports/new'
     | '/dashboard/cases/'
     | '/dashboard/information-center/'
     | '/dashboard/reports/'
+    | '/portal/information-center/'
     | '/portal/reports/'
     | '/dashboard/information-center/articles/$articleId'
+    | '/portal/information-center/education/$slug'
+    | '/portal/information-center/policies/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRouteWithChildren
+  InformationCenterRoute: typeof InformationCenterRoute
   LoginRoute: typeof LoginRoute
   PortalRoute: typeof PortalRouteWithChildren
   RegisterRoute: typeof RegisterRoute
@@ -525,6 +639,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/information-center': {
+      id: '/information-center'
+      path: '/information-center'
+      fullPath: '/information-center'
+      preLoaderRoute: typeof InformationCenterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -574,6 +695,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/portal/notifications'
       preLoaderRoute: typeof PortalNotificationsRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/information-center': {
+      id: '/portal/information-center'
+      path: '/information-center'
+      fullPath: '/portal/information-center'
+      preLoaderRoute: typeof PortalInformationCenterRouteImport
       parentRoute: typeof PortalRoute
     }
     '/portal/account': {
@@ -674,6 +802,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalReportsIndexRouteImport
       parentRoute: typeof PortalRoute
     }
+    '/portal/information-center/': {
+      id: '/portal/information-center/'
+      path: '/'
+      fullPath: '/portal/information-center/'
+      preLoaderRoute: typeof PortalInformationCenterIndexRouteImport
+      parentRoute: typeof PortalInformationCenterRoute
+    }
     '/dashboard/reports/': {
       id: '/dashboard/reports/'
       path: '/reports'
@@ -716,6 +851,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalReportsSplatRouteImport
       parentRoute: typeof PortalRoute
     }
+    '/portal/information-center/policies': {
+      id: '/portal/information-center/policies'
+      path: '/policies'
+      fullPath: '/portal/information-center/policies'
+      preLoaderRoute: typeof PortalInformationCenterPoliciesRouteImport
+      parentRoute: typeof PortalInformationCenterRoute
+    }
+    '/portal/information-center/faq': {
+      id: '/portal/information-center/faq'
+      path: '/faq'
+      fullPath: '/portal/information-center/faq'
+      preLoaderRoute: typeof PortalInformationCenterFaqRouteImport
+      parentRoute: typeof PortalInformationCenterRoute
+    }
+    '/portal/information-center/education': {
+      id: '/portal/information-center/education'
+      path: '/education'
+      fullPath: '/portal/information-center/education'
+      preLoaderRoute: typeof PortalInformationCenterEducationRouteImport
+      parentRoute: typeof PortalInformationCenterRoute
+    }
+    '/portal/information-center/consultation': {
+      id: '/portal/information-center/consultation'
+      path: '/consultation'
+      fullPath: '/portal/information-center/consultation'
+      preLoaderRoute: typeof PortalInformationCenterConsultationRouteImport
+      parentRoute: typeof PortalInformationCenterRoute
+    }
     '/dashboard/reports/$id': {
       id: '/dashboard/reports/$id'
       path: '/reports/$id'
@@ -757,6 +920,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard/cases/$id'
       preLoaderRoute: typeof DashboardCasesIdRouteImport
       parentRoute: typeof DashboardRoute
+    }
+    '/portal/information-center/policies/$slug': {
+      id: '/portal/information-center/policies/$slug'
+      path: '/$slug'
+      fullPath: '/portal/information-center/policies/$slug'
+      preLoaderRoute: typeof PortalInformationCenterPoliciesSlugRouteImport
+      parentRoute: typeof PortalInformationCenterPoliciesRoute
+    }
+    '/portal/information-center/education/$slug': {
+      id: '/portal/information-center/education/$slug'
+      path: '/$slug'
+      fullPath: '/portal/information-center/education/$slug'
+      preLoaderRoute: typeof PortalInformationCenterEducationSlugRouteImport
+      parentRoute: typeof PortalInformationCenterEducationRoute
     }
     '/dashboard/information-center/articles/$articleId': {
       id: '/dashboard/information-center/articles/$articleId'
@@ -858,8 +1035,64 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
   DashboardRouteChildren,
 )
 
+interface PortalInformationCenterEducationRouteChildren {
+  PortalInformationCenterEducationSlugRoute: typeof PortalInformationCenterEducationSlugRoute
+}
+
+const PortalInformationCenterEducationRouteChildren: PortalInformationCenterEducationRouteChildren =
+  {
+    PortalInformationCenterEducationSlugRoute:
+      PortalInformationCenterEducationSlugRoute,
+  }
+
+const PortalInformationCenterEducationRouteWithChildren =
+  PortalInformationCenterEducationRoute._addFileChildren(
+    PortalInformationCenterEducationRouteChildren,
+  )
+
+interface PortalInformationCenterPoliciesRouteChildren {
+  PortalInformationCenterPoliciesSlugRoute: typeof PortalInformationCenterPoliciesSlugRoute
+}
+
+const PortalInformationCenterPoliciesRouteChildren: PortalInformationCenterPoliciesRouteChildren =
+  {
+    PortalInformationCenterPoliciesSlugRoute:
+      PortalInformationCenterPoliciesSlugRoute,
+  }
+
+const PortalInformationCenterPoliciesRouteWithChildren =
+  PortalInformationCenterPoliciesRoute._addFileChildren(
+    PortalInformationCenterPoliciesRouteChildren,
+  )
+
+interface PortalInformationCenterRouteChildren {
+  PortalInformationCenterConsultationRoute: typeof PortalInformationCenterConsultationRoute
+  PortalInformationCenterEducationRoute: typeof PortalInformationCenterEducationRouteWithChildren
+  PortalInformationCenterFaqRoute: typeof PortalInformationCenterFaqRoute
+  PortalInformationCenterPoliciesRoute: typeof PortalInformationCenterPoliciesRouteWithChildren
+  PortalInformationCenterIndexRoute: typeof PortalInformationCenterIndexRoute
+}
+
+const PortalInformationCenterRouteChildren: PortalInformationCenterRouteChildren =
+  {
+    PortalInformationCenterConsultationRoute:
+      PortalInformationCenterConsultationRoute,
+    PortalInformationCenterEducationRoute:
+      PortalInformationCenterEducationRouteWithChildren,
+    PortalInformationCenterFaqRoute: PortalInformationCenterFaqRoute,
+    PortalInformationCenterPoliciesRoute:
+      PortalInformationCenterPoliciesRouteWithChildren,
+    PortalInformationCenterIndexRoute: PortalInformationCenterIndexRoute,
+  }
+
+const PortalInformationCenterRouteWithChildren =
+  PortalInformationCenterRoute._addFileChildren(
+    PortalInformationCenterRouteChildren,
+  )
+
 interface PortalRouteChildren {
   PortalAccountRoute: typeof PortalAccountRoute
+  PortalInformationCenterRoute: typeof PortalInformationCenterRouteWithChildren
   PortalNotificationsRoute: typeof PortalNotificationsRoute
   PortalIndexRoute: typeof PortalIndexRoute
   PortalReportsSplatRoute: typeof PortalReportsSplatRoute
@@ -870,6 +1103,7 @@ interface PortalRouteChildren {
 
 const PortalRouteChildren: PortalRouteChildren = {
   PortalAccountRoute: PortalAccountRoute,
+  PortalInformationCenterRoute: PortalInformationCenterRouteWithChildren,
   PortalNotificationsRoute: PortalNotificationsRoute,
   PortalIndexRoute: PortalIndexRoute,
   PortalReportsSplatRoute: PortalReportsSplatRoute,
@@ -884,6 +1118,7 @@ const PortalRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRouteWithChildren,
+  InformationCenterRoute: InformationCenterRoute,
   LoginRoute: LoginRoute,
   PortalRoute: PortalRouteWithChildren,
   RegisterRoute: RegisterRoute,

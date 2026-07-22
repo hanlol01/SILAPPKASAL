@@ -12,6 +12,7 @@ interface PublishedArticleCardProps {
   article: PublishedArticle;
   featured?: boolean;
   className?: string;
+  portal?: boolean;
 }
 
 const sectionVisuals = {
@@ -31,6 +32,7 @@ export function PublishedArticleCard({
   article,
   featured = false,
   className,
+  portal = false,
 }: PublishedArticleCardProps) {
   const { t, i18n } = useTranslation("informationCenter");
   const [coverUnavailable, setCoverUnavailable] = useState(false);
@@ -48,11 +50,14 @@ export function PublishedArticleCard({
   const publicationDate = new Intl.DateTimeFormat(i18n.language, {
     dateStyle: "medium",
   }).format(new Date(article.published_at));
+  const detailTo = article.section.code === "policy"
+    ? "/portal/information-center/policies/$slug"
+    : "/portal/information-center/education/$slug";
 
   return (
     <Link
-      to="/dashboard/information-center/articles/$articleId"
-      params={{ articleId: article.public_id }}
+      to={portal ? detailTo : "/dashboard/information-center/articles/$articleId"}
+      params={portal ? { slug: article.slug } : { articleId: article.public_id }}
       aria-label={t("article.open", { title: article.title })}
       className={cn(
         "group flex min-h-11 min-w-0 flex-col overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-sm",
@@ -97,7 +102,7 @@ export function PublishedArticleCard({
       <div className="flex flex-1 flex-col p-5">
         <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2">
           <Badge variant="secondary" className="max-w-full truncate">
-            {article.category?.name ?? sectionLabel}
+            {article.category_name ?? article.category?.name ?? sectionLabel}
           </Badge>
           <span className="text-xs text-muted-foreground">{sectionLabel}</span>
         </div>

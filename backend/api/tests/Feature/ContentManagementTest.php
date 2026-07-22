@@ -12,8 +12,10 @@ use App\Services\ContentPublicationService;
 use Database\Seeders\Foundation\ContentFoundationSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -156,31 +158,119 @@ class ContentManagementTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['action' => 'content.attachment_removed', 'actor_id' => $admin->id]);
     }
 
-    public function test_eligible_consultation_choices_are_published_active_and_scope_safe(): void
+    public function test_article_consultation_cta_endpoint_is_not_active(): void
+    {
+        Sanctum::actingAs($this->user('admin', $this->campusA), ['*']);
+        $this->getJson('/api/v1/content-management/consultation-options')->assertNotFound();
+    }
+
+    public function test_article_category_is_required_trimmed_and_suggested_without_cross_campus_leakage(): void
+    {
+        $adminA = $this->user('admin', $this->campusA);
+        $adminB = $this->user('admin', $this->campusB);
+        Sanctum::actingAs($adminA, ['*']);
+        $payload = $this->articlePayload($this->campusA, 'Kategori Baru');
+        unset($payload['category_name']);
+        $this->postJson('/api/v1/content-management/items', $payload)
+            ->assertUnprocessable()->assertJsonValidationErrors('category_name');
+
+        $payload['category_name'] = '  Kesehatan Kampus  ';
+        $created = $this->postJson('/api/v1/content-management/items', $payload)
+            ->assertCreated()->assertJsonPath('data.category_name', 'Kesehatan Kampus')->json('data');
+
+        app(ContentPublicationService::class)->createDraft($adminB, [
+            ...$this->articlePayload($this->campusB, 'Kategori Asing'),
+            'category_name' => 'Kategori Rahasia Kampus B',
+        ]);
+        $this->getJson('/api/v1/content-management/article-categories?section=education')
+            ->assertOk()->assertJsonFragment(['Kesehatan Kampus'])
+            ->assertJsonMissing(['Kategori Rahasia Kampus B']);
+        $this->getJson('/api/v1/content-management/items?article_category='.urlencode('Kesehatan Kampus'))
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.public_id', $created['public_id']);
+    }
+
+    public function test_new_information_center_get_routes_have_explicit_throttles(): void
+    {
+        foreach ([
+            '/api/v1/content/article-categories?section=education',
+            '/api/v1/content/articles/slug/education/example-slug',
+            '/api/v1/content-management/capabilities',
+            '/api/v1/content-management/article-categories?section=education',
+        ] as $uri) {
+            $route = app('router')->getRoutes()->match(Request::create($uri, 'GET'));
+            $this->assertContains('throttle:60,1', $route->gatherMiddleware(), $uri);
+        }
+    }
+
+    public function test_consultation_configuration_fields_are_preserved_and_article_cta_is_absent(): void
+    {
+        $admin = $this->user('admin', $this->campusA);
+        Sanctum::actingAs($admin, ['*']);
+        $created = $this->postJson('/api/v1/content-management/items', [
+            ...$this->consultationPayload(ContentScope::Campus, $this->campusA, 'Konsultasi Terstruktur'),
+            'service_type' => 'Pendampingan awal',
+            'procedure' => "Hubungi kanal resmi.\nTentukan jadwal.",
+            'confidentiality_info' => 'Informasi ditangani sesuai kebijakan institusi.',
+        ])->assertCreated()->json('data');
+
+        $this->getJson('/api/v1/content-management/items/'.$created['public_id'])
+            ->assertOk()
+            ->assertJsonPath('data.version.consultation.service_type', 'Pendampingan awal')
+            ->assertJsonPath('data.version.consultation.procedure', "Hubungi kanal resmi.\nTentukan jadwal.")
+            ->assertJsonPath('data.version.consultation.confidentiality_info', 'Informasi ditangani sesuai kebijakan institusi.')
+            ->assertJsonMissingPath('data.version.article.consultation_cta_public_id');
+    }
+
+    public function test_management_reports_image_upload_capability_fail_closed(): void
+    {
+        Sanctum::actingAs($this->user('admin', $this->campusA), ['*']);
+        $this->getJson('/api/v1/content-management/capabilities')
+            ->assertOk()->assertJsonPath('data.image_upload_available', false);
+    }
+
+    public function test_reporter_article_categories_are_unique_published_scoped_and_filterable(): void
     {
         $adminA = $this->user('admin', $this->campusA);
         $adminB = $this->user('admin', $this->campusB);
         $super = $this->user('super_admin');
         $service = app(ContentPublicationService::class);
-        $global = $service->createDraft($super, $this->consultationPayload(ContentScope::Global, null, 'Global Aktif'));
-        $global = $this->publishGlobalItem($global, $super);
-        $own = $service->createDraft($adminA, $this->consultationPayload(ContentScope::Campus, $this->campusA, 'Kampus Aktif'));
-        $own = $service->submit($own->currentDraftVersion, $adminA, (int) $own->lock_version);
-        $own = $service->startReview($own->currentDraftVersion, $super, (int) $own->lock_version);
-        $own = $service->approve($own->currentDraftVersion, $super, (int) $own->lock_version);
-        $own = $service->publishApproved($own->currentDraftVersion, $super, (int) $own->lock_version);
-        $foreign = $service->createDraft($adminB, $this->consultationPayload(ContentScope::Campus, $this->campusB, 'Kampus Asing'));
-        $foreign = $service->submit($foreign->currentDraftVersion, $adminB, (int) $foreign->lock_version);
-        $foreign = $service->startReview($foreign->currentDraftVersion, $super, (int) $foreign->lock_version);
-        $foreign = $service->approve($foreign->currentDraftVersion, $super, (int) $foreign->lock_version);
-        $service->publishApproved($foreign->currentDraftVersion, $super, (int) $foreign->lock_version);
+        foreach ([['Batasan Diri', 'Artikel Satu'], ['Batasan Diri', 'Artikel Dua'], ['Dukungan Kampus', 'Artikel Tiga']] as [$category, $title]) {
+            $item = $service->createDraft($adminA, [...$this->articlePayload($this->campusA, $title), 'category_name' => $category]);
+            $this->publishCampusItem($item, $adminA, $super);
+        }
+        $foreign = $service->createDraft($adminB, [...$this->articlePayload($this->campusB, 'Artikel Asing'), 'category_name' => 'Kategori Kampus B']);
+        $this->publishCampusItem($foreign, $adminB, $super);
 
-        Sanctum::actingAs($adminA, ['*']);
-        $response = $this->getJson('/api/v1/content-management/consultation-options')->assertOk();
-        $ids = collect($response->json('data'))->pluck('public_id');
-        $this->assertTrue($ids->contains($global->public_id));
-        $this->assertTrue($ids->contains($own->public_id));
-        $this->assertFalse($ids->contains($foreign->public_id));
+        Sanctum::actingAs($this->user('reporter', $this->campusA), ['*']);
+        $this->getJson('/api/v1/content/article-categories?section=education')
+            ->assertOk()
+            ->assertJsonPath('data', ['Batasan Diri', 'Dukungan Kampus'])
+            ->assertJsonMissing(['Kategori Kampus B']);
+        $this->getJson('/api/v1/content/articles?section=education&article_category='.urlencode('Batasan Diri'))
+            ->assertOk()->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('data.0.category_name', 'Batasan Diri');
+    }
+
+    public function test_information_center_extension_migration_rolls_back_reapplies_and_backfills_legacy_category(): void
+    {
+        $admin = $this->user('admin', $this->campusA);
+        $item = app(ContentPublicationService::class)->createDraft($admin, $this->articlePayload($this->campusA, 'Artikel Legacy'));
+        $item->forceFill(['category_name' => null])->save();
+        $migration = require database_path('migrations/2026_07_22_000000_extend_content_for_reporter_information_center.php');
+
+        $migration->down();
+        $this->assertFalse(Schema::hasColumn('content_items', 'category_name'));
+        $this->assertFalse(Schema::hasColumn('consultation_version_contents', 'procedure'));
+
+        $migration->up();
+        $this->assertTrue(Schema::hasColumn('content_items', 'category_name'));
+        $this->assertTrue(Schema::hasColumn('consultation_version_contents', 'procedure'));
+        $this->assertSame(
+            $item->category->name,
+            ContentItem::query()->whereKey($item->id)->value('category_name'),
+        );
     }
 
     private function articlePayload(University $campus, string $title): array
@@ -190,6 +280,7 @@ class ContentManagementTest extends TestCase
         return [
             'content_type' => 'article', 'section_code' => 'education',
             'category_public_id' => $category->public_id, 'scope' => 'campus',
+            'category_name' => $category->name,
             'university_id' => $campus->id, 'title' => $title,
             'excerpt' => 'Ringkasan aman.', 'document' => $this->document('Isi artikel aman.'),
         ];
@@ -220,6 +311,16 @@ class ContentManagementTest extends TestCase
         $service = app(ContentPublicationService::class);
         $reviewer = $this->user('super_admin');
         $item = $service->submit($item->currentDraftVersion, $author, (int) $item->lock_version);
+        $item = $service->startReview($item->currentDraftVersion, $reviewer, (int) $item->lock_version);
+        $item = $service->approve($item->currentDraftVersion, $reviewer, (int) $item->lock_version);
+
+        return $service->publishApproved($item->currentDraftVersion, $reviewer, (int) $item->lock_version);
+    }
+
+    private function publishCampusItem(ContentItem $item, User $admin, User $reviewer): ContentItem
+    {
+        $service = app(ContentPublicationService::class);
+        $item = $service->submit($item->currentDraftVersion, $admin, (int) $item->lock_version);
         $item = $service->startReview($item->currentDraftVersion, $reviewer, (int) $item->lock_version);
         $item = $service->approve($item->currentDraftVersion, $reviewer, (int) $item->lock_version);
 

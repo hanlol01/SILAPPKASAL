@@ -10,7 +10,6 @@ use App\Http\Requests\StoreContentItemRequest;
 use App\Http\Requests\SubmitContentVersionRequest;
 use App\Http\Requests\UpdateContentDraftRequest;
 use App\Http\Resources\ContentAttachmentResource;
-use App\Http\Resources\ContentManagementConsultationOptionResource;
 use App\Http\Resources\ContentManagementDetailResource;
 use App\Http\Resources\ContentManagementResource;
 use App\Services\ContentAttachmentService;
@@ -51,12 +50,21 @@ class ContentManagementController extends Controller
         );
     }
 
-    public function consultationOptions(ContentManagementActionRequest $request): JsonResponse
+    public function articleCategories(ContentManagementActionRequest $request): JsonResponse
     {
         return $this->response(
-            ContentManagementConsultationOptionResource::collection($this->queries->eligibleConsultations($request->user())),
-            'Eligible Consultation choices retrieved successfully',
+            $this->queries->articleCategoryNames($request->user(), $request->validated('section')),
+            'Managed Article categories retrieved successfully',
         );
+    }
+
+    public function capabilities(ContentManagementActionRequest $request): JsonResponse
+    {
+        $this->queries->summary($request->user());
+
+        return $this->response([
+            'image_upload_available' => $this->attachments->imageUploadsAvailable(),
+        ], 'Content management capabilities retrieved successfully');
     }
 
     public function store(StoreContentItemRequest $request): JsonResponse

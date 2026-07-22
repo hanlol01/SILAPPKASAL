@@ -8,7 +8,9 @@ use App\Models\AuditLog;
 use App\Models\ContentCategory;
 use App\Models\ContentItem;
 use App\Models\ContentReviewDecision;
+use App\Models\ContentSection;
 use App\Models\ContentVersion;
+use App\Models\FeaturedContent;
 use App\Models\Role;
 use App\Models\University;
 use App\Models\User;
@@ -439,11 +441,21 @@ class ContentGovernanceTest extends TestCase
     public function test_featured_governance_enforces_eligibility_rank_windows_and_concurrency(): void
     {
         $published = $this->publishedGlobalArticle('Unggulan Terbit');
+        $policy = $this->publishedGlobalPolicy('Kebijakan Tidak Boleh Disorot');
         $draft = app(ContentPublicationService::class)->createDraft(
             $this->reviewer,
             $this->articlePayload(ContentScope::Global, null, 'Belum Terbit'),
         );
         Sanctum::actingAs($this->reviewer, ['*']);
+        $this->getJson('/api/v1/content-governance/featured/eligible?scope=global')
+            ->assertOk()
+            ->assertJsonFragment(['public_id' => $published->public_id])
+            ->assertJsonMissing(['public_id' => $policy->public_id]);
+        $this->postJson('/api/v1/content-governance/featured', [
+            'content_public_id' => $policy->public_id,
+            'scope' => 'global',
+            'rank' => 5,
+        ])->assertNotFound();
         $this->postJson('/api/v1/content-governance/featured', [
             'content_public_id' => $draft->public_id,
             'scope' => 'global',
@@ -508,6 +520,18 @@ class ContentGovernanceTest extends TestCase
             'rank' => 3,
         ])->assertCreated();
 
+        FeaturedContent::query()->create([
+            'scope' => 'global',
+            'content_item_id' => $policy->id,
+            'rank' => 5,
+            'creator_id' => $this->reviewer->id,
+        ]);
+        Sanctum::actingAs($this->user('reporter', $this->campus), ['*']);
+        $this->getJson('/api/v1/content/featured?section=education')
+            ->assertOk()
+            ->assertJsonMissing(['public_id' => $policy->public_id]);
+        Sanctum::actingAs($this->reviewer, ['*']);
+
         $response = $this->getJson('/api/v1/content-governance/featured')->assertOk();
         $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
         $this->assertGreaterThanOrEqual(5, AuditLog::query()->where('action', 'content.featured_placement_changed')->count());
@@ -545,6 +569,27 @@ class ContentGovernanceTest extends TestCase
         return $service->publishApproved($item->currentDraftVersion, $secondReviewer, (int) $item->lock_version);
     }
 
+    private function publishedGlobalPolicy(string $title): ContentItem
+    {
+        $service = app(ContentPublicationService::class);
+        $payload = $this->articlePayload(ContentScope::Global, null, $title);
+        $policySection = ContentSection::query()->where('code', 'policy')->firstOrFail();
+        $policyCategory = ContentCategory::query()
+            ->where('section_id', $policySection->id)
+            ->where('scope', ContentScope::Global->value)
+            ->firstOrFail();
+        $payload['section_code'] = 'policy';
+        $payload['category_public_id'] = $policyCategory->public_id;
+        $payload['category_name'] = $policyCategory->name;
+        $item = $service->createDraft($this->reviewer, $payload);
+        $secondReviewer = $this->user('super_admin');
+        $item = $service->submit($item->currentDraftVersion, $this->reviewer, (int) $item->lock_version);
+        $item = $service->startReview($item->currentDraftVersion, $secondReviewer, (int) $item->lock_version);
+        $item = $service->approve($item->currentDraftVersion, $secondReviewer, (int) $item->lock_version);
+
+        return $service->publishApproved($item->currentDraftVersion, $secondReviewer, (int) $item->lock_version);
+    }
+
     /** @return array<string, mixed> */
     private function articlePayload(ContentScope $scope, ?University $campus, string $title): array
     {
@@ -554,6 +599,7 @@ class ContentGovernanceTest extends TestCase
             'content_type' => 'article',
             'section_code' => 'education',
             'category_public_id' => $category->public_id,
+            'category_name' => $category->name,
             'scope' => $scope->value,
             'university_id' => $campus?->id,
             'title' => $title,

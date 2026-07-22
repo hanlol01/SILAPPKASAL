@@ -60,6 +60,12 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/sections', [ContentController::class, 'sections']);
         Route::get('/categories', [ContentController::class, 'categories']);
         Route::get('/articles', [ContentController::class, 'articles']);
+        Route::get('/article-categories', [ContentController::class, 'articleCategories'])
+            ->middleware('throttle:60,1');
+        Route::get('/articles/slug/{section}/{slug}', [ContentController::class, 'articleBySlug'])
+            ->where('section', 'education|policy')
+            ->where('slug', '[a-z0-9-]+')
+            ->middleware('throttle:60,1');
         Route::get('/articles/{publicId}', [ContentController::class, 'article'])
             ->whereUuid('publicId');
         Route::get('/faqs', [ContentController::class, 'faqs']);
@@ -73,7 +79,10 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware('auth:sanctum')->prefix('content-management')->group(function (): void {
         Route::get('/items', [ContentManagementController::class, 'index']);
         Route::get('/summary', [ContentManagementController::class, 'summary']);
-        Route::get('/consultation-options', [ContentManagementController::class, 'consultationOptions']);
+        Route::get('/capabilities', [ContentManagementController::class, 'capabilities'])
+            ->middleware('throttle:60,1');
+        Route::get('/article-categories', [ContentManagementController::class, 'articleCategories'])
+            ->middleware('throttle:60,1');
         Route::get('/items/{item}', [ContentManagementController::class, 'show'])->whereUuid('item');
         Route::post('/items', [ContentManagementController::class, 'store']);
         Route::post('/items/{item}/revisions', [ContentManagementController::class, 'createRevision'])->whereUuid('item');

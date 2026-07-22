@@ -42,7 +42,10 @@ test("published reader API uses centralized private keys and propagates AbortSig
     assert.ok(api.includes(`/content/${endpoint}`));
   }
   assert.match(api, /getPublishedArticle[\s\S]+encodeURIComponent\(publicId\)[\s\S]+\{ signal \}/);
-  assert.match(api, /getFeaturedContent\(signal\?: AbortSignal\)/);
+  assert.match(api, /getFeaturedContent\(filters: FeaturedContentFilters = \{\}, signal\?: AbortSignal\)/);
+  assert.match(api, /getPublishedArticleBySlug/);
+  assert.match(api, /\/content\/articles\/slug\/\$\{section\}\/\$\{encodeURIComponent\(slug\)\}/);
+  assert.match(api, /getPublishedArticleCategories/);
   assert.match(cache, /queryKey\[0\] === "published-content"/);
 });
 
@@ -78,6 +81,20 @@ test("published-content permission controls entry points as well as the route gu
   ]);
   assert.match(portalLayout, /canReadPublishedContent\(user\)/);
   assert.match(portalOverview, /publishedContentAccessible &&/);
+});
+
+test("legacy information center route redirects to the role-appropriate reader", async () => {
+  const [route, dashboardRoute] = await Promise.all([
+    source("src/routes/information-center.tsx"),
+    source("src/routes/dashboard.tsx"),
+  ]);
+
+  assert.match(route, /createFileRoute\("\/information-center"\)/);
+  assert.match(route, /to="\/portal\/information-center"/);
+  assert.match(route, /to="\/dashboard\/information-center"/);
+  assert.match(route, /canReadPublishedContent/);
+  assert.match(dashboardRoute, /canEnterInformationCenterPath\(roleCode, pathname\)/);
+  assert.match(dashboardRoute, /to="\/portal\/information-center"/);
 });
 
 test("reader URL state is normalized while user actions remain navigable in history", () => {
@@ -149,7 +166,8 @@ test("reader URL state is normalized while user actions remain navigable in hist
 test("article cards use semantic full-card navigation and a complete no-image treatment", async () => {
   const card = await source("src/components/content/published-article-card.tsx");
 
-  assert.match(card, /<Link[\s\S]+to="\/dashboard\/information-center\/articles\/\$articleId"/);
+  assert.match(card, /<Link[\s\S]+to=\{portal \? detailTo : "\/dashboard\/information-center\/articles\/\$articleId"\}/);
+  assert.match(card, /\/portal\/information-center\/education\/\$slug/);
   assert.match(card, /focus-visible:ring-2/);
   assert.match(card, /motion-reduce:transform-none/);
   assert.match(card, /min-h-11/);
@@ -162,14 +180,69 @@ test("article cards use semantic full-card navigation and a complete no-image tr
 test("featured experience uses server order, accessible Embla controls, and isolated states", async () => {
   const featured = await source("src/components/content/featured-article-section.tsx");
 
-  assert.match(featured, /getFeaturedContent\(signal\)/);
+  assert.match(featured, /getFeaturedContent\(filters, signal\)/);
   assert.match(featured, /articles\.map/);
   assert.doesNotMatch(featured, /\.sort\(/);
   assert.match(featured, /CarouselPrevious/);
   assert.match(featured, /CarouselNext/);
-  assert.match(featured, /featured\.empty/);
-  assert.match(featured, /featured\.error/);
+  assert.match(featured, /if \(query\.isError\) return null/);
+  assert.match(featured, /if \(articles\.length === 0\) return null/);
   assert.match(featured, /basis-\[88%\]/);
+});
+
+test("reporter information center uses dedicated routes, breadcrumbs, isolated categories, and report CTAs", async () => {
+  const [layout, home, educationRoute, policiesRoute, list, detail, breadcrumb, faq, consultation, spotlight, cta, dashboard] = await Promise.all([
+    source("src/layouts/portal-layout.tsx"),
+    source("src/routes/portal.information-center.index.tsx"),
+    source("src/routes/portal.information-center.education.tsx"),
+    source("src/routes/portal.information-center.policies.tsx"),
+    source("src/components/content/reporter-article-list-page.tsx"),
+    source("src/components/content/reporter-article-detail-page.tsx"),
+    source("src/components/content/reporter-information-breadcrumb.tsx"),
+    source("src/routes/portal.information-center.faq.tsx"),
+    source("src/routes/portal.information-center.consultation.tsx"),
+    source("src/components/content/education-spotlight.tsx"),
+    source("src/components/content/reporter-information-cta.tsx"),
+    source("src/routes/portal.index.tsx"),
+  ]);
+  assert.match(layout, /url: "\/portal\/information-center"/);
+  for (const route of ["education", "policies", "faq", "consultation"]) assert.ok(home.includes(`/portal/information-center/${route}`));
+  assert.doesNotMatch(home, /getPublishedArticles|getFeaturedContent|getPublishedFaqs/);
+  assert.match(educationRoute, /<Outlet \/>/);
+  assert.match(policiesRoute, /<Outlet \/>/);
+  assert.match(list, /getPublishedArticleCategories/);
+  assert.match(list, /article_category: category/);
+  assert.match(detail, /getPublishedArticleBySlug/);
+  assert.match(detail, /getPublishedArticleBySlug\(section, slug, signal\)/);
+  assert.doesNotMatch(detail, /article\.section\.code !== section/);
+  assert.match(detail, /section=\{\{ label: sectionTitle, to: listTo \}\}/);
+  assert.match(detail, /article\.defaultCover/);
+  assert.match(breadcrumb, /portal:overview/);
+  assert.doesNotMatch(detail, /history\.back|consultation_cta/);
+  assert.match(faq, /Accordion/);
+  assert.match(faq, /filters\.faqSearchPlaceholder/);
+  assert.match(consultation, /PublishedConsultationCard/);
+  assert.doesNotMatch(spotlight, /require_cover: true/);
+  assert.match(spotlight, /article\.cover && !coverUnavailable/);
+  assert.match(spotlight, /bg-gradient-to-br/);
+  assert.doesNotMatch(dashboard, /FeaturedArticleSection/);
+  assert.match(cta, /to="\/portal\/reports\/new"/);
+});
+
+test("reporter cover surfaces preserve a 16:9 education fallback on image failure", async () => {
+  const [detail, spotlight, authenticatedCover] = await Promise.all([
+    source("src/components/content/reporter-article-detail-page.tsx"),
+    source("src/components/content/education-spotlight.tsx"),
+    source("src/components/content/authenticated-content-cover.tsx"),
+  ]);
+
+  assert.match(detail, /aspect-video/);
+  assert.match(detail, /object-cover/);
+  assert.match(detail, /onUnavailable=\{markUnavailable\}/);
+  assert.match(detail, /from-sky-950 via-primary to-cyan-700/);
+  assert.match(spotlight, /onUnavailable=\{markUnavailable\}/);
+  assert.match(spotlight, /from-sky-950 via-blue-800 to-cyan-600/);
+  assert.match(authenticatedCover, /onError=\{onUnavailable\}/);
 });
 
 test("reader screens keep filters in URL and render controlled content only", async () => {
@@ -338,4 +411,8 @@ test("Indonesian and English Information Center locales remain in parity", async
       : [prefix];
 
   assert.deepEqual(keys(id).sort(), keys(en).sort());
+  assert.equal(id.filters.faqSearchPlaceholder, "Cari pertanyaan...");
+  assert.equal(en.filters.faqSearchPlaceholder, "Search questions...");
+  assert.equal("consultationTitle" in id.article, false);
+  assert.equal("consultationDescription" in en.article, false);
 });

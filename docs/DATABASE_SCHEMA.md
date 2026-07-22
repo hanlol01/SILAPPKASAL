@@ -1001,6 +1001,24 @@ Pointer ownership cannot be expressed as a portable row-local CHECK, so locked p
 and reader joins additionally require the pointed version to belong to the same item. The repair does
 not rewrite content data.
 
+## REV-CONTENT-01 Reporter Information Center Extension
+
+Migration `2026_07_22_000000_extend_content_for_reporter_information_center.php` adds:
+
+- nullable `content_items.category_name` (`varchar(100)`) and the
+  `(content_type, section_id, category_name)` lookup index;
+- nullable `consultation_version_contents.service_type` (`varchar(150)`);
+- nullable `consultation_version_contents.procedure` and `confidentiality_info` text fields.
+
+For existing Article rows with a legacy `category_id`, the migration backfills `category_name` from
+`content_categories.name` in bounded chunks. The value is trimmed and limited to 100 characters.
+`category_id`, `content_categories`, and the nullable Article Consultation CTA relation are retained
+for backward-compatible reads; new Article authoring uses free-text `category_name`, falls back to the
+legacy category name only when needed, and does not accept or project a per-Article Consultation CTA.
+All new columns are nullable so historical content remains readable. Reader queries continue to
+project only the version referenced by `published_version_id`, require lifecycle `published` with a
+non-future `published_at`, exclude archived content, and enforce global plus own-campus isolation.
+
 ## REV-WF-03 R3 Schema Addendum
 
 Migration `2026_07_20_020000_add_final_case_closure.php` adds:

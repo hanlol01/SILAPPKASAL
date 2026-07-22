@@ -12,6 +12,7 @@ use App\Http\Resources\PublishedFaqResource;
 use App\Services\PublishedContentQueryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class ContentController extends Controller
 {
@@ -41,9 +42,33 @@ class ContentController extends Controller
         ]);
     }
 
+    public function articleCategories(ContentPublishedIndexRequest $request): JsonResponse
+    {
+        $section = (string) $request->validated('section', '');
+        if (! in_array($section, ['education', 'policy'], true)) {
+            throw ValidationException::withMessages([
+                'section' => ['The section must be education or policy.'],
+            ]);
+        }
+
+        return $this->success($this->queries->articleCategories($request->user(), $section));
+    }
+
     public function article(Request $request, string $publicId): JsonResponse
     {
-        $article = $this->queries->article($request->user(), $publicId);
+        return $this->articleResponse($request, $this->queries->article($request->user(), $publicId));
+    }
+
+    public function articleBySlug(Request $request, string $section, string $slug): JsonResponse
+    {
+        return $this->articleResponse(
+            $request,
+            $this->queries->articleBySlug($request->user(), $section, $slug),
+        );
+    }
+
+    private function articleResponse(Request $request, mixed $article): JsonResponse
+    {
         $article->setAttribute('content_detail', true);
         $article->setRelation('relatedArticles', $this->queries->relatedArticles($request->user(), $article));
 
@@ -69,9 +94,9 @@ class ContentController extends Controller
         ));
     }
 
-    public function featured(Request $request): JsonResponse
+    public function featured(ContentPublishedIndexRequest $request): JsonResponse
     {
-        $items = $this->queries->featured($request->user());
+        $items = $this->queries->featured($request->user(), $request->validated());
         $items->each->setAttribute('is_featured', true);
 
         return $this->success(PublishedArticleResource::collection($items));

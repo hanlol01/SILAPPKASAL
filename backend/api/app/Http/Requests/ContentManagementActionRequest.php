@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ContentManagementActionRequest extends FormRequest
 {
@@ -13,6 +14,8 @@ class ContentManagementActionRequest extends FormRequest
 
     public function rules(): array
     {
-        return [];
+        return [
+            'section' => ['sometimes', 'string', Rule::in(['education', 'policy'])],
+        ];
     }
 }

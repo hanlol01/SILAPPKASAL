@@ -3,8 +3,6 @@
 namespace App\Http\Resources;
 
 use App\Enums\ContentAttachmentPurpose;
-use App\Enums\ContentLifecycleStatus;
-use App\Enums\ContentScope;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -15,25 +13,13 @@ class PublishedArticleResource extends JsonResource
         $version = $this->publishedVersion;
         $article = $version?->articleContent;
         $detail = (bool) $this->resource->getAttribute('content_detail');
-        $consultationCta = $article?->consultationCta;
-        $consultationVersion = $consultationCta?->publishedVersion;
-        $consultationCtaAllowed = $consultationCta !== null
-            && $consultationCta->archived_at === null
-            && $consultationVersion?->lifecycle_status === ContentLifecycleStatus::Published
-            && $consultationVersion->published_at !== null
-            && $consultationVersion->published_at->isPast()
-            && $consultationVersion->consultationContent?->is_active === true
-            && ($consultationCta->scope === ContentScope::Global
-                || ($this->scope === ContentScope::Campus
-                    && $consultationCta->scope === ContentScope::Campus
-                    && (int) $consultationCta->university_id === (int) $this->university_id));
-
         return [
             'public_id' => $this->public_id,
             'slug' => $this->slug,
             'title' => $version?->title,
             'excerpt' => $version?->excerpt,
             'category' => new ContentCategoryResource($this->whenLoaded('category')),
+            'category_name' => $this->category_name ?? $this->category?->name,
             'section' => new ContentSectionResource($this->whenLoaded('section')),
             'scope' => $this->scope?->value,
             'cover' => $article?->coverAttachment
@@ -55,10 +41,6 @@ class PublishedArticleResource extends JsonResource
             'related_articles' => $this->when(
                 $detail && $this->resource->relationLoaded('relatedArticles'),
                 fn () => self::collection($this->relatedArticles)
-            ),
-            'consultation_cta_public_id' => $this->when(
-                $detail,
-                $consultationCtaAllowed ? $consultationCta->public_id : null,
             ),
         ];
     }

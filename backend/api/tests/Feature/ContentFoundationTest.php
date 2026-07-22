@@ -681,52 +681,25 @@ class ContentFoundationTest extends TestCase
             ->assertJsonMissingPath('data.review_decisions');
     }
 
-    public function test_consultation_cta_is_published_and_scope_safe(): void
+    public function test_article_payload_no_longer_accepts_or_projects_consultation_cta(): void
     {
         $admin = $this->user('admin', $this->campusA);
         $super = $this->user('super_admin');
         $reader = $this->user('reporter', $this->campusA);
-        $globalCta = $this->publishedConsultation(ContentScope::Global, null, 'Konsultasi Global CTA');
-        $foreignCta = $this->publishedConsultation(ContentScope::Campus, $this->campusB, 'Konsultasi Asing CTA');
+        $globalCta = $this->publishedConsultation(ContentScope::Global, null, 'Konsultasi Lama');
         $service = app(ContentPublicationService::class);
-
-        try {
-            $service->createDraft($admin, $this->articlePayload(ContentScope::Campus, $this->campusA, 'CTA Asing') + [
-                'consultation_cta_public_id' => $foreignCta->public_id,
-            ]);
-            $this->fail('A cross-campus Consultation CTA was accepted.');
-        } catch (ValidationException) {
-            $this->assertTrue(true);
-        }
-
-        $item = $service->createDraft($admin, $this->articlePayload(ContentScope::Campus, $this->campusA, 'CTA Aman') + [
+        $item = $service->createDraft($admin, $this->articlePayload(ContentScope::Campus, $this->campusA, 'Tanpa CTA Artikel') + [
             'consultation_cta_public_id' => $globalCta->public_id,
         ]);
+        $this->assertNull($item->currentDraftVersion->articleContent->consultation_cta_item_id);
         $item = $service->submit($item->currentDraftVersion, $admin, (int) $item->lock_version);
         $item = $service->startReview($item->currentDraftVersion, $super, (int) $item->lock_version);
         $item = $service->approve($item->currentDraftVersion, $super, (int) $item->lock_version);
         $item = $service->publishApproved($item->currentDraftVersion, $super, (int) $item->lock_version);
-
         Sanctum::actingAs($reader, ['*']);
         $this->getJson('/api/v1/content/articles/'.$item->public_id)
             ->assertOk()
-            ->assertJsonPath('data.consultation_cta_public_id', $globalCta->public_id);
-
-        $globalCta->forceFill(['archived_at' => now()])->save();
-        $this->getJson('/api/v1/content/articles/'.$item->public_id)
-            ->assertOk()
-            ->assertJsonPath('data.consultation_cta_public_id', null);
-
-        $staleCta = $this->publishedConsultation(ContentScope::Global, null, 'CTA Menjadi Kedaluwarsa');
-        $pending = $service->createDraft($admin, $this->articlePayload(ContentScope::Campus, $this->campusA, 'CTA Kedaluwarsa') + [
-            'consultation_cta_public_id' => $staleCta->public_id,
-        ]);
-        $pending = $service->submit($pending->currentDraftVersion, $admin, (int) $pending->lock_version);
-        $pending = $service->startReview($pending->currentDraftVersion, $super, (int) $pending->lock_version);
-        $pending = $service->approve($pending->currentDraftVersion, $super, (int) $pending->lock_version);
-        $staleCta->forceFill(['archived_at' => now()])->save();
-        $this->expectException(ValidationException::class);
-        $service->publishApproved($pending->currentDraftVersion, $super, (int) $pending->lock_version);
+            ->assertJsonMissingPath('data.consultation_cta_public_id');
     }
 
     private function articlePayload(ContentScope $scope, ?University $campus = null, string $title = 'Artikel Uji'): array
@@ -737,6 +710,7 @@ class ContentFoundationTest extends TestCase
             'content_type' => 'article',
             'section_code' => 'education',
             'category_public_id' => $category->public_id,
+            'category_name' => $category->name,
             'scope' => $scope->value,
             'university_id' => $campus?->id,
             'title' => $title.' '.Str::random(6),

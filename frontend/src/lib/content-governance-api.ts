@@ -26,6 +26,7 @@ export interface GovernanceContentSummary {
   scope: "global" | "campus";
   section: ContentSection;
   category: ContentCategory | null;
+  category_name: string | null;
   university: { code: string; name: string } | null;
   author: { name: string; role: string | null } | null;
   lock_version: number;
@@ -50,17 +51,19 @@ export type GovernanceVersionDetail = GovernanceContentSummary["version"] & {
     document: DocumentNode | null;
     estimated_reading_minutes: number;
     cover_alt_text: string | null;
-    consultation_cta_public_id: string | null;
   } | null;
   faq: { question: string; answer_document: DocumentNode | null; display_order: number } | null;
   consultation: {
     service_name: string;
     description: string | null;
+    service_type: string | null;
     email: string | null;
     phone_display: string | null;
     whatsapp_display: string | null;
     office_address: string | null;
     operating_hours: string | null;
+    procedure: string | null;
+    confidentiality_info: string | null;
     emergency_available: boolean;
     appointment_url: string | null;
     action_label: string | null;

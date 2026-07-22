@@ -13,6 +13,7 @@ export interface PublishedArticle {
   title: string;
   excerpt: string | null;
   category: ContentCategory | null;
+  category_name: string | null;
   section: ContentSection;
   scope: "global" | "campus";
   cover: ContentAttachment | null;
@@ -22,7 +23,6 @@ export interface PublishedArticle {
   body?: DocumentNode | null;
   attachments?: ContentAttachment[];
   related_articles?: PublishedArticle[];
-  consultation_cta_public_id?: string | null;
 }
 
 export interface PublishedFaq {
@@ -37,11 +37,14 @@ export interface PublishedConsultation {
   public_id: string;
   service_name: string;
   description: string | null;
+  service_type: string | null;
   email: string | null;
   phone: string | null;
   whatsapp: string | null;
   office_address: string | null;
   operating_hours: string | null;
+  procedure: string | null;
+  confidentiality_info: string | null;
   emergency_available: boolean;
   appointment_url: string | null;
   action_label: string | null;
@@ -54,6 +57,7 @@ export interface PublishedConsultation {
 export interface PublishedContentFilters {
   section?: string;
   category?: string;
+  article_category?: string;
   search?: string;
   page?: number;
   per_page?: number;
@@ -70,12 +74,14 @@ export const publishedContentKeys = {
     [...publishedContentKeys.all(identity), "articles", filters] as const,
   article: (identity: number | null | undefined, publicId: string) =>
     [...publishedContentKeys.all(identity), "article", publicId] as const,
+  articleCategories: (identity: number | null | undefined, section: string) =>
+    [...publishedContentKeys.all(identity), "article-categories", section] as const,
   faqs: (identity: number | null | undefined, filters: PublishedContentFilters) =>
     [...publishedContentKeys.all(identity), "faqs", filters] as const,
   consultation: (identity: number | null | undefined) =>
     [...publishedContentKeys.all(identity), "consultation"] as const,
-  featured: (identity: number | null | undefined) =>
-    [...publishedContentKeys.all(identity), "featured"] as const,
+  featured: (identity: number | null | undefined, filters: FeaturedContentFilters = {}) =>
+    [...publishedContentKeys.all(identity), "featured", filters] as const,
 };
 
 export function getPublishedSections(signal?: AbortSignal) {
@@ -94,6 +100,7 @@ export function getPublishedArticles(filters: PublishedContentFilters, signal?: 
     query: {
       section: filters.section,
       category: filters.category,
+      article_category: filters.article_category,
       search: filters.search,
       page: filters.page,
       per_page: filters.per_page,
@@ -106,6 +113,21 @@ export function getPublishedArticle(publicId: string, signal?: AbortSignal) {
   return apiRequest<PublishedArticle>(`/content/articles/${encodeURIComponent(publicId)}`, {
     signal,
   });
+}
+
+export function getPublishedArticleBySlug(
+  section: "education" | "policy",
+  slug: string,
+  signal?: AbortSignal,
+) {
+  return apiRequest<PublishedArticle>(
+    `/content/articles/slug/${section}/${encodeURIComponent(slug)}`,
+    { signal },
+  );
+}
+
+export function getPublishedArticleCategories(section: "education" | "policy", signal?: AbortSignal) {
+  return apiRequest<string[]>("/content/article-categories", { query: { section }, signal });
 }
 
 export function getPublishedFaqs(filters: PublishedContentFilters, signal?: AbortSignal) {
@@ -125,6 +147,19 @@ export function getPublishedConsultation(signal?: AbortSignal) {
   return apiRequest<PublishedConsultation[]>("/content/consultation", { signal });
 }
 
-export function getFeaturedContent(signal?: AbortSignal) {
-  return apiRequest<PublishedArticle[]>("/content/featured", { signal });
+export interface FeaturedContentFilters {
+  section?: "education" | "policy";
+  limit?: number;
+  require_cover?: boolean;
+}
+
+export function getFeaturedContent(filters: FeaturedContentFilters = {}, signal?: AbortSignal) {
+  return apiRequest<PublishedArticle[]>("/content/featured", {
+    query: {
+      section: filters.section,
+      limit: filters.limit,
+      require_cover: filters.require_cover,
+    },
+    signal,
+  });
 }
