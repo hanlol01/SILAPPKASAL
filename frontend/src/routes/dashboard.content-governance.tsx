@@ -248,13 +248,17 @@ function ReviewQueue() {
     setFrom("");
     setTo("");
   };
+  const changeScope = (value: string) => {
+    setScope(value);
+    if (value === "global") setCampus("");
+  };
   const filterProps = {
     search,
     setSearch,
     status,
     setStatus,
     scope,
-    setScope,
+    setScope: changeScope,
     contentType,
     setContentType,
     section,
@@ -297,34 +301,45 @@ function ReviewQueue() {
           )}
           {(query.data?.data.length ?? 0) > 0 && (
             <>
-              <div className="hidden overflow-x-auto rounded-lg border md:block">
-                <table className="w-full min-w-[860px] text-left text-sm">
+              <div className="hidden rounded-lg border 2xl:block">
+                <table className="w-full table-fixed text-left text-xs">
                   <thead className="bg-muted/60 text-muted-foreground">
                     <tr>
-                      <th className="p-3">{t("content:table.content")}</th>
-                      <th className="p-3">{t("contentGovernance:review.origin")}</th>
-                      <th className="p-3">{t("contentGovernance:review.author")}</th>
-                      <th className="p-3">{t("content:table.status")}</th>
-                      <th className="p-3">{t("contentGovernance:review.submittedAt")}</th>
-                      <th className="p-3 text-right">{t("content:table.actions")}</th>
+                      <th className="w-[18%] p-3">{t("content:table.content")}</th>
+                      <th className="w-[8%] p-3">{t("contentGovernance:review.type")}</th>
+                      <th className="w-[12%] p-3">{t("contentGovernance:review.sectionCategory")}</th>
+                      <th className="w-[7%] p-3">{t("contentGovernance:review.scope")}</th>
+                      <th className="w-[10%] p-3">{t("contentGovernance:review.campus")}</th>
+                      <th className="w-[15%] p-3">{t("contentGovernance:review.submittedBy")}</th>
+                      <th className="w-[10%] p-3">{t("contentGovernance:review.submittedAt")}</th>
+                      <th className="w-[5%] p-3">{t("contentGovernance:review.version")}</th>
+                      <th className="w-[8%] p-3">{t("content:table.status")}</th>
+                      <th className="w-[7%] p-3 text-right">{t("content:table.actions")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {query.data?.data.map((item) => (
                       <tr key={item.public_id} className="border-t align-top">
                         <td className="p-3">
-                          <p className="font-medium">{item.version.title}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {t(`content:${item.content_type}`)} · v{item.version.version_number}
-                          </p>
+                          <p className="break-words font-medium">{item.version.title}</p>
                         </td>
-                        <td className="p-3">{item.university?.name ?? t("content:global")}</td>
-                        <td className="p-3">{item.author?.name ?? "—"}</td>
-                        <td className="p-3"><StatusBadge status={item.lifecycle_status} /></td>
+                        <td className="p-3">{t(`content:${item.content_type}`)}</td>
+                        <td className="p-3">
+                          <p>{item.section.label[i18n.resolvedLanguage?.startsWith("en") ? "en" : "id"]}</p>
+                          <p className="break-words text-muted-foreground">{item.category_name ?? item.category?.name ?? "—"}</p>
+                        </td>
+                        <td className="p-3">{t(`content:${item.scope}`)}</td>
+                        <td className="break-words p-3">{item.scope === "global" ? t("contentGovernance:review.everyCampus") : item.university?.name ?? "—"}</td>
+                        <td className="break-words p-3">
+                          <p>{item.submitted_by?.name ?? "—"}</p>
+                          <p className="text-muted-foreground">{item.submitted_by?.email ?? "—"}</p>
+                        </td>
                         <td className="p-3">{formatDate(item.version.submitted_at, i18n.resolvedLanguage)}</td>
+                        <td className="p-3">v{item.version.version_number}</td>
+                        <td className="p-3"><StatusBadge status={item.lifecycle_status} /></td>
                         <td className="p-3 text-right">
-                          <Button size="sm" variant="outline" className="min-h-11" onClick={() => setSelectedId(item.public_id)}>
-                            <Eye className="mr-1 h-4 w-4" /> {t("contentGovernance:review.open")}
+                          <Button size="icon" variant="outline" className="min-h-11 min-w-11" onClick={() => setSelectedId(item.public_id)} aria-label={t("contentGovernance:review.open")}>
+                            <Eye className="h-4 w-4" />
                           </Button>
                         </td>
                       </tr>
@@ -332,7 +347,7 @@ function ReviewQueue() {
                   </tbody>
                 </table>
               </div>
-              <div className="space-y-3 md:hidden">
+              <div className="space-y-3 2xl:hidden">
                 {query.data?.data.map((item) => (
                   <ReviewCard key={item.public_id} item={item} onOpen={() => setSelectedId(item.public_id)} />
                 ))}
@@ -519,7 +534,13 @@ function ReviewFilters(props: ReviewFilterProps) {
         ["education", "Edukasi"], ["policy", "Seputar Kebijakan"], ["faq", "FAQ"], ["consultation", "Konsultasi"],
       ]} />
       <FilterSelect value={props.category} onChange={props.setCategory} label={t("contentGovernance:review.allCategories")} options={props.categories.map((item) => [item.public_id, item.name])} />
-      <FilterSelect value={props.campus} onChange={props.setCampus} label={t("contentGovernance:review.allCampuses")} options={props.campuses.map((item) => [item.code, item.name])} />
+      <FilterSelect
+        value={props.campus}
+        onChange={props.setCampus}
+        label={props.scope === "global" ? t("contentGovernance:review.everyCampus") : t("contentGovernance:review.allCampuses")}
+        options={props.campuses.map((item) => [item.code, item.name])}
+        disabled={props.scope === "global"}
+      />
       <Label className="space-y-1">
         <span>{t("contentGovernance:review.submittedFrom")}</span>
         <DatePicker className="h-11" value={props.from} onChange={props.setFrom} placeholder={t("contentGovernance:review.submittedFrom")} />
@@ -538,11 +559,11 @@ function ReviewFilters(props: ReviewFilterProps) {
   );
 }
 
-function FilterSelect({ value, onChange, label, options }: { value: string; onChange: (value: string) => void; label: string; options: string[][] }) {
+function FilterSelect({ value, onChange, label, options, disabled = false }: { value: string; onChange: (value: string) => void; label: string; options: string[][]; disabled?: boolean }) {
   return (
     <Label className="space-y-1">
       <span>{label}</span>
-      <Select value={value || "all"} onValueChange={(next) => onChange(next === "all" ? "" : next)}>
+      <Select value={value || "all"} onValueChange={(next) => onChange(next === "all" ? "" : next)} disabled={disabled}>
         <SelectTrigger className="min-h-11"><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">{label}</SelectItem>
@@ -562,9 +583,13 @@ function ReviewCard({ item, onOpen }: { item: GovernanceContentSummary; onOpen: 
           <div><h3 className="font-medium">{item.version.title}</h3><p className="text-xs text-muted-foreground">{t(`content:${item.content_type}`)} · v{item.version.version_number}</p></div>
           <StatusBadge status={item.lifecycle_status} />
         </div>
-        <dl className="grid grid-cols-2 gap-2 text-sm">
-          <div><dt className="text-muted-foreground">{t("contentGovernance:review.origin")}</dt><dd>{item.university?.name ?? t("content:global")}</dd></div>
+        <dl className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+          <div><dt className="text-muted-foreground">{t("contentGovernance:review.sectionCategory")}</dt><dd>{item.section.label[i18n.resolvedLanguage?.startsWith("en") ? "en" : "id"]} · {item.category_name ?? item.category?.name ?? "—"}</dd></div>
+          <div><dt className="text-muted-foreground">{t("contentGovernance:review.scope")}</dt><dd>{t(`content:${item.scope}`)}</dd></div>
+          <div><dt className="text-muted-foreground">{t("contentGovernance:review.campus")}</dt><dd>{item.scope === "global" ? t("contentGovernance:review.everyCampus") : item.university?.name ?? "—"}</dd></div>
+          <div><dt className="text-muted-foreground">{t("contentGovernance:review.submittedBy")}</dt><dd className="break-words">{item.submitted_by?.name ?? "—"}<span className="block text-xs text-muted-foreground">{item.submitted_by?.email ?? "—"}</span></dd></div>
           <div><dt className="text-muted-foreground">{t("contentGovernance:review.submittedAt")}</dt><dd>{formatDate(item.version.submitted_at, i18n.resolvedLanguage)}</dd></div>
+          <div><dt className="text-muted-foreground">{t("contentGovernance:review.version")}</dt><dd>v{item.version.version_number}</dd></div>
         </dl>
         <Button variant="outline" className="min-h-11 w-full" onClick={onOpen}><Eye className="mr-2 h-4 w-4" />{t("contentGovernance:review.open")}</Button>
       </CardContent>
@@ -696,16 +721,33 @@ function ReviewMetadata({ item }: { item: GovernanceContentDetail }) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="text-xl font-semibold">{item.version.title}</h2><p className="text-sm text-muted-foreground">{t(`content:${item.content_type}`)} · v{item.version.version_number}</p></div><StatusBadge status={item.lifecycle_status} /></div>
       <dl className="grid gap-3 rounded-lg border p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
-        <Meta label={t("contentGovernance:review.origin")} value={item.university?.name ?? t("content:global")} />
-        <Meta label={t("contentGovernance:review.author")} value={item.author?.name ?? "—"} />
+        <Meta label={t("contentGovernance:review.scope")} value={t(`content:${item.scope}`)} />
+        <Meta label={t("contentGovernance:review.campus")} value={item.scope === "global" ? t("contentGovernance:review.everyCampus") : item.university?.name ?? "—"} />
         <Meta label={t("content:section")} value={item.section.label[i18n.resolvedLanguage?.startsWith("en") ? "en" : "id"]} />
         <Meta label={t("content:category")} value={item.category_name ?? item.category?.name ?? "—"} />
+        <Meta label={t("contentGovernance:review.createdBy")} value={actorLabel(item.created_by)} />
+        <Meta label={t("contentGovernance:review.createdAt")} value={formatDate(item.created_at, i18n.resolvedLanguage)} />
+        <Meta label={t("contentGovernance:review.submittedBy")} value={actorLabel(item.submitted_by)} />
+        <Meta label={t("contentGovernance:review.submittedAt")} value={formatDate(item.version.submitted_at, i18n.resolvedLanguage)} />
+        <Meta label={t("contentGovernance:review.reviewedBy")} value={actorLabel(item.reviewed_by)} />
+        <Meta label={t("contentGovernance:review.reviewedAt")} value={formatDate(item.version.reviewed_at, i18n.resolvedLanguage)} />
+        <Meta label={t("contentGovernance:review.approvedBy")} value={actorLabel(item.approved_by)} />
+        <Meta label={t("contentGovernance:review.approvedAt")} value={formatDate(item.version.approved_at, i18n.resolvedLanguage)} />
+        <Meta label={t("contentGovernance:review.publishedBy")} value={actorLabel(item.published_by)} />
+        <Meta label={t("contentGovernance:review.publishedAt")} value={formatDate(item.version.published_at, i18n.resolvedLanguage)} />
+        <Meta label={t("contentGovernance:review.version")} value={`v${item.version.version_number}`} />
+        <Meta label={t("contentGovernance:review.currentStatus")} value={t(`content:${item.lifecycle_status}`)} />
       </dl>
     </div>
   );
 }
 
 function Meta({ label, value }: { label: string; value: string }) { return <div><dt className="text-muted-foreground">{label}</dt><dd className="break-words font-medium">{value}</dd></div>; }
+
+function actorLabel(actor: GovernanceContentSummary["created_by"]) {
+  if (!actor) return "—";
+  return `${actor.name} · ${actor.email}`;
+}
 
 function VersionPreview({ title, item, version }: { title: string; item: GovernanceContentDetail; version: GovernanceContentDetail["version"] }) {
   const { t } = useTranslation(["contentGovernance", "content"]);
@@ -731,7 +773,58 @@ function ConsultationPreview({ value }: { value: NonNullable<GovernanceContentDe
 
 function DecisionHistory({ item }: { item: GovernanceContentDetail }) {
   const { t, i18n } = useTranslation(["contentGovernance", "content"]);
-  return <Card><CardHeader><CardTitle className="text-base">{t("contentGovernance:review.history")}</CardTitle></CardHeader><CardContent>{item.decision_history.length ? <ol className="relative space-y-4 border-l pl-5">{item.decision_history.map((event) => <li key={event.public_id}><span className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border bg-background" /><div className="flex flex-wrap items-center gap-2"><Badge variant="outline">{event.state.replaceAll("_", " ")}</Badge>{event.version_number && <span className="text-xs">v{event.version_number}</span>}</div><p className="mt-1 text-sm">{event.actor.name ?? "System"} · {formatDate(event.timestamp, i18n.resolvedLanguage)}</p>{event.note && <p className="mt-2 whitespace-pre-wrap rounded-md bg-muted p-3 text-sm">{event.note}</p>}</li>)}</ol> : <p className="text-sm text-muted-foreground">{t("contentGovernance:review.historyEmpty")}</p>}</CardContent></Card>;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">{t("contentGovernance:review.history")}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {item.decision_history.length ? (
+          <ol className="relative space-y-4 border-l pl-5">
+            {item.decision_history.map((event) => (
+              <li key={event.public_id}>
+                <span className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border bg-background" />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline">
+                    {t(`contentGovernance:review.timelineStates.${event.state}`, {
+                      defaultValue: event.state.replaceAll("_", " "),
+                    })}
+                  </Badge>
+                  {event.version_number && <span className="text-xs">v{event.version_number}</span>}
+                  {event.from_status && event.to_status && (
+                    <span className="text-xs text-muted-foreground">
+                      {t(`content:${event.from_status}`)} → {t(`content:${event.to_status}`)}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-sm">
+                  {event.actor.name ?? t("contentGovernance:review.systemActor")}
+                  {event.actor.email ? ` · ${event.actor.email}` : ""}
+                  {event.actor.role ? ` · ${event.actor.role}` : ""}
+                  {" · "}
+                  {formatDate(event.timestamp, i18n.resolvedLanguage)}
+                </p>
+                {event.note && (
+                  <p className="mt-2 whitespace-pre-wrap rounded-md bg-muted p-3 text-sm">
+                    {event.note}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {t("contentGovernance:review.historyEmpty")}
+          </p>
+        )}
+        {item.decision_history_truncated && (
+          <p className="mt-4 text-xs text-muted-foreground">
+            {t("contentGovernance:review.historyTruncated")}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 function GlobalContent() {
@@ -758,7 +851,7 @@ function GlobalContent() {
     <Card>
       <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between"><div><CardTitle>{t("contentGovernance:global.title")}</CardTitle><CardDescription>{t("contentGovernance:global.description")}</CardDescription></div><Button className="min-h-11" onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />{t("contentGovernance:global.create")}</Button></CardHeader>
       <CardContent className="space-y-4">
-        <Alert><ShieldCheck className="h-4 w-4" /><AlertDescription>{t("contentGovernance:global.secondReview")}</AlertDescription></Alert>
+        <Alert><ShieldCheck className="h-4 w-4" /><AlertTitle>{t("contentGovernance:global.helper")}</AlertTitle><AlertDescription>{t("contentGovernance:global.secondReview")}</AlertDescription></Alert>
         <Label className="block max-w-md space-y-1"><span>{t("content:filters.search")}</span><Input value={search} onChange={(e) => setSearch(e.target.value)} /></Label>
         {list.isError && <QueryErrorState message={t("content:loadError")} onRetry={() => list.refetch()} />}
         {list.isLoading && <ReviewSkeleton />}
@@ -774,10 +867,10 @@ function GlobalContent() {
 }
 
 function GlobalCard({ item, pending, onOpen, onSubmit, onRevision }: { item: ManagedContentSummary; pending: boolean; onOpen: () => void; onSubmit: () => void; onRevision: () => void }) {
-  const { t } = useTranslation(["contentGovernance", "content"]);
+  const { t, i18n } = useTranslation(["contentGovernance", "content"]);
   const editable = item.has_editable_version && item.archived_at === null;
   const canRevision = !editable && item.published_version !== null && ["published", "rejected"].includes(item.lifecycle_status);
-  return <Card><CardContent className="space-y-3 p-4"><div className="flex items-start justify-between gap-2"><div><h3 className="font-medium">{item.version.title}</h3><p className="text-xs text-muted-foreground">{t(`content:${item.content_type}`)} · v{item.version.version_number}</p></div><StatusBadge status={item.lifecycle_status} /></div><div className="flex flex-wrap justify-end gap-2"><Button variant="outline" className="min-h-11" onClick={onOpen}>{editable ? <Pencil className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}{t(editable ? "content:edit" : "content:view")}</Button>{editable && item.lifecycle_status === "draft" && <Button className="min-h-11" disabled={pending} onClick={onSubmit}><Send className="mr-2 h-4 w-4" />{t("content:submit")}</Button>}{canRevision && <Button className="min-h-11" disabled={pending} onClick={onRevision}><Plus className="mr-2 h-4 w-4" />{t("content:createRevision")}</Button>}</div></CardContent></Card>;
+  return <Card><CardContent className="space-y-3 p-4"><div className="flex items-start justify-between gap-2"><div><h3 className="font-medium">{item.version.title}</h3><p className="text-xs text-muted-foreground">{t(`content:${item.content_type}`)} · v{item.version.version_number}</p></div><StatusBadge status={item.lifecycle_status} /></div><dl className="grid gap-2 text-sm sm:grid-cols-2"><Meta label={t("contentGovernance:review.createdBy")} value={actorLabel(item.created_by)} /><Meta label={t("contentGovernance:review.createdAt")} value={formatDate(item.created_at, i18n.resolvedLanguage)} /><Meta label={t("contentGovernance:review.submittedBy")} value={actorLabel(item.submitted_by)} /><Meta label={t("contentGovernance:review.submittedAt")} value={formatDate(item.version.submitted_at, i18n.resolvedLanguage)} /></dl><div className="flex flex-wrap justify-end gap-2"><Button variant="outline" className="min-h-11" onClick={onOpen}>{editable ? <Pencil className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}{t(editable ? "content:edit" : "content:view")}</Button>{editable && item.lifecycle_status === "draft" && <Button className="min-h-11" disabled={pending} onClick={onSubmit}><Send className="mr-2 h-4 w-4" />{t("content:submit")}</Button>}{canRevision && <Button className="min-h-11" disabled={pending} onClick={onRevision}><Plus className="mr-2 h-4 w-4" />{t("content:createRevision")}</Button>}</div></CardContent></Card>;
 }
 
 interface FeaturedFormState { scope: "global" | "campus"; campus: string; content: string; rank: string; active: boolean; from: string; until: string; }

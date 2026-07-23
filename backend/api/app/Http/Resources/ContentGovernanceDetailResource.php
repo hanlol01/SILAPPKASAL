@@ -20,6 +20,7 @@ class ContentGovernanceDetailResource extends ContentGovernanceResource
                 ? $this->version($previousPublished, false)
                 : null,
             'decision_history' => $this->governanceHistory?->values() ?? [],
+            'decision_history_truncated' => (bool) ($this->governanceHistoryTruncated ?? false),
             'archived_at' => $this->archived_at?->toJSON(),
         ];
     }
@@ -40,6 +41,8 @@ class ContentGovernanceDetailResource extends ContentGovernanceResource
             'requires_editorial_review' => $version->requires_editorial_review,
             'editorial_note' => $includeEditorialNote ? $version->editorial_note : null,
             'submitted_at' => $version->submitted_at?->toJSON(),
+            'reviewed_at' => $version->reviewed_at?->toJSON(),
+            'approved_at' => $version->approved_at?->toJSON(),
             'published_at' => $version->published_at?->toJSON(),
             'article' => $article ? [
                 'document' => $article->document_json,

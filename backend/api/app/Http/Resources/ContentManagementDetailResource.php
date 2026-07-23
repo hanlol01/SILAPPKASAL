@@ -2,12 +2,14 @@
 
 namespace App\Http\Resources;
 
-use App\Enums\ContentReviewDecisionCode;
+use App\Http\Resources\Concerns\ProjectsContentAttribution;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class ContentManagementDetailResource extends JsonResource
 {
+    use ProjectsContentAttribution;
+
     public function toArray(Request $request): array
     {
         $version = $this->currentDraftVersion ?? $this->latestVersion ?? $this->publishedVersion;
@@ -17,11 +19,9 @@ class ContentManagementDetailResource extends JsonResource
         $categoryName = $hasVersionCategory
             ? ($version->category_name ?? $version->category?->name)
             : ($this->category_name ?? $this->category?->name);
-        $reviewDecision = $version?->reviewDecisions
-            ?->whereIn('decision_code', [
-                ContentReviewDecisionCode::RevisionRequested,
-                ContentReviewDecisionCode::Rejected,
-            ])->sortByDesc('decided_at')->first();
+        $reviewDecision = $version?->relationLoaded('latestFeedbackDecision')
+            ? $version->latestFeedbackDecision
+            : null;
 
         return [
             'public_id' => $this->public_id,
@@ -31,6 +31,15 @@ class ContentManagementDetailResource extends JsonResource
             'section' => new ContentSectionResource($this->section),
             'category' => $category ? new ContentCategoryResource($category) : null,
             'category_name' => $categoryName,
+            'university' => $this->university ? [
+                'code' => $this->university->code,
+                'name' => $this->university->name,
+            ] : null,
+            'created_by' => $this->basicContentActor($this->creator, $request),
+            'submitted_by' => $this->basicContentActor($version?->submitter, $request),
+            'reviewed_by' => $this->reviewAttributionActor($version, $request),
+            'approved_by' => $this->approvalAttributionActor($version, $request),
+            'published_by' => $this->publisherAttributionActor($version, $request),
             'lock_version' => $this->lock_version,
             'lifecycle_status' => $this->archived_at !== null ? 'archived' : $version?->lifecycle_status?->value,
             'has_editable_version' => $this->archived_at === null
@@ -46,6 +55,8 @@ class ContentManagementDetailResource extends JsonResource
                 'reason' => $reviewDecision->narrative_reason,
                 'decided_at' => $reviewDecision->decided_at?->toJSON(),
             ] : null,
+            'editorial_timeline' => $this->managementHistory?->values() ?? [],
+            'editorial_timeline_truncated' => (bool) ($this->managementHistoryTruncated ?? false),
             'archived_at' => $this->archived_at?->toJSON(),
             'created_at' => $this->created_at?->toJSON(),
             'updated_at' => $this->updated_at?->toJSON(),
@@ -67,6 +78,8 @@ class ContentManagementDetailResource extends JsonResource
             'excerpt' => $version->excerpt,
             'requires_editorial_review' => $version->requires_editorial_review,
             'submitted_at' => $version->submitted_at?->toJSON(),
+            'reviewed_at' => $version->reviewed_at?->toJSON(),
+            'approved_at' => $version->approved_at?->toJSON(),
             'published_at' => $version->published_at?->toJSON(),
             'updated_at' => $version->updated_at?->toJSON(),
             'article' => $article ? [

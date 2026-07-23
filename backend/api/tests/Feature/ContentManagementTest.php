@@ -74,8 +74,19 @@ class ContentManagementTest extends TestCase
         $admin = $this->user('admin', $this->campusA);
         Sanctum::actingAs($admin, ['*']);
 
-        $article = $this->postJson('/api/v1/content-management/items', $this->articlePayload($this->campusA, 'Artikel C2'))
-            ->assertCreated()->json('data');
+        $spoofedArticle = $this->articlePayload($this->campusB, 'Artikel C2');
+        $spoofedArticle['scope'] = 'global';
+        $this->postJson('/api/v1/content-management/items', $spoofedArticle)->assertForbidden();
+        $article = $this->postJson(
+            '/api/v1/content-management/items',
+            $this->articlePayload($this->campusA, 'Artikel C2'),
+        )
+            ->assertCreated()
+            ->assertJsonPath('data.scope', 'campus')
+            ->assertJsonPath('data.university.code', $this->campusA->code)
+            ->assertJsonPath('data.created_by.name', $admin->name)
+            ->assertJsonPath('data.created_by.email', $admin->email)
+            ->json('data');
         $faq = $this->postJson('/api/v1/content-management/items', [
             'content_type' => 'faq', 'section_code' => 'faq', 'scope' => 'campus',
             'university_id' => $this->campusA->id, 'title' => 'Bagaimana mencari bantuan?',
@@ -89,7 +100,12 @@ class ContentManagementTest extends TestCase
             'appointment_url' => 'https://example.test/konsultasi', 'is_active' => true,
         ])->assertCreated()->json('data');
 
-        $this->assertSame('campus', $article['scope']);
+        $this->assertDatabaseHas('content_items', [
+            'public_id' => $article['public_id'],
+            'scope' => 'campus',
+            'university_id' => $this->campusA->id,
+            'creator_id' => $admin->id,
+        ]);
         $this->assertSame('faq', $faq['content_type']);
         $this->assertSame('consultation', $consultation['content_type']);
 

@@ -1,6 +1,7 @@
 import {
   AlertCircle,
   ArrowLeft,
+  Clock3,
   Eye,
   FileText,
   ImageOff,
@@ -356,6 +357,53 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{t("content:readOnly")}</AlertDescription>
         </Alert>
+      )}
+      {detail && detail.editorial_timeline.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Clock3 className="h-4 w-4" />
+              {t("content:editorialTimeline")}
+            </CardTitle>
+            <CardDescription>{t("content:editorialTimelineDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ol className="space-y-4">
+              {detail.editorial_timeline.map((event) => {
+                const actor = event.actor.label === "central_team"
+                  ? t("content:timelineCentralTeam")
+                  : event.actor.label === "system"
+                    ? t("content:timelineSystem")
+                    : event.actor.name ?? t("content:timelineSystem");
+
+                return (
+                  <li key={event.public_id} className="border-l-2 border-muted pl-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-medium">
+                        {t(`content:timelineStates.${event.state}`, { defaultValue: event.state })}
+                      </p>
+                      <time className="text-xs text-muted-foreground" dateTime={event.timestamp}>
+                        {new Intl.DateTimeFormat(locale === "en" ? "en-ID" : "id-ID", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        }).format(new Date(event.timestamp))}
+                      </time>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">{actor}</p>
+                    {event.note && (
+                      <p className="mt-2 whitespace-pre-wrap rounded-md bg-muted/60 p-3 text-sm">
+                        {event.note}
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+            {detail.editorial_timeline_truncated && (
+              <p className="mt-4 text-xs text-muted-foreground">{t("content:timelineTruncated")}</p>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">

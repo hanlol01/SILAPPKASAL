@@ -2015,8 +2015,11 @@ list/detail/summary results include only the authenticated Admin's campus;
 Super Admin authoring results include only global scope. Foreign-scope records return no list result
 and cannot be opened directly. Detail responses
 project the controlled draft document, typed Article/FAQ/Consultation fields, generic attachment
-metadata, and the author's revision/rejection feedback; review identities and internal IDs remain
-excluded. Revision creation requires a published campus item with no active authoring version.
+metadata, the author's revision/rejection feedback, and permission-gated editorial attribution.
+Campus Admin receives creator and submitter `name`, `email`, and nullable `role`, but reviewer,
+approver, and publisher actor objects are always `null`; stage timestamps remain visible. Super
+Admin receives all five actor objects. Internal numeric user IDs remain excluded. Revision creation
+requires a published campus item with no active authoring version.
 Attachment deletion is limited to general attachments on an editable authorized version and is
 audited as `content.attachment_removed` only after the private object and metadata are both removed.
 If private-storage deletion fails, the API returns `503` with
@@ -2125,7 +2128,52 @@ use the separate `/published` query. That query projects only `published_version
 a newer draft, submitted, in-review, approved-only, revision-requested, or rejected version exists;
 those versions never replace the Published Library projection. Detail projects the submitted/current
 version, the previous published version when different, safe PDF resources, server capabilities,
-author editorial note, and an append-only decision timeline.
+author editorial note, and an append-only editorial timeline built only from actual audit actions.
+
+Governance resources project the following primary attribution to an active Super Admin with
+`content.read.management.all`:
+
+```json
+{
+  "created_by": { "name": "Editor", "email": "editor@example.test", "role": "admin" },
+  "submitted_by": { "name": "Editor", "email": "editor@example.test", "role": "admin" },
+  "reviewed_by": { "name": "Reviewer", "email": "reviewer@example.test", "role": "super_admin" },
+  "approved_by": { "name": "Reviewer", "email": "reviewer@example.test", "role": "super_admin" },
+  "published_by": { "name": "Publisher", "email": "publisher@example.test", "role": "super_admin" },
+  "created_at": "2026-07-23T10:00:00Z",
+  "version": {
+    "version_number": 2,
+    "submitted_at": "2026-07-23T11:00:00Z",
+    "reviewed_at": "2026-07-23T12:00:00Z",
+    "approved_at": "2026-07-23T12:00:00Z",
+    "published_at": "2026-07-23T13:00:00Z"
+  }
+}
+```
+
+`created_by` is the item creator. `submitted_by` and `published_by` are version-level foreign keys.
+`reviewed_by` is selected only from `review_started`, `revision_requested`, and `rejected`
+decisions; `approved_by` is selected only from `approved`. Both use
+`decided_at DESC, id DESC`. `direct_global_published`, `archived`, publication, featured-placement,
+and other administrative actions cannot become a reviewer or approver. `published_by` never falls
+back to a review decision. Nullable values are returned as `null`; the API never substitutes the
+current caller.
+
+Campus Admin management responses expose only `created_by` and `submitted_by` identities. Their
+`reviewed_by`, `approved_by`, and `published_by` values are `null`. The Admin detail
+`editorial_timeline` contains only actual audit events, masks central editorial actors as
+`label=central_team` with null name/email/role, and exposes escaped revision/rejection notes. Super
+Admin governance `decision_history` includes full authorized actor name/email/role. Both timelines
+are ordered by `created_at ASC, id ASC`, capped at 200 recent events, and expose a boolean
+`*_truncated` flag. Decision notes are paired by version number and action state, with
+`decided_at ASC, id ASC` as the deterministic occurrence order; timestamp equality alone is never
+used as identity. Repeated submissions remain separate events. Global content has `scope=global`
+and `university=null`; clients label that as “Semua Kampus”.
+
+Campus Admin creation is actor-bound: only `scope=campus` with the authenticated Admin's
+`university_id` is accepted; Global or foreign-campus input is rejected. Super Admin global
+authoring remains `scope=global`, saves as draft, and requires explicit submit, review, approval,
+and publication actions. The existing creator/author/editor separation-of-duties checks remain.
 
 Start review, revision request, rejection, approval, publication, and archive require the integer
 item `lock_version`. Revision/rejection/archive reasons are 10-2,000 characters; approval note is
@@ -2136,6 +2184,12 @@ same approved version and atomically updates the published pointer. A content au
 or publish their own version; creator, author, and editor checks also apply to global Super Admin
 content after transactional locking. No direct global publication service exists: global content
 must be submitted, reviewed and approved by an eligible second Super Admin before publication.
+
+Reporter/public reader resources do not contain any `created_by`, `submitted_by`, `reviewed_by`,
+`approved_by`, `published_by`, editorial timeline, review identity, or actor email field. Management
+and governance attribution responses remain `private, no-store` and permission gated. Paginated
+list queries eager load only deterministic latest relevant-review and latest-approval one-of-many
+relations; they do not load the full decision collection.
 
 Governance PDF actions fetch `/content/attachments/{attachmentPublicId}` with the authenticated
 Bearer session and create only a temporary browser Blob URL. Protected endpoints are never opened

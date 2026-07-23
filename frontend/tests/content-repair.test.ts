@@ -307,9 +307,52 @@ test("content governance review filters stay server-driven and campus content st
   assert.match(route, /getGovernanceReviews\(filters, signal\)/);
   assert.match(route, /submitted_from: from \|\| undefined/);
   assert.match(route, /university_code: campus \|\| undefined/);
+  assert.match(route, /if \(value === "global"\) setCampus\(""\)/);
+  assert.match(route, /disabled=\{props\.scope === "global"\}/);
   assert.match(api, /"\/content-governance\/reviews"/);
   assert.match(route, /readOnlyCampus/);
   assert.doesNotMatch(route, /<ContentEditor[\s\S]{0,300}scope="campus"/);
+});
+
+test("governance transparency renders attribution, actual editorial timeline, and responsive queue metadata", async () => {
+  const [route, editor, api, managementApi, id, en] = await Promise.all([
+    source("src/routes/dashboard.content-governance.tsx"),
+    source("src/components/content/content-editor.tsx"),
+    source("src/lib/content-governance-api.ts"),
+    source("src/lib/content-management-api.ts"),
+    readFile(new URL("../src/locales/id/contentGovernance.json", import.meta.url), "utf8").then(JSON.parse),
+    readFile(new URL("../src/locales/en/contentGovernance.json", import.meta.url), "utf8").then(JSON.parse),
+  ]);
+
+  for (const field of ["created_by", "submitted_by", "reviewed_by", "approved_by", "published_by"]) {
+    assert.match(api, new RegExp(`${field}: ContentActor \\| null`));
+  }
+  assert.match(route, /item\.submitted_by\?\.email/);
+  assert.match(route, /actorLabel\(item\.created_by\)/);
+  assert.match(route, /actorLabel\(item\.published_by\)/);
+  assert.match(route, /item\.decision_history\.map/);
+  assert.match(route, /timelineStates\.\$\{event\.state\}/);
+  assert.match(route, /event\.from_status && event\.to_status/);
+  assert.match(route, /event\.actor\.email/);
+  assert.match(route, /event\.actor\.role/);
+  assert.match(route, /decision_history_truncated/);
+  assert.match(route, /whitespace-pre-wrap/);
+  assert.match(api, /decision_history_truncated: boolean/);
+  assert.match(managementApi, /editorial_timeline: ContentTimelineEvent\[\]/);
+  assert.match(managementApi, /label: "central_team" \| "system" \| null/);
+  assert.match(editor, /event\.actor\.label === "central_team"/);
+  assert.match(editor, /timelineCentralTeam/);
+  assert.match(editor, /editorial_timeline_truncated/);
+  assert.match(editor, /whitespace-pre-wrap/);
+  assert.match(route, /hidden rounded-lg border 2xl:block/);
+  assert.match(route, /space-y-3 2xl:hidden/);
+  assert.match(route, /<EmptyState[\s\S]+review\.empty/);
+  assert.equal(id.review.submittedBy, "Diajukan oleh");
+  assert.equal(id.review.everyCampus, "Semua Kampus");
+  assert.equal(typeof id.review.timelineStates.submitted, "string");
+  assert.equal(typeof en.review.timelineStates.published, "string");
+  assert.equal(typeof id.review.historyTruncated, "string");
+  assert.equal(typeof en.review.historyTruncated, "string");
 });
 
 test("governance private PDFs use authenticated Blob access with cleanup and safe feedback", async () => {
@@ -401,6 +444,7 @@ test("global authoring is explicitly global and separate from campus review", as
 
   assert.match(route, /<ContentEditor[\s\S]+scope="global"/);
   assert.match(route, /contentGovernance:global\.secondReview/);
+  assert.match(route, /contentGovernance:global\.helper/);
   assert.match(editor, /scope === "global"/);
   assert.match(editor, /university_id: scope === "campus"/);
 });

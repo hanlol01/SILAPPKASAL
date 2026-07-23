@@ -248,6 +248,7 @@ class ContentPublicationService
             $version->forceFill([
                 'lifecycle_status' => ContentLifecycleStatus::Submitted,
                 'submitted_at' => now(),
+                'submitted_by' => $actor->id,
                 'editor_id' => $actor->id,
             ])->save();
             $item->forceFill(['lock_version' => $item->lock_version + 1])->save();
@@ -525,6 +526,7 @@ class ContentPublicationService
                 'reviewed_at' => $version->reviewed_at ?? $now,
                 'approved_at' => $version->approved_at ?? $now,
                 'published_at' => $now,
+                'published_by' => $actor->id,
             ])->save();
 
             $item->forceFill([
@@ -980,11 +982,25 @@ class ContentPublicationService
     {
         return $item->load([
             'section', 'category', 'university',
-            'currentDraftVersion.category',
+            'creator.role',
+            'currentDraftVersion.category', 'currentDraftVersion.submitter.role',
+            'currentDraftVersion.latestFeedbackDecision',
+            'currentDraftVersion.latestReviewAttributionDecision.reviewer.role',
+            'currentDraftVersion.latestApprovalDecision.reviewer.role',
+            'currentDraftVersion.publisher.role',
             'currentDraftVersion.articleContent',
             'currentDraftVersion.faqContent',
             'currentDraftVersion.consultationContent',
-            'publishedVersion.category',
+            'publishedVersion.category', 'publishedVersion.submitter.role',
+            'publishedVersion.latestFeedbackDecision',
+            'publishedVersion.latestReviewAttributionDecision.reviewer.role',
+            'publishedVersion.latestApprovalDecision.reviewer.role',
+            'publishedVersion.publisher.role',
+            'latestVersion.category', 'latestVersion.submitter.role',
+            'latestVersion.latestFeedbackDecision',
+            'latestVersion.latestReviewAttributionDecision.reviewer.role',
+            'latestVersion.latestApprovalDecision.reviewer.role',
+            'latestVersion.publisher.role',
         ]);
     }
 

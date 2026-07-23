@@ -2,9 +2,11 @@ import { apiRequest, apiRequestEnvelope } from "@/lib/api-client";
 import type { PaginationMeta } from "@/lib/api-types";
 import type {
   ContentAttachment,
+  ContentActor,
   ContentCategory,
   ContentLifecycleStatus,
   ContentSection,
+  ContentTimelineEvent,
   ContentType,
   DocumentNode,
 } from "@/lib/content-management-api";
@@ -28,7 +30,13 @@ export interface GovernanceContentSummary {
   category: ContentCategory | null;
   category_name: string | null;
   university: { code: string; name: string } | null;
-  author: { name: string; role: string | null } | null;
+  author: ContentActor | null;
+  created_by: ContentActor | null;
+  submitted_by: ContentActor | null;
+  reviewed_by: ContentActor | null;
+  approved_by: ContentActor | null;
+  published_by: ContentActor | null;
+  created_at: string | null;
   lock_version: number;
   lifecycle_status: ContentLifecycleStatus;
   version: {
@@ -38,6 +46,8 @@ export interface GovernanceContentSummary {
     title: string;
     excerpt: string | null;
     submitted_at: string | null;
+    reviewed_at: string | null;
+    approved_at: string | null;
     published_at: string | null;
     requires_editorial_review: boolean;
   };
@@ -79,14 +89,8 @@ export type GovernanceVersionDetail = GovernanceContentSummary["version"] & {
 export interface GovernanceContentDetail extends Omit<GovernanceContentSummary, "version"> {
   version: GovernanceVersionDetail;
   previous_published_version: GovernanceVersionDetail | null;
-  decision_history: Array<{
-    public_id: string;
-    state: string;
-    actor: { name: string | null; role: string | null };
-    timestamp: string;
-    note: string | null;
-    version_number: number | null;
-  }>;
+  decision_history: ContentTimelineEvent[];
+  decision_history_truncated: boolean;
   archived_at: string | null;
 }
 

@@ -16,12 +16,15 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 
 class ContentManagementQueryService
 {
-    public function __construct(private readonly ContentItemPolicy $policy) {}
+    public function __construct(
+        private readonly ContentItemPolicy $policy,
+        private readonly ContentEditorialTimelineService $timeline,
+    ) {}
 
     /** @param array<string, mixed> $filters */
     public function items(User $actor, array $filters): LengthAwarePaginator
     {
-        $query = $this->manageableItems($actor)->with($this->summaryRelations());
+        $query = $this->manageableItems($actor)->with($this->summaryRelations($actor));
 
         if (! empty($filters['content_type'])) {
             $query->where('content_type', $filters['content_type']);
@@ -94,7 +97,14 @@ class ContentManagementQueryService
 
     public function item(User $actor, string $publicId): ContentItem
     {
-        return $this->itemModel($actor, $publicId)->load($this->detailRelations());
+        $item = $this->itemModel($actor, $publicId)->load($this->detailRelations($actor));
+        $history = $actor->hasRole('super_admin')
+            ? $this->timeline->forGovernance($item)
+            : $this->timeline->forCampusManagement($item);
+        $item->setRelation('managementHistory', $history['events']);
+        $item->setRelation('managementHistoryTruncated', $history['truncated']);
+
+        return $item;
     }
 
     public function itemModel(User $actor, string $publicId): ContentItem
@@ -165,32 +175,69 @@ class ContentManagementQueryService
     }
 
     /** @return list<string> */
-    private function summaryRelations(): array
+    private function summaryRelations(User $actor): array
     {
-        return [
-            'section', 'category',
-            'currentDraftVersion.category', 'publishedVersion.category', 'latestVersion.category',
+        $relations = [
+            'section', 'category', 'university', 'creator.role',
+            'currentDraftVersion.category', 'currentDraftVersion.submitter.role',
+            'publishedVersion.category', 'publishedVersion.submitter.role',
+            'latestVersion.category', 'latestVersion.submitter.role',
         ];
+        if ($actor->hasRole('super_admin')) {
+            array_push(
+                $relations,
+                'currentDraftVersion.latestReviewAttributionDecision.reviewer.role',
+                'currentDraftVersion.latestApprovalDecision.reviewer.role',
+                'currentDraftVersion.publisher.role',
+                'publishedVersion.latestReviewAttributionDecision.reviewer.role',
+                'publishedVersion.latestApprovalDecision.reviewer.role',
+                'publishedVersion.publisher.role',
+                'latestVersion.latestReviewAttributionDecision.reviewer.role',
+                'latestVersion.latestApprovalDecision.reviewer.role',
+                'latestVersion.publisher.role',
+            );
+        }
+
+        return $relations;
     }
 
     /** @return list<string> */
-    private function detailRelations(): array
+    private function detailRelations(User $actor): array
     {
-        return [
-            'section', 'category', 'university',
+        $relations = [
+            'section', 'category', 'university', 'creator.role',
             'currentDraftVersion.category',
+            'currentDraftVersion.submitter.role',
             'currentDraftVersion.articleContent.coverAttachment',
             'currentDraftVersion.faqContent', 'currentDraftVersion.consultationContent',
-            'currentDraftVersion.attachments', 'currentDraftVersion.reviewDecisions',
+            'currentDraftVersion.attachments', 'currentDraftVersion.latestFeedbackDecision',
             'publishedVersion.category',
+            'publishedVersion.submitter.role',
             'publishedVersion.articleContent.coverAttachment',
             'publishedVersion.faqContent', 'publishedVersion.consultationContent',
-            'publishedVersion.attachments', 'publishedVersion.reviewDecisions',
+            'publishedVersion.attachments', 'publishedVersion.latestFeedbackDecision',
             'latestVersion.category',
+            'latestVersion.submitter.role',
             'latestVersion.articleContent.coverAttachment',
             'latestVersion.faqContent', 'latestVersion.consultationContent',
-            'latestVersion.attachments', 'latestVersion.reviewDecisions',
+            'latestVersion.attachments', 'latestVersion.latestFeedbackDecision',
         ];
+        if ($actor->hasRole('super_admin')) {
+            array_push(
+                $relations,
+                'currentDraftVersion.latestReviewAttributionDecision.reviewer.role',
+                'currentDraftVersion.latestApprovalDecision.reviewer.role',
+                'currentDraftVersion.publisher.role',
+                'publishedVersion.latestReviewAttributionDecision.reviewer.role',
+                'publishedVersion.latestApprovalDecision.reviewer.role',
+                'publishedVersion.publisher.role',
+                'latestVersion.latestReviewAttributionDecision.reviewer.role',
+                'latestVersion.latestApprovalDecision.reviewer.role',
+                'latestVersion.publisher.role',
+            );
+        }
+
+        return $relations;
     }
 
     private function escapeLike(string $value): string

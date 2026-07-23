@@ -74,6 +74,34 @@ export interface ContentVersionSummary {
   title: string;
   excerpt: string | null;
   requires_editorial_review: boolean;
+  submitted_at: string | null;
+  reviewed_at: string | null;
+  approved_at: string | null;
+  published_at: string | null;
+}
+
+export interface ContentActor {
+  name: string;
+  email: string;
+  role: string | null;
+}
+
+export interface ContentTimelineEvent {
+  public_id: string;
+  action: string;
+  state: string;
+  actor: {
+    name: string | null;
+    email: string | null;
+    role: string | null;
+    label: "central_team" | "system" | null;
+  };
+  timestamp: string;
+  note: string | null;
+  version_number: number | null;
+  from_status: string | null;
+  to_status: string | null;
+  result: string | null;
 }
 
 export interface ManagedContentSummary {
@@ -84,6 +112,12 @@ export interface ManagedContentSummary {
   section: ContentSection;
   category: ContentCategory | null;
   category_name: string | null;
+  university: { code: string; name: string } | null;
+  created_by: ContentActor | null;
+  submitted_by: ContentActor | null;
+  reviewed_by: ContentActor | null;
+  approved_by: ContentActor | null;
+  published_by: ContentActor | null;
   lock_version: number;
   lifecycle_status: ContentLifecycleStatus;
   version: ContentVersionSummary;
@@ -96,8 +130,6 @@ export interface ManagedContentSummary {
 
 export interface ManagedContentDetail extends Omit<ManagedContentSummary, "version"> {
   version: ContentVersionSummary & {
-    submitted_at: string | null;
-    published_at: string | null;
     updated_at: string;
     article: {
       document: DocumentNode | null;
@@ -132,6 +164,8 @@ export interface ManagedContentDetail extends Omit<ManagedContentSummary, "versi
     reason: string;
     decided_at: string;
   } | null;
+  editorial_timeline: ContentTimelineEvent[];
+  editorial_timeline_truncated: boolean;
 }
 
 export interface ContentPayload {

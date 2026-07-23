@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Enums\ContentLifecycleStatus;
+use App\Http\Resources\Concerns\ProjectsContentAttribution;
 use App\Models\ContentVersion;
 use App\Policies\ContentItemPolicy;
 use Illuminate\Http\Request;
@@ -10,6 +11,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class ContentGovernanceResource extends JsonResource
 {
+    use ProjectsContentAttribution;
+
     public function toArray(Request $request): array
     {
         $version = $this->versionForProjection();
@@ -31,10 +34,13 @@ class ContentGovernanceResource extends JsonResource
                 'code' => $this->university->code,
                 'name' => $this->university->name,
             ] : null,
-            'author' => $version?->author ? [
-                'name' => $version->author->name,
-                'role' => $version->author->role?->code,
-            ] : null,
+            'author' => $this->basicContentActor($version?->author, $request),
+            'created_by' => $this->basicContentActor($this->creator, $request),
+            'submitted_by' => $this->basicContentActor($version?->submitter, $request),
+            'reviewed_by' => $this->reviewAttributionActor($version, $request),
+            'approved_by' => $this->approvalAttributionActor($version, $request),
+            'published_by' => $this->publisherAttributionActor($version, $request),
+            'created_at' => $this->created_at?->toJSON(),
             'lock_version' => $this->lock_version,
             'lifecycle_status' => $this->archived_at !== null
                 ? ContentLifecycleStatus::Archived->value
@@ -46,6 +52,8 @@ class ContentGovernanceResource extends JsonResource
                 'title' => $version->title,
                 'excerpt' => $version->excerpt,
                 'submitted_at' => $version->submitted_at?->toJSON(),
+                'reviewed_at' => $version->reviewed_at?->toJSON(),
+                'approved_at' => $version->approved_at?->toJSON(),
                 'published_at' => $version->published_at?->toJSON(),
                 'requires_editorial_review' => $version->requires_editorial_review,
             ] : null,
@@ -55,6 +63,16 @@ class ContentGovernanceResource extends JsonResource
 
     protected function versionForProjection(): ?ContentVersion
     {
+        if ($this->relationLoaded('currentDraftVersion') && $this->currentDraftVersion !== null) {
+            return $this->currentDraftVersion;
+        }
+        if ($this->relationLoaded('latestVersion') && $this->latestVersion !== null) {
+            return $this->latestVersion;
+        }
+        if ($this->relationLoaded('publishedVersion') && $this->publishedVersion !== null) {
+            return $this->publishedVersion;
+        }
+
         return $this->currentDraftVersion ?? $this->latestVersion ?? $this->publishedVersion;
     }
 

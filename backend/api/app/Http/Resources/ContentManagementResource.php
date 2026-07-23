@@ -2,11 +2,14 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\ProjectsContentAttribution;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class ContentManagementResource extends JsonResource
 {
+    use ProjectsContentAttribution;
+
     public function toArray(Request $request): array
     {
         $version = $this->currentDraftVersion ?? $this->latestVersion ?? $this->publishedVersion;
@@ -26,6 +29,15 @@ class ContentManagementResource extends JsonResource
             'section' => new ContentSectionResource($this->whenLoaded('section')),
             'category' => $category ? new ContentCategoryResource($category) : null,
             'category_name' => $categoryName,
+            'university' => $this->university ? [
+                'code' => $this->university->code,
+                'name' => $this->university->name,
+            ] : null,
+            'created_by' => $this->basicContentActor($this->creator, $request),
+            'submitted_by' => $this->basicContentActor($version?->submitter, $request),
+            'reviewed_by' => $this->reviewAttributionActor($version, $request),
+            'approved_by' => $this->approvalAttributionActor($version, $request),
+            'published_by' => $this->publisherAttributionActor($version, $request),
             'lock_version' => $this->lock_version,
             'lifecycle_status' => $status,
             'version' => $version ? [
@@ -35,6 +47,10 @@ class ContentManagementResource extends JsonResource
                 'title' => $version->title,
                 'excerpt' => $version->excerpt,
                 'requires_editorial_review' => $version->requires_editorial_review,
+                'submitted_at' => $version->submitted_at?->toJSON(),
+                'reviewed_at' => $version->reviewed_at?->toJSON(),
+                'approved_at' => $version->approved_at?->toJSON(),
+                'published_at' => $version->published_at?->toJSON(),
             ] : null,
             'has_editable_version' => $this->archived_at === null
                 && ($this->currentDraftVersion?->lifecycle_status?->editable() ?? false),

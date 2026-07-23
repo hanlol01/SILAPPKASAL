@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Enums\ContentLifecycleStatus;
+use App\Enums\ContentReviewDecisionCode;
 use App\Enums\ContentScope;
 use App\Models\AuditLog;
+use App\Models\ContentAttachment;
 use App\Models\ContentCategory;
 use App\Models\ContentItem;
 use App\Models\ContentReviewDecision;
@@ -14,11 +16,15 @@ use App\Models\FeaturedContent;
 use App\Models\Role;
 use App\Models\University;
 use App\Models\User;
+use App\Services\ContentGovernanceQueryService;
+use App\Services\ContentManagementQueryService;
 use App\Services\ContentPublicationService;
 use Database\Seeders\Foundation\ContentFoundationSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -61,10 +67,18 @@ class ContentGovernanceTest extends TestCase
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.public_id', $submitted->public_id)
             ->assertJsonPath('data.0.university.code', $this->campus->code)
+            ->assertJsonPath('data.0.created_by.name', $this->admin->name)
+            ->assertJsonPath('data.0.submitted_by.name', $this->admin->name)
+            ->assertJsonPath('data.0.submitted_by.email', $this->admin->email)
+            ->assertJsonPath('data.0.version.submitted_at', fn (mixed $value): bool => is_string($value))
             ->assertJsonPath('data.0.capabilities.start_review', true)
-            ->assertJsonMissing(['email'])
             ->assertJsonMissing(['creator_id'])
+            ->assertJsonMissing(['submitted_by' => $this->reviewer->name])
             ->assertJsonMissing(['university_id']);
+        $this->assertDatabaseHas('content_versions', [
+            'id' => $submitted->current_draft_version_id,
+            'submitted_by' => $this->admin->id,
+        ]);
         $this->assertStringContainsString('private', (string) $response->headers->get('Cache-Control'));
         $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
         $invalid = $this->getJson('/api/v1/content-governance/reviews?category=not-a-uuid')
@@ -81,6 +95,269 @@ class ContentGovernanceTest extends TestCase
 
         Sanctum::actingAs($this->reviewer, ['*']);
         $this->getJson('/api/v1/content-governance/items/'.Str::uuid())->assertNotFound();
+    }
+
+    public function test_editorial_attribution_migration_rolls_back_and_reapplies_on_sqlite(): void
+    {
+        $item = $this->submittedCampusArticle('Preservasi Migration Attribution');
+        $item = app(ContentPublicationService::class)->startReview(
+            $item->currentDraftVersion,
+            $this->reviewer,
+            (int) $item->lock_version,
+        );
+        $version = $item->currentDraftVersion;
+        ContentAttachment::query()->create([
+            'content_version_id' => $version->id,
+            'purpose' => 'attachment',
+            'storage_disk' => 'local',
+            'storage_path' => 'test/'.Str::uuid().'.pdf',
+            'safe_filename' => 'preservation-test.pdf',
+            'original_filename' => 'preservation-test.pdf',
+            'detected_mime' => 'application/pdf',
+            'extension' => 'pdf',
+            'file_size' => 512,
+            'checksum_sha256' => str_repeat('a', 64),
+            'display_order' => 0,
+            'uploader_id' => $this->admin->id,
+        ]);
+        $pointerBefore = DB::table('content_items')->where('id', $item->id)
+            ->first(['current_draft_version_id', 'published_version_id']);
+        $versionBefore = DB::table('content_versions')->where('id', $version->id)
+            ->first([
+                'id', 'public_id', 'content_item_id', 'version_number', 'lifecycle_status',
+                'title', 'submitted_at', 'review_started_at',
+            ]);
+        $attachmentBefore = DB::table('content_attachments')
+            ->where('content_version_id', $version->id)->orderBy('id')->get()->toArray();
+        $decisionBefore = DB::table('content_review_decisions')
+            ->where('content_version_id', $version->id)->orderBy('id')->get()->toArray();
+        $articleBefore = DB::table('article_version_contents')
+            ->where('content_version_id', $version->id)->first();
+
+        $migration = require database_path('migrations/2026_07_23_030000_add_editorial_attribution_to_content_versions.php');
+
+        $migration->down();
+        $this->assertFalse(Schema::hasColumn('content_versions', 'submitted_by'));
+        $this->assertFalse(Schema::hasColumn('content_versions', 'published_by'));
+        $this->assertEquals($pointerBefore, DB::table('content_items')->where('id', $item->id)
+            ->first(['current_draft_version_id', 'published_version_id']));
+        $this->assertEquals($versionBefore, DB::table('content_versions')->where('id', $version->id)
+            ->first([
+                'id', 'public_id', 'content_item_id', 'version_number', 'lifecycle_status',
+                'title', 'submitted_at', 'review_started_at',
+            ]));
+        $this->assertEquals($attachmentBefore, DB::table('content_attachments')
+            ->where('content_version_id', $version->id)->orderBy('id')->get()->toArray());
+        $this->assertEquals($decisionBefore, DB::table('content_review_decisions')
+            ->where('content_version_id', $version->id)->orderBy('id')->get()->toArray());
+        $this->assertEquals($articleBefore, DB::table('article_version_contents')
+            ->where('content_version_id', $version->id)->first());
+
+        $migration->up();
+        $this->assertTrue(Schema::hasColumn('content_versions', 'submitted_by'));
+        $this->assertTrue(Schema::hasColumn('content_versions', 'published_by'));
+        $this->assertEquals($pointerBefore, DB::table('content_items')->where('id', $item->id)
+            ->first(['current_draft_version_id', 'published_version_id']));
+        $this->assertEquals($versionBefore, DB::table('content_versions')->where('id', $version->id)
+            ->first([
+                'id', 'public_id', 'content_item_id', 'version_number', 'lifecycle_status',
+                'title', 'submitted_at', 'review_started_at',
+            ]));
+        $this->assertEquals($attachmentBefore, DB::table('content_attachments')
+            ->where('content_version_id', $version->id)->orderBy('id')->get()->toArray());
+        $this->assertEquals($decisionBefore, DB::table('content_review_decisions')
+            ->where('content_version_id', $version->id)->orderBy('id')->get()->toArray());
+        $this->assertEquals($articleBefore, DB::table('article_version_contents')
+            ->where('content_version_id', $version->id)->first());
+    }
+
+    public function test_sqlite_attribution_migration_is_atomic_when_dependent_restore_fails(): void
+    {
+        $item = $this->campusDraft('Atomic Migration Failure');
+        $version = $item->currentDraftVersion;
+        $attachment = ContentAttachment::query()->create([
+            'content_version_id' => $version->id,
+            'purpose' => 'attachment',
+            'storage_disk' => 'local',
+            'storage_path' => 'test/'.Str::uuid().'.pdf',
+            'safe_filename' => 'atomic-test.pdf',
+            'original_filename' => 'atomic-test.pdf',
+            'detected_mime' => 'application/pdf',
+            'extension' => 'pdf',
+            'file_size' => 256,
+            'checksum_sha256' => str_repeat('b', 64),
+            'display_order' => 0,
+            'uploader_id' => $this->admin->id,
+        ]);
+        $pointerBefore = DB::table('content_items')->where('id', $item->id)
+            ->first(['current_draft_version_id', 'published_version_id']);
+        $attachmentBefore = DB::table('content_attachments')->where('id', $attachment->id)->first();
+        DB::statement(
+            "CREATE TRIGGER fail_content_attachment_restore_insert
+            BEFORE INSERT ON content_attachments
+            BEGIN SELECT RAISE(ABORT, 'forced dependent restore failure'); END",
+        );
+        DB::statement(
+            "CREATE TRIGGER fail_content_attachment_restore_update
+            BEFORE UPDATE ON content_attachments
+            BEGIN SELECT RAISE(ABORT, 'forced dependent restore failure'); END",
+        );
+        $migration = require database_path('migrations/2026_07_23_030000_add_editorial_attribution_to_content_versions.php');
+
+        try {
+            $migration->down();
+            $this->fail('The forced SQLite dependent restoration failure was not raised.');
+        } catch (\Throwable $exception) {
+            $this->assertStringContainsString('forced dependent restore failure', $exception->getMessage());
+        } finally {
+            DB::statement('DROP TRIGGER IF EXISTS fail_content_attachment_restore_insert');
+            DB::statement('DROP TRIGGER IF EXISTS fail_content_attachment_restore_update');
+        }
+
+        $this->assertTrue(Schema::hasColumn('content_versions', 'submitted_by'));
+        $this->assertTrue(Schema::hasColumn('content_versions', 'published_by'));
+        $this->assertEquals($pointerBefore, DB::table('content_items')->where('id', $item->id)
+            ->first(['current_draft_version_id', 'published_version_id']));
+        $this->assertEquals(
+            $attachmentBefore,
+            DB::table('content_attachments')->where('id', $attachment->id)->first(),
+        );
+        $this->assertDatabaseHas('content_versions', ['id' => $version->id]);
+    }
+
+    public function test_attribution_is_action_safe_deterministic_and_campus_timeline_masks_internal_actors(): void
+    {
+        $service = app(ContentPublicationService::class);
+        $secondReviewer = $this->user('super_admin');
+        $item = $this->submittedCampusArticle('Atribusi Deterministik');
+        $sameTimestamp = now()->startOfSecond();
+        $this->travelTo($sameTimestamp);
+
+        $item = $service->startReview(
+            $item->currentDraftVersion,
+            $this->reviewer,
+            (int) $item->lock_version,
+        );
+        $item = $service->requestRevision(
+            $item->currentDraftVersion,
+            $this->reviewer,
+            'Catatan pertama untuk urutan deterministik.',
+            (int) $item->lock_version,
+        );
+        $item = $service->updateDraft($item->currentDraftVersion, $this->admin, [
+            'excerpt' => 'Diperbaiki setelah catatan pertama.',
+        ]);
+        $item = $service->submit(
+            $item->currentDraftVersion,
+            $this->admin,
+            (int) $item->lock_version,
+        );
+        $item = $service->startReview(
+            $item->currentDraftVersion,
+            $secondReviewer,
+            (int) $item->lock_version,
+        );
+        $item = $service->requestRevision(
+            $item->currentDraftVersion,
+            $secondReviewer,
+            'Catatan kedua harus menjadi feedback terbaru.',
+            (int) $item->lock_version,
+        );
+        $version = $item->currentDraftVersion;
+        ContentReviewDecision::query()->create([
+            'content_version_id' => $version->id,
+            'reviewer_id' => $this->reviewer->id,
+            'decision_code' => ContentReviewDecisionCode::Approved,
+            'decided_at' => $sameTimestamp,
+        ]);
+        ContentReviewDecision::query()->create([
+            'content_version_id' => $version->id,
+            'reviewer_id' => $this->reviewer->id,
+            'decision_code' => ContentReviewDecisionCode::DirectGlobalPublished,
+            'decided_at' => $sameTimestamp,
+        ]);
+        foreach (range(1, 24) as $index) {
+            ContentReviewDecision::query()->create([
+                'content_version_id' => $version->id,
+                'reviewer_id' => $this->reviewer->id,
+                'decision_code' => ContentReviewDecisionCode::DirectGlobalPublished,
+                'decided_at' => $sameTimestamp->copy()->addSeconds($index),
+            ]);
+        }
+        ContentReviewDecision::query()->create([
+            'content_version_id' => $version->id,
+            'reviewer_id' => $this->reviewer->id,
+            'decision_code' => ContentReviewDecisionCode::Archived,
+            'narrative_reason' => 'Aksi administratif tidak boleh menjadi reviewer terbaru.',
+            'decided_at' => $sameTimestamp,
+        ]);
+        $this->travelBack();
+
+        Sanctum::actingAs($this->admin, ['*']);
+        $adminResponse = $this->getJson('/api/v1/content-management/items/'.$item->public_id)
+            ->assertOk()
+            ->assertJsonPath('data.created_by.email', $this->admin->email)
+            ->assertJsonPath('data.submitted_by.email', $this->admin->email)
+            ->assertJsonPath('data.reviewed_by', null)
+            ->assertJsonPath('data.approved_by', null)
+            ->assertJsonPath('data.published_by', null)
+            ->assertJsonPath('data.review_feedback.reason', 'Catatan kedua harus menjadi feedback terbaru.')
+            ->assertJsonPath('data.editorial_timeline_truncated', false);
+        $adminTimeline = collect($adminResponse->json('data.editorial_timeline'));
+        $this->assertSame(
+            ['Catatan pertama untuk urutan deterministik.', 'Catatan kedua harus menjadi feedback terbaru.'],
+            $adminTimeline->where('state', 'revision_requested')->pluck('note')->values()->all(),
+        );
+        $internalEvents = $adminTimeline->whereIn('state', [
+            'review_started', 'revision_requested', 'approved', 'published', 'archived',
+        ]);
+        $this->assertNotEmpty($internalEvents);
+        $this->assertTrue($internalEvents->every(
+            fn (array $event): bool => $event['actor']['label'] === 'central_team'
+                && $event['actor']['name'] === null
+                && $event['actor']['email'] === null
+                && $event['actor']['role'] === null,
+        ));
+        $this->assertStringNotContainsString($this->reviewer->email, $adminResponse->getContent());
+        $this->assertStringNotContainsString($secondReviewer->email, $adminResponse->getContent());
+        $adminPage = app(ContentManagementQueryService::class)->items($this->admin, [
+            'lifecycle_status' => ContentLifecycleStatus::RevisionRequested->value,
+        ]);
+        $adminVersion = collect($adminPage->items())
+            ->firstWhere('public_id', $item->public_id)
+            ?->currentDraftVersion;
+        $this->assertNotNull($adminVersion);
+        $this->assertFalse($adminVersion->relationLoaded('reviewDecisions'));
+        $this->assertFalse($adminVersion->relationLoaded('latestReviewAttributionDecision'));
+        $this->assertFalse($adminVersion->relationLoaded('latestApprovalDecision'));
+        $this->assertFalse($adminVersion->relationLoaded('publisher'));
+
+        Sanctum::actingAs($this->reviewer, ['*']);
+        $governance = $this->getJson('/api/v1/content-governance/items/'.$item->public_id)
+            ->assertOk()
+            ->assertJsonPath('data.reviewed_by.email', $secondReviewer->email)
+            ->assertJsonPath('data.approved_by.email', $this->reviewer->email)
+            ->assertJsonPath('data.published_by', null)
+            ->assertJsonPath('data.decision_history_truncated', false);
+        $this->assertSame(
+            [$this->reviewer->email, $secondReviewer->email],
+            collect($governance->json('data.decision_history'))
+                ->where('state', 'review_started')
+                ->pluck('actor.email')
+                ->values()
+                ->all(),
+        );
+
+        $page = app(ContentGovernanceQueryService::class)->reviewQueue($this->reviewer, [
+            'lifecycle_status' => ContentLifecycleStatus::RevisionRequested->value,
+        ]);
+        $projectedVersion = collect($page->items())
+            ->firstWhere('public_id', $item->public_id)
+            ?->currentDraftVersion;
+        $this->assertNotNull($projectedVersion);
+        $this->assertFalse($projectedVersion->relationLoaded('reviewDecisions'));
+        $this->assertTrue($projectedVersion->relationLoaded('latestReviewAttributionDecision'));
+        $this->assertTrue($projectedVersion->relationLoaded('latestApprovalDecision'));
     }
 
     public function test_revision_request_requires_reason_detects_stale_state_and_returns_feedback_to_campus(): void
@@ -117,6 +394,52 @@ class ContentGovernanceTest extends TestCase
         $this->getJson('/api/v1/content-management/items/'.$item->public_id)
             ->assertOk()
             ->assertJsonPath('data.review_feedback.reason', 'Tambahkan sumber yang dapat diverifikasi oleh editor.');
+    }
+
+    public function test_resubmission_keeps_both_submission_events_and_latest_submitter_attribution(): void
+    {
+        $service = app(ContentPublicationService::class);
+        $item = $this->submittedCampusArticle('Artikel Dikirim Ulang');
+        $item = $service->startReview(
+            $item->currentDraftVersion,
+            $this->reviewer,
+            (int) $item->lock_version,
+        );
+        $item = $service->requestRevision(
+            $item->currentDraftVersion,
+            $this->reviewer,
+            'Perbarui referensi dan penjelasan layanan kampus.',
+            (int) $item->lock_version,
+        );
+        $item = $service->updateDraft($item->currentDraftVersion, $this->admin, [
+            'excerpt' => 'Ringkasan telah diperbarui setelah review.',
+        ]);
+        $item = $service->submit(
+            $item->currentDraftVersion,
+            $this->admin,
+            (int) $item->lock_version,
+        );
+
+        $this->assertSame($this->admin->id, $item->currentDraftVersion->submitted_by);
+        $this->assertSame(
+            2,
+            AuditLog::query()
+                ->where('subject_id', $item->id)
+                ->where('action', 'content.submitted')
+                ->count(),
+        );
+
+        Sanctum::actingAs($this->reviewer, ['*']);
+        $history = $this->getJson('/api/v1/content-governance/items/'.$item->public_id)
+            ->assertOk()
+            ->assertJsonPath('data.submitted_by.email', $this->admin->email)
+            ->json('data.decision_history');
+        $this->assertCount(2, collect($history)->where('state', 'submitted'));
+        $this->assertSame(
+            ['draft', 'draft'],
+            collect($history)->where('state', 'submitted')->pluck('from_status')->values()->all(),
+        );
+        $this->assertCount(1, collect($history)->where('state', 'revision_requested'));
     }
 
     public function test_rejection_is_confirmed_by_reason_append_only_and_concurrency_safe(): void
@@ -176,9 +499,20 @@ class ContentGovernanceTest extends TestCase
         $revision = $service->submit($revision->currentDraftVersion, $this->admin, (int) $revision->lock_version);
         $secondVersionId = $revision->currentDraftVersion->public_id;
 
-        Sanctum::actingAs($this->user('reporter', $this->campus), ['*']);
-        $this->getJson('/api/v1/content/articles/'.$item->public_id)
-            ->assertOk()->assertJsonPath('data.title', 'Versi Pertama');
+        foreach (['reporter', 'satgas_ppks'] as $readerRole) {
+            Sanctum::actingAs($this->user($readerRole, $this->campus), ['*']);
+            $this->getJson('/api/v1/content/articles/'.$item->public_id)
+                ->assertOk()
+                ->assertJsonPath('data.title', 'Versi Pertama')
+                ->assertJsonMissingPath('data.created_by')
+                ->assertJsonMissingPath('data.submitted_by')
+                ->assertJsonMissingPath('data.reviewed_by')
+                ->assertJsonMissingPath('data.approved_by')
+                ->assertJsonMissingPath('data.published_by')
+                ->assertJsonMissingPath('data.decision_history')
+                ->assertJsonMissingPath('data.editorial_timeline')
+                ->assertJsonMissing(['email']);
+        }
 
         Sanctum::actingAs($this->reviewer, ['*']);
         $this->postJson('/api/v1/content-governance/versions/'.$secondVersionId.'/start-review', ['lock_version' => $revision->lock_version])->assertOk();
@@ -191,6 +525,13 @@ class ContentGovernanceTest extends TestCase
         $this->assertNotSame($firstPublishedId, $item->published_version_id);
         $this->assertSame(2, ContentVersion::query()->where('content_item_id', $item->id)->count());
         $this->assertSame(ContentLifecycleStatus::Published, ContentVersion::query()->findOrFail($firstPublishedId)->lifecycle_status);
+        $this->assertSame($this->reviewer->id, $item->publishedVersion->published_by);
+        $this->getJson('/api/v1/content-governance/items/'.$item->public_id)
+            ->assertOk()
+            ->assertJsonPath('data.submitted_by.email', $this->admin->email)
+            ->assertJsonPath('data.reviewed_by.email', $this->reviewer->email)
+            ->assertJsonPath('data.approved_by.email', $this->reviewer->email)
+            ->assertJsonPath('data.published_by.email', $this->reviewer->email);
     }
 
     public function test_super_admin_global_authoring_requires_a_distinct_reviewer_and_campus_cannot_escalate(): void
@@ -198,7 +539,13 @@ class ContentGovernanceTest extends TestCase
         Sanctum::actingAs($this->reviewer, ['*']);
         $payload = $this->articlePayload(ContentScope::Global, null, 'Konten Global C3');
         $created = $this->postJson('/api/v1/content-management/items', $payload)
-            ->assertCreated()->assertJsonPath('data.scope', 'global')->json('data');
+            ->assertCreated()
+            ->assertJsonPath('data.scope', 'global')
+            ->assertJsonPath('data.university', null)
+            ->assertJsonPath('data.created_by.email', $this->reviewer->email)
+            ->assertJsonPath('data.lifecycle_status', 'draft')
+            ->assertJsonPath('data.published_version', null)
+            ->json('data');
         $service = app(ContentPublicationService::class);
         $draft = ContentVersion::query()->where('public_id', $created['version']['public_id'])->firstOrFail();
         $secondReviewer = $this->user('super_admin');
@@ -212,7 +559,9 @@ class ContentGovernanceTest extends TestCase
         }
         $this->postJson('/api/v1/content-management/versions/'.$created['version']['public_id'].'/submit', [
             'lock_version' => $created['lock_version'],
-        ])->assertOk();
+        ])->assertOk()
+            ->assertJsonPath('data.submitted_by.email', $this->reviewer->email)
+            ->assertJsonPath('data.version.submitted_at', fn (mixed $value): bool => is_string($value));
 
         $queueItem = $this->getJson('/api/v1/content-governance/reviews?scope=global')
             ->assertOk()->json('data.0');
@@ -246,7 +595,15 @@ class ContentGovernanceTest extends TestCase
         Sanctum::actingAs($secondReviewer, ['*']);
         $this->postJson('/api/v1/content-governance/versions/'.$created['version']['public_id'].'/publish', [
             'lock_version' => $item->lock_version,
-        ])->assertOk();
+        ])->assertOk()
+            ->assertJsonPath('data.reviewed_by.email', $secondReviewer->email)
+            ->assertJsonPath('data.approved_by.email', $secondReviewer->email)
+            ->assertJsonPath('data.published_by.email', $secondReviewer->email);
+        $this->assertDatabaseHas('content_versions', [
+            'public_id' => $created['version']['public_id'],
+            'submitted_by' => $this->reviewer->id,
+            'published_by' => $secondReviewer->id,
+        ]);
         $this->assertDatabaseHas('audit_logs', ['action' => 'content.approved', 'actor_id' => $secondReviewer->id]);
         $this->assertDatabaseHas('audit_logs', ['action' => 'content.published', 'actor_id' => $secondReviewer->id]);
 
@@ -384,7 +741,9 @@ class ContentGovernanceTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.version.title', 'Read Only Campus')
             ->assertJsonPath('data.capabilities.start_review', true)
-            ->assertJsonPath('data.decision_history.0.state', 'submitted');
+            ->assertJsonFragment(['state' => 'draft_created'])
+            ->assertJsonFragment(['state' => 'version_created'])
+            ->assertJsonFragment(['state' => 'submitted']);
         $this->assertStringContainsString('no-store', (string) $detail->headers->get('Cache-Control'));
     }
 
@@ -432,7 +791,7 @@ class ContentGovernanceTest extends TestCase
             ->assertOk()->assertJsonPath('meta.total', 0);
         $this->getJson('/api/v1/content-governance/items/'.$item->public_id)
             ->assertOk()
-            ->assertJsonPath('data.decision_history.4.state', 'archived');
+            ->assertJsonFragment(['state' => 'archived']);
 
         Sanctum::actingAs($this->user('reporter', $this->campus), ['*']);
         $this->getJson('/api/v1/content/articles/'.$item->public_id)->assertNotFound();

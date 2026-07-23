@@ -32,10 +32,12 @@ class ContentVersion extends Model
         'requires_editorial_review',
         'editorial_note',
         'submitted_at',
+        'submitted_by',
         'review_started_at',
         'reviewed_at',
         'approved_at',
         'published_at',
+        'published_by',
         'rejected_at',
         'revision_requested_at',
     ];
@@ -49,11 +51,13 @@ class ContentVersion extends Model
         'seed_key',
         'editorial_note',
         'submitted_at',
+        'submitted_by',
         'review_started_at',
         'reviewed_at',
         'approved_at',
         'rejected_at',
         'revision_requested_at',
+        'published_by',
         'created_at',
         'updated_at',
     ];
@@ -129,6 +133,16 @@ class ContentVersion extends Model
         return $this->belongsTo(User::class, 'editor_id');
     }
 
+    public function submitter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'submitted_by');
+    }
+
+    public function publisher(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'published_by');
+    }
+
     public function articleContent(): HasOne
     {
         return $this->hasOne(ArticleVersionContent::class, 'content_version_id');
@@ -147,6 +161,40 @@ class ContentVersion extends Model
     public function reviewDecisions(): HasMany
     {
         return $this->hasMany(ContentReviewDecision::class, 'content_version_id');
+    }
+
+    public function latestReviewAttributionDecision(): HasOne
+    {
+        return $this->hasOne(ContentReviewDecision::class, 'content_version_id')
+            ->ofMany(
+                ['decided_at' => 'max', 'id' => 'max'],
+                fn ($query) => $query->whereIn('decision_code', [
+                    'review_started',
+                    'revision_requested',
+                    'rejected',
+                ]),
+            );
+    }
+
+    public function latestApprovalDecision(): HasOne
+    {
+        return $this->hasOne(ContentReviewDecision::class, 'content_version_id')
+            ->ofMany(
+                ['decided_at' => 'max', 'id' => 'max'],
+                fn ($query) => $query->where('decision_code', 'approved'),
+            );
+    }
+
+    public function latestFeedbackDecision(): HasOne
+    {
+        return $this->hasOne(ContentReviewDecision::class, 'content_version_id')
+            ->ofMany(
+                ['decided_at' => 'max', 'id' => 'max'],
+                fn ($query) => $query->whereIn('decision_code', [
+                    'revision_requested',
+                    'rejected',
+                ]),
+            );
     }
 
     public function attachments(): HasMany

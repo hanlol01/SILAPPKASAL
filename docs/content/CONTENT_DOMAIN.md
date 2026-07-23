@@ -23,6 +23,13 @@ the reader version while a revision is draft, submitted, in review, revision-req
 rejected. Published versions are immutable. Review decisions are append-only and narrative reasons
 are encrypted.
 
+Primary editorial attribution uses the existing item creator and append-only review-decision actor,
+plus nullable version-level submitter and publisher relations. Submission and publication write
+their actor foreign key in the same transaction as the lifecycle timestamp and audit event. Legacy
+versions may legitimately project no actor; the system never guesses from the current user.
+Resubmission updates the current version's submitter while every prior submission remains an actual,
+ordered audit event.
+
 ## Scope
 
 Every category, item, and featured placement has `global` or `campus` scope. Global records have no
@@ -33,6 +40,12 @@ are separate from reader scoping.
 Stable system sections are `education`, `policy`, `faq`, and `consultation`. Campus Admin cannot
 create top-level sections or global content. Super Admin may author global content and govern the
 domain; a reviewer cannot approve their own campus-authored content.
+
+Campus Admin draft creation accepts only the actor's campus and Campus scope inside the locked
+domain service; foreign-campus or Global input fails closed. Global content always has a null
+university, applies to every campus, and is authored only
+by Super Admin. Saving a Global draft never publishes it; submit, review, approval, and publication
+remain distinct explicit transitions under the existing separation-of-duties policy.
 
 ## Structured content and contacts
 
@@ -177,8 +190,18 @@ The review queue contains only submitted, in-review, and approved authoring vers
 content is exposed through a separate governance query so archive operations do not redefine queue
 eligibility. The published query always projects `publishedVersion`, even while another version is
 being authored or has been rejected, and never substitutes `latestVersion`. Review detail combines
-authoritative audit actions with encrypted append-only review decisions and projects only safe actor
-display fields.
+authoritative audit actions with encrypted append-only review decisions. Timeline and attribution
+ordering use immutable IDs as a secondary key whenever timestamps match. History is bounded to the
+200 latest actual audit events.
+
+Campus Admin management resources project creator/submitter name/email/role and stage timestamps,
+but never reviewer, approver, or publisher identities. Central timeline actors are replaced with a
+generic central-team label. Super Admin governance resources may project all five identities.
+Reviewer identity is restricted to review-start/revision/rejection decisions, approval identity to
+approval decisions, and publisher identity to the version publisher foreign key. Paginated lists
+eager load only deterministic one-of-many decision relations rather than the full decision history.
+Responses remain `private, no-store`. Reporter/public resources project none of those internal actor
+fields or the editorial timeline.
 
 Featured placements use an opaque concurrency token derived from the locked persisted placement
 state. This avoids timestamp-resolution races without a schema change. The backend independently

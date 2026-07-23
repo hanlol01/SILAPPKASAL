@@ -2,9 +2,7 @@
 
 namespace App\Services;
 
-use App\Enums\AuditAction;
 use App\Enums\ContentLifecycleStatus;
-use App\Models\AuditLog;
 use App\Models\ContentCategory;
 use App\Models\ContentItem;
 use App\Models\ContentVersion;
@@ -18,7 +16,10 @@ use Illuminate\Support\Collection;
 
 class ContentGovernanceQueryService
 {
-    public function __construct(private readonly ContentItemPolicy $policy) {}
+    public function __construct(
+        private readonly ContentItemPolicy $policy,
+        private readonly ContentEditorialTimelineService $timeline,
+    ) {}
 
     /** @param array<string, mixed> $filters */
     public function reviewQueue(User $actor, array $filters): LengthAwarePaginator
@@ -46,7 +47,11 @@ class ContentGovernanceQueryService
             })
             ->with([
                 'section', 'category', 'university', 'creator.role',
-                'currentDraftVersion.author.role', 'currentDraftVersion.category',
+                'currentDraftVersion.author.role', 'currentDraftVersion.submitter.role',
+                'currentDraftVersion.publisher.role',
+                'currentDraftVersion.latestReviewAttributionDecision.reviewer.role',
+                'currentDraftVersion.latestApprovalDecision.reviewer.role',
+                'currentDraftVersion.category',
                 'publishedVersion.category',
             ]);
 
@@ -90,7 +95,11 @@ class ContentGovernanceQueryService
                 ->where('lifecycle_status', ContentLifecycleStatus::Published->value))
             ->with([
                 'section', 'category', 'university', 'creator.role',
-                'publishedVersion.author.role', 'publishedVersion.category',
+                'publishedVersion.author.role', 'publishedVersion.submitter.role',
+                'publishedVersion.publisher.role',
+                'publishedVersion.latestReviewAttributionDecision.reviewer.role',
+                'publishedVersion.latestApprovalDecision.reviewer.role',
+                'publishedVersion.category',
             ]);
 
         $this->applyContentFilters($query, $filters, 'publishedVersion');
@@ -113,7 +122,9 @@ class ContentGovernanceQueryService
             abort(404);
         }
 
-        $item->setRelation('governanceHistory', $this->history($item));
+        $history = $this->timeline->forGovernance($item);
+        $item->setRelation('governanceHistory', $history['events']);
+        $item->setRelation('governanceHistoryTruncated', $history['truncated']);
 
         return $item;
     }
@@ -194,77 +205,31 @@ class ContentGovernanceQueryService
         }
     }
 
-    /** @return Collection<int, array<string, mixed>> */
-    private function history(ContentItem $item): Collection
-    {
-        $actionStates = [
-            AuditAction::ContentSubmitted->value => 'submitted',
-            AuditAction::ContentReviewStarted->value => 'review_started',
-            AuditAction::ContentRevisionRequested->value => 'revision_requested',
-            AuditAction::ContentRejected->value => 'rejected',
-            AuditAction::ContentApproved->value => 'approved',
-            AuditAction::ContentPublished->value => 'published',
-            AuditAction::ContentDirectGlobalPublished->value => 'published',
-            AuditAction::ContentArchived->value => 'archived',
-        ];
-        $decisionStates = [
-            'review_started' => 'review_started',
-            'revision_requested' => 'revision_requested',
-            'rejected' => 'rejected',
-            'approved' => 'approved',
-            'direct_global_published' => 'published',
-            'archived' => 'archived',
-        ];
-        $decisions = $item->versions
-            ->flatMap(fn (ContentVersion $version) => $version->reviewDecisions->map(fn ($decision) => [
-                'version_number' => $version->version_number,
-                'state' => $decisionStates[$decision->decision_code?->value] ?? $decision->decision_code?->value,
-                'note' => $decision->narrative_reason,
-            ]));
-
-        return AuditLog::query()
-            ->where('subject_type', $item->getMorphClass())
-            ->where('subject_id', $item->getKey())
-            ->whereIn('action', array_keys($actionStates))
-            ->orderBy('created_at')
-            ->orderBy('id')
-            ->get()
-            ->map(function (AuditLog $audit) use ($actionStates, $decisions): array {
-                $state = $actionStates[$audit->action];
-                $versionNumber = (int) data_get($audit->metadata, 'version_number', 0);
-                $note = $decisions->first(fn (array $decision) => $decision['version_number'] === $versionNumber
-                    && $decision['state'] === $state)['note'] ?? null;
-
-                return [
-                    'public_id' => $audit->public_id,
-                    'state' => $state,
-                    'actor' => [
-                        'name' => $audit->actor_display_name_safe,
-                        'role' => $audit->actor_role_code,
-                    ],
-                    'timestamp' => $audit->created_at?->toJSON(),
-                    'note' => $note,
-                    'version_number' => $versionNumber ?: null,
-                ];
-            });
-    }
-
     /** @return list<string> */
     private function detailRelations(): array
     {
         return [
             'section', 'category', 'university', 'creator.role',
-            'currentDraftVersion.author.role', 'currentDraftVersion.category',
+            'currentDraftVersion.author.role', 'currentDraftVersion.submitter.role',
+            'currentDraftVersion.publisher.role', 'currentDraftVersion.category',
             'currentDraftVersion.articleContent',
             'currentDraftVersion.faqContent', 'currentDraftVersion.consultationContent',
-            'currentDraftVersion.attachments', 'currentDraftVersion.reviewDecisions.reviewer.role',
-            'publishedVersion.author.role', 'publishedVersion.category',
+            'currentDraftVersion.attachments', 'currentDraftVersion.latestFeedbackDecision',
+            'currentDraftVersion.latestReviewAttributionDecision.reviewer.role',
+            'currentDraftVersion.latestApprovalDecision.reviewer.role',
+            'publishedVersion.author.role', 'publishedVersion.submitter.role',
+            'publishedVersion.publisher.role', 'publishedVersion.category',
             'publishedVersion.articleContent',
             'publishedVersion.faqContent', 'publishedVersion.consultationContent',
-            'publishedVersion.attachments',
-            'latestVersion.author.role', 'latestVersion.category', 'latestVersion.articleContent', 'latestVersion.faqContent',
+            'publishedVersion.attachments', 'publishedVersion.latestFeedbackDecision',
+            'publishedVersion.latestReviewAttributionDecision.reviewer.role',
+            'publishedVersion.latestApprovalDecision.reviewer.role',
+            'latestVersion.author.role', 'latestVersion.submitter.role', 'latestVersion.publisher.role',
+            'latestVersion.category', 'latestVersion.articleContent', 'latestVersion.faqContent',
             'latestVersion.consultationContent', 'latestVersion.attachments',
-            'versions.reviewDecisions.reviewer.role',
+            'latestVersion.latestFeedbackDecision',
+            'latestVersion.latestReviewAttributionDecision.reviewer.role',
+            'latestVersion.latestApprovalDecision.reviewer.role',
         ];
     }
 

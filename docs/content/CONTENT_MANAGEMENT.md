@@ -60,7 +60,20 @@ publish, or archive when the server capability permits, but cannot rewrite campu
 contacts, or attachments. Mandatory revision, rejection, and archive narratives are preserved in
 the append-only decision history and never copied into audit metadata.
 
+The queue identifies title, type, section/category, scope, campus, submitter name/email, submitted
+timestamp, version, status, and available action. A Global row uses “Semua Kampus”. Choosing Global
+scope clears and disables the campus filter. Medium and small layouts use cards rather than allowing
+the desktop table to overflow.
+
+Governance detail projects permission-gated creator, submitter, latest reviewer, approver, publisher,
+stage timestamps, scope/campus, version, and current status. Missing legacy attribution is displayed
+as a dash and is never replaced with the current user. Its timeline is ordered from actual audit
+events, including draft creation/update, submission/resubmission, review, revision request,
+approval, publication, archive, and featured placement changes. Review notes come from append-only
+review decisions and render as escaped plain text.
+
 `Konten Global` reuses the controlled C2 editor with scope fixed to `global` and no campus selector.
+The UI describes it as “Konten yang berlaku untuk seluruh kampus dan dikelola oleh Super Admin.”
 Global drafts follow the same submit, review, approve, and publish lifecycle. The creator, author,
 or last editor cannot review or publish that version, so publication requires a different Super
 Admin. The production domain exposes no direct global publication method.
@@ -80,6 +93,23 @@ All governance queries are `private, no-store`. Logout, authentication invalidat
 replacement cancel and remove both `content-management` and `content-governance` TanStack queries.
 Governance read functions also forward TanStack `AbortSignal` values to the fetch layer so obsolete
 queue, detail, Published Content, option, and featured requests are cancelled at transport level.
+
+Campus draft creation is actor-bound in the service: another campus or Global scope is rejected for
+Admin. Submission stores the version's submitter and timestamp. Publication stores
+the version's publisher and timestamp. Existing creator and append-only review-decision relations
+provide creator/reviewer/approver attribution. Campus Admin sees creator/submitter identity and all
+stage timestamps, but reviewer/approver/publisher identities are withheld. Its detail timeline uses
+only actual audit events and renders central editorial activity generically as “Ditinjau oleh tim
+pusat”; no central actor name, email, or role is serialized. Revision/rejection notes remain visible
+as escaped plain text so the author can act on them. Reporter/public resources never expose these
+actor objects, email addresses, decision notes, or the editorial timeline.
+
+Super Admin governance receives full creator, submitter, relevant reviewer, approver, and publisher
+identity. Reviewer attribution considers only review-start, revision-request, and rejection
+decisions; approval considers only approval decisions; publication comes only from the version's
+publisher pointer. Selection is deterministic by decision timestamp and immutable ID. List queries
+load only these selected relations, while detail history is limited to the 200 latest actual audit
+events and reports when older history was truncated.
 
 ## Deferred
 

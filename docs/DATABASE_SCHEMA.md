@@ -1060,6 +1060,31 @@ pointers and does not consult stale item-level metadata. Rollback drops only the
 and their foreign key; SQLite partial indexes and lifecycle integrity triggers are preserved across
 the table alteration.
 
+## REV-GOV-01 Editorial Attribution Addendum
+
+Migration `2026_07_23_030000_add_editorial_attribution_to_content_versions.php` additively adds:
+
+- nullable `content_versions.submitted_by`, foreign key to `users.id` with `ON DELETE SET NULL`;
+- nullable `content_versions.published_by`, foreign key to `users.id` with `ON DELETE SET NULL`.
+
+New submissions and publications write these fields in the same locked transaction as their
+lifecycle timestamp, status transition, item lock-version update, and audit event. Existing
+`content_items.creator_id` remains the authoritative creator. Reviewer and approver identity remains
+authoritative in append-only `content_review_decisions.reviewer_id`. Reviewer attribution is the
+latest `review_started`, `revision_requested`, or `rejected` decision; approver attribution is the
+latest `approved` decision. Both use `(decided_at DESC, id DESC)`. Archive, direct-global-publish,
+publish, and featured actions are excluded from reviewer/approver attribution. Audit logs remain the
+ordered editorial history and are not substituted for these primary relations.
+
+Both new columns are nullable so legacy rows and deleted user accounts remain readable without
+inventing an actor. The migration does not backfill guesses, alter lifecycle values, or move
+`current_draft_version_id`/`published_version_id`. Rollback drops only the two new foreign keys and
+columns. Laravel schema operations remain compatible with PostgreSQL and the SQLite in-memory test
+database. The PostgreSQL alteration path remains a direct additive schema change. The SQLite
+snapshot, table mutation, dependent restoration, pointer restoration, partial-index recreation, and
+lifecycle-trigger recreation run in one database transaction so restoration failure cannot commit a
+partially rebuilt graph.
+
 ## REV-WF-03 R3 Schema Addendum
 
 Migration `2026_07_20_020000_add_final_case_closure.php` adds:
