@@ -1,5 +1,5 @@
 export interface DocumentMark {
-  type: "bold" | "italic" | "link";
+  type: "bold" | "italic" | "underline" | "link";
   attrs?: { href?: string; title?: string };
 }
 

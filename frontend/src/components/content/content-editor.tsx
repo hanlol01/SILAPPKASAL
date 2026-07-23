@@ -12,7 +12,7 @@ import {
   Smartphone,
   Trash2,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
@@ -20,6 +20,7 @@ import { toast } from "sonner";
 
 import { ContentDocumentPreview } from "@/components/content/content-document-preview";
 import { ContentCategoryCombobox } from "@/components/content/content-category-combobox";
+import type { ArticleEditorSaveStatus } from "@/components/content/article-wysiwyg-editor";
 import { StructuredDocumentEditor } from "@/components/content/structured-document-editor";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -74,6 +75,12 @@ import {
 import { apiErrorMessage } from "@/lib/form-errors";
 import { cn } from "@/lib/utils";
 
+const ArticleWysiwygEditor = lazy(() =>
+  import("@/components/content/article-wysiwyg-editor").then((module) => ({
+    default: module.ArticleWysiwygEditor,
+  })),
+);
+
 interface Props {
   contentType: ContentType;
   detail?: ManagedContentDetail;
@@ -117,8 +124,14 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
   const { t, i18n } = useTranslation(["content", "common"]);
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const sourceIdentity = `${contentType}:${detail?.public_id ?? "new"}:${detail?.version.public_id ?? "new"}`;
   const [state, setState] = useState<EditorState>(() => initialState(contentType, detail));
   const [dirty, setDirty] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<ArticleEditorSaveStatus>("pristine");
+  const [articleDocumentCompatibility, setArticleDocumentCompatibility] = useState({
+    sourceIdentity: "",
+    compatible: false,
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touchedFields, setTouchedFields] = useState<Set<keyof EditorState>>(new Set());
   const [saveAttempted, setSaveAttempted] = useState(false);
@@ -130,6 +143,8 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const detailRef = useRef(detail);
+  const navigationAllowedRef = useRef(false);
+  const sourceIdentityRef = useRef(sourceIdentity);
   detailRef.current = detail;
   const permissions = new Set(user?.permissions ?? []);
   const globalAuthor = scope === "global" && permissions.has("content.publish.global");
@@ -141,20 +156,46 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
   const editable = detail
     ? detail.archived_at === null && detail.has_editable_version && canUpdate
     : canCreate;
+  const articleDocumentCompatible =
+    contentType !== "article" ||
+    (articleDocumentCompatibility.sourceIdentity === sourceIdentity &&
+      articleDocumentCompatibility.compatible);
   const locale = i18n.resolvedLanguage?.startsWith("en") ? "en" : "id";
+  const handleArticleDocumentCompatibility = useCallback(
+    (compatible: boolean) => {
+      setArticleDocumentCompatibility((current) => {
+        if (current.sourceIdentity === sourceIdentity && current.compatible === compatible) {
+          return current;
+        }
+
+        return { sourceIdentity, compatible };
+      });
+    },
+    [sourceIdentity],
+  );
   const navigationBlocker = useBlocker({
-    shouldBlockFn: () => dirty,
+    shouldBlockFn: () => dirty && !navigationAllowedRef.current,
     enableBeforeUnload: dirty,
     withResolver: true,
   });
 
   useEffect(() => {
     if (dirty) return;
+    const sourceChanged = sourceIdentityRef.current !== sourceIdentity;
+    sourceIdentityRef.current = sourceIdentity;
     setState(initialState(contentType, detailRef.current));
     setErrors({});
     setTouchedFields(new Set());
     setSaveAttempted(false);
-  }, [contentType, detail?.public_id, detail?.version.public_id, detail?.lock_version, dirty]);
+    if (sourceChanged) setSaveStatus("pristine");
+  }, [
+    contentType,
+    detail?.public_id,
+    detail?.version.public_id,
+    detail?.lock_version,
+    dirty,
+    sourceIdentity,
+  ]);
 
   const categoriesQuery = useQuery({
     queryKey: contentManagementKeys.categories(state.sectionCode),
@@ -178,6 +219,7 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
   };
 
   const handleMutationError = (error: unknown) => {
+    if (contentType === "article") setSaveStatus("failed");
     setErrors(apiFieldErrors(error, contentType));
     if (error instanceof ApiError && error.errorCode === "content_stale_version") {
       toast.error(t("content:errors.stale"));
@@ -190,10 +232,12 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (!articleDocumentCompatible) throw new ClientValidationError();
       setSaveAttempted(true);
       const validation = validate(state, contentType, emergencyConfirmed, t);
       if (Object.keys(validation).length) {
         setErrors(validation);
+        if (contentType === "article") setSaveStatus("failed");
         throw new ClientValidationError();
       }
       setErrors({});
@@ -211,10 +255,12 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
     onSuccess: async (result) => {
       toast.success(t(detail ? "content:saved" : "content:created"));
       await invalidate(result.public_id);
-      onSaved(result.public_id);
+      navigationAllowedRef.current = true;
       setDirty(false);
+      if (contentType === "article") setSaveStatus("saved");
       setTouchedFields(new Set());
       setSaveAttempted(false);
+      onSaved(result.public_id);
     },
     onError: (error) => {
       if (error instanceof ClientValidationError) return;
@@ -224,6 +270,7 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
 
   const submitMutation = useMutation({
     mutationFn: async () => {
+      if (!articleDocumentCompatible) throw new ClientValidationError();
       if (!detail) throw new Error("Save the draft before submitting.");
       let lockVersion = detail.lock_version;
       if (dirty) {
@@ -233,6 +280,7 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
       return submitManagedContent(detail.version.public_id, lockVersion);
     },
     onSuccess: async () => {
+      navigationAllowedRef.current = true;
       setDirty(false);
       toast.success(t("content:submittedSuccess"));
       await invalidate(detail?.public_id);
@@ -298,7 +346,9 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
 
   const set = <K extends keyof EditorState>(key: K, value: EditorState[K]) => {
     setState((current) => ({ ...current, [key]: value }));
+    navigationAllowedRef.current = false;
     setDirty(true);
+    if (contentType === "article") setSaveStatus("dirty");
     setErrors((current) => ({ ...current, [key]: "" }));
   };
   const markTouched = (key: keyof EditorState) => {
@@ -423,6 +473,8 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
                 onCategoryBlur={handleCategoryBlur}
                 canManageCategories={permissions.has("content.category.govern") || permissions.has("content.category.manage.own_campus")}
                 locale={locale}
+                saveStatus={saveStatus}
+                onDocumentCompatibilityChange={handleArticleDocumentCompatibility}
               />
             )}
             {contentType === "faq" && (
@@ -554,7 +606,9 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
             </Button>
             <Button
               className="min-h-11 w-full sm:w-auto"
-              disabled={saveMutation.isPending || submitMutation.isPending}
+              disabled={
+                !articleDocumentCompatible || saveMutation.isPending || submitMutation.isPending
+              }
               onClick={() => saveMutation.mutate()}
             >
               {saveMutation.isPending ? (
@@ -571,6 +625,7 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
                 disabled={
                   saveMutation.isPending ||
                   submitMutation.isPending ||
+                  !articleDocumentCompatible ||
                   (detail.lifecycle_status === "revision_requested" && !dirty)
                 }
                 onClick={() => submitMutation.mutate()}
@@ -619,6 +674,7 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
               variant="destructive"
               onClick={() => {
                 setDirty(false);
+                navigationAllowedRef.current = true;
                 if (navigationBlocker.status === "blocked") navigationBlocker.proceed();
                 else onBack();
               }}
@@ -643,6 +699,8 @@ function ArticleFields({
   onCategoryBlur,
   canManageCategories,
   locale,
+  saveStatus,
+  onDocumentCompatibilityChange,
 }: {
   state: EditorState;
   set: Setter;
@@ -652,6 +710,8 @@ function ArticleFields({
   onCategoryBlur: () => void;
   canManageCategories: boolean;
   locale: "id" | "en";
+  saveStatus: ArticleEditorSaveStatus;
+  onDocumentCompatibilityChange: (compatible: boolean) => void;
 }) {
   const { t } = useTranslation("content");
   return (
@@ -707,12 +767,26 @@ function ArticleFields({
           onChange={(event) => set("excerpt", event.target.value)}
         />
       </Field>
-      <Field label={t("body")} error={errors.document}>
-        <StructuredDocumentEditor
-          disabled={!editable}
-          value={state.document}
-          onChange={(value) => set("document", value)}
-        />
+      <Field label={t("body")} description={t("editor.helper")} error={errors.document}>
+        <Suspense
+          fallback={
+            <div
+              className="flex min-h-72 items-center justify-center rounded-xl border bg-muted/20 text-sm text-muted-foreground"
+              role="status"
+            >
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {t("editor.loading")}
+            </div>
+          }
+        >
+          <ArticleWysiwygEditor
+            disabled={!editable}
+            onCompatibilityChange={onDocumentCompatibilityChange}
+            saveStatus={saveStatus}
+            value={state.document}
+            onChange={(value) => set("document", value)}
+          />
+        </Suspense>
       </Field>
     </>
   );

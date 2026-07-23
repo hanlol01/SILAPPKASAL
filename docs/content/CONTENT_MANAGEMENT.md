@@ -24,10 +24,35 @@ existing published version and the backend permits revision creation.
 
 ## Editor contract
 
-The Article editor supports paragraph, H2, H3, bold, italic, ordered and unordered list, blockquote,
-HTTP/HTTPS/mailto link, information/warning/help callout, and divider nodes. H1, iframe, raw HTML,
-tables, video, arbitrary style, and image references are not authorable in C2. FAQ uses the restricted
-paragraph/list/blockquote subset. The backend repeats document validation and sanitization.
+The Article editor supports paragraph, H2, H3, bold, italic, underline, ordered and unordered list,
+blockquote, HTTP/HTTPS/mailto/tel link, information/warning/help callout, horizontal divider,
+undo/redo, and clear formatting. H1, iframe, raw HTML, tables, video, code blocks, arbitrary
+font/color styling, collaboration, and image references are not authorable. FAQ uses the restricted
+paragraph/list/blockquote subset. The backend repeats document validation, normalization,
+structural limits, protocol checks, and sanitization.
+
+REV-ED-01 presents that allowlist through a controlled Tiptap WYSIWYG editor with a project-native
+shadcn toolbar. The client stores `editor.getJSON()` only after reducing it to the existing strict
+backend contract; default editor-only list/link attributes are not sent. Incoming legacy
+`unorderedList`, `divider`, `heading_2`, `heading_3`, `info`, `warning`, and `help` aliases plus
+inline list item, blockquote, and callout shapes are normalized for the editor without rewriting a
+published version. Existing `imageReference` nodes remain visible as legacy read-only placeholders,
+but there is no image insertion or upload control.
+
+The toolbar remains sticky and horizontally scrollable at narrow widths. It uses project Lucide,
+shadcn tooltip/button/select/popover primitives, active states, labels, and keyboard-operable
+controls. The footer reports word count, estimated reading time, and one of four explicit states:
+no changes, unsaved changes, saved, or save failed. Saving remains manual; REV-ED-01 adds no
+autosave. Pasted or dropped image/file payloads are blocked and cover/PDF input remains in its
+separate panel.
+
+The editor is synchronized to the selected content version. Server-driven version replacement uses
+a non-emitting content reset so it does not create a dirty draft, while local edits continue through
+the existing dirty-state, optimistic-lock, save, submit, review, approval, and publish flow. An
+unknown document shape locks the WYSIWYG surface and shows a read-only preview so saving cannot
+silently discard data. Article bodies are not written to localStorage or sessionStorage.
+Dirty state activates both TanStack Router blocking and browser `beforeunload`; successful save or
+submit clears the guard before navigation. A background query refetch cannot replace local edits.
 
 Consultation uses structured fields. Appointment URLs must use HTTPS and must not carry Report,
 registration, identity, or incident information. Emergency availability requires explicit UI

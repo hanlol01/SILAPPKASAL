@@ -9,6 +9,52 @@ use Symfony\Component\HtmlSanitizer\HtmlSanitizerConfig;
 
 class ContentDocumentService
 {
+    /**
+     * Article and FAQ deliberately share one validator implementation but not
+     * one content contract. Keep every capability difference explicit here.
+     *
+     * @var array{
+     *     name: string,
+     *     block_nodes: list<string>,
+     *     marks: list<string>,
+     *     allow_mailto: bool,
+     *     allow_tel: bool
+     * }
+     */
+    private const ARTICLE_POLICY = [
+        'name' => 'article',
+        'block_nodes' => [
+            'paragraph',
+            'heading',
+            'orderedList',
+            'bulletList',
+            'blockquote',
+            'callout',
+            'horizontalRule',
+            'imageReference',
+        ],
+        'marks' => ['bold', 'italic', 'underline', 'link'],
+        'allow_mailto' => true,
+        'allow_tel' => true,
+    ];
+
+    /**
+     * @var array{
+     *     name: string,
+     *     block_nodes: list<string>,
+     *     marks: list<string>,
+     *     allow_mailto: bool,
+     *     allow_tel: bool
+     * }
+     */
+    private const FAQ_POLICY = [
+        'name' => 'faq',
+        'block_nodes' => ['paragraph', 'orderedList', 'bulletList', 'blockquote'],
+        'marks' => ['bold', 'italic', 'link'],
+        'allow_mailto' => true,
+        'allow_tel' => false,
+    ];
+
     private const MAX_NODES = 1000;
 
     private const MAX_DEPTH = 12;
@@ -35,6 +81,7 @@ class ContentDocumentService
             ->allowElement('h3')
             ->allowElement('strong')
             ->allowElement('em')
+            ->allowElement('u')
             ->allowElement('ol')
             ->allowElement('ul')
             ->allowElement('li')
@@ -44,7 +91,7 @@ class ContentDocumentService
             ->allowElement('figure', ['data-attachment-id'])
             ->allowElement('figcaption')
             ->allowElement('hr')
-            ->allowLinkSchemes(['http', 'https', 'mailto'])
+            ->allowLinkSchemes(['http', 'https', 'mailto', 'tel'])
             ->forceAttribute('a', 'rel', 'noopener noreferrer')
             ->withMaxInputLength(500000);
 
@@ -57,7 +104,7 @@ class ContentDocumentService
      */
     public function prepareArticle(array $document): array
     {
-        return $this->prepare($document, false);
+        return $this->prepare($document, self::ARTICLE_POLICY);
     }
 
     /**
@@ -66,10 +113,10 @@ class ContentDocumentService
      */
     public function prepareFaq(array $document): array
     {
-        return $this->prepare($document, true);
+        return $this->prepare($document, self::FAQ_POLICY);
     }
 
-    public function safeUrl(string $url, bool $allowMailto = true): bool
+    public function safeUrl(string $url, bool $allowMailto = true, bool $allowTel = true): bool
     {
         $url = trim($url);
 
@@ -78,16 +125,28 @@ class ContentDocumentService
         }
 
         $scheme = mb_strtolower((string) parse_url($url, PHP_URL_SCHEME));
-        $allowed = $allowMailto ? ['http', 'https', 'mailto'] : ['http', 'https'];
+        $allowed = ['http', 'https'];
+        if ($allowMailto) {
+            $allowed[] = 'mailto';
+        }
+        if ($allowTel) {
+            $allowed[] = 'tel';
+        }
 
         if (! in_array($scheme, $allowed, true)) {
             return false;
         }
 
         if ($scheme === 'mailto') {
-            $address = substr($url, 7);
+            $address = substr($url, strpos($url, ':') + 1);
 
             return filter_var($address, FILTER_VALIDATE_EMAIL) !== false;
+        }
+
+        if ($scheme === 'tel') {
+            $number = substr($url, strpos($url, ':') + 1);
+
+            return preg_match('/^\+?[0-9](?:[0-9(). -]{1,28}[0-9])?(?:;ext=[0-9]{1,10})?$/', $number) === 1;
         }
 
         return filter_var($url, FILTER_VALIDATE_URL) !== false;
@@ -97,7 +156,16 @@ class ContentDocumentService
      * @param  array<string, mixed>  $document
      * @return array{document: array<string, mixed>, html: string, text: string, reading_minutes: int}
      */
-    private function prepare(array $document, bool $faq): array
+    /**
+     * @param  array{
+     *     name: string,
+     *     block_nodes: list<string>,
+     *     marks: list<string>,
+     *     allow_mailto: bool,
+     *     allow_tel: bool
+     * }  $policy
+     */
+    private function prepare(array $document, array $policy): array
     {
         try {
             $serialized = json_encode($document, JSON_THROW_ON_ERROR);
@@ -112,6 +180,8 @@ class ContentDocumentService
         if (($document['type'] ?? null) !== 'doc' || ! is_array($document['content'] ?? null)) {
             throw ValidationException::withMessages(['document' => ['A controlled content document is required.']]);
         }
+        $document = $this->normalizeDocument($document);
+        $this->assertRootContent($document['content'], $policy);
 
         $counter = 0;
         $markCounter = 0;
@@ -123,7 +193,7 @@ class ContentDocumentService
                 throw ValidationException::withMessages(['document' => ['Every document node must be an object.']]);
             }
 
-            $html .= $this->renderNode($node, 1, $counter, $markCounter, $textParts, $faq);
+            $html .= $this->renderNode($node, 1, $counter, $markCounter, $textParts, $policy);
         }
 
         $text = trim(preg_replace('/\s+/u', ' ', implode(' ', $textParts)) ?? '');
@@ -145,6 +215,13 @@ class ContentDocumentService
     /**
      * @param  array<string, mixed>  $node
      * @param  list<string>  $textParts
+     * @param  array{
+     *     name: string,
+     *     block_nodes: list<string>,
+     *     marks: list<string>,
+     *     allow_mailto: bool,
+     *     allow_tel: bool
+     * }  $policy
      */
     private function renderNode(
         array $node,
@@ -152,7 +229,7 @@ class ContentDocumentService
         int &$counter,
         int &$markCounter,
         array &$textParts,
-        bool $faq,
+        array $policy,
     ): string {
         $counter++;
 
@@ -167,14 +244,20 @@ class ContentDocumentService
         }
 
         if ($type === 'text') {
-            return $this->renderText($node, $markCounter, $textParts);
+            return $this->renderText($node, $markCounter, $textParts, $policy);
+        }
+
+        if ($type !== 'listItem' && ! in_array($type, $policy['block_nodes'], true)) {
+            throw ValidationException::withMessages([
+                'document' => ["Unsupported {$policy['name']} document node: {$type}."],
+            ]);
         }
 
         $allowedKeys = match ($type) {
-            'paragraph', 'orderedList', 'unorderedList', 'bulletList', 'listItem', 'blockquote' => ['type', 'content'],
+            'paragraph', 'orderedList', 'bulletList', 'listItem', 'blockquote' => ['type', 'content'],
             'heading', 'callout' => ['type', 'attrs', 'content'],
             'imageReference' => ['type', 'attrs'],
-            'divider' => ['type'],
+            'horizontalRule' => ['type'],
             default => throw ValidationException::withMessages(['document' => ["Unsupported document node: {$type}."]]),
         };
         $this->assertAllowedKeys($node, $allowedKeys, "{$type} node");
@@ -184,33 +267,41 @@ class ContentDocumentService
         if (! is_array($children)) {
             throw ValidationException::withMessages(['document' => ['Node content must be an array.']]);
         }
+        $this->assertNodeContent($type, $children, $policy);
 
         $inner = '';
         foreach ($children as $child) {
             if (! is_array($child)) {
                 throw ValidationException::withMessages(['document' => ['Every child node must be an object.']]);
             }
-            $inner .= $this->renderNode($child, $depth + 1, $counter, $markCounter, $textParts, $faq);
+            $inner .= $this->renderNode($child, $depth + 1, $counter, $markCounter, $textParts, $policy);
         }
 
         return match ($type) {
             'paragraph' => '<p>'.$inner.'</p>',
-            'heading' => $this->renderHeading($node, $inner, $faq),
+            'heading' => $this->renderHeading($node, $inner),
             'orderedList' => '<ol>'.$inner.'</ol>',
-            'unorderedList', 'bulletList' => '<ul>'.$inner.'</ul>',
+            'bulletList' => '<ul>'.$inner.'</ul>',
             'listItem' => '<li>'.$inner.'</li>',
             'blockquote' => '<blockquote>'.$inner.'</blockquote>',
-            'callout' => $this->renderCallout($node, $inner, $faq),
-            'imageReference' => $this->renderImageReference($node, $faq),
-            'divider' => $faq
-                ? throw ValidationException::withMessages(['document' => ['FAQ answers do not support dividers.']])
-                : '<hr>',
+            'callout' => $this->renderCallout($node, $inner),
+            'imageReference' => $this->renderImageReference($node),
+            'horizontalRule' => '<hr>',
             default => throw ValidationException::withMessages(['document' => ["Unsupported document node: {$type}."]]),
         };
     }
 
-    /** @param array<string, mixed> $node */
-    private function renderText(array $node, int &$markCounter, array &$textParts): string
+    /**
+     * @param  array<string, mixed>  $node
+     * @param  array{
+     *     name: string,
+     *     block_nodes: list<string>,
+     *     marks: list<string>,
+     *     allow_mailto: bool,
+     *     allow_tel: bool
+     * }  $policy
+     */
+    private function renderText(array $node, int &$markCounter, array &$textParts, array $policy): string
     {
         $this->assertAllowedKeys($node, ['type', 'text', 'marks'], 'text node');
         $text = $node['text'] ?? null;
@@ -241,6 +332,11 @@ class ContentDocumentService
             if (! is_array($mark) || ! is_string($mark['type'] ?? null)) {
                 throw ValidationException::withMessages(['document' => ['Each text mark requires a type.']]);
             }
+            if (! in_array($mark['type'], $policy['marks'], true)) {
+                throw ValidationException::withMessages([
+                    'document' => ["Unsupported {$policy['name']} text mark."],
+                ]);
+            }
 
             $this->assertAllowedKeys(
                 $mark,
@@ -251,7 +347,8 @@ class ContentDocumentService
             $rendered = match ($mark['type']) {
                 'bold' => '<strong>'.$rendered.'</strong>',
                 'italic' => '<em>'.$rendered.'</em>',
-                'link' => $this->renderLinkMark($mark, $rendered),
+                'underline' => '<u>'.$rendered.'</u>',
+                'link' => $this->renderLinkMark($mark, $rendered, $policy),
                 default => throw ValidationException::withMessages(['document' => ['Unsupported text mark.']]),
             };
         }
@@ -260,12 +357,8 @@ class ContentDocumentService
     }
 
     /** @param array<string, mixed> $node */
-    private function renderHeading(array $node, string $inner, bool $faq): string
+    private function renderHeading(array $node, string $inner): string
     {
-        if ($faq) {
-            throw ValidationException::withMessages(['document' => ['FAQ answers do not support headings.']]);
-        }
-
         $attrs = is_array($node['attrs'] ?? null) ? $node['attrs'] : [];
         $this->assertAllowedKeys($attrs, ['level'], 'heading attributes');
         $level = $attrs['level'] ?? null;
@@ -278,12 +371,8 @@ class ContentDocumentService
     }
 
     /** @param array<string, mixed> $node */
-    private function renderCallout(array $node, string $inner, bool $faq): string
+    private function renderCallout(array $node, string $inner): string
     {
-        if ($faq) {
-            throw ValidationException::withMessages(['document' => ['FAQ answers do not support callouts.']]);
-        }
-
         $attrs = is_array($node['attrs'] ?? null) ? $node['attrs'] : [];
         $this->assertAllowedKeys($attrs, ['variant'], 'callout attributes');
         $variant = $attrs['variant'] ?? null;
@@ -296,12 +385,8 @@ class ContentDocumentService
     }
 
     /** @param array<string, mixed> $node */
-    private function renderImageReference(array $node, bool $faq): string
+    private function renderImageReference(array $node): string
     {
-        if ($faq) {
-            throw ValidationException::withMessages(['document' => ['FAQ answers do not support image references.']]);
-        }
-
         $attrs = is_array($node['attrs'] ?? null) ? $node['attrs'] : [];
         $this->assertAllowedKeys($attrs, ['attachment_public_id', 'alt'], 'image reference attributes');
         $publicId = $attrs['attachment_public_id'] ?? null;
@@ -319,15 +404,26 @@ class ContentDocumentService
             .'<figcaption>'.htmlspecialchars($alt, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</figcaption></figure>';
     }
 
-    /** @param array<string, mixed> $mark */
-    private function renderLinkMark(array $mark, string $inner): string
+    /**
+     * @param  array<string, mixed>  $mark
+     * @param  array{
+     *     name: string,
+     *     block_nodes: list<string>,
+     *     marks: list<string>,
+     *     allow_mailto: bool,
+     *     allow_tel: bool
+     * }  $policy
+     */
+    private function renderLinkMark(array $mark, string $inner, array $policy): string
     {
         $attrs = is_array($mark['attrs'] ?? null) ? $mark['attrs'] : [];
         $this->assertAllowedKeys($attrs, ['href', 'title'], 'link attributes');
         $href = $attrs['href'] ?? null;
         $title = $attrs['title'] ?? null;
 
-        if (! is_string($href) || mb_strlen($href) > self::MAX_LINK_LENGTH || ! $this->safeUrl($href)) {
+        if (! is_string($href)
+            || mb_strlen($href) > self::MAX_LINK_LENGTH
+            || ! $this->safeUrl($href, $policy['allow_mailto'], $policy['allow_tel'])) {
             throw ValidationException::withMessages(['document' => ['Unsafe or malformed link protocol.']]);
         }
 
@@ -340,6 +436,231 @@ class ContentDocumentService
             : '';
 
         return '<a href="'.htmlspecialchars($href, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'"'.$titleAttribute.'>'.$inner.'</a>';
+    }
+
+    /**
+     * Normalize only documented legacy aliases and safe scalar values. Unknown
+     * keys remain present so the strict validator rejects them deterministically.
+     *
+     * @param  array<string, mixed>  $document
+     * @return array<string, mixed>
+     */
+    private function normalizeDocument(array $document): array
+    {
+        $document['content'] = array_map(
+            fn (mixed $node): mixed => is_array($node) ? $this->normalizeNode($node) : $node,
+            $document['content'],
+        );
+
+        return $document;
+    }
+
+    /**
+     * @param  array<string, mixed>  $node
+     * @return array<string, mixed>
+     */
+    private function normalizeNode(array $node): array
+    {
+        $type = $node['type'] ?? null;
+        if (! is_string($type)) {
+            return $node;
+        }
+
+        $normalizedType = match ($type) {
+            'unorderedList' => 'bulletList',
+            'divider' => 'horizontalRule',
+            'heading_2', 'heading_3' => 'heading',
+            'info', 'warning', 'help' => 'callout',
+            default => $type,
+        };
+        $node['type'] = $normalizedType;
+
+        if ($type === 'heading_2' || $type === 'heading_3') {
+            $attrs = is_array($node['attrs'] ?? null) ? $node['attrs'] : [];
+            $node['attrs'] = $attrs + ['level' => $type === 'heading_2' ? 2 : 3];
+        }
+        if (in_array($type, ['info', 'warning', 'help'], true)) {
+            $attrs = is_array($node['attrs'] ?? null) ? $node['attrs'] : [];
+            $node['attrs'] = $attrs + ['variant' => $type === 'info' ? 'information' : $type];
+        }
+
+        if ($normalizedType === 'text' && is_array($node['marks'] ?? null)) {
+            $node['marks'] = array_map(function (mixed $mark): mixed {
+                if (! is_array($mark) || ($mark['type'] ?? null) !== 'link') {
+                    return $mark;
+                }
+
+                if (is_array($mark['attrs'] ?? null) && is_string($mark['attrs']['href'] ?? null)) {
+                    $mark['attrs']['href'] = $this->normalizeUrl($mark['attrs']['href']);
+                }
+
+                return $mark;
+            }, $node['marks']);
+        }
+
+        if (is_array($node['content'] ?? null)) {
+            $children = [];
+            foreach ($node['content'] as $child) {
+                $children[] = is_array($child) ? $this->normalizeNode($child) : $child;
+            }
+            if (in_array($normalizedType, ['listItem', 'blockquote', 'callout'], true)) {
+                $children = $this->wrapInlineRuns($children);
+            }
+            $node['content'] = $children;
+        }
+
+        return $node;
+    }
+
+    private function normalizeUrl(string $url): string
+    {
+        $url = trim($url);
+        $separator = strpos($url, ':');
+        if ($separator === false) {
+            return $url;
+        }
+
+        $scheme = mb_strtolower(substr($url, 0, $separator));
+        $value = substr($url, $separator + 1);
+        if ($scheme === 'tel'
+            && preg_match('/^(\+?[0-9](?:[0-9(). -]{1,28}[0-9])?)(;ext=[0-9]{1,10})?$/', $value, $matches) === 1) {
+            $value = preg_replace('/[(). -]/', '', $matches[1]).($matches[2] ?? '');
+        }
+
+        return $scheme.':'.$value;
+    }
+
+    /**
+     * @param  list<mixed>  $children
+     * @return list<mixed>
+     */
+    private function wrapInlineRuns(array $children): array
+    {
+        $normalized = [];
+        $inline = [];
+        $flush = static function () use (&$normalized, &$inline): void {
+            if ($inline === []) {
+                return;
+            }
+            $normalized[] = ['type' => 'paragraph', 'content' => $inline];
+            $inline = [];
+        };
+
+        foreach ($children as $child) {
+            if (is_array($child) && ($child['type'] ?? null) === 'text') {
+                $inline[] = $child;
+
+                continue;
+            }
+
+            $flush();
+            $normalized[] = $child;
+        }
+        $flush();
+
+        return $normalized;
+    }
+
+    /**
+     * @param  list<mixed>  $children
+     * @param  array{
+     *     name: string,
+     *     block_nodes: list<string>,
+     *     marks: list<string>,
+     *     allow_mailto: bool,
+     *     allow_tel: bool
+     * }  $policy
+     */
+    private function assertRootContent(array $children, array $policy): void
+    {
+        $this->assertChildrenTypes(
+            $children,
+            $policy['block_nodes'],
+            'document root',
+        );
+    }
+
+    /**
+     * @param  list<mixed>  $children
+     * @param  array{
+     *     name: string,
+     *     block_nodes: list<string>,
+     *     marks: list<string>,
+     *     allow_mailto: bool,
+     *     allow_tel: bool
+     * }  $policy
+     */
+    private function assertNodeContent(string $type, array $children, array $policy): void
+    {
+        match ($type) {
+            'paragraph', 'heading' => $this->assertChildrenTypes($children, ['text'], "{$type} node"),
+            'orderedList', 'bulletList' => $this->assertNonEmptyChildrenTypes($children, ['listItem'], "{$type} node"),
+            'listItem' => $this->assertListItemContent($children, $policy),
+            'blockquote', 'callout' => $this->assertNonEmptyChildrenTypes(
+                $children,
+                $policy['block_nodes'],
+                "{$type} node",
+            ),
+            'horizontalRule', 'imageReference' => $children === []
+                ? null
+                : throw ValidationException::withMessages([
+                    'document' => ["{$type} nodes cannot contain child nodes."],
+                ]),
+            default => null,
+        };
+    }
+
+    /**
+     * @param  list<mixed>  $children
+     * @param  array{
+     *     name: string,
+     *     block_nodes: list<string>,
+     *     marks: list<string>,
+     *     allow_mailto: bool,
+     *     allow_tel: bool
+     * }  $policy
+     */
+    private function assertListItemContent(array $children, array $policy): void
+    {
+        $this->assertNonEmptyChildrenTypes(
+            $children,
+            $policy['block_nodes'],
+            'listItem node',
+        );
+        if (($children[0]['type'] ?? null) !== 'paragraph') {
+            throw ValidationException::withMessages([
+                'document' => ['A list item must begin with a paragraph.'],
+            ]);
+        }
+    }
+
+    /**
+     * @param  list<mixed>  $children
+     * @param  list<string>  $allowed
+     */
+    private function assertNonEmptyChildrenTypes(array $children, array $allowed, string $context): void
+    {
+        if ($children === []) {
+            throw ValidationException::withMessages([
+                'document' => ["{$context} requires child nodes."],
+            ]);
+        }
+        $this->assertChildrenTypes($children, $allowed, $context);
+    }
+
+    /**
+     * @param  list<mixed>  $children
+     * @param  list<string>  $allowed
+     */
+    private function assertChildrenTypes(array $children, array $allowed, string $context): void
+    {
+        foreach ($children as $child) {
+            if (! is_array($child) || ! in_array($child['type'] ?? null, $allowed, true)) {
+                throw ValidationException::withMessages([
+                    'document' => ["Unsupported child node in {$context}."],
+                ]);
+            }
+        }
     }
 
     /** @param array<string, mixed> $value @param list<string> $allowed */

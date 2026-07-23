@@ -61,6 +61,31 @@ Prioritas Pengembangan:
 15. Mobile (Post-MVP)
 ```
 
+### 1.3 Shared Article Editor Guardrails
+
+- Article authoring must reuse
+  `frontend/src/components/content/article-wysiwyg-editor.tsx`; do not introduce a second rich-text
+  editor or a parallel body format.
+- `frontend/package.json` and its npm lockfile are the dependency source of truth. New Tiptap
+  extensions require a dependency, schema, security, bundle, renderer, and backend-allowlist audit.
+- Image, inline PDF, file, or other media insertion; raw HTML; iframe/video; tables; arbitrary
+  style; collaboration; and AI writing remain disabled until the separately approved
+  `REV-MEDIA-01` milestone. Cover and attachment panels are not inline editor capabilities.
+- `imageReference` is a legacy JSON compatibility node only. It may be rendered as a read-only
+  placeholder when already stored, but must not have an HTML/clipboard parser, toolbar action, or
+  new-document insertion path.
+- Article and FAQ use distinct backend allowlists. Article may use the approved Tiptap marks,
+  Article-only blocks, and `tel:` links; FAQ retains its narrower pre-REV-ED-01 block/mark/link
+  contract. A shared validator implementation must receive an explicit document-type policy.
+- Stored document JSON must follow the backend allowlist in `API_SPECIFICATION.md`. Frontend schema
+  restrictions are UX controls and never replace server validation.
+- Before legacy Article JSON enters Tiptap, the frontend compatibility adapter must fail closed on
+  the backend resource limits: 500,000 serialized bytes, 1,000 nodes, depth 12, 200,000 text
+  characters, and the corresponding per-node mark/link limits. Over-limit or unknown documents
+  remain read-only and must not be rewritten through save.
+- Editor changes require focused Content tests, TypeScript, ESLint, production build, backend
+  Content tests when the JSON contract changes, PHP lint, and dependency-tree verification.
+
 ---
 
 ## 2. Project Structure

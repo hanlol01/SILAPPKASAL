@@ -2041,6 +2041,23 @@ Consultation resources expose only approved reader fields.
 No reader resource contains internal numeric IDs, author/editor/reviewer identifiers, review reasons,
 draft pointers, private paths, checksums, encrypted narratives, or unpublished versions.
 
+Article `document` input and reader `body` output use the version-owned controlled JSON contract.
+Canonical nodes are `doc`, `paragraph`, `text`, `heading` (level 2 or 3), `bulletList`,
+`orderedList`, `listItem`, `blockquote`, `horizontalRule`, `callout`
+(`information|warning|help`), and the retained legacy-placeholder `imageReference`. Canonical marks
+are `bold`, `italic`, `underline`, and `link`. Link attributes are limited to `href` and optional
+`title`; accepted protocols are valid `http`, `https`, `mailto`, and `tel`. Client-supplied
+`target`, `rel`, `class`, `style`, event handlers, raw HTML, H1, or any unknown node/mark/attribute
+is rejected. Safe rendered external links receive `rel="noopener noreferrer"`.
+
+Before persistence the server normalizes historical aliases `unorderedList`, `divider`,
+`heading_2`, `heading_3`, `info`, `warning`, and `help` to the canonical contract and wraps supported
+legacy inline list/quote/callout children in paragraphs. Normalization occurs only during an
+authorized write or revision copy; it does not rewrite the existing published version. Malformed
+JSON produces the standard validation response. The server rejects documents above 500,000
+serialized bytes, 1,000 nodes, depth 12, 200,000 total text characters, 20,000 characters per text
+node, four marks per text node, 2,000 total marks, or 2,048 characters per link.
+
 Article authoring requires trimmed free-text `category_name` (maximum 100 characters). Category
 metadata follows the lifecycle on `content_versions`: management responses project the editable or
 latest version, while reader responses project only the version referenced by `published_version_id`.

@@ -28,7 +28,11 @@ is the exact server collection order; the client does not re-rank placements or 
 Article cards use the published category, section, title, excerpt, publication time, optional computed
 reading time, and optional safe cover projection. Their default is a CSS/icon no-image surface. The
 application does not use remote stock images or fabricated media. Article detail renders controlled
-document JSON and ignores the HTML projection.
+document JSON and ignores the HTML projection. The shared renderer supports the same canonical
+Article marks/nodes as Admin preview, including underline, safe HTTP/HTTPS/mailto/tel links, and
+horizontal dividers. It does not use `dangerouslySetInnerHTML`; unknown/unsafe structures,
+excessive depth, or excessive node count fail closed to a safe fallback. Legacy image references
+render only a non-interactive placeholder.
 
 Article categories are searchable free text backed by a scoped registry. Version `category_name` is
 canonical; version `category_id` is a fallback only for historical rows whose version

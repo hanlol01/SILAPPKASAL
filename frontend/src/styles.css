@@ -145,3 +145,121 @@
     -webkit-font-smoothing: antialiased;
   }
 }
+
+@layer components {
+  .article-wysiwyg-editor .tiptap {
+    min-height: 20rem;
+    overflow-wrap: anywhere;
+    padding: 1.5rem;
+    color: var(--color-foreground);
+    font-size: 1rem;
+    line-height: 1.75;
+    outline: none;
+  }
+
+  .article-wysiwyg-editor .tiptap > * + * {
+    margin-top: 0.9rem;
+  }
+
+  .article-wysiwyg-editor .tiptap p {
+    min-height: 1.75rem;
+  }
+
+  .article-wysiwyg-editor .tiptap h2 {
+    margin-top: 1.75rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+  }
+
+  .article-wysiwyg-editor .tiptap h3 {
+    margin-top: 1.5rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  .article-wysiwyg-editor .tiptap ul,
+  .article-wysiwyg-editor .tiptap ol {
+    padding-left: 1.5rem;
+  }
+
+  .article-wysiwyg-editor .tiptap ul {
+    list-style: disc;
+  }
+
+  .article-wysiwyg-editor .tiptap ol {
+    list-style: decimal;
+  }
+
+  .article-wysiwyg-editor .tiptap li + li {
+    margin-top: 0.35rem;
+  }
+
+  .article-wysiwyg-editor .tiptap blockquote {
+    border-left: 3px solid var(--color-primary);
+    color: var(--color-muted-foreground);
+    padding-left: 1rem;
+    font-style: italic;
+  }
+
+  .article-wysiwyg-editor .tiptap a {
+    color: var(--color-primary);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .article-wysiwyg-editor .tiptap u {
+    text-decoration-thickness: 0.08em;
+    text-underline-offset: 0.2em;
+  }
+
+  .article-wysiwyg-editor .tiptap aside[data-content-callout] {
+    border: 1px solid color-mix(in oklab, var(--color-info) 35%, transparent);
+    border-left-width: 4px;
+    border-radius: var(--radius-lg);
+    background: color-mix(in oklab, var(--color-info) 10%, transparent);
+    padding: 0.9rem 1rem;
+  }
+
+  .article-wysiwyg-editor .tiptap aside[data-content-callout="warning"] {
+    border-color: color-mix(in oklab, var(--color-warning) 55%, transparent);
+    background: color-mix(in oklab, var(--color-warning) 12%, transparent);
+  }
+
+  .article-wysiwyg-editor .tiptap aside[data-content-callout="help"] {
+    border-color: color-mix(in oklab, var(--color-success) 45%, transparent);
+    background: color-mix(in oklab, var(--color-success) 10%, transparent);
+  }
+
+  .article-wysiwyg-editor .tiptap hr[data-content-divider] {
+    margin: 1.5rem 0;
+    border: 0;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .article-wysiwyg-editor .tiptap figure[data-content-legacy-image] {
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-muted);
+    padding: 1rem;
+    color: var(--color-muted-foreground);
+    font-size: 0.875rem;
+  }
+
+  .article-wysiwyg-editor .tiptap ::selection {
+    background: color-mix(in oklab, var(--color-accent) 55%, transparent);
+  }
+
+  .article-wysiwyg-editor .tiptap[contenteditable="false"] {
+    cursor: default;
+  }
+
+  @media (max-width: 640px) {
+    .article-wysiwyg-editor .tiptap {
+      min-height: 18rem;
+      padding: 1rem;
+    }
+  }
+}

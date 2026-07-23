@@ -116,6 +116,49 @@ class ContentManagementTest extends TestCase
         }
     }
 
+    public function test_article_api_rejects_malformed_json_and_persists_the_normalized_document(): void
+    {
+        $admin = $this->user('admin', $this->campusA);
+        Sanctum::actingAs($admin, ['*']);
+
+        $malformed = $this->call(
+            'POST',
+            '/api/v1/content-management/items',
+            [],
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json'],
+            '{"content_type":"article","document":',
+        );
+        $malformed->assertUnprocessable()
+            ->assertJsonPath('error_code', 'validation_failed');
+
+        $payload = $this->articlePayload($this->campusA, 'Artikel Tiptap');
+        $payload['document'] = [
+            'type' => 'doc',
+            'content' => [
+                ['type' => 'heading_2', 'content' => [['type' => 'text', 'text' => 'Judul']]],
+                ['type' => 'paragraph', 'content' => [[
+                    'type' => 'text',
+                    'text' => 'Garis bawah',
+                    'marks' => [['type' => 'underline']],
+                ]]],
+                ['type' => 'divider'],
+            ],
+        ];
+
+        $created = $this->postJson('/api/v1/content-management/items', $payload)
+            ->assertCreated()
+            ->json('data');
+        $item = ContentItem::query()->where('public_id', $created['public_id'])->firstOrFail();
+        $document = $item->currentDraftVersion()->firstOrFail()->articleContent()->firstOrFail()->document_json;
+
+        $this->assertSame('heading', $document['content'][0]['type']);
+        $this->assertSame(2, $document['content'][0]['attrs']['level']);
+        $this->assertSame('underline', $document['content'][1]['content'][0]['marks'][0]['type']);
+        $this->assertSame('horizontalRule', $document['content'][2]['type']);
+    }
+
     public function test_edit_submit_revision_feedback_and_published_revision_rules_are_exposed_safely(): void
     {
         $admin = $this->user('admin', $this->campusA);

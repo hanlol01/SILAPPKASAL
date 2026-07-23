@@ -1085,6 +1085,23 @@ snapshot, table mutation, dependent restoration, pointer restoration, partial-in
 lifecycle-trigger recreation run in one database transaction so restoration failure cannot commit a
 partially rebuilt graph.
 
+## REV-ED-01 Controlled Article Document Addendum
+
+REV-ED-01 introduces no migration or parallel rich-text column. Each Article body remains owned by
+one immutable lifecycle version in `article_version_contents.document_json`; its server-derived
+`sanitized_html`, `search_text`, and `estimated_reading_minutes` remain on that same row. Admin
+preview reads the editable version, while Reporter projection joins only the exact
+`content_items.published_version_id`. Creating a revision copies and validates the published
+version body into a new version row; publishing moves the pointer and never updates the prior
+published row.
+
+New writes store the normalized controlled-document node names `bulletList` and `horizontalRule`
+and allow the `underline` mark. Historical `unorderedList`, `divider`, `heading_2`, `heading_3`,
+`info`, `warning`, and `help` values remain readable and are normalized only when a new editable
+version is explicitly written. `imageReference` remains a legacy UUID placeholder backed by
+version-owned attachment validation; REV-ED-01 adds no media URL, upload, HTML, or file data inside
+`document_json`.
+
 ## REV-WF-03 R3 Schema Addendum
 
 Migration `2026_07_20_020000_add_final_case_closure.php` adds:

@@ -49,11 +49,26 @@ remain distinct explicit transitions under the existing separation-of-duties pol
 
 ## Structured content and contacts
 
-Article bodies use a controlled JSON document with paragraphs, H2/H3, bold, italic, ordered and
-unordered lists, blockquotes, allowlisted links, information/warning/help callouts, attachment image
-references, and dividers. H1 and unsupported nodes or marks are rejected. Server rendering is passed
-through Symfony HtmlSanitizer. The searchable plain-text derivative and reading time are computed
-server-side.
+Article bodies use a controlled JSON document with paragraphs, H2/H3, bold, italic, underline,
+ordered and unordered lists, blockquotes, allowlisted links, information/warning/help callouts,
+legacy attachment image references, and horizontal dividers. Links are limited to valid
+HTTP/HTTPS/mailto/tel values. H1 and unsupported nodes, marks, attributes, or protocols are rejected.
+Server rendering is passed through Symfony HtmlSanitizer. The searchable plain-text derivative and
+reading time are computed server-side.
+
+REV-ED-01 changes only the Article authoring experience to a controlled Tiptap editor. The editor
+persists the same JSON contract in `article_version_contents.document_json`; it does not persist
+Tiptap HTML, move lifecycle pointers, or add a parallel body column. The authoring schema registers
+only the node and mark types listed above. Image upload, PDF/video/iframe embedding, raw HTML,
+tables, code blocks, arbitrary styling, and collaboration are not registered.
+
+The canonical stored node names are `bulletList` and `horizontalRule`. The server and in-memory
+authoring adapter accept the historical aliases `unorderedList`, `divider`, `heading_2`,
+`heading_3`, `info`, `warning`, and `help`, normalize them only when creating or explicitly writing a
+new editable version, and never mutate an old published version in place. A legacy
+`imageReference` is rendered as a non-interactive placeholder and remains unavailable as an
+authoring command. The server saves its normalized JSON result rather than trusting the client
+serialization.
 
 The server rejects a structured document before rendering when serialized JSON exceeds 500,000
 bytes, a text node exceeds 20,000 characters, total searchable text exceeds 200,000 characters,
@@ -172,9 +187,12 @@ row locking. Archived items are read-only across every Admin mutation; an item w
 authoring version must be resolved before archive rather than silently retaining an editable draft.
 Management identifiers are resolved inside the actor's campus scope before mutation services run.
 Private PDF removal deletes storage first inside the guarded operation and removes metadata/audits
-only after storage confirms success. Structured documents retain their original JSON node-by-node:
-complex supported shapes that the simple editor cannot safely edit are shown read-only and are
-serialized unchanged.
+only after storage confirms success. The Article WYSIWYG adapter accepts both legacy
+`unorderedList` and current `bulletList` nodes, normalizes legacy inline list/quote/callout children
+into valid paragraph children, and also maps historical heading, callout, and divider aliases to the
+canonical schema. Existing `imageReference` nodes are preserved without exposing image authoring.
+Documents containing an unknown node or mark fail closed into a read-only preview rather than
+allowing the editor schema to drop data. FAQ retains its restricted structured editor.
 
 ## C3 editorial and featured concurrency
 
