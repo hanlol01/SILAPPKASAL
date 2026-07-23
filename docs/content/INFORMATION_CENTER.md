@@ -31,8 +31,9 @@ application does not use remote stock images or fabricated media. Article detail
 document JSON and ignores the HTML projection. The shared renderer supports the same canonical
 Article marks/nodes as Admin preview, including underline, safe HTTP/HTTPS/mailto/tel links, and
 horizontal dividers. It does not use `dangerouslySetInnerHTML`; unknown/unsafe structures,
-excessive depth, or excessive node count fail closed to a safe fallback. Legacy image references
-render only a non-interactive placeholder.
+excessive depth, or excessive node count fail closed to a safe fallback. Published
+`imageReference` nodes resolve only against the reader resource's same-version `inline_images`
+projection and render through authenticated temporary Object URLs.
 
 Article categories are searchable free text backed by a scoped registry. Version `category_name` is
 canonical; version `category_id` is a fallback only for historical rows whose version
@@ -59,10 +60,12 @@ validated; telephone/WhatsApp actions require confirmation and never prefill sen
 
 ## Attachments
 
-Published PDF attachments are fetched with the authenticated API client. Temporary Blob URLs are
-revoked on replacement, close, error, and unmount. Popup blocking triggers the same authenticated
-download path. Tokens, storage paths, checksums, protected original filenames, and attachment bytes
-are not placed in URLs or browser storage.
+Published PDF attachments, selected cover, and referenced inline images are fetched with the
+authenticated API client. Reader resources project media only from the exact published pointer;
+unselected covers and unreferenced inline images are excluded and their UUID download resolves as
+404. Temporary Blob URLs are revoked on replacement, close, error, and unmount. Popup blocking
+triggers the same authenticated PDF download path. Tokens, storage paths, checksums, protected
+original filenames, and attachment bytes are not placed in URLs or browser storage.
 
 ## Query privacy
 
@@ -110,7 +113,7 @@ assets require approved project-owned assets and a separate cache-security revie
 
 ## Deferred
 
-Service-worker caching, offline private content, public unauthenticated access, image upload,
+Service-worker caching, offline private content, public unauthenticated access, remote media import,
 notification delivery, scheduled publication, comments, reactions, bookmarks, analytics expansion,
 Flutter, production deployment, and PostgreSQL runtime verification remain outside C4.
 
@@ -124,5 +127,5 @@ build. Auth responses are now private/no-store and the executable API CORS allow
 
 This does not mean production release gates are complete. Disposable PostgreSQL verification and
 authenticated browser QA at 320, 360, 768, 1024, and desktop widths remain blocked and are documented
-in the C5 deployment reports. Image upload remains fail-closed, the PWA remains manifest-only, no
-service worker or offline private cache exists, and Graphify remains deferred.
+in the C5 deployment reports. Article media remains capability-gated and private, the PWA remains
+manifest-only, no service worker or offline private cache exists, and Graphify remains deferred.

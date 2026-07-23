@@ -61,6 +61,7 @@ export type GovernanceVersionDetail = GovernanceContentSummary["version"] & {
     document: DocumentNode | null;
     estimated_reading_minutes: number;
     cover_alt_text: string | null;
+    cover: ContentAttachment | null;
   } | null;
   faq: { question: string; answer_document: DocumentNode | null; display_order: number } | null;
   consultation: {

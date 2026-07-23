@@ -20,6 +20,7 @@ import { toast } from "sonner";
 
 import { ContentDocumentPreview } from "@/components/content/content-document-preview";
 import { ContentCategoryCombobox } from "@/components/content/content-category-combobox";
+import { AuthenticatedContentCover } from "@/components/content/authenticated-content-cover";
 import type { ArticleEditorSaveStatus } from "@/components/content/article-wysiwyg-editor";
 import { StructuredDocumentEditor } from "@/components/content/structured-document-editor";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -67,6 +68,8 @@ import {
   updateManagedContent,
   uploadContentPdf,
   uploadContentCover,
+  uploadContentInlineImage,
+  type ContentAttachment,
   type ContentPayload,
   type ContentType,
   type DocumentNode,
@@ -80,6 +83,16 @@ const ArticleWysiwygEditor = lazy(() =>
     default: module.ArticleWysiwygEditor,
   })),
 );
+
+const DEFAULT_IMAGE_FORMATS = ["image/jpeg", "image/png", "image/webp"] as const;
+const DEFAULT_COVER_MAX_BYTES = 5 * 1024 * 1024;
+const DEFAULT_INLINE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+const DEFAULT_ALT_TEXT_MAX_LENGTH = 500;
+const IMAGE_EXTENSIONS_BY_MIME: Record<string, readonly string[]> = {
+  "image/jpeg": ["jpg", "jpeg"],
+  "image/png": ["png"],
+  "image/webp": ["webp"],
+};
 
 interface Props {
   contentType: ContentType;
@@ -207,6 +220,15 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
     queryFn: getContentManagementCapabilities,
     staleTime: 5 * 60 * 1000,
   });
+  const imageFormats = capabilitiesQuery.data?.image_formats ?? [...DEFAULT_IMAGE_FORMATS];
+  const coverMaxBytes =
+    capabilitiesQuery.data?.cover_max_bytes ?? DEFAULT_COVER_MAX_BYTES;
+  const inlineImageMaxBytes =
+    capabilitiesQuery.data?.inline_image_max_bytes ?? DEFAULT_INLINE_IMAGE_MAX_BYTES;
+  const altTextMaxLength =
+    capabilitiesQuery.data?.alt_text_max_length ?? DEFAULT_ALT_TEXT_MAX_LENGTH;
+  const imageAccept = imageAcceptValue(imageFormats);
+  const imageFormatLabel = imageFormats.map(imageFormatName).join(", ");
 
   const invalidate = async (publicId?: string) => {
     await Promise.all([
@@ -324,7 +346,16 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
     mutationFn: (file: File) => {
       if (!detail) throw new Error("Save the draft before uploading a cover.");
       if (!state.coverAltText.trim()) throw new ClientValidationError(t("content:validation.coverAlt"));
-      if (file.size < 1 || file.size > 5 * 1024 * 1024) throw new ClientValidationError(t("content:validation.cover"));
+      if (
+        !matchesImageCapability(file, imageFormats) ||
+        file.size < 1 ||
+        file.size > coverMaxBytes
+      ) {
+        throw new ClientValidationError(t("content:validation.cover", {
+          formats: imageFormatLabel,
+          size: formatFileSize(coverMaxBytes),
+        }));
+      }
       return uploadContentCover(detail.version.public_id, file, state.coverAltText.trim());
     },
     onSuccess: async () => {
@@ -335,9 +366,23 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
     onError: (error) => toast.error(error instanceof ClientValidationError ? error.message : apiErrorMessage(error, t("content:loadError"))),
   });
 
-  const removeMutation = useMutation({
-    mutationFn: removeContentAttachment,
+  const inlineImageMutation = useMutation({
+    mutationFn: ({ file, altText }: { file: File; altText: string }) => {
+      if (!detail) throw new Error("Save the draft before uploading inline images.");
+      return uploadContentInlineImage(detail.version.public_id, file, altText);
+    },
     onSuccess: async () => {
+      await invalidate(detail?.public_id);
+    },
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: ({ publicId }: { publicId: string; purpose: ContentAttachment["purpose"] }) =>
+      removeContentAttachment(publicId),
+    onSuccess: async (_result, variables) => {
+      if (variables.purpose === "cover") {
+        setState((current) => ({ ...current, coverAltText: "" }));
+      }
       toast.success(t("content:attachmentRemoved"));
       await invalidate(detail?.public_id);
     },
@@ -475,6 +520,18 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
                 locale={locale}
                 saveStatus={saveStatus}
                 onDocumentCompatibilityChange={handleArticleDocumentCompatibility}
+                imageFormats={imageFormats}
+                imageMaxBytes={inlineImageMaxBytes}
+                imageAltMaxLength={altTextMaxLength}
+                onUploadImage={
+                  editable &&
+                  canManageAttachments &&
+                  detail &&
+                  capabilitiesQuery.data?.image_upload_available
+                    ? (file, altText) =>
+                        inlineImageMutation.mutateAsync({ file, altText })
+                    : undefined
+                }
               />
             )}
             {contentType === "faq" && (
@@ -505,11 +562,23 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
           )}
           {contentType === "article" && capabilitiesQuery.data?.image_upload_available && (
             <Card>
-              <CardHeader><CardTitle className="text-base">{t("content:coverTitle")}</CardTitle><CardDescription>{t("content:coverHelp")}</CardDescription></CardHeader>
+              <CardHeader><CardTitle className="text-base">{t("content:coverTitle")}</CardTitle><CardDescription>{t("content:coverHelp", { formats: imageFormatLabel, size: formatFileSize(coverMaxBytes) })}</CardDescription></CardHeader>
               <CardContent className="space-y-3">
-                <Field label={t("content:coverAltText")} error={errors.coverAltText}><Input maxLength={500} disabled={!editable} value={state.coverAltText} onChange={(event) => set("coverAltText", event.target.value)} /></Field>
-                {detail?.version.attachments.filter((item) => item.purpose === "cover").map((cover) => <div key={cover.public_id} className="flex items-center gap-2 rounded-md border p-3 text-sm"><span className="min-w-0 flex-1 truncate">{cover.filename}</span></div>)}
-                {editable && canManageAttachments && detail ? <><Input ref={coverInputRef} className="sr-only" id="content-cover" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) coverMutation.mutate(file); }} /><Button type="button" variant="outline" className="min-h-11 w-full" disabled={coverMutation.isPending} onClick={() => coverInputRef.current?.click()}>{coverMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{t("content:chooseCover")}</Button></> : <p className="text-sm text-muted-foreground">{t("content:saveDraft")}</p>}
+                <Field label={t("content:coverAltText")} error={errors.coverAltText}><Input maxLength={altTextMaxLength} disabled={!editable} value={state.coverAltText} onChange={(event) => set("coverAltText", event.target.value)} /></Field>
+                {detail?.version.article?.cover ? (
+                  <ManagedCoverPreview
+                    attachment={detail.version.article.cover}
+                    canRemove={editable && canManageAttachments}
+                    removing={removeMutation.isPending}
+                    onRemove={() =>
+                      removeMutation.mutate({
+                        publicId: detail.version.article?.cover?.public_id ?? "",
+                        purpose: "cover",
+                      })
+                    }
+                  />
+                ) : null}
+                {editable && canManageAttachments && detail ? <><Input ref={coverInputRef} className="sr-only" id="content-cover" type="file" accept={imageAccept} onChange={(event) => { const file = event.target.files?.[0]; if (file) coverMutation.mutate(file); }} /><Button type="button" variant="outline" className="min-h-11 w-full" disabled={coverMutation.isPending} onClick={() => coverInputRef.current?.click()}>{coverMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{t("content:chooseCover")}</Button></> : <p className="text-sm text-muted-foreground">{t("content:saveDraft")}</p>}
               </CardContent>
             </Card>
           )}
@@ -538,7 +607,12 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
                         className="h-11 w-11 text-destructive"
                         aria-label={`${t("content:remove")} ${attachment.filename}`}
                         disabled={removeMutation.isPending}
-                        onClick={() => removeMutation.mutate(attachment.public_id)}
+                        onClick={() =>
+                          removeMutation.mutate({
+                            publicId: attachment.public_id,
+                            purpose: attachment.purpose,
+                          })
+                        }
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -651,7 +725,10 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
         onOpenChange={setPreviewOpen}
         state={state}
         contentType={contentType}
-        attachments={detail?.version.attachments ?? []}
+        attachments={
+          detail?.version.attachments.filter((item) => item.purpose === "attachment") ?? []
+        }
+        media={detail?.version.attachments ?? []}
         mobile={mobilePreview}
         setMobile={setMobilePreview}
         categoryName={contentType === "article" ? state.categoryName : categoriesQuery.data?.find((item) => item.public_id === state.categoryPublicId)?.name}
@@ -701,6 +778,10 @@ function ArticleFields({
   locale,
   saveStatus,
   onDocumentCompatibilityChange,
+  imageFormats,
+  imageMaxBytes,
+  imageAltMaxLength,
+  onUploadImage,
 }: {
   state: EditorState;
   set: Setter;
@@ -712,6 +793,10 @@ function ArticleFields({
   locale: "id" | "en";
   saveStatus: ArticleEditorSaveStatus;
   onDocumentCompatibilityChange: (compatible: boolean) => void;
+  imageFormats: string[];
+  imageMaxBytes: number;
+  imageAltMaxLength: number;
+  onUploadImage?: (file: File, altText: string) => Promise<ContentAttachment>;
 }) {
   const { t } = useTranslation("content");
   return (
@@ -781,7 +866,11 @@ function ArticleFields({
         >
           <ArticleWysiwygEditor
             disabled={!editable}
+            imageFormats={imageFormats}
+            imageMaxBytes={imageMaxBytes}
+            imageAltMaxLength={imageAltMaxLength}
             onCompatibilityChange={onDocumentCompatibilityChange}
+            onUploadImage={onUploadImage}
             saveStatus={saveStatus}
             value={state.document}
             onChange={(value) => set("document", value)}
@@ -789,6 +878,87 @@ function ArticleFields({
         </Suspense>
       </Field>
     </>
+  );
+}
+
+function matchesImageCapability(file: File, formats: readonly string[]): boolean {
+  const extension = file.name.toLowerCase().split(".").pop() ?? "";
+  const allowedExtensions = IMAGE_EXTENSIONS_BY_MIME[file.type] ?? [];
+
+  return formats.includes(file.type) && allowedExtensions.includes(extension);
+}
+
+function imageAcceptValue(formats: readonly string[]): string {
+  const extensions = formats.flatMap((mime) =>
+    (IMAGE_EXTENSIONS_BY_MIME[mime] ?? []).map((extension) => `.${extension}`),
+  );
+
+  return [...formats, ...extensions].join(",");
+}
+
+function imageFormatName(mime: string): string {
+  return mime === "image/jpeg"
+    ? "JPG/JPEG"
+    : mime === "image/png"
+      ? "PNG"
+      : mime === "image/webp"
+        ? "WebP"
+        : mime;
+}
+
+function formatFileSize(bytes: number): string {
+  const megabytes = bytes / (1024 * 1024);
+  return `${Number.isInteger(megabytes) ? megabytes : megabytes.toFixed(1)} MB`;
+}
+
+function ManagedCoverPreview({
+  attachment,
+  canRemove,
+  removing,
+  onRemove,
+}: {
+  attachment: ContentAttachment;
+  canRemove: boolean;
+  removing: boolean;
+  onRemove: () => void;
+}) {
+  const { t } = useTranslation("content");
+  const [unavailable, setUnavailable] = useState(false);
+
+  return (
+    <div className="overflow-hidden rounded-xl border">
+      <div className="relative aspect-video bg-gradient-to-br from-sky-950 via-primary to-cyan-700">
+        {!unavailable ? (
+          <AuthenticatedContentCover
+            publicId={attachment.public_id}
+            alt={attachment.alt_text ?? attachment.filename}
+            className="absolute inset-0 h-full w-full object-cover"
+            onUnavailable={() => setUnavailable(true)}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center p-4 text-center text-sm text-white">
+            <ImageOff className="mr-2 h-5 w-5" aria-hidden="true" />
+            {t("coverPreviewUnavailable")}
+          </div>
+        )}
+      </div>
+      <div className="flex min-w-0 items-center gap-2 border-t p-3 text-sm">
+        <span className="min-w-0 flex-1 truncate">{attachment.filename}</span>
+        {canRemove ? (
+          <Button
+            aria-label={`${t("remove")} ${attachment.filename}`}
+            className="h-11 w-11 text-destructive"
+            disabled={removing}
+            onClick={onRemove}
+            size="icon"
+            type="button"
+            variant="ghost"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -1091,6 +1261,7 @@ function ContentPreviewDialog({
   state,
   contentType,
   attachments,
+  media,
   mobile,
   setMobile,
   categoryName,
@@ -1100,6 +1271,7 @@ function ContentPreviewDialog({
   state: EditorState;
   contentType: ContentType;
   attachments: Array<{ public_id: string; filename: string }>;
+  media: ContentAttachment[];
   mobile: boolean;
   setMobile: (value: boolean) => void;
   categoryName?: string;
@@ -1172,7 +1344,7 @@ function ContentPreviewDialog({
               )}
             </div>
           ) : (
-            <ContentDocumentPreview document={document} />
+            <ContentDocumentPreview document={document} media={media} />
           )}
           {attachments.length > 0 && (
             <section className="mt-6">

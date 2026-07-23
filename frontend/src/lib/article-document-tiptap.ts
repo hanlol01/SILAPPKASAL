@@ -43,6 +43,7 @@ export const ARTICLE_DOCUMENT_LIMITS = {
   maxTotalMarks: 2_000,
   maxLinkLength: 2_048,
   maxLinkTitleLength: 255,
+  maxImageAltLength: 500,
 } as const;
 
 export type ArticleDocumentFailureKind = "unsupported_shape" | "resource_limit" | null;
@@ -134,9 +135,9 @@ export function prepareArticleDocumentForTiptap(
 
 export function articleDocumentFromTiptap(
   content: JSONContent,
-  legacyImageReferences: ReadonlyMap<string, DocumentNode> = new Map(),
+  authorizedImageReferences: ReadonlyMap<string, DocumentNode> = new Map(),
 ): DocumentNode {
-  const document = canonicalizeNode(content, true, legacyImageReferences);
+  const document = canonicalizeNode(content, true, authorizedImageReferences);
   const inspection = inspectArticleDocument(document);
   if (inspection.resourceLimits.length > 0 || inspection.unsupported.length > 0) {
     throw new Error("The Article editor produced an invalid controlled document.");
@@ -156,7 +157,7 @@ export function documentSignature(document: DocumentNode): string {
   return JSON.stringify(document);
 }
 
-export function collectLegacyImageReferences(
+export function collectAuthorizedImageReferences(
   document: DocumentNode,
 ): ReadonlyMap<string, DocumentNode> {
   const references = new Map<string, DocumentNode>();
@@ -180,6 +181,13 @@ export function collectLegacyImageReferences(
 
   return references;
 }
+
+/**
+ * Compatibility export for callers that still describe pre-REV-MEDIA-01
+ * references as legacy. Authorization is now based on server-projected or
+ * freshly uploaded references, never arbitrary editor JSON.
+ */
+export const collectLegacyImageReferences = collectAuthorizedImageReferences;
 
 export function countArticleWords(value: string): number {
   return value.match(/[\p{L}\p{N}]+/gu)?.length ?? 0;
@@ -282,8 +290,9 @@ function inspectArticleDocument(document: DocumentNode): {
         !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
           node.attrs.attachment_public_id,
         ) ||
-        (node.attrs.alt !== undefined &&
-          (typeof node.attrs.alt !== "string" || codePointLength(node.attrs.alt) > 500)))
+        typeof node.attrs.alt !== "string" ||
+        node.attrs.alt.trim() === "" ||
+        codePointLength(node.attrs.alt.trim()) > ARTICLE_DOCUMENT_LIMITS.maxImageAltLength)
     ) {
       unsupported.add(`${path}:image-reference`);
     }
@@ -480,7 +489,7 @@ function wrapInlineRuns(
 function canonicalizeNode(
   node: JSONContent,
   root = false,
-  legacyImageReferences: ReadonlyMap<string, DocumentNode> = new Map(),
+  authorizedImageReferences: ReadonlyMap<string, DocumentNode> = new Map(),
 ): DocumentNode {
   const type = node.type ?? (root ? "doc" : "");
   const canonical: DocumentNode = {
@@ -497,19 +506,21 @@ function canonicalizeNode(
   const attrs = normalizeNodeAttrs(type, node.attrs ?? undefined);
   if (Object.keys(attrs).length) canonical.attrs = attrs;
   if (type === "imageReference") {
-    const legacyReference = legacyImageReferences.get(imageReferenceSignature(canonical.attrs));
-    if (!legacyReference) {
-      throw new Error("Image references are legacy read-only content.");
+    const authorizedReference = authorizedImageReferences.get(
+      imageReferenceSignature(canonical.attrs),
+    );
+    if (!authorizedReference) {
+      throw new Error("Image references require a server-authorized attachment.");
     }
 
     return {
       type: "imageReference",
-      ...(legacyReference.attrs ? { attrs: { ...legacyReference.attrs } } : {}),
+      ...(authorizedReference.attrs ? { attrs: { ...authorizedReference.attrs } } : {}),
     };
   }
 
   const content = (node.content ?? []).map((child) =>
-    canonicalizeNode(child, false, legacyImageReferences),
+    canonicalizeNode(child, false, authorizedImageReferences),
   );
   if (content.length) canonical.content = content;
 
@@ -577,7 +588,7 @@ function normalizeNodeAttrs(
     const imageAttrs: NonNullable<DocumentNode["attrs"]> = {
       attachment_public_id: attrs.attachment_public_id,
     };
-    if (typeof attrs.alt === "string") imageAttrs.alt = attrs.alt;
+    if (typeof attrs.alt === "string") imageAttrs.alt = attrs.alt.trim();
     return imageAttrs;
   }
 
@@ -587,7 +598,7 @@ function normalizeNodeAttrs(
 function imageReferenceSignature(attrs?: Record<string, unknown>): string {
   return JSON.stringify([
     typeof attrs?.attachment_public_id === "string" ? attrs.attachment_public_id : null,
-    typeof attrs?.alt === "string" ? attrs.alt : "",
+    typeof attrs?.alt === "string" ? attrs.alt.trim() : "",
   ]);
 }
 

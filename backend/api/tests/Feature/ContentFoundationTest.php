@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\ContentImageProcessor;
 use App\Enums\ContentAttachmentPurpose;
 use App\Enums\ContentLifecycleStatus;
 use App\Enums\ContentScope;
@@ -337,12 +338,24 @@ class ContentFoundationTest extends TestCase
         $this->assertSame([], Storage::disk('content')->allFiles());
 
         config()->set('content.attachments.image_uploads_enabled', true);
-        $this->postJson('/api/v1/content-management/versions/'.$version->public_id.'/attachments', [
+        $coverResponse = $this->postJson('/api/v1/content-management/versions/'.$version->public_id.'/attachments', [
             'purpose' => ContentAttachmentPurpose::Cover->value,
             'file' => $png,
             'alt_text' => 'Ilustrasi netral',
-        ])->assertUnprocessable()
-            ->assertJsonValidationErrors('file');
+        ]);
+        if (app(ContentImageProcessor::class)->isAvailable()) {
+            $coverResponse->assertCreated()
+                ->assertJsonPath('data.purpose', ContentAttachmentPurpose::Cover->value)
+                ->assertJsonMissingPath('data.storage_path')
+                ->assertJsonMissingPath('data.checksum_sha256')
+                ->assertJsonMissingPath('data.original_filename');
+            $this->deleteJson('/api/v1/content-management/attachments/'.$coverResponse->json('data.public_id'))
+                ->assertOk();
+        } else {
+            $coverResponse->assertUnprocessable()->assertJsonValidationErrors('file');
+        }
+        $this->assertDatabaseCount('content_attachments', 0);
+        $this->assertSame([], Storage::disk('content')->allFiles());
 
         $response = $this->postJson('/api/v1/content-management/versions/'.$version->public_id.'/attachments', [
             'purpose' => ContentAttachmentPurpose::Attachment->value,

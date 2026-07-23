@@ -1098,9 +1098,31 @@ published row.
 New writes store the normalized controlled-document node names `bulletList` and `horizontalRule`
 and allow the `underline` mark. Historical `unorderedList`, `divider`, `heading_2`, `heading_3`,
 `info`, `warning`, and `help` values remain readable and are normalized only when a new editable
-version is explicitly written. `imageReference` remains a legacy UUID placeholder backed by
-version-owned attachment validation; REV-ED-01 adds no media URL, upload, HTML, or file data inside
-`document_json`.
+version is explicitly written. `imageReference` remains a stable UUID reference backed by
+version-owned attachment validation; no media URL, upload payload, HTML, or file data is stored
+inside `document_json`.
+
+## REV-MEDIA-01 Version-owned Article Media Addendum
+
+REV-MEDIA-01 requires no migration. Existing `content_attachments.content_version_id` owns every PDF,
+cover, and inline image; `article_version_contents.cover_attachment_id` selects one cover from that
+same version. `purpose`, private disk/path, generated safe name, encrypted original name, detected
+MIME, extension, byte size, SHA-256, dimensions, alt text, display order, and uploader attribution
+already provide the required immutable-binary metadata.
+
+The Article document stores only `imageReference.attrs.attachment_public_id` and `alt`. Runtime
+validation requires every referenced UUID to be an `inline_image` attachment on the same editable
+version. A selected cover must be a `cover` attachment on that version. Publication does not copy
+draft paths into a public disk: authenticated readers resolve only media on the exact
+`published_version_id`, and orphan cover/inline records are not readable to Reporter.
+
+Revision creation copies private bytes to new UUID paths, verifies byte size and SHA-256, rewrites
+the new document references and cover FK, and leaves prior-version rows and bytes unchanged. The
+retention command `content:purge-orphan-media` considers only aged cover/inline rows on the current
+editable pointer, rechecks the reference under row locks, and never targets submitted, reviewed,
+rejected, published, archived, superseded, or historical versions. Its default is dry-run; the
+scheduler executes it after the configured retention window. No lifecycle pointer or content schema
+is changed by cleanup.
 
 ## REV-WF-03 R3 Schema Addendum
 

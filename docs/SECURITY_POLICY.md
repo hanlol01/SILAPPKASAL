@@ -1269,6 +1269,7 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
 | REV-CONTENT-01-C2 | 2026-07-21 | Campus-scoped Admin authoring UI/API, author-visible review feedback, controlled drafts, and audited editable-PDF removal. |
 | REV-CONTENT-01-C3 | 2026-07-21 | Super Admin editorial governance, second-review global authoring, published archive, opaque featured concurrency, and private cache isolation. |
 | REV-CONTENT-01-C4 | 2026-07-21 | Authenticated Reporter/Satgas Information Center, reader cache isolation, temporary attachment/cover Blob URLs, and manifest-only PWA foundation. |
+| REV-MEDIA-01 | 2026-07-23 | Version-owned private Article cover/inline media, capability-gated GD re-encoding, published-pointer projection, authenticated temporary URLs, and conservative orphan cleanup. |
 
 ## 22. Content publication security (REV-CONTENT-01 C1)
 
@@ -1288,9 +1289,12 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
 - Campus Admin Content-audit queries are restricted before pagination to `scope=campus` events whose
   safe university code equals the Admin's university. Global and cross-campus Content events are
   hidden; detail lookup returns a non-disclosing 404. Super Admin retains all-campus Content audit.
-- Image uploads fail closed while a verified metadata-stripping and re-encoding processor is absent.
-  Enabling an environment flag alone never enables raw image storage. PDF general attachments remain
-  available under the private-storage validation boundary.
+- Article image uploads require both the explicit environment capability and a runtime-available GD
+  processor. The processor accepts only detected JPEG/PNG/WebP, rejects SVG and MIME disagreement,
+  enforces source byte/dimension/pixel/memory limits before decode, normalizes EXIF orientation, and
+  re-encodes the image so metadata and original bytes do not reach storage. If any check or encode
+  step is unavailable, upload fails closed. PDF general attachments retain their separate signature
+  and private-storage boundary.
 - Revision attachment cloning generates new UUIDs/private paths and rewrites cover/image references;
   submit and publication reject foreign, missing, wrong-purpose, or dangling attachment references.
 - Download filenames are generated from attachment purpose/public ID. Audit action
@@ -1309,10 +1313,13 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
   item, and version. Frontend menu and route checks are presentation only.
 - Author-visible revision/rejection reasons are projected only on an authorized own-campus detail;
   reviewer identity, encrypted storage representation, and audit metadata remain excluded.
-- C2 keeps image authoring disabled. Private PDF removal deletes the authorized database record,
-  removes the private object, and records `content.attachment_removed` without original filename,
-  contact data, body content, or review narrative. Metadata/audit commit only after private storage
-  confirms deletion; failure keeps the metadata and object consistent and returns a retryable error.
+- REV-MEDIA-01 enables Article image authoring only from authenticated, same-version upload results;
+  pasted HTML/files, remote URLs, Base64, and arbitrary attachment UUIDs cannot create stored
+  references. Private attachment removal deletes the authorized database record, removes the private
+  object, and records `content.attachment_removed` without original filename, contact data, body
+  content, or review narrative. Referenced inline media cannot be removed; a selected cover is
+  detached before deletion. Metadata/audit commit only after private storage confirms deletion;
+  failure keeps metadata and object consistent and returns a retryable error.
 - Draft content is not persisted to localStorage. Management and attachment responses remain
   `private, no-store`, and future service workers must exclude `/api` and `/dashboard/content`.
 - Submit requires the current `lock_version` and verifies it after row locking. Stable 409 codes
@@ -1360,9 +1367,11 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
   invalidation. Reader bodies and contact records are not written to localStorage or sessionStorage.
 - Article and FAQ rendering uses controlled structured JSON. The reader never executes `body_html`,
   arbitrary HTML, editorial notes, review narratives, or lifecycle management data.
-- PDF and optional legacy cover bytes use authenticated fetch without tokens in URLs. Temporary Blob
-  URLs are revoked on replacement, close, failure, and unmount. Popup failure falls back to an
-  authenticated download; attachment bytes are never persisted by the client.
+- PDF, selected cover, and referenced inline-image bytes use authenticated fetch without tokens in
+  URLs. Reader authorization requires the exact published pointer and active cover/document
+  reference; orphan UUIDs return the same non-disclosing 404 as unknown UUIDs. Temporary Blob URLs
+  are revoked on replacement, close, failure, and unmount. Popup failure falls back to an
+  authenticated PDF download; attachment bytes are never persisted by the client.
 - Consultation actions allow only validated `mailto:`, `tel:`, `https://wa.me/`, and HTTPS appointment
   destinations. Phone/WhatsApp actions require user confirmation and never prefill Report or identity
   data.

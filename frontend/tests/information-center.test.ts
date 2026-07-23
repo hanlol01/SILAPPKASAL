@@ -162,10 +162,11 @@ test("reporter information center uses dedicated routes, breadcrumbs, isolated c
 });
 
 test("reporter cover surfaces preserve a 16:9 education fallback on image failure", async () => {
-  const [detail, spotlight, authenticatedCover] = await Promise.all([
+  const [detail, spotlight, authenticatedCover, authenticatedImage] = await Promise.all([
     source("src/components/content/reporter-article-detail-page.tsx"),
     source("src/components/content/education-spotlight.tsx"),
     source("src/components/content/authenticated-content-cover.tsx"),
+    source("src/components/content/authenticated-content-image.tsx"),
   ]);
 
   assert.match(detail, /aspect-video/);
@@ -174,7 +175,9 @@ test("reporter cover surfaces preserve a 16:9 education fallback on image failur
   assert.match(detail, /from-sky-950 via-primary to-cyan-700/);
   assert.match(spotlight, /onUnavailable=\{markUnavailable\}/);
   assert.match(spotlight, /from-sky-950 via-blue-800 to-cyan-600/);
-  assert.match(authenticatedCover, /onError=\{onUnavailable\}/);
+  assert.match(authenticatedCover, /AuthenticatedContentImage/);
+  assert.match(authenticatedImage, /onError=\{\(\) =>/);
+  assert.match(authenticatedImage, /onUnavailableRef\.current\?\.\(\)/);
 });
 
 test("dashboard information center uses dedicated section-aware routes and controlled content", async () => {

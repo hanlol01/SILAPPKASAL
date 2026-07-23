@@ -390,14 +390,17 @@ class ContentDocumentService
         $attrs = is_array($node['attrs'] ?? null) ? $node['attrs'] : [];
         $this->assertAllowedKeys($attrs, ['attachment_public_id', 'alt'], 'image reference attributes');
         $publicId = $attrs['attachment_public_id'] ?? null;
-        $alt = $attrs['alt'] ?? '';
+        $alt = $attrs['alt'] ?? null;
 
         if (! is_string($publicId) || preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $publicId) !== 1) {
             throw ValidationException::withMessages(['document' => ['Image references require a valid attachment public identifier.']]);
         }
 
-        if (! is_string($alt) || mb_strlen($alt) > 500) {
-            throw ValidationException::withMessages(['document' => ['Image alternative text is invalid.']]);
+        $maxAltLength = (int) config('content.attachments.alt_text_max_length', 500);
+        if (! is_string($alt) || $alt === '' || mb_strlen($alt) > $maxAltLength) {
+            throw ValidationException::withMessages([
+                'document' => ["Image alternative text is required and may not exceed {$maxAltLength} characters."],
+            ]);
         }
 
         return '<figure data-attachment-id="'.htmlspecialchars($publicId, ENT_QUOTES, 'UTF-8').'">'
@@ -482,6 +485,11 @@ class ContentDocumentService
         if (in_array($type, ['info', 'warning', 'help'], true)) {
             $attrs = is_array($node['attrs'] ?? null) ? $node['attrs'] : [];
             $node['attrs'] = $attrs + ['variant' => $type === 'info' ? 'information' : $type];
+        }
+        if ($normalizedType === 'imageReference'
+            && is_array($node['attrs'] ?? null)
+            && is_string($node['attrs']['alt'] ?? null)) {
+            $node['attrs']['alt'] = trim($node['attrs']['alt']);
         }
 
         if ($normalizedType === 'text' && is_array($node['marks'] ?? null)) {

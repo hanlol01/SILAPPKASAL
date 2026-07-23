@@ -23,6 +23,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { AuthenticatedContentAttachment } from "@/components/content/authenticated-content-attachment";
+import { AuthenticatedContentCover } from "@/components/content/authenticated-content-cover";
 import { ContentDocumentPreview } from "@/components/content/content-document-preview";
 import { ContentEditor } from "@/components/content/content-editor";
 import { EmptyState } from "@/components/empty-state";
@@ -757,13 +758,47 @@ function VersionPreview({ title, item, version }: { title: string; item: Governa
       <CardContent className="space-y-5">
         {version.editorial_note && <Alert><AlertTitle>{t("contentGovernance:review.editorialNote")}</AlertTitle><AlertDescription className="whitespace-pre-wrap">{version.editorial_note}</AlertDescription></Alert>}
         <div><h3 className="mb-2 font-medium">{t("contentGovernance:review.contentPreview")}</h3>
-          {item.content_type === "article" && <ContentDocumentPreview document={version.article?.document ?? null} />}
+          {item.content_type === "article" && (
+            <div className="space-y-4">
+              {version.article?.cover ? (
+                <GovernanceCover
+                  publicId={version.article.cover.public_id}
+                  alt={
+                    version.article.cover.alt_text ??
+                    version.article.cover_alt_text ??
+                    version.title
+                  }
+                />
+              ) : null}
+              <ContentDocumentPreview
+                document={version.article?.document ?? null}
+                media={version.attachments}
+              />
+            </div>
+          )}
           {item.content_type === "faq" && <div className="space-y-3"><p className="font-medium">{version.faq?.question}</p><ContentDocumentPreview document={version.faq?.answer_document ?? null} /></div>}
           {item.content_type === "consultation" && version.consultation && <ConsultationPreview value={version.consultation} />}
         </div>
-        <div><h3 className="mb-2 font-medium">{t("contentGovernance:review.attachments")}</h3>{version.attachments.length ? <ul className="space-y-2">{version.attachments.map((file) => <li key={file.public_id}><AuthenticatedContentAttachment attachment={file} /></li>)}</ul> : <p className="text-sm text-muted-foreground">{t("contentGovernance:review.noAttachments")}</p>}</div>
+        <div><h3 className="mb-2 font-medium">{t("contentGovernance:review.attachments")}</h3>{version.attachments.some((file) => file.purpose === "attachment") ? <ul className="space-y-2">{version.attachments.filter((file) => file.purpose === "attachment").map((file) => <li key={file.public_id}><AuthenticatedContentAttachment attachment={file} /></li>)}</ul> : <p className="text-sm text-muted-foreground">{t("contentGovernance:review.noAttachments")}</p>}</div>
       </CardContent>
     </Card>
+  );
+}
+
+function GovernanceCover({ publicId, alt }: { publicId: string; alt: string }) {
+  const [unavailable, setUnavailable] = useState(false);
+
+  return (
+    <div className="relative aspect-video overflow-hidden rounded-xl bg-gradient-to-br from-sky-950 via-primary to-cyan-700">
+      {!unavailable ? (
+        <AuthenticatedContentCover
+          publicId={publicId}
+          alt={alt}
+          className="absolute inset-0 h-full w-full object-cover"
+          onUnavailable={() => setUnavailable(true)}
+        />
+      ) : null}
+    </div>
   );
 }
 

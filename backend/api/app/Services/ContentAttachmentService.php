@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Policies\ContentItemPolicy;
 use App\Support\ApiErrorCode;
 use App\Support\ContentAttachmentFilename;
+use App\Support\ContentMediaManifest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -45,13 +46,35 @@ class ContentAttachmentService
     public function imageUploadsAvailable(): bool
     {
         return (bool) config('content.attachments.image_uploads_enabled', false)
-            && $this->imageProcessor->isAvailable();
+            && $this->imageProcessor->isAvailable()
+            && $this->imageProcessor->supportedMimeTypes() !== [];
+    }
+
+    /** @return list<string> */
+    public function supportedImageMimeTypes(): array
+    {
+        if (! $this->imageUploadsAvailable()) {
+            return [];
+        }
+
+        return $this->imageProcessor->supportedMimeTypes();
     }
 
     /** @param array<string, mixed> $data */
     public function upload(ContentVersion $version, User $actor, UploadedFile $file, array $data): ContentAttachment
     {
         $purpose = ContentAttachmentPurpose::from((string) $data['purpose']);
+        if (in_array($purpose, [ContentAttachmentPurpose::Cover, ContentAttachmentPurpose::InlineImage], true)) {
+            $altText = trim((string) ($data['alt_text'] ?? ''));
+            $maxAltLength = (int) config('content.attachments.alt_text_max_length', 500);
+            if ($altText === '' || mb_strlen($altText) > $maxAltLength) {
+                throw ValidationException::withMessages([
+                    'alt_text' => ["Alternative text is required and may not exceed {$maxAltLength} characters."],
+                ]);
+            }
+            $data['alt_text'] = $altText;
+        }
+
         $originalFilename = mb_substr($file->getClientOriginalName(), 0, 255);
         $metadata = $this->validateFile($file, $purpose);
         $publicId = (string) Str::uuid();
@@ -149,22 +172,32 @@ class ContentAttachmentService
 
     public function download(ContentAttachment $attachment, User $actor): StreamedResponse
     {
-        $attachment->loadMissing('version.item');
+        $attachment->loadMissing('version.item', 'version.articleContent.coverAttachment');
         $item = $attachment->version->item;
         $actor->loadMissing('role.permissions');
 
-        $management = $this->policy->viewManagement($actor, $item);
-        $published = $this->policy->viewPublished($actor)
+        $activeReference = ContentMediaManifest::isActiveReference($attachment);
+        $management = $activeReference
+            && $this->policy->viewEditableAttachment($actor, $item, $attachment->version);
+        $governance = $activeReference
+            && $this->policy->viewGovernanceAttachment($actor, $item, $attachment->version);
+        $published = $actor->hasRole('reporter')
+            && $this->policy->viewPublished($actor)
             && $item->archived_at === null
             && (int) $item->published_version_id === (int) $attachment->content_version_id
             && $attachment->version->lifecycle_status === ContentLifecycleStatus::Published
-            && $this->inReaderScope($item, $actor);
+            && $this->inReaderScope($item, $actor)
+            && $activeReference;
 
-        if (! $management && ! $published) {
+        if (! $management && ! $governance && ! $published) {
             abort(404);
         }
 
-        $disk = Storage::disk($attachment->storage_disk);
+        if ($attachment->storage_disk !== 'content') {
+            abort(404);
+        }
+
+        $disk = Storage::disk('content');
         if (! $disk->exists($attachment->storage_path)) {
             abort(404);
         }
@@ -218,9 +251,26 @@ class ContentAttachmentService
                 $item = ContentItem::query()->whereKey($version->content_item_id)->lockForUpdate()->firstOrFail();
 
                 $this->ensureNotArchived($item);
-                if ($attachment->purpose !== ContentAttachmentPurpose::Attachment
-                    || ! $this->policy->manageAttachment($actor, $item, $version)) {
+                if (! $this->policy->manageAttachment($actor, $item, $version)) {
                     throw $this->forbidden();
+                }
+
+                $article = null;
+                if ($attachment->purpose !== ContentAttachmentPurpose::Attachment) {
+                    $article = $version->articleContent()->lockForUpdate()->firstOrFail();
+                }
+                if ($attachment->purpose === ContentAttachmentPurpose::InlineImage
+                    && $this->documentReferencesAttachment($article?->document_json, $attachment->public_id)) {
+                    throw ValidationException::withMessages([
+                        'attachment' => ['Remove the inline image from the Article body and save the draft before deleting its media.'],
+                    ]);
+                }
+                if ($attachment->purpose === ContentAttachmentPurpose::Cover
+                    && (int) $article?->cover_attachment_id === (int) $attachment->id) {
+                    $article->forceFill([
+                        'cover_attachment_id' => null,
+                        'cover_alt_text' => null,
+                    ])->save();
                 }
 
                 $diskName = $attachment->storage_disk;
@@ -308,10 +358,24 @@ class ContentAttachmentService
         $imageAttempt = str_starts_with($mime, 'image/')
             || in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true);
         $processed = false;
+        $maxBytes = match ($purpose) {
+            ContentAttachmentPurpose::Cover => (int) config('content.attachments.cover_max_bytes', 5 * 1024 * 1024),
+            ContentAttachmentPurpose::InlineImage => (int) config('content.attachments.inline_image_max_bytes', 10 * 1024 * 1024),
+            ContentAttachmentPurpose::Attachment => (int) config('content.attachments.attachment_max_bytes', 10 * 1024 * 1024),
+        };
+        $sourceSize = (int) $file->getSize();
+
+        if ($sourceSize < 1 || $sourceSize > $maxBytes) {
+            throw ValidationException::withMessages(['file' => ['The attachment size is outside the allowed limit.']]);
+        }
+        if ($purpose === ContentAttachmentPurpose::Attachment && $imageAttempt) {
+            throw ValidationException::withMessages([
+                'file' => ['General Article attachments must be PDF documents. Use cover or inline image upload for images.'],
+            ]);
+        }
 
         if ($imageAttempt) {
-            if (! config('content.attachments.image_uploads_enabled', false)
-                || ! $this->imageProcessor->isAvailable()) {
+            if (! $this->imageUploadsAvailable()) {
                 throw ValidationException::withMessages([
                     'file' => ['Image uploads are disabled because a verified metadata-stripping re-encoder is unavailable.'],
                 ]);
@@ -330,9 +394,8 @@ class ContentAttachmentService
             $path = $file->getRealPath();
             $size = (int) $file->getSize();
             $allowedExtensions = $purpose === ContentAttachmentPurpose::Attachment
-                ? ['pdf', ...($processed ? ['jpg', 'jpeg', 'png'] : [])]
-                : ($processed ? ['jpg', 'jpeg', 'png', 'webp'] : []);
-            $maxBytes = $purpose === ContentAttachmentPurpose::Cover ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
+                ? ['pdf']
+                : ($processed ? ['jpg', 'png', 'webp'] : []);
 
             if ($size < 1 || $size > $maxBytes) {
                 throw ValidationException::withMessages(['file' => ['The attachment size is outside the allowed limit.']]);
@@ -349,10 +412,16 @@ class ContentAttachmentService
                     throw ValidationException::withMessages(['file' => ['The uploaded image signature is invalid.']]);
                 }
                 [$width, $height] = [(int) $dimensions[0], (int) $dimensions[1]];
-                if ($width < 1 || $height < 1 || $width > 6000 || $height > 6000 || ($width * $height) > 36_000_000) {
+                $maxDimension = (int) config('content.attachments.max_image_dimension', 6000);
+                $maxPixels = (int) config('content.attachments.max_image_pixels', 24_000_000);
+                if ($width < 1
+                    || $height < 1
+                    || $width > $maxDimension
+                    || $height > $maxDimension
+                    || ($width * $height) > $maxPixels) {
                     throw ValidationException::withMessages(['file' => ['The image dimensions exceed the safe limit.']]);
                 }
-            } elseif (file_get_contents($path, false, null, 0, 5) !== '%PDF-') {
+            } elseif (! $this->hasValidPdfEnvelope($path, $size)) {
                 throw ValidationException::withMessages(['file' => ['The uploaded PDF signature is invalid.']]);
             }
 
@@ -381,6 +450,55 @@ class ContentAttachmentService
             || ($item->scope === ContentScope::Campus
                 && $actor->university_id !== null
                 && (int) $item->university_id === (int) $actor->university_id);
+    }
+
+    private function hasValidPdfEnvelope(string $path, int $size): bool
+    {
+        $header = file_get_contents($path, false, null, 0, min(16, $size));
+        if (! is_string($header)
+            || preg_match('/^%PDF-(?:1\.[0-7]|2\.0)(?:\r\n|\r|\n)/', $header) !== 1) {
+            return false;
+        }
+
+        $tailLength = min(4096, $size);
+        $tail = file_get_contents($path, false, null, max(0, $size - $tailLength), $tailLength);
+        if (! is_string($tail)) {
+            return false;
+        }
+
+        $eof = strrpos($tail, '%%EOF');
+        if ($eof === false) {
+            return false;
+        }
+
+        return trim(substr($tail, $eof + 5)) === '';
+    }
+
+    /** @param array<string, mixed>|null $document */
+    private function documentReferencesAttachment(?array $document, string $publicId): bool
+    {
+        if ($document === null) {
+            return false;
+        }
+
+        $stack = [$document];
+        while ($stack !== []) {
+            $node = array_pop($stack);
+            if (! is_array($node)) {
+                continue;
+            }
+            if (($node['type'] ?? null) === 'imageReference'
+                && ($node['attrs']['attachment_public_id'] ?? null) === $publicId) {
+                return true;
+            }
+            foreach ($node['content'] ?? [] as $child) {
+                if (is_array($child)) {
+                    $stack[] = $child;
+                }
+            }
+        }
+
+        return false;
     }
 
     private function ensureNotArchived(ContentItem $item): void

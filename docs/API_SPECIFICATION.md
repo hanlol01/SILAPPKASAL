@@ -2013,15 +2013,17 @@ The list accepts `content_type`, `lifecycle_status`, legacy category public ID, 
 trimmed `category_name`, with a fallback to the retained legacy category relation. Campus Admin
 list/detail/summary results include only the authenticated Admin's campus;
 Super Admin authoring results include only global scope. Foreign-scope records return no list result
-and cannot be opened directly. Detail responses
-project the controlled draft document, typed Article/FAQ/Consultation fields, generic attachment
-metadata, the author's revision/rejection feedback, and permission-gated editorial attribution.
+and cannot be opened directly. Detail responses project the controlled draft document, typed
+Article/FAQ/Consultation fields, version-owned attachment metadata, the active Article cover
+resource, the author's revision/rejection feedback, and permission-gated editorial attribution.
 Campus Admin receives creator and submitter `name`, `email`, and nullable `role`, but reviewer,
 approver, and publisher actor objects are always `null`; stage timestamps remain visible. Super
 Admin receives all five actor objects. Internal numeric user IDs remain excluded. Revision creation
 requires a published campus item with no active authoring version.
-Attachment deletion is limited to general attachments on an editable authorized version and is
-audited as `content.attachment_removed` only after the private object and metadata are both removed.
+Attachment deletion is limited to an editable authorized version. A selected cover is detached before
+deletion; referenced inline media returns 422 until the author removes its `imageReference` and saves
+the document. General PDF and unreferenced media deletion is audited as
+`content.attachment_removed` only after the private object and metadata are both removed.
 If private-storage deletion fails, the API returns `503` with
 `content_attachment_deletion_failed`; metadata and bytes remain available for a retry.
 
@@ -2034,7 +2036,8 @@ UUIDs outside the Admin's campus—including global UUIDs—resolve as `404` on 
 
 Article reader resources expose public ID, slug, title, plain excerpt, safe section/category/scope,
 cover projection, publication time, computed reading time, and—for detail only—the controlled body,
-sanitized projection, safe attachments, and related published scope-safe Articles. Consultation is a
+sanitized projection, referenced `inline_images`, general PDF `attachments`, and related published
+scope-safe Articles. Consultation is a
 dedicated reader resource and is not accepted, projected, or resolved as an Article CTA. The legacy
 Article CTA database relation remains nullable only for backward-compatible data retention. FAQ and
 Consultation resources expose only approved reader fields.
@@ -2044,7 +2047,9 @@ draft pointers, private paths, checksums, encrypted narratives, or unpublished v
 Article `document` input and reader `body` output use the version-owned controlled JSON contract.
 Canonical nodes are `doc`, `paragraph`, `text`, `heading` (level 2 or 3), `bulletList`,
 `orderedList`, `listItem`, `blockquote`, `horizontalRule`, `callout`
-(`information|warning|help`), and the retained legacy-placeholder `imageReference`. Canonical marks
+(`information|warning|help`), and `imageReference`. An `imageReference` contains only
+`attachment_public_id` and `alt`; it never contains a storage URL, Base64 data, blob URL, remote URL,
+or binary payload. Canonical marks
 are `bold`, `italic`, `underline`, and `link`. Link attributes are limited to `href` and optional
 `title`; accepted protocols are valid `http`, `https`, `mailto`, and `tel`. Client-supplied
 `target`, `rel`, `class`, `style`, event handlers, raw HTML, H1, or any unknown node/mark/attribute
@@ -2098,11 +2103,31 @@ filters the requested section and published lifecycle, then prefers the actor's 
 the global Article with the same slug. Draft, review, rejected, archived, and future-published versions
 return 404. A slug without an explicit section is not a valid route.
 
-Current C1 attachment upload policy is PDF-only for general attachments. `GET /content-management/capabilities`
-reports whether image upload is available. Image attempts return 422
-unless both the explicit feature flag and a verified safe re-encoding processor are available. File
-resources and download headers use generated names such as `lampiran-{attachmentPublicId}.pdf`; the
-protected client filename is never serialized or used as a response filename.
+`POST /content-management/versions/{versionPublicId}/attachments` is multipart with required
+`purpose` and `file`. `purpose=attachment` accepts PDF only up to 10 MB.
+`purpose=cover` accepts JPEG/PNG/WebP up to 5 MB and `purpose=inline_image` accepts the same formats
+up to 10 MB; both image purposes require `alt_text`. Image attempts return 422 unless
+`CONTENT_IMAGE_UPLOADS_ENABLED=true` and the runtime GD processor confirms all required
+decode/encode/orientation functions. The processor verifies fileinfo MIME against image signature,
+checks dimension/pixel/memory budgets before decode, normalizes JPEG orientation, strips metadata by
+decode/re-encode, and verifies the encoded output again. SVG and remote retrieval are never accepted.
+
+`GET /content-management/capabilities` returns `image_upload_available`, `image_formats`,
+`cover_max_bytes`, and `inline_image_max_bytes`. File resources include generated names, purpose,
+detected MIME, safe size/dimensions/alt text, and the authenticated relative `download_url`; they
+never expose private path, checksum, internal ID, uploader ID, or protected original filename.
+Download headers use generated names such as `lampiran-{attachmentPublicId}.pdf`.
+
+The authenticated attachment reader returns a draft binary only to an authorized manager. Reporter
+access additionally requires the exact published pointer, published lifecycle, reader campus scope,
+and an active reference: selected cover FK for `cover`, controlled-document reference for
+`inline_image`, or published general attachment ownership for PDF. Unknown, foreign, draft, and
+orphan media all resolve as 404. Responses remain `private, no-store` and `nosniff`.
+
+New inline media can enter the editor only after this upload response is registered as an authorized
+reference. Pasted/dropped files, pasted HTML images, arbitrary UUID insertion, and URL-based media
+remain blocked. Revision creation clones immutable private bytes to new UUID paths and rewrites cover
+and inline references, leaving the prior published version unchanged.
 
 ## 18.8 REV-CONTENT-01 C3 Editorial Governance APIs
 
@@ -2249,8 +2274,9 @@ is never projected into Sorotan Edukasi. If a safe cover is absent or cannot be 
 renders an Education-themed CSS fallback.
 
 Article cards and detail use only the published resource fields already defined in section 18.7.
-Detail renders the controlled `body` JSON and does not execute `body_html`. Safe PDF resources are
-retrieved from `/content/attachments/{attachmentPublicId}` with the Bearer session; tokens never enter
-the URL. Optional cover bytes use the same authenticated endpoint only when a published safe cover
-projection actually exists. Consultation actions do not place Report, registration, identity, or
+Detail renders the controlled `body` JSON and does not execute `body_html`. Safe PDF, cover, and
+referenced inline-image resources are retrieved from `/content/attachments/{attachmentPublicId}`
+with the Bearer session; tokens never enter the URL. The API separately projects `cover`,
+`inline_images`, and general PDF `attachments` from the exact published version. The client uses
+temporary object URLs and revokes them on replacement, error, or unmount. Consultation actions do not place Report, registration, identity, or
 incident data into an outbound URL.

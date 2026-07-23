@@ -35,9 +35,9 @@ use App\Policies\ReporterRegistrationPolicy;
 use App\Policies\ReporterSelfServicePolicy;
 use App\Policies\ReportPolicy;
 use App\Policies\UserPolicy;
+use App\Services\GdContentImageProcessor;
 use App\Services\SecurityAccessDeniedLogger;
 use App\Services\TestDatabaseGuard;
-use App\Services\UnavailableContentImageProcessor;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
@@ -53,7 +53,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(ContentImageProcessor::class, UnavailableContentImageProcessor::class);
+        $this->app->singleton(ContentImageProcessor::class, GdContentImageProcessor::class);
     }
 
     /**

@@ -1,12 +1,19 @@
 import { AlertTriangle, ImageOff } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { AuthenticatedContentImage } from "@/components/content/authenticated-content-image";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { normalizeSafeContentLink } from "@/lib/content-document";
-import type { DocumentNode } from "@/lib/content-management-api";
+import type { ContentAttachment, DocumentNode } from "@/lib/content-management-api";
 
-export function ContentDocumentPreview({ document }: { document: DocumentNode | null }) {
+export function ContentDocumentPreview({
+  document,
+  media,
+}: {
+  document: DocumentNode | null;
+  media?: ContentAttachment[];
+}) {
   const { t } = useTranslation("content");
   if (document && !isSafePreviewDocument(document)) {
     return (
@@ -22,8 +29,9 @@ export function ContentDocumentPreview({ document }: { document: DocumentNode | 
       {document?.content?.map((node, index) => (
         <PreviewNode
           depth={1}
-          imageFallback={t("editor.legacyImage")}
+          imageFallback={t("editor.imageLoadError")}
           key={index}
+          media={media}
           node={node}
         />
       ))}
@@ -35,10 +43,12 @@ function PreviewNode({
   node,
   depth,
   imageFallback,
+  media,
 }: {
   node: DocumentNode;
   depth: number;
   imageFallback: string;
+  media?: ContentAttachment[];
 }) {
   if (depth > 12) return null;
   if (node.type === "text") {
@@ -67,7 +77,13 @@ function PreviewNode({
     return <>{content}</>;
   }
   const children = node.content?.map((child, index) => (
-    <PreviewNode depth={depth + 1} imageFallback={imageFallback} key={index} node={child} />
+    <PreviewNode
+      depth={depth + 1}
+      imageFallback={imageFallback}
+      key={index}
+      media={media}
+      node={child}
+    />
   ));
   if (node.type === "paragraph") return <p>{children}</p>;
   if (node.type === "heading" || node.type === "heading_2" || node.type === "heading_3")
@@ -104,16 +120,63 @@ function PreviewNode({
   }
   if (node.type === "imageReference") {
     const alt = typeof node.attrs?.alt === "string" ? node.attrs.alt : "";
+    const publicId =
+      typeof node.attrs?.attachment_public_id === "string"
+        ? node.attrs.attachment_public_id
+        : "";
+    const attachment = media?.find(
+      (candidate) =>
+        candidate.public_id === publicId &&
+        candidate.purpose === "inline_image" &&
+        candidate.mime_type.startsWith("image/"),
+    );
     return (
-      <figure className="my-4 rounded-lg border border-dashed bg-muted/40 p-4 text-muted-foreground">
-        <div className="flex items-center gap-2 text-sm">
-          <ImageOff aria-hidden="true" className="h-4 w-4 shrink-0" />
-          <figcaption>{alt || imageFallback}</figcaption>
-        </div>
-      </figure>
+      <PreviewImage
+        alt={alt}
+        fallback={imageFallback}
+        publicId={media === undefined ? publicId : (attachment?.public_id ?? "")}
+      />
     );
   }
   return null;
+}
+
+function PreviewImage({
+  publicId,
+  alt,
+  fallback,
+}: {
+  publicId: string;
+  alt: string;
+  fallback: string;
+}) {
+  const [unavailable, setUnavailable] = useState(false);
+  const markUnavailable = useCallback(() => setUnavailable(true), []);
+
+  return (
+    <figure className="my-6 overflow-hidden rounded-xl border bg-muted/30">
+      <div className="relative flex min-h-48 items-center justify-center bg-gradient-to-br from-sky-950 via-primary to-cyan-700">
+        {!unavailable && publicId ? (
+          <AuthenticatedContentImage
+            publicId={publicId}
+            alt={alt}
+            className="max-h-[40rem] w-full object-contain"
+            onUnavailable={markUnavailable}
+          />
+        ) : (
+          <div className="flex items-center gap-2 p-6 text-sm text-white">
+            <ImageOff aria-hidden="true" className="h-5 w-5 shrink-0" />
+            <span>{alt || fallback}</span>
+          </div>
+        )}
+      </div>
+      {alt ? (
+        <figcaption className="border-t bg-background px-4 py-2 text-sm text-muted-foreground">
+          {alt}
+        </figcaption>
+      ) : null}
+    </figure>
+  );
 }
 
 function isSafePreviewDocument(document: DocumentNode): boolean {

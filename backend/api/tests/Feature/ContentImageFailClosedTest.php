@@ -93,6 +93,64 @@ final class ContentImageFailClosedTest extends TestCase
         $this->assertCount(1, Storage::disk('content')->allFiles());
     }
 
+    public function test_capabilities_only_advertise_runtime_supported_image_formats(): void
+    {
+        config()->set('content.attachments.image_uploads_enabled', true);
+        $this->app->instance(
+            ContentImageProcessor::class,
+            new CapabilityOnlyImageProcessor(['image/png']),
+        );
+        Sanctum::actingAs($this->admin(), ['*']);
+
+        $this->getJson('/api/v1/content-management/capabilities')
+            ->assertOk()
+            ->assertJsonPath('data.image_upload_available', true)
+            ->assertJsonPath('data.image_formats', ['image/png'])
+            ->assertJsonPath('data.cover_max_bytes', 5 * 1024 * 1024)
+            ->assertJsonPath('data.inline_image_max_bytes', 10 * 1024 * 1024)
+            ->assertJsonPath('data.alt_text_max_length', 500);
+
+    }
+
+    public function test_capabilities_hide_formats_when_verified_processor_is_unavailable(): void
+    {
+        config()->set('content.attachments.image_uploads_enabled', true);
+        $this->app->instance(ContentImageProcessor::class, new RecordingUnavailableImageProcessor);
+        Sanctum::actingAs($this->admin(), ['*']);
+
+        $this->getJson('/api/v1/content-management/capabilities')
+            ->assertOk()
+            ->assertJsonPath('data.image_upload_available', false)
+            ->assertJsonPath('data.image_formats', []);
+    }
+
+    public function test_request_and_capability_share_configured_cover_limit(): void
+    {
+        Storage::fake('content');
+        config()->set('content.attachments.image_uploads_enabled', true);
+        config()->set('content.attachments.cover_max_bytes', 1024);
+        $this->app->instance(
+            ContentImageProcessor::class,
+            new CapabilityOnlyImageProcessor(['image/png']),
+        );
+        $admin = $this->admin();
+        $version = $this->draftArticle($admin)->currentDraftVersion;
+        Sanctum::actingAs($admin, ['*']);
+
+        $this->getJson('/api/v1/content-management/capabilities')
+            ->assertOk()
+            ->assertJsonPath('data.cover_max_bytes', 1024);
+        $this->postJson('/api/v1/content-management/versions/'.$version->public_id.'/attachments', [
+            'purpose' => ContentAttachmentPurpose::Cover->value,
+            'file' => UploadedFile::fake()->createWithContent(
+                'oversized.png',
+                str_repeat('x', 1025),
+            ),
+            'alt_text' => 'Melampaui batas konfigurasi',
+        ])->assertUnprocessable()->assertJsonValidationErrors('file');
+        $this->assertDatabaseCount('content_attachments', 0);
+    }
+
     /** @return array<string, array{string, string, string}> */
     public static function imageFormats(): array
     {
@@ -151,6 +209,11 @@ final class RecordingUnavailableImageProcessor implements ContentImageProcessor
         return false;
     }
 
+    public function supportedMimeTypes(): array
+    {
+        return [];
+    }
+
     public function reencode(UploadedFile $file): UploadedFile
     {
         $this->reencodeCalled = true;
@@ -162,5 +225,31 @@ final class RecordingUnavailableImageProcessor implements ContentImageProcessor
     public function release(UploadedFile $processed): void
     {
         $this->temporaryArtifacts = [];
+    }
+}
+
+final class CapabilityOnlyImageProcessor implements ContentImageProcessor
+{
+    /** @param list<string> $formats */
+    public function __construct(private readonly array $formats) {}
+
+    public function isAvailable(): bool
+    {
+        return $this->formats !== [];
+    }
+
+    public function supportedMimeTypes(): array
+    {
+        return $this->formats;
+    }
+
+    public function reencode(UploadedFile $file): UploadedFile
+    {
+        throw new LogicException('Capability-only processor cannot re-encode images.');
+    }
+
+    public function release(UploadedFile $processed): void
+    {
+        // No processor-owned temporary output.
     }
 }

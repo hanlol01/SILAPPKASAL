@@ -12,6 +12,7 @@ import {
 import {
   ARTICLE_DOCUMENT_LIMITS,
   articleDocumentFromTiptap,
+  collectAuthorizedImageReferences,
   collectLegacyImageReferences,
   countArticleWords,
   prepareArticleDocumentForTiptap,
@@ -403,39 +404,46 @@ test("legacy normalization revalidates canonical node and depth budgets", () => 
   assert.equal(normalized.document.content?.[0]?.content?.[0]?.content?.[0]?.type, "text");
 });
 
-test("imageReference cannot be authored from pasted HTML or new Tiptap JSON", async () => {
+test("imageReference is authorable only from a server-authorized attachment", async () => {
   const schema = getSchema(articleEditorExtensions);
   assert.equal(schema.nodes.imageReference.spec.parseDOM, undefined);
 
-  const legacy: DocumentNode = {
+  const uploaded: DocumentNode = {
     type: "doc",
     content: [
       {
         type: "imageReference",
         attrs: {
           attachment_public_id: "11111111-1111-4111-8111-111111111111",
-          alt: "Legacy only",
-        },
-      },
-      {
-        type: "imageReference",
-        attrs: {
-          attachment_public_id: "22222222-2222-4222-8222-222222222222",
+          alt: "Server-authorized image",
         },
       },
     ],
   };
-  const originalSignature = JSON.stringify(legacy);
-  const prepared = prepareArticleDocumentForTiptap(legacy);
-  const allowed = collectLegacyImageReferences(prepared.document);
+  const prepared = prepareArticleDocumentForTiptap(uploaded);
+  const allowed = collectAuthorizedImageReferences(prepared.document);
   const preserved = articleDocumentFromTiptap(prepared.document, allowed);
 
-  assert.deepEqual(preserved, legacy);
-  assert.equal(JSON.stringify(legacy), originalSignature);
+  assert.deepEqual(preserved, uploaded);
   assert.throws(
     () => articleDocumentFromTiptap(prepared.document),
-    /legacy read-only content/,
+    /server-authorized attachment/,
   );
+
+  const legacyWithoutAlt: DocumentNode = {
+    type: "doc",
+    content: [{
+      type: "imageReference",
+      attrs: {
+        attachment_public_id: "22222222-2222-4222-8222-222222222222",
+      },
+    }],
+  };
+  const originalSignature = JSON.stringify(legacyWithoutAlt);
+  const legacyPrepared = prepareArticleDocumentForTiptap(legacyWithoutAlt);
+  assert.equal(legacyPrepared.failureKind, "unsupported_shape");
+  assert.ok(legacyPrepared.unsupported.some((value) => value.includes("image-reference")));
+  assert.equal(JSON.stringify(legacyWithoutAlt), originalSignature);
 
   const [editorSource, extensionSource, previewSource] = await Promise.all([
     source("src/components/content/article-wysiwyg-editor.tsx"),
@@ -448,8 +456,39 @@ test("imageReference cannot be authored from pasted HTML or new Tiptap JSON", as
   );
   assert.match(editorSource, /handlePaste/);
   assert.match(editorSource, /clipboardContainsFile/);
-  assert.match(editorSource, /collectLegacyImageReferences/);
+  assert.match(editorSource, /collectAuthorizedImageReferences/);
+  assert.match(editorSource, /onUploadImage\(imageFile, altText\)/);
+  assert.match(editorSource, /purpose !== "inline_image"/);
+  assert.match(editorSource, /insertContent\(imageNode\)/);
   assert.match(previewSource, /node\.type === "imageReference"/);
+});
+
+test("imageReference alt text is trimmed, required, bounded, and legacy-safe", () => {
+  const publicId = "44444444-4444-4444-8444-444444444444";
+  const prepared = prepareArticleDocumentForTiptap({
+    type: "doc",
+    content: [{
+      type: "imageReference",
+      attrs: {
+        attachment_public_id: publicId,
+        alt: "  Diagram aman  ",
+      },
+    }],
+  });
+  assert.equal(prepared.failureKind, null);
+  assert.equal(prepared.document.content?.[0]?.attrs?.alt, "Diagram aman");
+
+  for (const alt of ["", "   ", "a".repeat(ARTICLE_DOCUMENT_LIMITS.maxImageAltLength + 1)]) {
+    const rejected = prepareArticleDocumentForTiptap({
+      type: "doc",
+      content: [{
+        type: "imageReference",
+        attrs: { attachment_public_id: publicId, alt },
+      }],
+    });
+    assert.equal(rejected.failureKind, "unsupported_shape");
+    assert.ok(rejected.unsupported.some((value) => value.includes("image-reference")));
+  }
 });
 
 test("Article word count matches backend Unicode tokenization", async () => {
@@ -549,7 +588,12 @@ test("article toolbar, save state, navigation guard, and media boundaries are wi
   assert.match(editor, /handlePaste/);
   assert.match(editor, /handleDrop/);
   assert.match(editor, /clipboardContainsFile/);
-  assert.doesNotMatch(editor, /image upload|youtube|iframe|collaboration|dangerouslySetInnerHTML/i);
+  assert.doesNotMatch(editor, /youtube|iframe|collaboration|dangerouslySetInnerHTML/i);
+  assert.match(editor, /accept=\{imageAcceptValue\(imageFormats\)\}/);
+  assert.match(editor, /imageFormats\.includes\(imageFile\.type\)/);
+  assert.match(editor, /imageFile\.size > imageMaxBytes/);
+  assert.match(editor, /handlePaste/);
+  assert.match(editor, /handleDrop/);
 
   assert.match(contentEditor, /useBlocker\(/);
   assert.match(contentEditor, /enableBeforeUnload: dirty/);
@@ -1028,4 +1072,99 @@ test("governance translations and stable error mappings remain complete in both 
   assert.match(errors, /content_stale_review/);
   assert.match(errors, /content_invalid_lifecycle_transition/);
   assert.match(errors, /content_featured_conflict/);
+});
+
+test("REV-MEDIA-01 keeps media references server-owned and object URLs ephemeral", async () => {
+  const [editor, managementApi, contentEditor, preview, authenticatedImage, governance, published] =
+    await Promise.all([
+      source("src/components/content/article-wysiwyg-editor.tsx"),
+      source("src/lib/content-management-api.ts"),
+      source("src/components/content/content-editor.tsx"),
+      source("src/components/content/content-document-preview.tsx"),
+      source("src/components/content/authenticated-content-image.tsx"),
+      source("src/routes/dashboard.content-governance.tsx"),
+      source("src/lib/published-content-api.ts"),
+    ]);
+
+  assert.match(managementApi, /data\.append\("purpose", "inline_image"\)/);
+  assert.match(managementApi, /uploadContentInlineImage/);
+  assert.match(contentEditor, /inlineImageMutation\.mutateAsync/);
+  assert.match(contentEditor, /capabilitiesQuery\.data\?\.image_upload_available/);
+  assert.match(editor, /collectAuthorizedImageReferences/);
+  assert.match(editor, /insertContent\(imageNode\)/);
+  assert.match(editor, /clipboardContainsFile/);
+  assert.match(editor, /dataTransferContainsFile/);
+  assert.doesNotMatch(editor, /FileReader|readAsDataURL|createObjectURL/);
+
+  assert.match(authenticatedImage, /fetchContentAttachment\(publicId, controller\.signal\)/);
+  assert.match(authenticatedImage, /URL\.createObjectURL\(response\.blob\)/);
+  assert.match(authenticatedImage, /URL\.revokeObjectURL\(objectUrlRef\.current\)/);
+  assert.match(authenticatedImage, /onError=\{\(\) => \{\s*revokeObjectUrl\(\)/);
+  assert.match(authenticatedImage, /response\.contentType\.startsWith\("image\/"\)/);
+  assert.doesNotMatch(authenticatedImage, /localStorage|sessionStorage|download_url/);
+
+  assert.match(preview, /candidate\.purpose === "inline_image"/);
+  assert.match(preview, /AuthenticatedContentImage/);
+  assert.match(governance, /file\.purpose === "attachment"/);
+  assert.match(published, /inline_images\?: ContentAttachment\[\]/);
+});
+
+test("media upload controls consume runtime formats and limits from server capabilities", async () => {
+  const [contentEditor, wysiwyg, api] = await Promise.all([
+    source("src/components/content/content-editor.tsx"),
+    source("src/components/content/article-wysiwyg-editor.tsx"),
+    source("src/lib/content-management-api.ts"),
+  ]);
+
+  for (const field of [
+    "image_formats",
+    "cover_max_bytes",
+    "inline_image_max_bytes",
+    "alt_text_max_length",
+  ]) {
+    assert.match(api, new RegExp(`${field}:`));
+  }
+  assert.match(contentEditor, /capabilitiesQuery\.data\?\.image_formats/);
+  assert.match(contentEditor, /capabilitiesQuery\.data\?\.cover_max_bytes/);
+  assert.match(contentEditor, /capabilitiesQuery\.data\?\.inline_image_max_bytes/);
+  assert.match(contentEditor, /accept=\{imageAccept\}/);
+  assert.match(wysiwyg, /accept=\{imageAcceptValue\(imageFormats\)\}/);
+  assert.match(wysiwyg, /imageFormats\.includes\(imageFile\.type\)/);
+  assert.match(wysiwyg, /imageFile\.size > imageMaxBytes/);
+  assert.doesNotMatch(wysiwyg, /accept="image\/jpeg,image\/png,image\/webp/);
+});
+
+test("imageReference rejects storage URLs and permits only uploaded UUID references", () => {
+  const uploaded: DocumentNode = {
+    type: "doc",
+    content: [
+      {
+        type: "imageReference",
+        attrs: {
+          attachment_public_id: "33333333-3333-4333-8333-333333333333",
+          alt: "Gambar hasil unggah",
+        },
+      },
+    ],
+  };
+  const authorized = collectAuthorizedImageReferences(uploaded);
+  assert.deepEqual(articleDocumentFromTiptap(uploaded, authorized), uploaded);
+  assert.throws(() => articleDocumentFromTiptap(uploaded), /server-authorized attachment/);
+
+  const withUrl: DocumentNode = {
+    type: "doc",
+    content: [
+      {
+        type: "imageReference",
+        attrs: {
+          attachment_public_id: "33333333-3333-4333-8333-333333333333",
+          alt: "Tidak aman",
+          src: "https://remote.example/image.png",
+        },
+      },
+    ],
+  };
+  const inspection = prepareArticleDocumentForTiptap(withUrl);
+  assert.equal(inspection.failureKind, "unsupported_shape");
+  assert.ok(inspection.unsupported.some((value) => value.includes("image-attributes")));
 });

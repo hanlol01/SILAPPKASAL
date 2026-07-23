@@ -22,6 +22,7 @@ export interface PublishedArticle {
   featured: boolean;
   body?: DocumentNode | null;
   attachments?: ContentAttachment[];
+  inline_images?: ContentAttachment[];
   related_articles?: PublishedArticle[];
 }
 

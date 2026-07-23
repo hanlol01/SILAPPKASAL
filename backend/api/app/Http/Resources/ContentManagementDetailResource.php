@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Concerns\ProjectsContentAttribution;
+use App\Support\ContentMediaManifest;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -69,6 +70,10 @@ class ContentManagementDetailResource extends JsonResource
         $article = $version->articleContent;
         $faq = $version->faqContent;
         $consultation = $version->consultationContent;
+        $attachments = ContentMediaManifest::attachments($version);
+        $cover = $attachments->first(
+            fn ($attachment): bool => $attachment->purpose->value === 'cover',
+        );
 
         return [
             'public_id' => $version->public_id,
@@ -86,6 +91,9 @@ class ContentManagementDetailResource extends JsonResource
                 'document' => $article->document_json,
                 'estimated_reading_minutes' => $article->estimated_reading_minutes,
                 'cover_alt_text' => $article->cover_alt_text,
+                'cover' => $cover
+                    ? new ContentAttachmentResource($cover)
+                    : null,
             ] : null,
             'faq' => $faq ? [
                 'question' => $faq->question,
@@ -112,7 +120,7 @@ class ContentManagementDetailResource extends JsonResource
                 'verification_date' => $consultation->verification_date?->format('Y-m-d'),
                 'verified_owner' => $consultation->verified_owner,
             ] : null,
-            'attachments' => ContentAttachmentResource::collection($version->attachments),
+            'attachments' => ContentAttachmentResource::collection($attachments),
         ];
     }
 }

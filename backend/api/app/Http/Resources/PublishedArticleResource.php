@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Enums\ContentAttachmentPurpose;
+use App\Support\ContentMediaManifest;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -14,6 +15,7 @@ class PublishedArticleResource extends JsonResource
         $article = $version?->articleContent;
         $category = $version?->category;
         $detail = (bool) $this->resource->getAttribute('content_detail');
+        $cover = $version ? ContentMediaManifest::cover($version) : null;
 
         return [
             'public_id' => $this->public_id,
@@ -24,8 +26,8 @@ class PublishedArticleResource extends JsonResource
             'category_name' => $version?->category_name ?? $category?->name,
             'section' => new ContentSectionResource($this->whenLoaded('section')),
             'scope' => $this->scope?->value,
-            'cover' => $article?->coverAttachment
-                ? new ContentAttachmentResource($article->coverAttachment)
+            'cover' => $cover
+                ? new ContentAttachmentResource($cover)
                 : null,
             'published_at' => $version?->published_at?->toJSON(),
             'estimated_reading_minutes' => $article?->estimated_reading_minutes,
@@ -35,9 +37,17 @@ class PublishedArticleResource extends JsonResource
             'attachments' => $this->when(
                 $detail,
                 fn () => ContentAttachmentResource::collection(
-                    ($version?->attachments ?? collect())->filter(
-                        fn ($attachment): bool => $attachment->purpose !== ContentAttachmentPurpose::Cover
-                    )->values()
+                    $version
+                        ? ContentMediaManifest::forPurpose($version, ContentAttachmentPurpose::Attachment)
+                        : collect()
+                )
+            ),
+            'inline_images' => $this->when(
+                $detail,
+                fn () => ContentAttachmentResource::collection(
+                    $version
+                        ? ContentMediaManifest::forPurpose($version, ContentAttachmentPurpose::InlineImage)
+                        : collect()
                 )
             ),
             'related_articles' => $this->when(

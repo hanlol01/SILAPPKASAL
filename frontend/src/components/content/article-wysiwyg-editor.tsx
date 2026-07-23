@@ -5,11 +5,13 @@ import {
   Bold,
   CircleHelp,
   Eraser,
+  ImagePlus,
   Info,
   Italic,
   Link2,
   List,
   ListOrdered,
+  Loader2,
   Minus,
   Quote,
   Redo2,
@@ -17,13 +19,21 @@ import {
   Undo2,
   Unlink,
 } from "lucide-react";
-import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type FormEvent,
+  type ReactNode,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 
 import {
-  articleEditorExtensions,
   articleEditorSchema,
 } from "@/components/content/article-editor-extensions";
+import { articleEditorMediaExtensions } from "@/components/content/article-editor-media-extensions";
 import { ContentDocumentPreview } from "@/components/content/content-document-preview";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -41,13 +51,13 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   articleDocumentFromTiptap,
-  collectLegacyImageReferences,
+  collectAuthorizedImageReferences,
   countArticleWords,
   documentSignature,
   prepareArticleDocumentForTiptap,
 } from "@/lib/article-document-tiptap";
 import { normalizeSafeContentLink } from "@/lib/content-document";
-import type { DocumentNode } from "@/lib/content-management-api";
+import type { ContentAttachment, DocumentNode } from "@/lib/content-management-api";
 import { cn } from "@/lib/utils";
 
 export type ArticleEditorSaveStatus = "pristine" | "dirty" | "saved" | "failed";
@@ -57,8 +67,21 @@ interface ArticleWysiwygEditorProps {
   disabled?: boolean;
   saveStatus?: ArticleEditorSaveStatus;
   onCompatibilityChange?: (compatible: boolean) => void;
+  onUploadImage?: (file: File, altText: string) => Promise<ContentAttachment>;
+  imageFormats?: string[];
+  imageMaxBytes?: number;
+  imageAltMaxLength?: number;
   onChange: (document: DocumentNode) => void;
 }
+
+const DEFAULT_IMAGE_FORMATS = ["image/jpeg", "image/png", "image/webp"];
+const DEFAULT_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+const DEFAULT_IMAGE_ALT_MAX_LENGTH = 500;
+const IMAGE_EXTENSIONS_BY_MIME: Record<string, readonly string[]> = {
+  "image/jpeg": ["jpg", "jpeg"],
+  "image/png": ["png"],
+  "image/webp": ["webp"],
+};
 
 const EMPTY_TOOLBAR_STATE = {
   bold: false,
@@ -81,6 +104,10 @@ export function ArticleWysiwygEditor({
   disabled = false,
   saveStatus = "pristine",
   onCompatibilityChange,
+  onUploadImage,
+  imageFormats = DEFAULT_IMAGE_FORMATS,
+  imageMaxBytes = DEFAULT_IMAGE_MAX_BYTES,
+  imageAltMaxLength = DEFAULT_IMAGE_ALT_MAX_LENGTH,
   onChange,
 }: ArticleWysiwygEditorProps) {
   const { t } = useTranslation("content");
@@ -131,6 +158,10 @@ export function ArticleWysiwygEditor({
     <CompatibleArticleEditor
       disabled={disabled}
       document={compatibility.document}
+      imageFormats={imageFormats}
+      imageMaxBytes={imageMaxBytes}
+      imageAltMaxLength={imageAltMaxLength}
+      onUploadImage={onUploadImage}
       saveStatus={saveStatus}
       onChange={(document) => {
         localDocumentRef.current = document;
@@ -144,23 +175,39 @@ function CompatibleArticleEditor({
   document,
   disabled,
   saveStatus,
+  onUploadImage,
+  imageFormats,
+  imageMaxBytes,
+  imageAltMaxLength,
   onChange,
 }: {
   document: DocumentNode;
   disabled: boolean;
   saveStatus: ArticleEditorSaveStatus;
+  onUploadImage?: (file: File, altText: string) => Promise<ContentAttachment>;
+  imageFormats: string[];
+  imageMaxBytes: number;
+  imageAltMaxLength: number;
   onChange: (document: DocumentNode) => void;
 }) {
   const { t } = useTranslation("content");
   const onChangeRef = useRef(onChange);
   const acceptedDocumentRef = useRef(document);
-  const legacyImageReferencesRef = useRef(collectLegacyImageReferences(document));
+  const authorizedImageReferencesRef = useRef(
+    new Map(collectAuthorizedImageReferences(document)),
+  );
   const lastEmittedSignature = useRef(documentSignature(document));
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkHref, setLinkHref] = useState("");
   const [linkTitle, setLinkTitle] = useState("");
   const [linkError, setLinkError] = useState("");
   const [blockedMediaMessage, setBlockedMediaMessage] = useState("");
+  const [imageOpen, setImageOpen] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageAlt, setImageAlt] = useState("");
+  const [imageError, setImageError] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
+  const imageInputId = useId();
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -168,11 +215,13 @@ function CompatibleArticleEditor({
 
   useEffect(() => {
     acceptedDocumentRef.current = document;
-    legacyImageReferencesRef.current = collectLegacyImageReferences(document);
+    authorizedImageReferencesRef.current = new Map(
+      collectAuthorizedImageReferences(document),
+    );
   }, [document]);
 
   const editor = useEditor({
-    extensions: articleEditorExtensions,
+    extensions: articleEditorMediaExtensions,
     content: document as JSONContent,
     editable: !disabled,
     immediatelyRender: false,
@@ -196,7 +245,7 @@ function CompatibleArticleEditor({
       try {
         const nextDocument = articleDocumentFromTiptap(
           currentEditor.getJSON(),
-          legacyImageReferencesRef.current,
+          authorizedImageReferencesRef.current,
         );
         setBlockedMediaMessage("");
         lastEmittedSignature.current = documentSignature(nextDocument);
@@ -224,7 +273,7 @@ function CompatibleArticleEditor({
       nextSignature === lastEmittedSignature.current ||
       nextSignature ===
         documentSignature(
-          articleDocumentFromTiptap(editor.getJSON(), legacyImageReferencesRef.current),
+          articleDocumentFromTiptap(editor.getJSON(), authorizedImageReferencesRef.current),
         )
     ) {
       lastEmittedSignature.current = nextSignature;
@@ -311,6 +360,70 @@ function CompatibleArticleEditor({
     editor?.chain().focus().extendMarkRange("link").unsetLink().run();
     setLinkOpen(false);
     setLinkError("");
+  };
+
+  const uploadImage = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editor || !onUploadImage || imageUploading) return;
+    const altText = imageAlt.trim();
+    const extension = imageFile?.name.toLowerCase().split(".").pop() ?? "";
+    const validType =
+      imageFile !== null &&
+      imageFormats.includes(imageFile.type) &&
+      (IMAGE_EXTENSIONS_BY_MIME[imageFile.type] ?? []).includes(extension);
+
+    if (!imageFile || !validType || imageFile.size < 1 || imageFile.size > imageMaxBytes) {
+      setImageError(t("editor.imageInvalid", {
+        formats: imageFormats.map(imageFormatName).join(", "),
+        size: formatFileSize(imageMaxBytes),
+      }));
+      return;
+    }
+    if (!altText || [...altText].length > imageAltMaxLength) {
+      setImageError(t("editor.imageAltRequired", { max: imageAltMaxLength }));
+      return;
+    }
+
+    setImageUploading(true);
+    setImageError("");
+    try {
+      const attachment = await onUploadImage(imageFile, altText);
+      if (
+        attachment.purpose !== "inline_image" ||
+        !attachment.mime_type.startsWith("image/")
+      ) {
+        throw new Error("The server did not return a validated inline image.");
+      }
+
+      const imageNode: DocumentNode = {
+        type: "imageReference",
+        attrs: {
+          attachment_public_id: attachment.public_id,
+          alt: attachment.alt_text ?? altText,
+        },
+      };
+      const trustedReference = collectAuthorizedImageReferences({
+        type: "doc",
+        content: [imageNode],
+      });
+      for (const [signature, reference] of trustedReference) {
+        authorizedImageReferencesRef.current.set(signature, reference);
+      }
+
+      const inserted = editor.chain().focus().insertContent(imageNode).run();
+      if (!inserted) {
+        throw new Error("The uploaded image could not be inserted.");
+      }
+
+      setImageOpen(false);
+      setImageFile(null);
+      setImageAlt("");
+      setBlockedMediaMessage("");
+    } catch {
+      setImageError(t("editor.imageUploadError"));
+    } finally {
+      setImageUploading(false);
+    }
   };
 
   const blockFormat =
@@ -473,6 +586,93 @@ function CompatibleArticleEditor({
 
           <ToolbarSeparator />
 
+          {onUploadImage ? (
+            <Popover
+              open={imageOpen}
+              onOpenChange={(open) => {
+                setImageOpen(open);
+                if (!open) {
+                  setImageError("");
+                  setImageFile(null);
+                  setImageAlt("");
+                }
+              }}
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <Button
+                      aria-label={t("editor.insertImage")}
+                      className="h-9 w-9"
+                      disabled={controlsDisabled || imageUploading}
+                      size="icon"
+                      type="button"
+                      variant="ghost"
+                    >
+                      {imageUploading ? (
+                        <Loader2 className="animate-spin motion-reduce:animate-none" />
+                      ) : (
+                        <ImagePlus />
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>{t("editor.insertImage")}</TooltipContent>
+              </Tooltip>
+              <PopoverContent align="start" className="w-[min(22rem,calc(100vw-2rem))]">
+                <form className="space-y-4" onSubmit={(event) => void uploadImage(event)}>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={imageInputId}>{t("editor.imageFile")}</Label>
+                    <Input
+                      accept={imageAcceptValue(imageFormats)}
+                      disabled={imageUploading}
+                      id={imageInputId}
+                      type="file"
+                      onChange={(event) => {
+                        setImageFile(event.target.files?.[0] ?? null);
+                        setImageError("");
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {t("editor.imageHelp", {
+                        formats: imageFormats.map(imageFormatName).join(", "),
+                        size: formatFileSize(imageMaxBytes),
+                      })}
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`${imageInputId}-alt`}>{t("editor.imageAlt")}</Label>
+                    <Input
+                      disabled={imageUploading}
+                      id={`${imageInputId}-alt`}
+                      maxLength={imageAltMaxLength}
+                      value={imageAlt}
+                      onChange={(event) => {
+                        setImageAlt(event.target.value);
+                        setImageError("");
+                      }}
+                    />
+                  </div>
+                  {imageError ? (
+                    <p className="text-sm text-destructive" role="alert">
+                      {imageError}
+                    </p>
+                  ) : null}
+                  <Button className="w-full" disabled={imageUploading} type="submit">
+                    {imageUploading ? (
+                      <Loader2 className="animate-spin motion-reduce:animate-none" />
+                    ) : (
+                      <ImagePlus />
+                    )}
+                    {imageUploading ? t("editor.imageUploading") : t("editor.insertImage")}
+                  </Button>
+                </form>
+              </PopoverContent>
+            </Popover>
+          ) : null}
+
+          {onUploadImage ? <ToolbarSeparator /> : null}
+
           <ToolbarButton
             active={toolbarState.bulletList}
             disabled={controlsDisabled}
@@ -576,6 +776,29 @@ function CompatibleArticleEditor({
       </div>
     </TooltipProvider>
   );
+}
+
+function imageAcceptValue(formats: readonly string[]): string {
+  const extensions = formats.flatMap((mime) =>
+    (IMAGE_EXTENSIONS_BY_MIME[mime] ?? []).map((extension) => `.${extension}`),
+  );
+
+  return [...formats, ...extensions].join(",");
+}
+
+function imageFormatName(mime: string): string {
+  return mime === "image/jpeg"
+    ? "JPG/JPEG"
+    : mime === "image/png"
+      ? "PNG"
+      : mime === "image/webp"
+        ? "WebP"
+        : mime;
+}
+
+function formatFileSize(bytes: number): string {
+  const megabytes = bytes / (1024 * 1024);
+  return `${Number.isInteger(megabytes) ? megabytes : megabytes.toFixed(1)} MB`;
 }
 
 function ToolbarButton({

@@ -13,6 +13,11 @@ final class UnavailableContentImageProcessor implements ContentImageProcessor
         return false;
     }
 
+    public function supportedMimeTypes(): array
+    {
+        return [];
+    }
+
     public function reencode(UploadedFile $file): UploadedFile
     {
         throw new LogicException('No verified content image processor is available.');

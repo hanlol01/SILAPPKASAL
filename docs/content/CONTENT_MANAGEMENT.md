@@ -11,7 +11,8 @@ remain authoritative if a route is called directly.
 
 1. Create a campus draft and choose Article, FAQ, or Consultation.
 2. Save the controlled content fields. Article and FAQ bodies are JSON documents, not arbitrary HTML.
-3. Optionally attach private PDF files to an editable version.
+3. Optionally attach private PDF files, select a cover, or upload inline Article images to the
+   editable version when the image capability is enabled.
 4. Preview the draft in desktop or mobile width. Preview is always labeled not published.
 5. Submit the saved draft to Super Admin. Submitted and in-review versions become read-only.
 6. If revision is requested, read the projected review reason, edit the version, save it back to
@@ -27,8 +28,10 @@ existing published version and the backend permits revision creation.
 The Article editor supports paragraph, H2, H3, bold, italic, underline, ordered and unordered list,
 blockquote, HTTP/HTTPS/mailto/tel link, information/warning/help callout, horizontal divider,
 undo/redo, and clear formatting. H1, iframe, raw HTML, tables, video, code blocks, arbitrary
-font/color styling, collaboration, and image references are not authorable. FAQ uses the restricted
-paragraph/list/blockquote subset. The backend repeats document validation, normalization,
+font/color styling, and collaboration are not authorable. Article image references are authorable
+only from a successful authenticated upload for the same editable version; no URL or file payload is
+stored in the document. FAQ uses the restricted paragraph/list/blockquote subset and does not accept
+media. The backend repeats document validation, normalization, attachment ownership/purpose checks,
 structural limits, protocol checks, and sanitization.
 
 REV-ED-01 presents that allowlist through a controlled Tiptap WYSIWYG editor with a project-native
@@ -36,15 +39,16 @@ shadcn toolbar. The client stores `editor.getJSON()` only after reducing it to t
 backend contract; default editor-only list/link attributes are not sent. Incoming legacy
 `unorderedList`, `divider`, `heading_2`, `heading_3`, `info`, `warning`, and `help` aliases plus
 inline list item, blockquote, and callout shapes are normalized for the editor without rewriting a
-published version. Existing `imageReference` nodes remain visible as legacy read-only placeholders,
-but there is no image insertion or upload control.
+published version. Existing `imageReference` nodes remain compatible. REV-MEDIA-01 adds a controlled
+image upload action and authenticated node view to this same editor; it does not introduce another
+rich-text implementation.
 
 The toolbar remains sticky and horizontally scrollable at narrow widths. It uses project Lucide,
 shadcn tooltip/button/select/popover primitives, active states, labels, and keyboard-operable
 controls. The footer reports word count, estimated reading time, and one of four explicit states:
 no changes, unsaved changes, saved, or save failed. Saving remains manual; REV-ED-01 adds no
-autosave. Pasted or dropped image/file payloads are blocked and cover/PDF input remains in its
-separate panel.
+autosave. Pasted or dropped image/file payloads remain blocked. Inline images can be inserted only
+through the dedicated upload action; cover and PDF input remains in the separate media panel.
 
 The editor is synchronized to the selected content version. Server-driven version replacement uses
 a non-emitting content reset so it does not create a dirty draft, while local edits continue through
@@ -60,14 +64,16 @@ confirmation. No real contact value is seeded or invented by C2.
 
 ## Attachments and images
 
-Only general PDF attachments up to 10 MB are enabled. The UI checks extension, MIME, non-empty size,
-and size before upload; the backend remains authoritative and verifies signature and private storage.
+General PDF attachments up to 10 MB remain supported. With the server image capability enabled,
+Article cover accepts JPEG/PNG/WebP up to 5 MB and inline images up to 10 MB; alt text is mandatory.
+The UI checks extension, MIME, non-empty size, size, and alt text before upload. The backend remains
+authoritative, detects and decodes the image, enforces resource limits, normalizes orientation,
+re-encodes it, and writes only the processed result to private storage.
 Resources expose a generated display/download filename, never the original protected filename,
-storage path, or checksum. Removal is limited to an editable own-campus version and records the
-allowlisted `content.attachment_removed` audit event.
-
-Cover and inline-image controls remain disabled because the audited runtime cannot safely re-encode
-and strip metadata. C2 does not bypass the C1 fail-closed image policy.
+storage path, or checksum. Image controls are hidden when capability is unavailable. Removal is
+limited to an editable own-campus version and records the allowlisted
+`content.attachment_removed` audit event. Referenced inline images cannot be removed, and replacing a
+cover never mutates media owned by an older published version.
 
 ## Caching and browser state
 
@@ -138,6 +144,5 @@ events and reports when older history was truncated.
 
 ## Deferred
 
-Reporter and Satgas Information Center UI, featured carousel, PWA/service worker, notifications,
-image upload, scheduled publication, comments, reactions, bookmarks, and Flutter remain deferred to
-C4-C5 or later revisions.
+Notifications, service-worker caching, scheduled publication, comments, reactions, bookmarks,
+remote media import, media transformation variants, and Flutter remain deferred.

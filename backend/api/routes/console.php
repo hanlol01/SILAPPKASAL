@@ -12,3 +12,8 @@ Schedule::command('audit:purge-expired-login-failures --execute --batch=500')
     ->dailyAt('02:15')
     ->timezone('Asia/Jakarta')
     ->withoutOverlapping();
+
+Schedule::command('content:purge-orphan-media --execute --batch=200')
+    ->dailyAt('02:45')
+    ->timezone('Asia/Jakarta')
+    ->withoutOverlapping();

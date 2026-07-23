@@ -8,6 +8,9 @@ interface ContentImageProcessor
 {
     public function isAvailable(): bool;
 
+    /** @return list<string> */
+    public function supportedMimeTypes(): array;
+
     /**
      * Return a newly re-encoded image with orientation normalized and metadata removed.
      */

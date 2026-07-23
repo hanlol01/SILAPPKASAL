@@ -59,12 +59,12 @@ const HorizontalRule = Node.create({
   },
 });
 
-const ImageReference = Node.create({
+export const ImageReference = Node.create({
   name: "imageReference",
   group: "block",
   atom: true,
   isolating: true,
-  selectable: false,
+  selectable: true,
   draggable: false,
 
   addAttributes() {
@@ -85,7 +85,7 @@ const ImageReference = Node.create({
       {
         "data-attachment-public-id": node.attrs.attachment_public_id,
         "data-alt": alt,
-        "data-content-legacy-image": "true",
+        "data-content-image-reference": "true",
         contenteditable: "false",
       },
       ["figcaption", {}, alt],
@@ -116,7 +116,7 @@ const SafeLink = Link.extend({
   shouldAutoLink: () => false,
 });
 
-export const articleEditorExtensions: Extensions = [
+export const articleEditorCoreExtensions: Extensions = [
   StarterKit.configure({
     code: false,
     codeBlock: false,
@@ -133,6 +133,10 @@ export const articleEditorExtensions: Extensions = [
   SafeLink,
   Callout,
   HorizontalRule,
+];
+
+export const articleEditorExtensions: Extensions = [
+  ...articleEditorCoreExtensions,
   ImageReference,
 ];
 

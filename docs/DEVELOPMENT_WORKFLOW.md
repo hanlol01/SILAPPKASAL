@@ -68,12 +68,13 @@ Prioritas Pengembangan:
   editor or a parallel body format.
 - `frontend/package.json` and its npm lockfile are the dependency source of truth. New Tiptap
   extensions require a dependency, schema, security, bundle, renderer, and backend-allowlist audit.
-- Image, inline PDF, file, or other media insertion; raw HTML; iframe/video; tables; arbitrary
-  style; collaboration; and AI writing remain disabled until the separately approved
-  `REV-MEDIA-01` milestone. Cover and attachment panels are not inline editor capabilities.
-- `imageReference` is a legacy JSON compatibility node only. It may be rendered as a read-only
-  placeholder when already stored, but must not have an HTML/clipboard parser, toolbar action, or
-  new-document insertion path.
+- REV-MEDIA-01 permits Article cover and inline JPEG/PNG/WebP only through the authenticated,
+  same-version upload API when the server advertises the image capability. Inline PDF, remote image
+  URLs, Base64, persistent blob URLs, raw HTML, iframe/video, tables, arbitrary style, collaboration,
+  and AI writing remain disabled. FAQ remains media-free.
+- `imageReference` must not have an HTML/clipboard parser. A new reference may be inserted only from
+  a successful server upload response and stores only `attachment_public_id` plus alt text. Cover
+  and PDF controls remain outside the rich-text body.
 - Article and FAQ use distinct backend allowlists. Article may use the approved Tiptap marks,
   Article-only blocks, and `tel:` links; FAQ retains its narrower pre-REV-ED-01 block/mark/link
   contract. A shared validator implementation must receive an explicit document-type policy.
@@ -634,6 +635,10 @@ QUEUE_CONNECTION=database
 # File Storage
 FILESYSTEM_DISK=local
 EVIDENCE_DISK=evidence
+
+# Private Article media (requires PHP GD with JPEG/PNG/WebP support)
+CONTENT_IMAGE_UPLOADS_ENABLED=false
+CONTENT_ORPHAN_MEDIA_RETENTION_HOURS=168
 
 # Fonnte (WhatsApp)
 FONNTE_API_TOKEN=your-fonnte-token

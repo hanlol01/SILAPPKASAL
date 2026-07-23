@@ -62,6 +62,8 @@ export interface ContentAttachment {
   mime_type: string;
   extension: string;
   size: number;
+  width: number | null;
+  height: number | null;
   alt_text: string | null;
   display_order: number;
   download_url: string;
@@ -135,6 +137,7 @@ export interface ManagedContentDetail extends Omit<ManagedContentSummary, "versi
       document: DocumentNode | null;
       estimated_reading_minutes: number;
       cover_alt_text: string | null;
+      cover: ContentAttachment | null;
     } | null;
     faq: { question: string; answer_document: DocumentNode | null; display_order: number } | null;
     consultation: {
@@ -284,6 +287,21 @@ export function uploadContentCover(versionPublicId: string, file: File, altText:
   return apiUpload<ContentAttachment>(`/content-management/versions/${versionPublicId}/attachments`, data);
 }
 
+export function uploadContentInlineImage(
+  versionPublicId: string,
+  file: File,
+  altText: string,
+) {
+  const data = new FormData();
+  data.append("purpose", "inline_image");
+  data.append("file", file);
+  data.append("alt_text", altText);
+  return apiUpload<ContentAttachment>(
+    `/content-management/versions/${versionPublicId}/attachments`,
+    data,
+  );
+}
+
 export function removeContentAttachment(publicId: string) {
   return apiRequest<null>(`/content-management/attachments/${publicId}`, { method: "DELETE" });
 }
@@ -293,7 +311,13 @@ export function getContentCategories(section: string) {
 }
 
 export function getContentManagementCapabilities() {
-  return apiRequest<{ image_upload_available: boolean }>("/content-management/capabilities");
+  return apiRequest<{
+    image_upload_available: boolean;
+    image_formats: string[];
+    cover_max_bytes: number;
+    inline_image_max_bytes: number;
+    alt_text_max_length: number;
+  }>("/content-management/capabilities");
 }
 
 export function getManagedArticleCategories(section: string) {

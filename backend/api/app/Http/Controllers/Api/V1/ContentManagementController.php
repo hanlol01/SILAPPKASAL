@@ -97,6 +97,10 @@ class ContentManagementController extends Controller
 
         return $this->response([
             'image_upload_available' => $this->attachments->imageUploadsAvailable(),
+            'image_formats' => $this->attachments->supportedImageMimeTypes(),
+            'cover_max_bytes' => (int) config('content.attachments.cover_max_bytes'),
+            'inline_image_max_bytes' => (int) config('content.attachments.inline_image_max_bytes'),
+            'alt_text_max_length' => (int) config('content.attachments.alt_text_max_length', 500),
         ], 'Content management capabilities retrieved successfully');
     }
 
