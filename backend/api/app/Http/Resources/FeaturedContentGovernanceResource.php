@@ -38,7 +38,7 @@ class FeaturedContentGovernanceResource extends JsonResource
                 'excerpt' => $version?->excerpt,
                 'published_at' => $version?->published_at?->toJSON(),
                 'section' => $this->item->section?->code,
-                'category' => $this->item->category?->name,
+                'category' => $version?->category_name ?? $version?->category?->name,
             ] : null,
         ];
     }

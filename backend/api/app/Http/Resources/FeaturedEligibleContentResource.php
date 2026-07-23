@@ -9,6 +9,8 @@ class FeaturedEligibleContentResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $version = $this->publishedVersion;
+
         return [
             'public_id' => $this->public_id,
             'scope' => $this->scope?->value,
@@ -16,11 +18,11 @@ class FeaturedEligibleContentResource extends JsonResource
                 'code' => $this->university->code,
                 'name' => $this->university->name,
             ] : null,
-            'title' => $this->publishedVersion?->title,
-            'excerpt' => $this->publishedVersion?->excerpt,
-            'published_at' => $this->publishedVersion?->published_at?->toJSON(),
+            'title' => $version?->title,
+            'excerpt' => $version?->excerpt,
+            'published_at' => $version?->published_at?->toJSON(),
             'section' => $this->section?->code,
-            'category' => $this->category_name ?? $this->category?->name,
+            'category' => $version?->category_name ?? $version?->category?->name,
         ];
     }
 }

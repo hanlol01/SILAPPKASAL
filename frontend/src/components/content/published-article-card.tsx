@@ -13,6 +13,7 @@ interface PublishedArticleCardProps {
   featured?: boolean;
   className?: string;
   portal?: boolean;
+  area?: "portal" | "dashboard";
 }
 
 const sectionVisuals = {
@@ -33,6 +34,7 @@ export function PublishedArticleCard({
   featured = false,
   className,
   portal = false,
+  area,
 }: PublishedArticleCardProps) {
   const { t, i18n } = useTranslation("informationCenter");
   const [coverUnavailable, setCoverUnavailable] = useState(false);
@@ -50,14 +52,18 @@ export function PublishedArticleCard({
   const publicationDate = new Intl.DateTimeFormat(i18n.language, {
     dateStyle: "medium",
   }).format(new Date(article.published_at));
-  const detailTo = article.section.code === "policy"
+  const portalDetailTo = article.section.code === "policy"
     ? "/portal/information-center/policies/$slug"
     : "/portal/information-center/education/$slug";
+  const dashboardDetailTo = article.section.code === "policy"
+    ? "/dashboard/information-center/policies/$slug"
+    : "/dashboard/information-center/education/$slug";
+  const inPortal = area ? area === "portal" : portal;
 
   return (
     <Link
-      to={portal ? detailTo : "/dashboard/information-center/articles/$articleId"}
-      params={portal ? { slug: article.slug } : { articleId: article.public_id }}
+      to={inPortal ? portalDetailTo : dashboardDetailTo}
+      params={{ slug: article.slug }}
       aria-label={t("article.open", { title: article.title })}
       className={cn(
         "group flex min-h-11 min-w-0 flex-col overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-sm",

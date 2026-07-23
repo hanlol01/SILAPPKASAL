@@ -76,13 +76,18 @@ Route::prefix('v1')->group(function (): void {
             ->name('content.attachments.download');
     });
 
-    Route::middleware('auth:sanctum')->prefix('content-management')->group(function (): void {
+    Route::middleware(['private.no-store', 'auth:sanctum'])->prefix('content-management')->group(function (): void {
         Route::get('/items', [ContentManagementController::class, 'index']);
         Route::get('/summary', [ContentManagementController::class, 'summary']);
         Route::get('/capabilities', [ContentManagementController::class, 'capabilities'])
             ->middleware('throttle:60,1');
         Route::get('/article-categories', [ContentManagementController::class, 'articleCategories'])
             ->middleware('throttle:60,1');
+        Route::post('/article-categories', [ContentManagementController::class, 'storeArticleCategory'])
+            ->middleware('throttle:30,1');
+        Route::delete('/article-categories/{category}', [ContentManagementController::class, 'destroyArticleCategory'])
+            ->whereUuid('category')
+            ->middleware('throttle:30,1');
         Route::get('/items/{item}', [ContentManagementController::class, 'show'])->whereUuid('item');
         Route::post('/items', [ContentManagementController::class, 'store']);
         Route::post('/items/{item}/revisions', [ContentManagementController::class, 'createRevision'])->whereUuid('item');

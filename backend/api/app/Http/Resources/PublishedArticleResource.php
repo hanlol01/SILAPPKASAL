@@ -12,14 +12,16 @@ class PublishedArticleResource extends JsonResource
     {
         $version = $this->publishedVersion;
         $article = $version?->articleContent;
+        $category = $version?->category;
         $detail = (bool) $this->resource->getAttribute('content_detail');
+
         return [
             'public_id' => $this->public_id,
             'slug' => $this->slug,
             'title' => $version?->title,
             'excerpt' => $version?->excerpt,
-            'category' => new ContentCategoryResource($this->whenLoaded('category')),
-            'category_name' => $this->category_name ?? $this->category?->name,
+            'category' => $category ? new ContentCategoryResource($category) : null,
+            'category_name' => $version?->category_name ?? $category?->name,
             'section' => new ContentSectionResource($this->whenLoaded('section')),
             'scope' => $this->scope?->value,
             'cover' => $article?->coverAttachment

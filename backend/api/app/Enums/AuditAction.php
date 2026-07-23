@@ -102,6 +102,10 @@ enum AuditAction: string
     case ContentAttachmentDownloaded = 'content.attachment_downloaded';
     case ContentFeaturedPlacementChanged = 'content.featured_placement_changed';
 
+    case ContentCategoryCreated = 'content.category_created';
+
+    case ContentCategoryDeactivated = 'content.category_deactivated';
+
     case BreakGlassRequested = 'break_glass.request';
     case BreakGlassApproved = 'break_glass.approve';
     case BreakGlassDenied = 'break_glass.deny';

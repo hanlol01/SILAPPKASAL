@@ -194,11 +194,12 @@ The Super Admin Cases sidebar link is hidden in R3. This navigation change does 
 | Read management data | No | No | Own campus only | All campuses |
 | Review campus content | No | No | No | `content.review`; cannot approve own content |
 | Author/publish global content | No | No | No | `content.publish.global` |
-| Archive/feature/category governance | No | No | No | Explicit content governance permissions |
+| Manage Article category registry | No | No | Own-campus registry | Global registry |
+| Archive/feature governance | No | No | No | Explicit content governance permissions |
 
 Canonical Campus Admin permissions are `content.create.campus`, `content.update.own_campus`,
 `content.submit.own_campus`, `content.read.management.own_campus`, and
-`content.attachment.manage.own_campus`. Canonical Super Admin permissions are `content.review`,
+`content.attachment.manage.own_campus`, and `content.category.manage.own_campus`. Canonical Super Admin permissions are `content.review`,
 `content.publish.global`, `content.archive`, `content.feature.manage`, `content.category.govern`, and
 `content.read.management.all`. Backend policies and locked service transactions are authoritative.
 
@@ -206,7 +207,9 @@ C2 presents the management navigation and `/dashboard/content` only to Campus Ad
 `content.read.management.own_campus`. This frontend guard is not authorization: list/detail queries
 also force `scope=campus` and the actor's `university_id`, while update, submit, revision creation,
 upload, and attachment removal reauthorize after row locks. C2 does not expose review, approval,
-publication, archive, feature, or category-governance actions to Campus Admin.
+publication, archive, feature, or global category-governance actions to Campus Admin. Campus Admin
+may create and deactivate only own-campus Article registry entries; categories already used by
+content are blocked from deactivation.
 
 C3 presents `/dashboard/content-governance` only to Super Admin with
 `content.read.management.all`. Individual tabs and backend routes additionally require:

@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ContentCategoryIndexRequest;
 use App\Http\Requests\ContentManagementActionRequest;
 use App\Http\Requests\ContentManagementIndexRequest;
 use App\Http\Requests\StoreContentAttachmentRequest;
+use App\Http\Requests\StoreContentCategoryRequest;
 use App\Http\Requests\StoreContentItemRequest;
 use App\Http\Requests\SubmitContentVersionRequest;
 use App\Http\Requests\UpdateContentDraftRequest;
@@ -13,6 +15,7 @@ use App\Http\Resources\ContentAttachmentResource;
 use App\Http\Resources\ContentManagementDetailResource;
 use App\Http\Resources\ContentManagementResource;
 use App\Services\ContentAttachmentService;
+use App\Services\ContentCategoryRegistryService;
 use App\Services\ContentManagementQueryService;
 use App\Services\ContentPublicationService;
 use Illuminate\Http\JsonResponse;
@@ -23,6 +26,7 @@ class ContentManagementController extends Controller
         private readonly ContentPublicationService $publication,
         private readonly ContentAttachmentService $attachments,
         private readonly ContentManagementQueryService $queries,
+        private readonly ContentCategoryRegistryService $categories,
     ) {}
 
     public function index(ContentManagementIndexRequest $request): JsonResponse
@@ -50,12 +54,41 @@ class ContentManagementController extends Controller
         );
     }
 
-    public function articleCategories(ContentManagementActionRequest $request): JsonResponse
+    public function articleCategories(ContentCategoryIndexRequest $request): JsonResponse
     {
         return $this->response(
-            $this->queries->articleCategoryNames($request->user(), $request->validated('section')),
+            $this->categories->categories($request->user(), $request->validated('section')),
             'Managed Article categories retrieved successfully',
         );
+    }
+
+    public function storeArticleCategory(StoreContentCategoryRequest $request): JsonResponse
+    {
+        $outcome = $this->categories->create(
+            $request->user(),
+            $request->validated('section'),
+            $request->validated('name'),
+        );
+        $category = $outcome['category'];
+        $created = $outcome['result'] === 'created';
+
+        return $this->response([
+            'public_id' => $category->public_id,
+            'name' => $category->name,
+            'section_code' => $category->section?->code,
+            'scope' => $category->scope->value,
+            'usage_count' => $outcome['usage_count'],
+            'can_manage' => true,
+            'can_deactivate' => $outcome['can_deactivate'],
+            'result' => $outcome['result'],
+        ], $created ? 'Article category created successfully' : 'Article category retrieved successfully', $created ? 201 : 200);
+    }
+
+    public function destroyArticleCategory(ContentManagementActionRequest $request, string $category): JsonResponse
+    {
+        $this->categories->deactivate($request->user(), $category);
+
+        return $this->response(null, 'Article category deactivated successfully');
     }
 
     public function capabilities(ContentManagementActionRequest $request): JsonResponse

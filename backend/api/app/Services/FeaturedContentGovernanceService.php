@@ -80,7 +80,7 @@ class FeaturedContentGovernanceService
                 ->where('published_at', '<=', now()))
             ->when($this->coverRequired(), fn (Builder $item) => $item
                 ->whereHas('publishedVersion.articleContent.coverAttachment'))
-            ->with(['section', 'category', 'university', 'publishedVersion']);
+            ->with(['section', 'category', 'university', 'publishedVersion.category']);
         if (filled($search)) {
             $needle = '%'.$this->escapeLike(mb_strtolower(trim((string) $search))).'%';
             $query->whereHas('publishedVersion', fn (Builder $version) => $version
@@ -267,7 +267,7 @@ class FeaturedContentGovernanceService
 
     private function record(User $actor, FeaturedContent $placement, ContentItem $item, string $result): void
     {
-        $item->loadMissing(['section', 'category', 'university', 'publishedVersion']);
+        $item->loadMissing(['section', 'category', 'university', 'publishedVersion.category']);
         $this->auditLogs->record(
             action: AuditAction::ContentFeaturedPlacementChanged,
             category: AuditCategory::Content,
@@ -291,7 +291,7 @@ class FeaturedContentGovernanceService
     /** @return list<string> */
     private function relations(): array
     {
-        return ['university', 'item.section', 'item.category', 'item.publishedVersion'];
+        return ['university', 'item.section', 'item.category', 'item.publishedVersion.category'];
     }
 
     private function state(FeaturedContent $placement): string

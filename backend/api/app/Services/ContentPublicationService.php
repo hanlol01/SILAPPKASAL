@@ -22,6 +22,7 @@ use App\Models\FaqVersionContent;
 use App\Models\User;
 use App\Policies\ContentItemPolicy;
 use App\Support\ApiErrorCode;
+use App\Support\ContentCategoryName;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\DB;
@@ -60,10 +61,15 @@ class ContentPublicationService
                 ->where('is_active', true)
                 ->lockForUpdate()
                 ->firstOrFail();
-            $category = $this->resolveCategory($data['category_public_id'] ?? null, $section, $scope, $universityId);
+            $hasCanonicalCategory = $type === ContentType::Article
+                && array_key_exists('category_name', $data)
+                && $data['category_name'] !== null;
+            $category = $hasCanonicalCategory
+                ? null
+                : $this->resolveCategory($data['category_public_id'] ?? null, $section, $scope, $universityId);
             $this->validateTypePlacement($type, $section, $category);
             $categoryName = $type === ContentType::Article
-                ? $this->articleCategoryName($data['category_name'] ?? $category?->name)
+                ? ($hasCanonicalCategory ? $this->articleCategoryName($data['category_name']) : null)
                 : null;
 
             $title = trim((string) $data['title']);
@@ -73,7 +79,9 @@ class ContentPublicationService
                 $item = ContentItem::query()->create([
                     'content_type' => $type,
                     'section_id' => $section->id,
-                    'category_id' => $category?->id,
+                    'category_id' => $type === ContentType::Article && $categoryName !== null
+                        ? null
+                        : $category?->id,
                     'category_name' => $categoryName,
                     'slug' => $slug,
                     'scope' => $scope,
@@ -88,6 +96,8 @@ class ContentPublicationService
                     'lifecycle_status' => ContentLifecycleStatus::Draft,
                     'title' => $title,
                     'excerpt' => $this->plainExcerpt($data['excerpt'] ?? null),
+                    'category_name' => $categoryName,
+                    'category_id' => $categoryName !== null ? null : $category?->id,
                     'author_id' => $actor->id,
                     'editor_id' => $actor->id,
                     'source_type' => 'manual',
@@ -135,29 +145,62 @@ class ContentPublicationService
                 );
             }
 
-            if (array_key_exists('section_code', $data) || array_key_exists('category_public_id', $data)) {
-                $section = array_key_exists('section_code', $data)
-                    ? ContentSection::query()->where('code', $data['section_code'])->where('is_active', true)->lockForUpdate()->firstOrFail()
-                    : $item->section()->lockForUpdate()->firstOrFail();
+            $section = array_key_exists('section_code', $data)
+                ? ContentSection::query()
+                    ->where('code', $data['section_code'])
+                    ->where('is_active', true)
+                    ->lockForUpdate()
+                    ->firstOrFail()
+                : $item->section()->lockForUpdate()->firstOrFail();
+
+            if ((int) $item->section_id !== (int) $section->id) {
+                if ($item->published_version_id !== null) {
+                    throw ValidationException::withMessages([
+                        'section_code' => ['Section cannot change after the first publication.'],
+                    ]);
+                }
+
+                $item->section_id = $section->id;
+            }
+
+            if ($item->content_type === ContentType::Article) {
+                $versionHasCategory = $version->category_name !== null || $version->category_id !== null;
+                $categoryName = array_key_exists('category_name', $data)
+                    ? $data['category_name']
+                    : ($versionHasCategory ? $version->category_name : $item->category_name);
+
+                if ($categoryName !== null) {
+                    $version->category_name = $this->articleCategoryName($categoryName);
+                    $version->category_id = null;
+                } elseif (array_key_exists('category_name', $data) || array_key_exists('category_public_id', $data)) {
+                    $category = $this->resolveCategory(
+                        $data['category_public_id'] ?? null,
+                        $section,
+                        $item->scope,
+                        $item->university_id,
+                    );
+                    $this->validateTypePlacement($item->content_type, $section, $category);
+                    $version->category_name = null;
+                    $version->category_id = $category?->id;
+                } elseif (! $versionHasCategory) {
+                    $version->category_name = null;
+                    $version->category_id = $item->category_id;
+                }
+
+                $item->category_name = $version->category_name;
+                $item->category_id = $version->category_name !== null ? null : $version->category_id;
+            } elseif (array_key_exists('section_code', $data) || array_key_exists('category_public_id', $data)) {
                 $categoryPublicId = array_key_exists('category_public_id', $data)
                     ? $data['category_public_id']
                     : $item->category?->public_id;
-                $category = $this->resolveCategory($categoryPublicId, $section, $item->scope, $item->university_id);
+                $category = $this->resolveCategory(
+                    $categoryPublicId,
+                    $section,
+                    $item->scope,
+                    $item->university_id,
+                );
                 $this->validateTypePlacement($item->content_type, $section, $category);
-
-                $placementChanged = (int) $item->section_id !== (int) $section->id
-                    || (int) $item->category_id !== (int) $category?->id;
-                if ($placementChanged && $item->published_version_id !== null) {
-                    throw ValidationException::withMessages([
-                        'category_public_id' => ['Section and category cannot change after the first publication.'],
-                    ]);
-                }
-                $item->section_id = $section->id;
                 $item->category_id = $category?->id;
-            }
-
-            if ($item->content_type === ContentType::Article && array_key_exists('category_name', $data)) {
-                $item->category_name = $this->articleCategoryName($data['category_name']);
             }
 
             $fromStatus = $version->lifecycle_status->value;
@@ -334,6 +377,14 @@ class ContentPublicationService
                     throw $this->conflict('An authoring version already exists for this content item.');
                 }
 
+                if ($item->content_type === ContentType::Article
+                    && $published->category_name === null
+                    && $published->category_id === null) {
+                    throw ValidationException::withMessages([
+                        'category_name' => ['The published Article category metadata is missing. A revision cannot be created safely.'],
+                    ]);
+                }
+
                 // The content item row above serializes revision creation. PostgreSQL
                 // rejects FOR UPDATE on aggregate queries, so the aggregate itself
                 // must not carry a row lock.
@@ -344,6 +395,13 @@ class ContentPublicationService
                     'lifecycle_status' => ContentLifecycleStatus::Draft,
                     'title' => $published->title,
                     'excerpt' => $published->excerpt,
+                    'category_name' => $item->content_type === ContentType::Article
+                        ? $published->category_name
+                        : null,
+                    'category_id' => $item->content_type === ContentType::Article
+                        && $published->category_name === null
+                        ? $published->category_id
+                        : null,
                     'author_id' => $actor->id,
                     'editor_id' => $actor->id,
                     'source_type' => 'revision',
@@ -474,6 +532,12 @@ class ContentPublicationService
                 'current_draft_version_id' => $item->current_draft_version_id === $version->id
                     ? null
                     : $item->current_draft_version_id,
+                'category_name' => $item->content_type === ContentType::Article
+                    ? $version->category_name
+                    : $item->category_name,
+                'category_id' => $item->content_type === ContentType::Article
+                    ? ($version->category_name !== null ? null : $version->category_id)
+                    : $item->category_id,
                 'lock_version' => $item->lock_version + 1,
             ])->save();
 
@@ -742,6 +806,12 @@ class ContentPublicationService
     private function ensureArticlePublishable(ContentVersion $version, bool $publication): bool
     {
         $content = $version->articleContent;
+        if ($version->category_name === null && $version->category_id === null) {
+            throw ValidationException::withMessages([
+                'category_name' => ['An Article category is required before this action.'],
+            ]);
+        }
+
         if ($content?->document_json === null) {
             throw ValidationException::withMessages(['document' => ['Article content is required before this action.']]);
         }
@@ -835,7 +905,7 @@ class ContentPublicationService
 
     private function articleCategoryName(mixed $value): string
     {
-        $name = trim((string) $value);
+        $name = ContentCategoryName::display((string) $value);
         if ($name === '') {
             throw ValidationException::withMessages([
                 'category_name' => ['An Article category is required.'],
@@ -910,10 +980,11 @@ class ContentPublicationService
     {
         return $item->load([
             'section', 'category', 'university',
+            'currentDraftVersion.category',
             'currentDraftVersion.articleContent',
             'currentDraftVersion.faqContent',
             'currentDraftVersion.consultationContent',
-            'publishedVersion',
+            'publishedVersion.category',
         ]);
     }
 

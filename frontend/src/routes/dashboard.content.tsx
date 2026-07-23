@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import {
+  ArrowLeft,
   Eye,
   FileQuestion,
   FileText,
@@ -11,6 +12,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  RotateCcw,
   SearchX,
   Send,
 } from "lucide-react";
@@ -19,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { ContentEditor } from "@/components/content/content-editor";
+import { ContentCategoryCombobox } from "@/components/content/content-category-combobox";
 import { EmptyState } from "@/components/empty-state";
 import { ListPagination } from "@/components/list-pagination";
 import { PageBreadcrumb } from "@/components/page-breadcrumb";
@@ -34,6 +37,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Sheet,
   SheetContent,
@@ -47,7 +51,6 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   contentManagementKeys,
   createContentRevision,
-  getContentCategories,
   getContentSummary,
   getManagedContent,
   getManagedContentDetail,
@@ -75,27 +78,25 @@ function DashboardContentPage() {
   const [search, setSearch] = useState("");
   const [contentType, setContentType] = useState("");
   const [status, setStatus] = useState("");
-  const [category, setCategory] = useState("");
   const [articleCategory, setArticleCategory] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [createOpen, setCreateOpen] = useState(false);
   const [editorType, setEditorType] = useState<ContentType | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const filtersActive = Boolean(search || contentType || status || category || articleCategory);
+  const filtersActive = Boolean(search || contentType || status || articleCategory);
 
-  useEffect(() => setPage(1), [search, contentType, status, category, articleCategory, pageSize]);
+  useEffect(() => setPage(1), [search, contentType, status, articleCategory, pageSize]);
   const filters = useMemo(
     () => ({
       search: search || undefined,
       content_type: contentType || undefined,
       lifecycle_status: status || undefined,
-      category: category || undefined,
       article_category: articleCategory || undefined,
       page,
       per_page: pageSize,
     }),
-    [search, contentType, status, category, articleCategory, page, pageSize],
+    [search, contentType, status, articleCategory, page, pageSize],
   );
   const listQuery = useQuery({
     queryKey: contentManagementKeys.list(filters),
@@ -108,33 +109,6 @@ function DashboardContentPage() {
     queryFn: getContentSummary,
     enabled: canAccess,
   });
-  const educationCategories = useQuery({
-    queryKey: contentManagementKeys.categories("education"),
-    queryFn: () => getContentCategories("education"),
-    enabled: canAccess,
-  });
-  const policyCategories = useQuery({
-    queryKey: contentManagementKeys.categories("policy"),
-    queryFn: () => getContentCategories("policy"),
-    enabled: canAccess,
-  });
-  const faqCategories = useQuery({
-    queryKey: contentManagementKeys.categories("faq"),
-    queryFn: () => getContentCategories("faq"),
-    enabled: canAccess,
-  });
-  const categories = useMemo(
-    () =>
-      [
-        ...(educationCategories.data ?? []),
-        ...(policyCategories.data ?? []),
-        ...(faqCategories.data ?? []),
-      ].filter(
-        (item, index, all) =>
-          all.findIndex((candidate) => candidate.public_id === item.public_id) === index,
-      ),
-    [educationCategories.data, faqCategories.data, policyCategories.data],
-  );
   const detailQuery = useQuery({
     queryKey: contentManagementKeys.detail(selectedId ?? ""),
     queryFn: () => getManagedContentDetail(selectedId!),
@@ -194,6 +168,7 @@ function DashboardContentPage() {
               setEditorType(null);
             }}
           >
+            <ArrowLeft className="mr-2 h-4 w-4" />
             {t("content:back")}
           </Button>
           <Alert variant="destructive">
@@ -223,7 +198,6 @@ function DashboardContentPage() {
     setSearch("");
     setContentType("");
     setStatus("");
-    setCategory("");
     setArticleCategory("");
     setPage(1);
   };
@@ -286,11 +260,8 @@ function DashboardContentPage() {
             setContentType={setContentType}
             status={status}
             setStatus={setStatus}
-            category={category}
-            setCategory={setCategory}
             articleCategory={articleCategory}
             setArticleCategory={setArticleCategory}
-            categories={categories}
             reset={resetFilters}
           />
         </CardContent>
@@ -316,11 +287,8 @@ function DashboardContentPage() {
                 setContentType={setContentType}
                 status={status}
                 setStatus={setStatus}
-                category={category}
-                setCategory={setCategory}
                 articleCategory={articleCategory}
                 setArticleCategory={setArticleCategory}
-                categories={categories}
                 reset={resetFilters}
               />
             </div>
@@ -506,11 +474,8 @@ function FilterControls({
   setContentType,
   status,
   setStatus,
-  category,
-  setCategory,
   articleCategory,
   setArticleCategory,
-  categories,
   reset,
 }: {
   search: string;
@@ -519,16 +484,13 @@ function FilterControls({
   setContentType: (v: string) => void;
   status: string;
   setStatus: (v: string) => void;
-  category: string;
-  setCategory: (v: string) => void;
   articleCategory: string;
   setArticleCategory: (v: string) => void;
-  categories: Array<{ public_id: string; name: string }>;
   reset: () => void;
 }) {
   const { t } = useTranslation("content");
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
       <Input
         className="h-11"
         aria-label={t("filters.search")}
@@ -557,21 +519,17 @@ function FilterControls({
           "archived",
         ].map((value) => ({ value, label: t(value) }))}
       />
-      <FilterSelect
-        value={category}
-        onChange={setCategory}
-        label={t("filters.allCategories")}
-        options={categories.map((item) => ({ value: item.public_id, label: item.name }))}
-      />
-      <Input
-        className="h-11"
-        aria-label={t("filters.articleCategory")}
+      <ContentCategoryCombobox
+        section="all"
         value={articleCategory}
-        onChange={(event) => setArticleCategory(event.target.value)}
+        onValueChange={setArticleCategory}
+        allowCreate={false}
+        allowManage={false}
+        allowClear
         placeholder={t("filters.articleCategory")}
-        maxLength={100}
       />
       <Button variant="outline" className="min-h-11" onClick={reset}>
+        <RotateCcw className="mr-2 h-4 w-4" />
         {t("filters.reset")}
       </Button>
     </div>
@@ -590,19 +548,19 @@ function FilterSelect({
   options: Array<{ value: string; label: string }>;
 }) {
   return (
-    <select
-      className="h-11 min-w-0 rounded-md border bg-background px-3 text-sm"
-      aria-label={label}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-    >
-      <option value="">{label}</option>
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+    <Select value={value || "all"} onValueChange={(next) => onChange(next === "all" ? "" : next)}>
+      <SelectTrigger className="h-11 min-w-0" aria-label={label}>
+        <SelectValue placeholder={label} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">{label}</SelectItem>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -683,6 +641,7 @@ function EditorSkeleton({ onBack, label }: { onBack: () => void; label: string }
   return (
     <div className="space-y-4">
       <Button variant="ghost" onClick={onBack}>
+        <ArrowLeft className="mr-2 h-4 w-4" />
         {label}
       </Button>
       <Skeleton className="h-10 w-72" />

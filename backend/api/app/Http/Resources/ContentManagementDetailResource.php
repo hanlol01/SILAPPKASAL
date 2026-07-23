@@ -11,6 +11,12 @@ class ContentManagementDetailResource extends JsonResource
     public function toArray(Request $request): array
     {
         $version = $this->currentDraftVersion ?? $this->latestVersion ?? $this->publishedVersion;
+        $hasVersionCategory = $version !== null
+            && ($version->category_name !== null || $version->category_id !== null);
+        $category = $hasVersionCategory ? $version->category : $this->category;
+        $categoryName = $hasVersionCategory
+            ? ($version->category_name ?? $version->category?->name)
+            : ($this->category_name ?? $this->category?->name);
         $reviewDecision = $version?->reviewDecisions
             ?->whereIn('decision_code', [
                 ContentReviewDecisionCode::RevisionRequested,
@@ -23,8 +29,8 @@ class ContentManagementDetailResource extends JsonResource
             'slug' => $this->slug,
             'scope' => $this->scope?->value,
             'section' => new ContentSectionResource($this->section),
-            'category' => $this->category ? new ContentCategoryResource($this->category) : null,
-            'category_name' => $this->category_name ?? $this->category?->name,
+            'category' => $category ? new ContentCategoryResource($category) : null,
+            'category_name' => $categoryName,
             'lock_version' => $this->lock_version,
             'lifecycle_status' => $this->archived_at !== null ? 'archived' : $version?->lifecycle_status?->value,
             'has_editable_version' => $this->archived_at === null

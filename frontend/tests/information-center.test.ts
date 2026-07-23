@@ -13,12 +13,6 @@ import {
   safeConsultationEmail,
   safeConsultationHttpsUrl,
 } from "../src/lib/consultation-actions.ts";
-import {
-  categoryBelongsToReaderContext,
-  informationCenterSearchNeedsNormalization,
-  mergeInformationCenterSearch,
-  normalizeInformationCenterSearch,
-} from "../src/lib/information-center-navigation.ts";
 import { clearPrivateContentQueries } from "../src/lib/private-query-cache.ts";
 import { canReadPublishedContent } from "../src/lib/published-content-access.ts";
 
@@ -41,10 +35,10 @@ test("published reader API uses centralized private keys and propagates AbortSig
   ]) {
     assert.ok(api.includes(`/content/${endpoint}`));
   }
-  assert.match(api, /getPublishedArticle[\s\S]+encodeURIComponent\(publicId\)[\s\S]+\{ signal \}/);
   assert.match(api, /getFeaturedContent\(filters: FeaturedContentFilters = \{\}, signal\?: AbortSignal\)/);
-  assert.match(api, /getPublishedArticleBySlug/);
+  assert.match(api, /getPublishedArticleBySlug[\s\S]+encodeURIComponent\(slug\)[\s\S]+\{ signal \}/);
   assert.match(api, /\/content\/articles\/slug\/\$\{section\}\/\$\{encodeURIComponent\(slug\)\}/);
+  assert.doesNotMatch(api, /export function getPublishedArticle\(publicId/);
   assert.match(api, /getPublishedArticleCategories/);
   assert.match(cache, /queryKey\[0\] === "published-content"/);
 });
@@ -97,77 +91,13 @@ test("legacy information center route redirects to the role-appropriate reader",
   assert.match(dashboardRoute, /to="\/portal\/information-center"/);
 });
 
-test("reader URL state is normalized while user actions remain navigable in history", () => {
-  const normalized = normalizeInformationCenterSearch({
-    view: "faq",
-    category: "A8098C1A-5A25-4D1C-9DCE-7BDBE3171730",
-    q: "  dukungan  ",
-    page: "2",
-    open: "not-a-uuid",
-  });
-  assert.deepEqual(normalized, {
-    view: "faq",
-    section: undefined,
-    category: "a8098c1a-5a25-4d1c-9dce-7bdbe3171730",
-    q: "dukungan",
-    page: 2,
-    open: undefined,
-  });
-  assert.equal(
-    informationCenterSearchNeedsNormalization(
-      "?view=faq&category=A8098C1A-5A25-4D1C-9DCE-7BDBE3171730&q=%20dukungan%20&page=2&open=bad",
-      normalized,
-    ),
-    true,
-  );
-  assert.equal(
-    normalizeInformationCenterSearch({ view: "faq", open: "a".repeat(1_000) }).open,
-    undefined,
-  );
-
-  const history = [normalizeInformationCenterSearch({})];
-  let cursor = 0;
-  const push = (next: Parameters<typeof mergeInformationCenterSearch>[1]) => {
-    history.splice(cursor + 1);
-    history.push(mergeInformationCenterSearch(history[cursor], next));
-    cursor += 1;
-  };
-  push({ section: "education" });
-  push({ q: "batasan", page: undefined });
-  cursor -= 1;
-  assert.equal(history[cursor].section, "education");
-  assert.equal(history[cursor].q, undefined);
-  cursor += 1;
-  assert.equal(history[cursor].q, "batasan");
-
-  const faqId = "a8098c1a-5a25-4d1c-9dce-7bdbe3171730";
-  push({ view: "faq", section: undefined, q: undefined, open: faqId });
-  assert.equal(history[cursor].open, faqId);
-  push({ open: undefined });
-  cursor -= 1;
-  assert.equal(history[cursor].open, faqId);
-  cursor += 1;
-  assert.equal(history[cursor].open, undefined);
-
-  assert.equal(
-    categoryBelongsToReaderContext(
-      { public_id: "category", section_code: "policy" },
-      "articles",
-      "education",
-    ),
-    false,
-  );
-  assert.equal(
-    categoryBelongsToReaderContext({ public_id: "category", section_code: "faq" }, "faq"),
-    true,
-  );
-});
-
 test("article cards use semantic full-card navigation and a complete no-image treatment", async () => {
   const card = await source("src/components/content/published-article-card.tsx");
 
-  assert.match(card, /<Link[\s\S]+to=\{portal \? detailTo : "\/dashboard\/information-center\/articles\/\$articleId"\}/);
+  assert.match(card, /to=\{inPortal \? portalDetailTo : dashboardDetailTo\}/);
   assert.match(card, /\/portal\/information-center\/education\/\$slug/);
+  assert.match(card, /\/dashboard\/information-center\/education\/\$slug/);
+  assert.match(card, /\/dashboard\/information-center\/policies\/\$slug/);
   assert.match(card, /focus-visible:ring-2/);
   assert.match(card, /motion-reduce:transform-none/);
   assert.match(card, /min-h-11/);
@@ -191,23 +121,25 @@ test("featured experience uses server order, accessible Embla controls, and isol
 });
 
 test("reporter information center uses dedicated routes, breadcrumbs, isolated categories, and report CTAs", async () => {
-  const [layout, home, educationRoute, policiesRoute, list, detail, breadcrumb, faq, consultation, spotlight, cta, dashboard] = await Promise.all([
+  const [layout, home, homeComponent, educationRoute, policiesRoute, list, detail, breadcrumb, faq, consultation, spotlight, cta, dashboard] = await Promise.all([
     source("src/layouts/portal-layout.tsx"),
     source("src/routes/portal.information-center.index.tsx"),
+    source("src/components/content/information-center-home.tsx"),
     source("src/routes/portal.information-center.education.tsx"),
     source("src/routes/portal.information-center.policies.tsx"),
     source("src/components/content/reporter-article-list-page.tsx"),
     source("src/components/content/reporter-article-detail-page.tsx"),
     source("src/components/content/reporter-information-breadcrumb.tsx"),
-    source("src/routes/portal.information-center.faq.tsx"),
-    source("src/routes/portal.information-center.consultation.tsx"),
+    source("src/components/content/information-faq-page.tsx"),
+    source("src/components/content/information-consultation-page.tsx"),
     source("src/components/content/education-spotlight.tsx"),
     source("src/components/content/reporter-information-cta.tsx"),
     source("src/routes/portal.index.tsx"),
   ]);
   assert.match(layout, /url: "\/portal\/information-center"/);
-  for (const route of ["education", "policies", "faq", "consultation"]) assert.ok(home.includes(`/portal/information-center/${route}`));
-  assert.doesNotMatch(home, /getPublishedArticles|getFeaturedContent|getPublishedFaqs/);
+  assert.match(home, /InformationCenterHome area="portal"/);
+  for (const route of ["education", "policies", "faq", "consultation"]) assert.ok(homeComponent.includes(route));
+  assert.doesNotMatch(homeComponent, /getPublishedArticles|getFeaturedContent|getPublishedFaqs/);
   assert.match(educationRoute, /<Outlet \/>/);
   assert.match(policiesRoute, /<Outlet \/>/);
   assert.match(list, /getPublishedArticleCategories/);
@@ -215,7 +147,7 @@ test("reporter information center uses dedicated routes, breadcrumbs, isolated c
   assert.match(detail, /getPublishedArticleBySlug/);
   assert.match(detail, /getPublishedArticleBySlug\(section, slug, signal\)/);
   assert.doesNotMatch(detail, /article\.section\.code !== section/);
-  assert.match(detail, /section=\{\{ label: sectionTitle, to: listTo \}\}/);
+  assert.match(detail, /section=\{\{ label: sectionTitle, to: listTo as/);
   assert.match(detail, /article\.defaultCover/);
   assert.match(breadcrumb, /portal:overview/);
   assert.doesNotMatch(detail, /history\.back|consultation_cta/);
@@ -245,25 +177,36 @@ test("reporter cover surfaces preserve a 16:9 education fallback on image failur
   assert.match(authenticatedCover, /onError=\{onUnavailable\}/);
 });
 
-test("reader screens keep filters in URL and render controlled content only", async () => {
-  const [landing, detail, preview] = await Promise.all([
+test("dashboard information center uses dedicated section-aware routes and controlled content", async () => {
+  const [landing, home, education, policies, detail, faq, consultation, cta, preview, routeTree] = await Promise.all([
     source("src/routes/dashboard.information-center.index.tsx"),
-    source("src/routes/dashboard.information-center.articles.$articleId.tsx"),
+    source("src/components/content/information-center-home.tsx"),
+    source("src/routes/dashboard.information-center.education.tsx"),
+    source("src/routes/dashboard.information-center.policies.tsx"),
+    source("src/components/content/reporter-article-detail-page.tsx"),
+    source("src/components/content/information-faq-page.tsx"),
+    source("src/components/content/information-consultation-page.tsx"),
+    source("src/components/content/dashboard-information-management-cta.tsx"),
     source("src/components/content/content-document-preview.tsx"),
+    source("src/routeTree.gen.ts"),
   ]);
 
-  assert.match(landing, /validateSearch/);
-  assert.match(landing, /getPublishedArticles\(filters, signal\)/);
-  assert.match(landing, /getPublishedFaqs\(filters, signal\)/);
-  assert.match(landing, /Accordion/);
-  assert.match(landing, /pageHeadingRef\.current\?\.focus/);
-  assert.match(landing, /hidden flex-wrap items-end gap-3 lg:flex/);
-  assert.match(landing, /min-h-11 lg:hidden/);
-  assert.match(landing, /htmlFor=\{`\$\{idPrefix\}-section`\}/);
-  assert.match(landing, /aria-labelledby=\{`\$\{idPrefix\}-category-label`\}/);
-  assert.doesNotMatch(landing, /min-w-(48|56)/);
+  assert.match(landing, /InformationCenterHome area="dashboard"/);
+  for (const route of ["education", "policies", "faq", "consultation"]) assert.ok(home.includes(route));
+  assert.match(education, /ReporterArticleListPage section="education" area="dashboard"/);
+  assert.match(policies, /ReporterArticleListPage section="policy" area="dashboard"/);
+  assert.match(education, /<Outlet \/>/);
+  assert.match(policies, /<Outlet \/>/);
+  assert.match(detail, /getPublishedArticleBySlug\(section, slug, signal\)/);
   assert.match(detail, /article\.body \?\? null/);
-  assert.match(detail, /pageHeadingRef\.current\?\.focus/);
+  assert.match(faq, /Accordion/);
+  assert.match(consultation, /PublishedConsultationCard/);
+  assert.match(cta, /permissions\.has\("content\.read\.management\.own_campus"\)/);
+  assert.match(cta, /permissions\.has\("content\.read\.management\.all"\)/);
+  assert.match(cta, /if \(!campusManager && !globalManager\) return null/);
+  assert.match(cta, /\/dashboard\/content-governance/);
+  assert.match(cta, /\/dashboard\/content/);
+  assert.doesNotMatch(routeTree, /information-center\/articles\/\$articleId/);
   assert.doesNotMatch(detail, /body_html|dangerouslySetInnerHTML/);
   assert.doesNotMatch(preview, /dangerouslySetInnerHTML/);
 });

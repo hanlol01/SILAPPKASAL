@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ContentLifecycleStatus;
+use App\Enums\ContentType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,6 +23,8 @@ class ContentVersion extends Model
         'lifecycle_status',
         'title',
         'excerpt',
+        'category_name',
+        'category_id',
         'author_id',
         'editor_id',
         'source_type',
@@ -40,6 +43,7 @@ class ContentVersion extends Model
     protected $hidden = [
         'id',
         'content_item_id',
+        'category_id',
         'author_id',
         'editor_id',
         'seed_key',
@@ -59,6 +63,17 @@ class ContentVersion extends Model
         static::creating(function (ContentVersion $version): void {
             if (blank($version->public_id)) {
                 $version->public_id = (string) Str::uuid();
+            }
+
+            $attributes = $version->getAttributes();
+            if (! array_key_exists('category_name', $attributes)
+                && ! array_key_exists('category_id', $attributes)
+                && $version->content_item_id !== null) {
+                $item = ContentItem::query()->find($version->content_item_id);
+                if ($item?->content_type === ContentType::Article) {
+                    $version->category_name = $item->category_name;
+                    $version->category_id = $item->category_name !== null ? null : $item->category_id;
+                }
             }
         });
 
@@ -97,6 +112,11 @@ class ContentVersion extends Model
     public function item(): BelongsTo
     {
         return $this->belongsTo(ContentItem::class, 'content_item_id');
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(ContentCategory::class, 'category_id');
     }
 
     public function author(): BelongsTo

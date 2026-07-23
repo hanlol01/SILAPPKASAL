@@ -9,6 +9,10 @@ import {
 } from "../src/lib/content-document-editor-model.ts";
 import { contentFieldName } from "../src/lib/content-management-errors.ts";
 import {
+  articleCategoryEditorState,
+  articleCategoryWriteFields,
+} from "../src/lib/content-editor-category.ts";
+import {
   clearPrivateContentQueries,
   isPrivateContentQueryKey,
 } from "../src/lib/private-query-cache.ts";
@@ -97,15 +101,102 @@ test("FAQ document validation errors map to the visible answer editor", () => {
   assert.equal(contentFieldName("article", "category_name"), "categoryName");
 });
 
-test("article section changes clear legacy category placement and defer errors until interaction", async () => {
+test("article section and same-section category changes clear legacy category placement and defer errors until interaction", async () => {
   const editor = await source("src/components/content/content-editor.tsx");
 
   assert.match(
     editor,
-    /set\("sectionCode", event\.target\.value\);\s+set\("categoryName", ""\);\s+set\("categoryPublicId", ""\);/,
+    /set\("sectionCode", value\);\s+set\("categoryName", ""\);\s+set\("categoryPublicId", null\);/,
   );
   assert.match(editor, /saveAttempted \|\| touchedFields\.has\("categoryName"\)/);
   assert.match(editor, /onBlur=\{onCategoryBlur\}/);
+  assert.match(
+    editor,
+    /onValueChange=\{\(value\) => \{\s+set\("categoryName", value\);\s+set\("categoryPublicId", null\);\s+\}\}/,
+  );
+  assert.match(editor, /articleCategoryWriteFields\(state\.categoryName, state\.categoryPublicId\)/);
+  assert.match(editor, /allowCreate=\{canManageCategories\}/);
+  assert.match(
+    editor,
+    /permissions\.has\("content\.category\.govern"\) \|\| permissions\.has\("content\.category\.manage\.own_campus"\)/,
+  );
+});
+
+test("stale article category relation is not reintroduced when unrelated metadata is edited", () => {
+  const loaded = articleCategoryEditorState({
+    category_name: "Kategori B",
+    category: {
+      public_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      name: "Kategori A",
+    },
+  });
+  const edited = { ...loaded, excerpt: "Ringkasan yang diperbarui." };
+  const payload = {
+    ...articleCategoryWriteFields(edited.categoryName, edited.categoryPublicId),
+    excerpt: edited.excerpt,
+  };
+
+  assert.equal(loaded.categoryName, "Kategori B");
+  assert.equal(loaded.categoryPublicId, null);
+  assert.equal(payload.category_name, "Kategori B");
+  assert.equal(payload.category_public_id, null);
+  assert.equal(payload.excerpt, "Ringkasan yang diperbarui.");
+});
+
+test("legacy article category id is initialized only when canonical category name is null", () => {
+  const loaded = articleCategoryEditorState({
+    category_name: null,
+    category: {
+      public_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      name: "Kategori Legacy",
+    },
+  });
+
+  assert.equal(loaded.categoryName, "Kategori Legacy");
+  assert.equal(loaded.categoryPublicId, "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+  assert.equal(
+    articleCategoryWriteFields(loaded.categoryName, loaded.categoryPublicId).category_public_id,
+    null,
+  );
+});
+
+test("article category combobox supports search, keyboard selection, creation, and safe deactivation", async () => {
+  const [combobox, api, dashboard] = await Promise.all([
+    source("src/components/content/content-category-combobox.tsx"),
+    source("src/lib/content-management-api.ts"),
+    source("src/routes/dashboard.content.tsx"),
+  ]);
+
+  assert.match(combobox, /role="combobox"/);
+  assert.match(combobox, /CommandInput/);
+  assert.match(combobox, /Tambah kategori/);
+  assert.match(combobox, /Trash2/);
+  assert.match(combobox, /category\.can_deactivate/);
+  assert.match(combobox, /Nonaktifkan kategori “\{pendingDelete\?\.name\}”/);
+  assert.match(combobox, /Konten yang sudah ada tidak akan diubah/);
+  assert.match(combobox, /allowCreate = false/);
+  assert.match(combobox, /allowManage = false/);
+  assert.match(api, /createManagedArticleCategory/);
+  assert.match(api, /deactivateManagedArticleCategory/);
+  assert.doesNotMatch(dashboard, /category: category \|\| undefined/);
+  assert.doesNotMatch(dashboard, /Semua kategori legacy|All legacy categories/);
+});
+
+test("content and governance controls use consistent icons, field heights, and responsive filter grouping", async () => {
+  const [content, governance, editor] = await Promise.all([
+    source("src/routes/dashboard.content.tsx"),
+    source("src/routes/dashboard.content-governance.tsx"),
+    source("src/components/content/content-editor.tsx"),
+  ]);
+
+  assert.match(content, /RotateCcw/);
+  assert.match(governance, /RotateCcw/);
+  assert.match(governance, /md:grid-cols-2 xl:grid-cols-4/);
+  assert.match(governance, /<DatePicker className="h-11"/);
+  assert.match(content, /detailQuery\.isError[\s\S]*?<ArrowLeft className="mr-2 h-4 w-4"/);
+  assert.match(content, /function EditorSkeleton[\s\S]*?<ArrowLeft className="mr-2 h-4 w-4"/);
+  assert.match(editor, /ArrowLeft/);
+  assert.match(editor, /\[&>input\]:h-11/);
 });
 
 test("private content queries are cancelled and removed without touching public queries", async () => {

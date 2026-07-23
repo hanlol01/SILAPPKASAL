@@ -1015,9 +1015,50 @@ For existing Article rows with a legacy `category_id`, the migration backfills `
 `category_id`, `content_categories`, and the nullable Article Consultation CTA relation are retained
 for backward-compatible reads; new Article authoring uses free-text `category_name`, falls back to the
 legacy category name only when needed, and does not accept or project a per-Article Consultation CTA.
+The item-level category columns remain compatibility/denormalized metadata. Version-authoritative
+category metadata is defined below; reader projection does not use item category columns when a
+published version exists.
 All new columns are nullable so historical content remains readable. Reader queries continue to
 project only the version referenced by `published_version_id`, require lifecycle `published` with a
 non-future `published_at`, exclude archived content, and enforce global plus own-campus isolation.
+
+`content_categories` is also the searchable Article category registry. The fixed
+`content_sections.code` determines whether an entry belongs to Education or Policy; editor users
+cannot create or remove sections. Campus Admin registry rows use `scope=campus` and their own
+`university_id`, while Super Admin registry rows use `scope=global` and a null university. Removing a
+registry suggestion sets `is_active=false` only after an in-scope usage check; it never deletes the
+row or changes `content_items.category_name`/legacy `category_id`. Historical names that exist only
+on `content_items.category_name`, plus rows with only legacy `category_id`, remain available as
+read-only suggestions. Migration `2026_07_23_000000_add_campus_content_category_permission.php`
+adds only the Campus Admin registry permission and does not alter content data.
+
+Migration `2026_07_23_010000_add_normalized_name_to_content_categories.php` additively adds
+`content_categories.normalized_name varchar(150)`, backfills it using trimmed/collapsed whitespace,
+lowercase comparison, and NFC Unicode normalization when available, then adds the unique constraint
+`content_categories_scope_normalized_name_unique` across
+`(section_id, scope_key, normalized_name)`. The migration fails closed if pre-existing normalized
+duplicates in the same section/scope are found, or if a Global row is not keyed `global` or a campus
+row is not keyed `campus:{university_id}`. This preflight runs before the column/backfill changes. The
+same normalized name is intentionally valid in Global and Campus scopes and in different campus
+scopes. The migration never merges, deletes, or rewrites Article data. Its rollback removes only
+that constraint and column.
+
+Migration `2026_07_23_020000_add_versioned_category_metadata_to_content_versions.php` additively
+adds nullable `content_versions.category_name varchar(100)` and nullable
+`content_versions.category_id` with a restrictive foreign key to `content_categories`. Existing
+versions whose two new fields are null are backfilled from their owning item's compatibility
+metadata; a non-empty item name wins and clears the copied legacy ID. Existing populated version
+metadata is never overwritten, and neither content pointers nor lifecycle states are changed.
+
+For Article writes, a non-null version `category_name` is canonical and its `category_id` is null;
+the ID is retained only as a legacy fallback when the version name is null. Draft/revision resources
+use the editable/latest version. Published readers, category lists, filters, related Articles, and
+featured projections use the exact `published_version_id` version. Publishing synchronizes the
+item-level compatibility metadata to the newly published version but never mutates the old published
+version. Registry usage counts distinct items referenced by active current-draft or published
+pointers and does not consult stale item-level metadata. Rollback drops only the two version columns
+and their foreign key; SQLite partial indexes and lifecycle integrity triggers are preserved across
+the table alteration.
 
 ## REV-WF-03 R3 Schema Addendum
 

@@ -15,6 +15,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class PublishedContentQueryService
 {
@@ -73,11 +74,11 @@ class PublishedContentQueryService
     {
         return $this->publishedItems($actor, ContentType::Article)
             ->whereHas('section', fn (Builder $section) => $section->where('code', $sectionCode))
-            ->whereNotNull('content_items.category_name')
-            ->select('content_items.category_name')
+            ->whereRaw('COALESCE(content_versions.category_name, published_categories.name) IS NOT NULL')
+            ->select(DB::raw('COALESCE(content_versions.category_name, published_categories.name) as category_label'))
             ->distinct()
-            ->orderBy('content_items.category_name')
-            ->pluck('content_items.category_name')
+            ->orderBy('category_label')
+            ->pluck('category_label')
             ->filter(fn (mixed $name): bool => is_string($name) && trim($name) !== '')
             ->values();
     }
@@ -104,8 +105,9 @@ class PublishedContentQueryService
     /** @return Collection<int, ContentItem> */
     public function relatedArticles(User $actor, ContentItem $article, int $limit = 4): Collection
     {
-        $categoryName = trim((string) ($article->category_name ?? $article->category?->name));
-        if ($categoryName === '' && $article->category_id === null) {
+        $publishedVersion = $article->publishedVersion;
+        $categoryName = trim((string) ($publishedVersion?->category_name ?? $publishedVersion?->category?->name));
+        if ($categoryName === '' && $publishedVersion?->category_id === null) {
             return new Collection;
         }
 
@@ -114,9 +116,12 @@ class PublishedContentQueryService
             ->whereKeyNot($article->id);
 
         if ($categoryName !== '') {
-            $query->whereRaw('LOWER(content_items.category_name) = ?', [mb_strtolower($categoryName)]);
+            $query->whereRaw(
+                'LOWER(COALESCE(content_versions.category_name, published_categories.name)) = ?',
+                [mb_strtolower($categoryName)]
+            );
         } else {
-            $query->where('content_items.category_id', $article->category_id);
+            $query->where('content_versions.category_id', $publishedVersion?->category_id);
         }
 
         return $query
@@ -200,6 +205,7 @@ class PublishedContentQueryService
             })
             ->leftJoin('faq_version_contents', 'faq_version_contents.content_version_id', '=', 'content_versions.id')
             ->leftJoin('consultation_version_contents', 'consultation_version_contents.content_version_id', '=', 'content_versions.id')
+            ->leftJoin('content_categories as published_categories', 'published_categories.id', '=', 'content_versions.category_id')
             ->select('content_items.*');
     }
 
@@ -232,14 +238,21 @@ class PublishedContentQueryService
     private function applyCategoryAndSearch(Builder $query, array $filters, bool $faq = false): void
     {
         if (! empty($filters['category'])) {
-            $query->whereHas('category', fn (Builder $category) => $category
-                ->where('public_id', $filters['category']));
+            if ($faq) {
+                $query->whereHas('category', fn (Builder $category) => $category
+                    ->where('public_id', $filters['category']));
+            } else {
+                $query->whereHas('publishedVersion.category', fn (Builder $category) => $category
+                    ->where('public_id', $filters['category']));
+            }
         }
-
 
         if (! empty($filters['article_category'])) {
             $categoryName = mb_strtolower(trim((string) $filters['article_category']));
-            $query->whereRaw('LOWER(content_items.category_name) = ?', [$categoryName]);
+            $query->whereRaw(
+                'LOWER(COALESCE(content_versions.category_name, published_categories.name)) = ?',
+                [$categoryName]
+            );
         }
 
         if (! empty($filters['search'])) {
@@ -258,7 +271,7 @@ class PublishedContentQueryService
     private function articleRelations(): array
     {
         return [
-            'section', 'category',
+            'section', 'publishedVersion.category',
             'publishedVersion.articleContent.coverAttachment',
             'publishedVersion.attachments',
         ];

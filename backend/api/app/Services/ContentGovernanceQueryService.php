@@ -46,7 +46,8 @@ class ContentGovernanceQueryService
             })
             ->with([
                 'section', 'category', 'university', 'creator.role',
-                'currentDraftVersion.author.role', 'publishedVersion',
+                'currentDraftVersion.author.role', 'currentDraftVersion.category',
+                'publishedVersion.category',
             ]);
 
         if (! empty($filters['scope'])) {
@@ -59,7 +60,8 @@ class ContentGovernanceQueryService
             $query->whereHas('section', fn (Builder $section) => $section->where('code', $filters['section']));
         }
         if (! empty($filters['category'])) {
-            $query->whereHas('category', fn (Builder $category) => $category->where('public_id', $filters['category']));
+            $query->whereHas('currentDraftVersion.category', fn (Builder $category) => $category
+                ->where('public_id', $filters['category']));
         }
         if (! empty($filters['university_code'])) {
             $query->whereHas('university', fn (Builder $university) => $university->where('code', $filters['university_code']));
@@ -88,7 +90,7 @@ class ContentGovernanceQueryService
                 ->where('lifecycle_status', ContentLifecycleStatus::Published->value))
             ->with([
                 'section', 'category', 'university', 'creator.role',
-                'publishedVersion.author.role',
+                'publishedVersion.author.role', 'publishedVersion.category',
             ]);
 
         $this->applyContentFilters($query, $filters, 'publishedVersion');
@@ -179,7 +181,8 @@ class ContentGovernanceQueryService
             $query->whereHas('section', fn (Builder $section) => $section->where('code', $filters['section']));
         }
         if (! empty($filters['category'])) {
-            $query->whereHas('category', fn (Builder $category) => $category->where('public_id', $filters['category']));
+            $query->whereHas($versionRelation.'.category', fn (Builder $category) => $category
+                ->where('public_id', $filters['category']));
         }
         if (! empty($filters['university_code'])) {
             $query->whereHas('university', fn (Builder $university) => $university->where('code', $filters['university_code']));
@@ -251,15 +254,15 @@ class ContentGovernanceQueryService
     {
         return [
             'section', 'category', 'university', 'creator.role',
-            'currentDraftVersion.author.role',
+            'currentDraftVersion.author.role', 'currentDraftVersion.category',
             'currentDraftVersion.articleContent',
             'currentDraftVersion.faqContent', 'currentDraftVersion.consultationContent',
             'currentDraftVersion.attachments', 'currentDraftVersion.reviewDecisions.reviewer.role',
-            'publishedVersion.author.role',
+            'publishedVersion.author.role', 'publishedVersion.category',
             'publishedVersion.articleContent',
             'publishedVersion.faqContent', 'publishedVersion.consultationContent',
             'publishedVersion.attachments',
-            'latestVersion.author.role', 'latestVersion.articleContent', 'latestVersion.faqContent',
+            'latestVersion.author.role', 'latestVersion.category', 'latestVersion.articleContent', 'latestVersion.faqContent',
             'latestVersion.consultationContent', 'latestVersion.attachments',
             'versions.reviewDecisions.reviewer.role',
         ];

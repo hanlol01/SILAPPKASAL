@@ -1370,6 +1370,18 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
   authenticated API response, Article body, FAQ answer, Consultation record, PDF, Report, Case, or
   Evidence data offline. Future offline behavior requires a separate security review.
 
+### 22.4 Article category registry boundary
+
+- Article sections remain fixed master data. Category mutation never creates, edits, or deletes a
+  section.
+- Campus Admin requires `content.category.manage.own_campus` and is forced to own-campus scope;
+  Super Admin requires `content.category.govern` and is forced to global scope. Reporter and Satgas
+  are denied before registry data is returned.
+- Category removal is an audited `is_active=false` transition. A locked in-scope usage check blocks
+  the transition with `content_category_in_use`; articles and legacy foreign keys are never rewritten.
+- Category mutation audit metadata is limited to category public ID/name, fixed section, scope,
+  usage count, and result. Requests are throttled and management responses remain private/no-store.
+
 ---
 
 > **Catatan**: Dokumen ini adalah Tier 2 (GOVERNED). Perubahan memerlukan persetujuan Project Owner. Dokumen ini menjadi referensi wajib bagi semua agent, terutama Backend Agent dan Reviewer Agent.

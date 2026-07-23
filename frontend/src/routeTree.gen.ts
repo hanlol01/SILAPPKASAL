@@ -52,10 +52,15 @@ import { Route as DashboardRegistrationsIdRouteImport } from './routes/dashboard
 import { Route as DashboardMasterDataUniversitiesRouteImport } from './routes/dashboard.master-data.universities'
 import { Route as DashboardMasterDataStudyProgramsRouteImport } from './routes/dashboard.master-data.study-programs'
 import { Route as DashboardMasterDataFacultiesRouteImport } from './routes/dashboard.master-data.faculties'
+import { Route as DashboardInformationCenterPoliciesRouteImport } from './routes/dashboard.information-center.policies'
+import { Route as DashboardInformationCenterFaqRouteImport } from './routes/dashboard.information-center.faq'
+import { Route as DashboardInformationCenterEducationRouteImport } from './routes/dashboard.information-center.education'
+import { Route as DashboardInformationCenterConsultationRouteImport } from './routes/dashboard.information-center.consultation'
 import { Route as DashboardCasesIdRouteImport } from './routes/dashboard.cases.$id'
 import { Route as PortalInformationCenterPoliciesSlugRouteImport } from './routes/portal.information-center.policies.$slug'
 import { Route as PortalInformationCenterEducationSlugRouteImport } from './routes/portal.information-center.education.$slug'
-import { Route as DashboardInformationCenterArticlesArticleIdRouteImport } from './routes/dashboard.information-center.articles.$articleId'
+import { Route as DashboardInformationCenterPoliciesSlugRouteImport } from './routes/dashboard.information-center.policies.$slug'
+import { Route as DashboardInformationCenterEducationSlugRouteImport } from './routes/dashboard.information-center.education.$slug'
 
 const TrackRoute = TrackRouteImport.update({
   id: '/track',
@@ -285,6 +290,30 @@ const DashboardMasterDataFacultiesRoute =
     path: '/faculties',
     getParentRoute: () => DashboardMasterDataRoute,
   } as any)
+const DashboardInformationCenterPoliciesRoute =
+  DashboardInformationCenterPoliciesRouteImport.update({
+    id: '/policies',
+    path: '/policies',
+    getParentRoute: () => DashboardInformationCenterRoute,
+  } as any)
+const DashboardInformationCenterFaqRoute =
+  DashboardInformationCenterFaqRouteImport.update({
+    id: '/faq',
+    path: '/faq',
+    getParentRoute: () => DashboardInformationCenterRoute,
+  } as any)
+const DashboardInformationCenterEducationRoute =
+  DashboardInformationCenterEducationRouteImport.update({
+    id: '/education',
+    path: '/education',
+    getParentRoute: () => DashboardInformationCenterRoute,
+  } as any)
+const DashboardInformationCenterConsultationRoute =
+  DashboardInformationCenterConsultationRouteImport.update({
+    id: '/consultation',
+    path: '/consultation',
+    getParentRoute: () => DashboardInformationCenterRoute,
+  } as any)
 const DashboardCasesIdRoute = DashboardCasesIdRouteImport.update({
   id: '/cases/$id',
   path: '/cases/$id',
@@ -302,11 +331,17 @@ const PortalInformationCenterEducationSlugRoute =
     path: '/$slug',
     getParentRoute: () => PortalInformationCenterEducationRoute,
   } as any)
-const DashboardInformationCenterArticlesArticleIdRoute =
-  DashboardInformationCenterArticlesArticleIdRouteImport.update({
-    id: '/articles/$articleId',
-    path: '/articles/$articleId',
-    getParentRoute: () => DashboardInformationCenterRoute,
+const DashboardInformationCenterPoliciesSlugRoute =
+  DashboardInformationCenterPoliciesSlugRouteImport.update({
+    id: '/$slug',
+    path: '/$slug',
+    getParentRoute: () => DashboardInformationCenterPoliciesRoute,
+  } as any)
+const DashboardInformationCenterEducationSlugRoute =
+  DashboardInformationCenterEducationSlugRouteImport.update({
+    id: '/$slug',
+    path: '/$slug',
+    getParentRoute: () => DashboardInformationCenterEducationRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -337,6 +372,10 @@ export interface FileRoutesByFullPath {
   '/dashboard/': typeof DashboardIndexRoute
   '/portal/': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
+  '/dashboard/information-center/consultation': typeof DashboardInformationCenterConsultationRoute
+  '/dashboard/information-center/education': typeof DashboardInformationCenterEducationRouteWithChildren
+  '/dashboard/information-center/faq': typeof DashboardInformationCenterFaqRoute
+  '/dashboard/information-center/policies': typeof DashboardInformationCenterPoliciesRouteWithChildren
   '/dashboard/master-data/faculties': typeof DashboardMasterDataFacultiesRoute
   '/dashboard/master-data/study-programs': typeof DashboardMasterDataStudyProgramsRoute
   '/dashboard/master-data/universities': typeof DashboardMasterDataUniversitiesRoute
@@ -354,7 +393,8 @@ export interface FileRoutesByFullPath {
   '/dashboard/reports/': typeof DashboardReportsIndexRoute
   '/portal/information-center/': typeof PortalInformationCenterIndexRoute
   '/portal/reports/': typeof PortalReportsIndexRoute
-  '/dashboard/information-center/articles/$articleId': typeof DashboardInformationCenterArticlesArticleIdRoute
+  '/dashboard/information-center/education/$slug': typeof DashboardInformationCenterEducationSlugRoute
+  '/dashboard/information-center/policies/$slug': typeof DashboardInformationCenterPoliciesSlugRoute
   '/portal/information-center/education/$slug': typeof PortalInformationCenterEducationSlugRoute
   '/portal/information-center/policies/$slug': typeof PortalInformationCenterPoliciesSlugRoute
 }
@@ -382,6 +422,10 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardIndexRoute
   '/portal': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
+  '/dashboard/information-center/consultation': typeof DashboardInformationCenterConsultationRoute
+  '/dashboard/information-center/education': typeof DashboardInformationCenterEducationRouteWithChildren
+  '/dashboard/information-center/faq': typeof DashboardInformationCenterFaqRoute
+  '/dashboard/information-center/policies': typeof DashboardInformationCenterPoliciesRouteWithChildren
   '/dashboard/master-data/faculties': typeof DashboardMasterDataFacultiesRoute
   '/dashboard/master-data/study-programs': typeof DashboardMasterDataStudyProgramsRoute
   '/dashboard/master-data/universities': typeof DashboardMasterDataUniversitiesRoute
@@ -399,7 +443,8 @@ export interface FileRoutesByTo {
   '/dashboard/reports': typeof DashboardReportsIndexRoute
   '/portal/information-center': typeof PortalInformationCenterIndexRoute
   '/portal/reports': typeof PortalReportsIndexRoute
-  '/dashboard/information-center/articles/$articleId': typeof DashboardInformationCenterArticlesArticleIdRoute
+  '/dashboard/information-center/education/$slug': typeof DashboardInformationCenterEducationSlugRoute
+  '/dashboard/information-center/policies/$slug': typeof DashboardInformationCenterPoliciesSlugRoute
   '/portal/information-center/education/$slug': typeof PortalInformationCenterEducationSlugRoute
   '/portal/information-center/policies/$slug': typeof PortalInformationCenterPoliciesSlugRoute
 }
@@ -432,6 +477,10 @@ export interface FileRoutesById {
   '/dashboard/': typeof DashboardIndexRoute
   '/portal/': typeof PortalIndexRoute
   '/dashboard/cases/$id': typeof DashboardCasesIdRoute
+  '/dashboard/information-center/consultation': typeof DashboardInformationCenterConsultationRoute
+  '/dashboard/information-center/education': typeof DashboardInformationCenterEducationRouteWithChildren
+  '/dashboard/information-center/faq': typeof DashboardInformationCenterFaqRoute
+  '/dashboard/information-center/policies': typeof DashboardInformationCenterPoliciesRouteWithChildren
   '/dashboard/master-data/faculties': typeof DashboardMasterDataFacultiesRoute
   '/dashboard/master-data/study-programs': typeof DashboardMasterDataStudyProgramsRoute
   '/dashboard/master-data/universities': typeof DashboardMasterDataUniversitiesRoute
@@ -449,7 +498,8 @@ export interface FileRoutesById {
   '/dashboard/reports/': typeof DashboardReportsIndexRoute
   '/portal/information-center/': typeof PortalInformationCenterIndexRoute
   '/portal/reports/': typeof PortalReportsIndexRoute
-  '/dashboard/information-center/articles/$articleId': typeof DashboardInformationCenterArticlesArticleIdRoute
+  '/dashboard/information-center/education/$slug': typeof DashboardInformationCenterEducationSlugRoute
+  '/dashboard/information-center/policies/$slug': typeof DashboardInformationCenterPoliciesSlugRoute
   '/portal/information-center/education/$slug': typeof PortalInformationCenterEducationSlugRoute
   '/portal/information-center/policies/$slug': typeof PortalInformationCenterPoliciesSlugRoute
 }
@@ -483,6 +533,10 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/portal/'
     | '/dashboard/cases/$id'
+    | '/dashboard/information-center/consultation'
+    | '/dashboard/information-center/education'
+    | '/dashboard/information-center/faq'
+    | '/dashboard/information-center/policies'
     | '/dashboard/master-data/faculties'
     | '/dashboard/master-data/study-programs'
     | '/dashboard/master-data/universities'
@@ -500,7 +554,8 @@ export interface FileRouteTypes {
     | '/dashboard/reports/'
     | '/portal/information-center/'
     | '/portal/reports/'
-    | '/dashboard/information-center/articles/$articleId'
+    | '/dashboard/information-center/education/$slug'
+    | '/dashboard/information-center/policies/$slug'
     | '/portal/information-center/education/$slug'
     | '/portal/information-center/policies/$slug'
   fileRoutesByTo: FileRoutesByTo
@@ -528,6 +583,10 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/portal'
     | '/dashboard/cases/$id'
+    | '/dashboard/information-center/consultation'
+    | '/dashboard/information-center/education'
+    | '/dashboard/information-center/faq'
+    | '/dashboard/information-center/policies'
     | '/dashboard/master-data/faculties'
     | '/dashboard/master-data/study-programs'
     | '/dashboard/master-data/universities'
@@ -545,7 +604,8 @@ export interface FileRouteTypes {
     | '/dashboard/reports'
     | '/portal/information-center'
     | '/portal/reports'
-    | '/dashboard/information-center/articles/$articleId'
+    | '/dashboard/information-center/education/$slug'
+    | '/dashboard/information-center/policies/$slug'
     | '/portal/information-center/education/$slug'
     | '/portal/information-center/policies/$slug'
   id:
@@ -577,6 +637,10 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/portal/'
     | '/dashboard/cases/$id'
+    | '/dashboard/information-center/consultation'
+    | '/dashboard/information-center/education'
+    | '/dashboard/information-center/faq'
+    | '/dashboard/information-center/policies'
     | '/dashboard/master-data/faculties'
     | '/dashboard/master-data/study-programs'
     | '/dashboard/master-data/universities'
@@ -594,7 +658,8 @@ export interface FileRouteTypes {
     | '/dashboard/reports/'
     | '/portal/information-center/'
     | '/portal/reports/'
-    | '/dashboard/information-center/articles/$articleId'
+    | '/dashboard/information-center/education/$slug'
+    | '/dashboard/information-center/policies/$slug'
     | '/portal/information-center/education/$slug'
     | '/portal/information-center/policies/$slug'
   fileRoutesById: FileRoutesById
@@ -914,6 +979,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardMasterDataFacultiesRouteImport
       parentRoute: typeof DashboardMasterDataRoute
     }
+    '/dashboard/information-center/policies': {
+      id: '/dashboard/information-center/policies'
+      path: '/policies'
+      fullPath: '/dashboard/information-center/policies'
+      preLoaderRoute: typeof DashboardInformationCenterPoliciesRouteImport
+      parentRoute: typeof DashboardInformationCenterRoute
+    }
+    '/dashboard/information-center/faq': {
+      id: '/dashboard/information-center/faq'
+      path: '/faq'
+      fullPath: '/dashboard/information-center/faq'
+      preLoaderRoute: typeof DashboardInformationCenterFaqRouteImport
+      parentRoute: typeof DashboardInformationCenterRoute
+    }
+    '/dashboard/information-center/education': {
+      id: '/dashboard/information-center/education'
+      path: '/education'
+      fullPath: '/dashboard/information-center/education'
+      preLoaderRoute: typeof DashboardInformationCenterEducationRouteImport
+      parentRoute: typeof DashboardInformationCenterRoute
+    }
+    '/dashboard/information-center/consultation': {
+      id: '/dashboard/information-center/consultation'
+      path: '/consultation'
+      fullPath: '/dashboard/information-center/consultation'
+      preLoaderRoute: typeof DashboardInformationCenterConsultationRouteImport
+      parentRoute: typeof DashboardInformationCenterRoute
+    }
     '/dashboard/cases/$id': {
       id: '/dashboard/cases/$id'
       path: '/cases/$id'
@@ -935,26 +1028,71 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalInformationCenterEducationSlugRouteImport
       parentRoute: typeof PortalInformationCenterEducationRoute
     }
-    '/dashboard/information-center/articles/$articleId': {
-      id: '/dashboard/information-center/articles/$articleId'
-      path: '/articles/$articleId'
-      fullPath: '/dashboard/information-center/articles/$articleId'
-      preLoaderRoute: typeof DashboardInformationCenterArticlesArticleIdRouteImport
-      parentRoute: typeof DashboardInformationCenterRoute
+    '/dashboard/information-center/policies/$slug': {
+      id: '/dashboard/information-center/policies/$slug'
+      path: '/$slug'
+      fullPath: '/dashboard/information-center/policies/$slug'
+      preLoaderRoute: typeof DashboardInformationCenterPoliciesSlugRouteImport
+      parentRoute: typeof DashboardInformationCenterPoliciesRoute
+    }
+    '/dashboard/information-center/education/$slug': {
+      id: '/dashboard/information-center/education/$slug'
+      path: '/$slug'
+      fullPath: '/dashboard/information-center/education/$slug'
+      preLoaderRoute: typeof DashboardInformationCenterEducationSlugRouteImport
+      parentRoute: typeof DashboardInformationCenterEducationRoute
     }
   }
 }
 
+interface DashboardInformationCenterEducationRouteChildren {
+  DashboardInformationCenterEducationSlugRoute: typeof DashboardInformationCenterEducationSlugRoute
+}
+
+const DashboardInformationCenterEducationRouteChildren: DashboardInformationCenterEducationRouteChildren =
+  {
+    DashboardInformationCenterEducationSlugRoute:
+      DashboardInformationCenterEducationSlugRoute,
+  }
+
+const DashboardInformationCenterEducationRouteWithChildren =
+  DashboardInformationCenterEducationRoute._addFileChildren(
+    DashboardInformationCenterEducationRouteChildren,
+  )
+
+interface DashboardInformationCenterPoliciesRouteChildren {
+  DashboardInformationCenterPoliciesSlugRoute: typeof DashboardInformationCenterPoliciesSlugRoute
+}
+
+const DashboardInformationCenterPoliciesRouteChildren: DashboardInformationCenterPoliciesRouteChildren =
+  {
+    DashboardInformationCenterPoliciesSlugRoute:
+      DashboardInformationCenterPoliciesSlugRoute,
+  }
+
+const DashboardInformationCenterPoliciesRouteWithChildren =
+  DashboardInformationCenterPoliciesRoute._addFileChildren(
+    DashboardInformationCenterPoliciesRouteChildren,
+  )
+
 interface DashboardInformationCenterRouteChildren {
+  DashboardInformationCenterConsultationRoute: typeof DashboardInformationCenterConsultationRoute
+  DashboardInformationCenterEducationRoute: typeof DashboardInformationCenterEducationRouteWithChildren
+  DashboardInformationCenterFaqRoute: typeof DashboardInformationCenterFaqRoute
+  DashboardInformationCenterPoliciesRoute: typeof DashboardInformationCenterPoliciesRouteWithChildren
   DashboardInformationCenterIndexRoute: typeof DashboardInformationCenterIndexRoute
-  DashboardInformationCenterArticlesArticleIdRoute: typeof DashboardInformationCenterArticlesArticleIdRoute
 }
 
 const DashboardInformationCenterRouteChildren: DashboardInformationCenterRouteChildren =
   {
+    DashboardInformationCenterConsultationRoute:
+      DashboardInformationCenterConsultationRoute,
+    DashboardInformationCenterEducationRoute:
+      DashboardInformationCenterEducationRouteWithChildren,
+    DashboardInformationCenterFaqRoute: DashboardInformationCenterFaqRoute,
+    DashboardInformationCenterPoliciesRoute:
+      DashboardInformationCenterPoliciesRouteWithChildren,
     DashboardInformationCenterIndexRoute: DashboardInformationCenterIndexRoute,
-    DashboardInformationCenterArticlesArticleIdRoute:
-      DashboardInformationCenterArticlesArticleIdRoute,
   }
 
 const DashboardInformationCenterRouteWithChildren =

@@ -109,12 +109,6 @@ export function getPublishedArticles(filters: PublishedContentFilters, signal?: 
   });
 }
 
-export function getPublishedArticle(publicId: string, signal?: AbortSignal) {
-  return apiRequest<PublishedArticle>(`/content/articles/${encodeURIComponent(publicId)}`, {
-    signal,
-  });
-}
-
 export function getPublishedArticleBySlug(
   section: "education" | "policy",
   slug: string,

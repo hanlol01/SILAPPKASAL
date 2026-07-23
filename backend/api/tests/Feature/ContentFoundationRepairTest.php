@@ -379,6 +379,8 @@ class ContentFoundationRepairTest extends TestCase
                 'public_id' => $categoryIds[$index],
                 'name' => 'Tie category',
                 'display_order' => 99,
+                'scope' => $index === 0 ? ContentScope::Global : ContentScope::Campus,
+                'university_id' => $index === 0 ? null : $this->campusA->id,
             ])->save();
         }
 

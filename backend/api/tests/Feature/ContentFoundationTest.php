@@ -496,7 +496,7 @@ class ContentFoundationTest extends TestCase
         $migration->up();
         $migration->up();
 
-        $this->assertSame(12, Permission::query()->where('code', 'like', 'content.%')->count());
+        $this->assertSame(13, Permission::query()->where('code', 'like', 'content.%')->count());
         $reporter = Role::query()->where('code', 'reporter')->with('permissions')->firstOrFail();
         $satgas = Role::query()->where('code', 'satgas_ppks')->with('permissions')->firstOrFail();
         $admin = Role::query()->where('code', 'admin')->with('permissions')->firstOrFail();
@@ -507,10 +507,12 @@ class ContentFoundationTest extends TestCase
                 ->where('module', 'Konten')->pluck('code')->sort()->values()->all());
         }
         $this->assertTrue($admin->permissions->contains('code', 'content.create.campus'));
+        $this->assertTrue($admin->permissions->contains('code', 'content.category.manage.own_campus'));
         $this->assertFalse($admin->permissions->contains('code', 'content.publish.global'));
         $this->assertTrue($super->permissions->contains('code', 'content.review'));
         $this->assertTrue($super->permissions->contains('code', 'content.publish.global'));
         $this->assertFalse($super->permissions->contains('code', 'content.create.campus'));
+        $this->assertFalse($super->permissions->contains('code', 'content.category.manage.own_campus'));
     }
 
     public function test_reader_search_escapes_wildcards_and_paginates_inside_scope(): void

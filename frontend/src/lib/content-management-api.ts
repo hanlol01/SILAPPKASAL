@@ -31,6 +31,17 @@ export interface ContentCategory {
   scope: "global" | "campus";
 }
 
+export interface ManagedArticleCategory {
+  public_id: string | null;
+  name: string;
+  section_code: "education" | "policy";
+  scope: "global" | "campus";
+  usage_count: number;
+  can_manage: boolean;
+  can_deactivate: boolean;
+  result?: "created" | "existing" | "reactivated";
+}
+
 export interface DocumentMark {
   type: "bold" | "italic" | "link";
   attrs?: { href?: string; title?: string };
@@ -252,5 +263,20 @@ export function getContentManagementCapabilities() {
 }
 
 export function getManagedArticleCategories(section: string) {
-  return apiRequest<string[]>("/content-management/article-categories", { query: { section } });
+  return apiRequest<ManagedArticleCategory[]>("/content-management/article-categories", {
+    query: { section },
+  });
+}
+
+export function createManagedArticleCategory(section: "education" | "policy", name: string) {
+  return apiRequest<ManagedArticleCategory>("/content-management/article-categories", {
+    method: "POST",
+    body: JSON.stringify({ section, name }),
+  });
+}
+
+export function deactivateManagedArticleCategory(publicId: string) {
+  return apiRequest<null>(`/content-management/article-categories/${publicId}`, {
+    method: "DELETE",
+  });
 }

@@ -5,9 +5,15 @@ Status: implemented locally; not pushed or deployed.
 ## Routes and roles
 
 - `/portal` remains the Reporter landing page and contains four Information Center shortcuts plus
-  featured published Articles.
-- `/dashboard/information-center` contains Article, FAQ, and Consultation browsing.
-- `/dashboard/information-center/articles/{publicId}` renders one published Article by UUID public ID.
+  the published Education spotlight.
+- `/portal/information-center` is a directory only. Its four cards open
+  `/portal/information-center/education`, `/policies`, `/faq`, and `/consultation`.
+- Reporter Article detail uses
+  `/portal/information-center/{education|policies}/{slug}`.
+- `/dashboard/information-center` gives Admin and Super Admin the same directory flow, with
+  dedicated `/education`, `/policies`, `/faq`, and `/consultation` routes and
+  section-aware slug detail routes. Management CTAs are shown only when the actor has the relevant
+  content permission.
 - Reporter, Satgas, Campus Admin, and Super Admin require an active account and
   `content.read.published`. Reporter access to the dashboard shell is limited to the Information
   Center subtree. C4 adds no authoring or governance action.
@@ -23,6 +29,25 @@ Article cards use the published category, section, title, excerpt, publication t
 reading time, and optional safe cover projection. Their default is a CSS/icon no-image surface. The
 application does not use remote stock images or fabricated media. Article detail renders controlled
 document JSON and ignores the HTML projection.
+
+Article categories are searchable free text backed by a scoped registry. Version `category_name` is
+canonical; version `category_id` is a fallback only for historical rows whose version
+`category_name IS NULL`. Campus Admin can create/deactivate only own-campus suggestions, while
+Super Admin manages global suggestions. In-use categories cannot be deactivated. Inactive
+categories remain attached to existing Article names but are not offered as new suggestions.
+When an Article version is written with a canonical name, any submitted or previously stale legacy
+category relation on that version is cleared. Admin editors project the editable/latest version;
+Information Center readers project only the published pointer version. Changing a draft category is
+Article metadata editing, not a section/scope placement change, and cannot affect list, detail,
+filter, related, category-directory, or featured reader output before publication. Item-level
+category fields are retained only as compatibility/denormalized metadata.
+
+Category identity is normalized by trimming, collapsing repeated whitespace, lowercasing, and NFC
+Unicode normalization when available. Duplicate `POST` returns the existing active entry with 200;
+an inactive match is reactivated with 200; a newly inserted entry returns 201. Database uniqueness
+on section, scope key, and normalized name closes concurrent creation races. The same normalized
+name is allowed across Global and Campus or across different campuses; only a duplicate in the same
+section and exact scope is existing/reactivated, regardless of creation order.
 
 FAQ answers use the accessible Radix Accordion and controlled document renderer. Consultation cards
 show only non-empty published fields. `mailto:`, `tel:`, WhatsApp, and appointment actions are

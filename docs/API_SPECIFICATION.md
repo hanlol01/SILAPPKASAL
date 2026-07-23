@@ -1997,6 +1997,8 @@ GET    /api/v1/content-management/items
 GET    /api/v1/content-management/summary
 GET    /api/v1/content-management/capabilities
 GET    /api/v1/content-management/article-categories?section={education|policy}
+POST   /api/v1/content-management/article-categories
+DELETE /api/v1/content-management/article-categories/{categoryPublicId}
 GET    /api/v1/content-management/items/{itemPublicId}
 POST   /api/v1/content-management/items
 POST   /api/v1/content-management/items/{itemPublicId}/revisions
@@ -2036,11 +2038,39 @@ Consultation resources expose only approved reader fields.
 No reader resource contains internal numeric IDs, author/editor/reviewer identifiers, review reasons,
 draft pointers, private paths, checksums, encrypted narratives, or unpublished versions.
 
-Article authoring requires trimmed free-text `category_name` (maximum 100 characters). The nullable
-legacy `category_public_id` remains accepted only as a compatibility bridge, and resources fall back
-to the retained category relation when historical `category_name` is null. Consultation authoring and
+Article authoring requires trimmed free-text `category_name` (maximum 100 characters). Category
+metadata follows the lifecycle on `content_versions`: management responses project the editable or
+latest version, while reader responses project only the version referenced by `published_version_id`.
+The nullable legacy `category_public_id` remains accepted only as a compatibility bridge. On every
+Article create or draft/revision update, a non-null `category_name` wins over any submitted
+`category_public_id` and the version's legacy `category_id` is cleared. `category_public_id` is
+resolved only when `category_name` is null. Changing an Article category is metadata editing, not a
+section/scope placement change, and cannot affect readers before the version is published.
+Consultation authoring and
 reader resources support nullable `service_type`, `procedure`, and `confidentiality_info` fields in
 addition to the verified institutional contact fields.
+
+The management category endpoint returns structured registry entries with `public_id`, `name`,
+`section_code`, `scope`, `usage_count`, `can_manage`, and `can_deactivate`. `POST` accepts the fixed
+Article `section` (`education` or `policy`) plus a trimmed `name` of at most 100 characters containing
+at least one letter or number. Campus Admin creates an own-campus registry entry; Super Admin creates
+a global entry. Names are NFC-normalized when supported, internal whitespace is collapsed, and
+case-insensitive identity is stored in `normalized_name`. A new entry returns 201 with
+`result=created`; an active duplicate returns 200 with `result=existing`; an inactive duplicate is
+reactivated and returns 200 with `result=reactivated`. All three responses contain current
+`usage_count` and `can_deactivate` metadata. `DELETE` is a non-destructive deactivation and returns
+`409 content_category_in_use` with `usage_count` when the category is referenced by content. Registry
+mutations use `throttle:30,1`; the category list uses `throttle:60,1`. Reporter and Satgas cannot use
+the management registry. `content_versions.category_name` is the canonical lifecycle value; retained
+item-level category columns are compatibility/denormalized metadata and are not reader sources. A
+version's legacy `category_id` fallback is used only when its `category_name IS NULL`. GET usage
+metadata and DELETE eligibility count each content item once per category across its active
+`current_draft_version_id` and `published_version_id` pointers. Published A plus draft B therefore
+temporarily uses both A and B without consulting stale item metadata. Duplicate identity is limited to
+`section_id + scope_key + normalized_name`: the same normalized name is allowed between Global and
+Campus scopes and between different campuses, independent of creation order. A second normalized
+match within the same Global scope or the same campus scope resolves to the existing/reactivated
+contract above, including under a concurrent unique-constraint race.
 
 Article detail supports the existing UUID public-ID route and the section-aware slug route
 `/content/articles/slug/{section}/{slug}`, where `section` is `education` or `policy`. The reader first

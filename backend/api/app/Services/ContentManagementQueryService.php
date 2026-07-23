@@ -13,7 +13,6 @@ use App\Policies\ContentItemPolicy;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Exceptions\HttpResponseException;
-use Illuminate\Support\Collection;
 
 class ContentManagementQueryService
 {
@@ -33,13 +32,17 @@ class ContentManagementQueryService
         if (! empty($filters['article_category'])) {
             $categoryName = mb_strtolower(trim((string) $filters['article_category']));
             $query->where('content_type', ContentType::Article->value)
-                ->where(function (Builder $category) use ($categoryName): void {
-                    $category->whereRaw('LOWER(content_items.category_name) = ?', [$categoryName])
-                        ->orWhere(function (Builder $legacy) use ($categoryName): void {
-                            $legacy->whereNull('content_items.category_name')
-                                ->whereHas('category', fn (Builder $relation) => $relation
-                                    ->whereRaw('LOWER(content_categories.name) = ?', [$categoryName]));
-                        });
+                ->where(function (Builder $projected) use ($categoryName): void {
+                    $projected->whereHas('currentDraftVersion', fn (Builder $version) => $this->versionCategory(
+                        $version,
+                        $categoryName
+                    ))->orWhere(function (Builder $fallback) use ($categoryName): void {
+                        $fallback->whereNull('current_draft_version_id')
+                            ->whereHas('latestVersion', fn (Builder $version) => $this->versionCategory(
+                                $version,
+                                $categoryName
+                            ));
+                    });
                 });
         }
         if (! empty($filters['lifecycle_status'])) {
@@ -127,23 +130,6 @@ class ContentManagementQueryService
             ->firstOrFail();
     }
 
-    /** @return Collection<int, string> */
-    public function articleCategoryNames(User $actor, ?string $sectionCode = null): Collection
-    {
-        return $this->manageableItems($actor)
-            ->where('content_type', ContentType::Article->value)
-            ->whereNotNull('category_name')
-            ->when($sectionCode, fn (Builder $query, string $code) => $query->whereHas(
-                'section', fn (Builder $section) => $section->where('code', $code)
-            ))
-            ->select('category_name')
-            ->distinct()
-            ->orderBy('category_name')
-            ->pluck('category_name')
-            ->filter(fn (mixed $name): bool => is_string($name) && trim($name) !== '')
-            ->values();
-    }
-
     /** @return Builder<ContentItem> */
     private function manageableItems(User $actor): Builder
     {
@@ -181,7 +167,10 @@ class ContentManagementQueryService
     /** @return list<string> */
     private function summaryRelations(): array
     {
-        return ['section', 'category', 'currentDraftVersion', 'publishedVersion', 'latestVersion'];
+        return [
+            'section', 'category',
+            'currentDraftVersion.category', 'publishedVersion.category', 'latestVersion.category',
+        ];
     }
 
     /** @return list<string> */
@@ -189,12 +178,15 @@ class ContentManagementQueryService
     {
         return [
             'section', 'category', 'university',
+            'currentDraftVersion.category',
             'currentDraftVersion.articleContent.coverAttachment',
             'currentDraftVersion.faqContent', 'currentDraftVersion.consultationContent',
             'currentDraftVersion.attachments', 'currentDraftVersion.reviewDecisions',
+            'publishedVersion.category',
             'publishedVersion.articleContent.coverAttachment',
             'publishedVersion.faqContent', 'publishedVersion.consultationContent',
             'publishedVersion.attachments', 'publishedVersion.reviewDecisions',
+            'latestVersion.category',
             'latestVersion.articleContent.coverAttachment',
             'latestVersion.faqContent', 'latestVersion.consultationContent',
             'latestVersion.attachments', 'latestVersion.reviewDecisions',
@@ -204,6 +196,16 @@ class ContentManagementQueryService
     private function escapeLike(string $value): string
     {
         return str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value);
+    }
+
+    private function versionCategory(Builder $version, string $categoryName): void
+    {
+        $version->whereRaw('LOWER(content_versions.category_name) = ?', [$categoryName])
+            ->orWhere(function (Builder $legacy) use ($categoryName): void {
+                $legacy->whereNull('content_versions.category_name')
+                    ->whereHas('category', fn (Builder $category) => $category
+                        ->whereRaw('LOWER(content_categories.name) = ?', [$categoryName]));
+            });
     }
 
     private function forbidden(): HttpResponseException

@@ -91,6 +91,7 @@ class RbacSeeder extends Seeder
         'content.archive' => ['name' => 'Archive Content', 'description' => 'Mengarsipkan konten yang telah diterbitkan', 'module' => 'Konten'],
         'content.feature.manage' => ['name' => 'Manage Featured Content', 'description' => 'Mengelola penempatan konten unggulan', 'module' => 'Konten'],
         'content.category.govern' => ['name' => 'Govern Content Categories', 'description' => 'Mengelola tata kelola kategori konten', 'module' => 'Konten'],
+        'content.category.manage.own_campus' => ['name' => 'Manage Own Campus Content Categories', 'description' => 'Mengelola registry kategori konten kampus sendiri', 'module' => 'Konten'],
         'content.read.management.all' => ['name' => 'Read All Content Management', 'description' => 'Melihat seluruh data pengelolaan konten', 'module' => 'Konten'],
         'content.read.published' => ['name' => 'Read Published Content', 'description' => 'Membaca konten yang telah diterbitkan sesuai cakupan', 'module' => 'Konten'],
     ];
@@ -149,6 +150,7 @@ class RbacSeeder extends Seeder
             'content.submit.own_campus',
             'content.read.management.own_campus',
             'content.attachment.manage.own_campus',
+            'content.category.manage.own_campus',
             'content.read.published',
         ],
         'satgas_ppks' => [

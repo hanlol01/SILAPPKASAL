@@ -13,14 +13,20 @@ class ContentGovernanceResource extends JsonResource
     public function toArray(Request $request): array
     {
         $version = $this->versionForProjection();
+        $hasVersionCategory = $version !== null
+            && ($version->category_name !== null || $version->category_id !== null);
+        $category = $hasVersionCategory ? $version->category : $this->category;
+        $categoryName = $hasVersionCategory
+            ? ($version->category_name ?? $version->category?->name)
+            : ($this->category_name ?? $this->category?->name);
 
         return [
             'public_id' => $this->public_id,
             'content_type' => $this->content_type?->value,
             'scope' => $this->scope?->value,
             'section' => new ContentSectionResource($this->section),
-            'category' => $this->category ? new ContentCategoryResource($this->category) : null,
-            'category_name' => $this->category_name ?? $this->category?->name,
+            'category' => $category ? new ContentCategoryResource($category) : null,
+            'category_name' => $categoryName,
             'university' => $this->university ? [
                 'code' => $this->university->code,
                 'name' => $this->university->name,

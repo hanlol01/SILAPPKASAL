@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ContentScope;
 use App\Models\Concerns\HasContentScope;
+use App\Support\ContentCategoryName;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,6 +21,7 @@ class ContentCategory extends Model
         'stable_seed_key',
         'code',
         'name',
+        'normalized_name',
         'slug',
         'description',
         'icon_code',
@@ -47,6 +49,11 @@ class ContentCategory extends Model
             if (blank($category->public_id)) {
                 $category->public_id = (string) Str::uuid();
             }
+        });
+
+        static::saving(function (ContentCategory $category): void {
+            $category->name = ContentCategoryName::display((string) $category->name);
+            $category->normalized_name = ContentCategoryName::normalize((string) $category->name);
         });
     }
 

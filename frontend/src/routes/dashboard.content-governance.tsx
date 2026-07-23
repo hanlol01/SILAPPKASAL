@@ -11,6 +11,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  RotateCcw,
   Send,
   ShieldCheck,
   Star,
@@ -52,6 +53,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -499,10 +501,10 @@ interface ReviewFilterProps {
 function ReviewFilters(props: ReviewFilterProps) {
   const { t } = useTranslation(["contentGovernance", "content"]);
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
       <Label className="space-y-1 xl:col-span-2">
         <span>{t("contentGovernance:review.search")}</span>
-        <Input value={props.search} onChange={(e) => props.setSearch(e.target.value)} />
+        <Input className="h-11" value={props.search} onChange={(e) => props.setSearch(e.target.value)} />
       </Label>
       <FilterSelect value={props.status} onChange={props.setStatus} label={t("contentGovernance:review.allStatuses")} options={[
         ["submitted", t("content:submitted")], ["in_review", t("content:in_review")], ["approved", t("content:approved")],
@@ -520,14 +522,15 @@ function ReviewFilters(props: ReviewFilterProps) {
       <FilterSelect value={props.campus} onChange={props.setCampus} label={t("contentGovernance:review.allCampuses")} options={props.campuses.map((item) => [item.code, item.name])} />
       <Label className="space-y-1">
         <span>{t("contentGovernance:review.submittedFrom")}</span>
-        <Input type="date" value={props.from} onChange={(e) => props.setFrom(e.target.value)} />
+        <DatePicker className="h-11" value={props.from} onChange={props.setFrom} placeholder={t("contentGovernance:review.submittedFrom")} />
       </Label>
       <Label className="space-y-1">
         <span>{t("contentGovernance:review.submittedTo")}</span>
-        <Input type="date" value={props.to} onChange={(e) => props.setTo(e.target.value)} />
+        <DatePicker className="h-11" value={props.to} onChange={props.setTo} placeholder={t("contentGovernance:review.submittedTo")} />
       </Label>
       <div className="flex items-end">
         <Button type="button" variant="ghost" className="min-h-11 w-full" onClick={props.reset}>
+          <RotateCcw className="mr-2 h-4 w-4" />
           {t("contentGovernance:review.reset")}
         </Button>
       </div>

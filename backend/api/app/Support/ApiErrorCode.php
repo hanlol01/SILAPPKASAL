@@ -60,6 +60,8 @@ final class ApiErrorCode
 
     public const ContentAttachmentDeletionFailed = 'content_attachment_deletion_failed';
 
+    public const ContentCategoryInUse = 'content_category_in_use';
+
     public const RecoveryMonitoringRequired = 'recovery_monitoring_required';
 
     public const CaseRecoveryCompletionRequired = 'case_recovery_completion_required';

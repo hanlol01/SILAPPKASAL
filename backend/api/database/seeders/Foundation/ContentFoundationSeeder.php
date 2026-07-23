@@ -63,7 +63,7 @@ class ContentFoundationSeeder extends Seeder
                         'public_id' => (string) Str::uuid(),
                         'content_type' => ContentType::Article,
                         'section_id' => $category->section_id,
-                        'category_id' => $category->id,
+                        'category_id' => null,
                         'category_name' => $category->name,
                         'slug' => Str::slug($title).'-'.$categoryCode,
                         'scope' => ContentScope::Global,
@@ -83,6 +83,8 @@ class ContentFoundationSeeder extends Seeder
                     'version_number' => 1,
                     'lifecycle_status' => ContentLifecycleStatus::Draft,
                     'title' => $title,
+                    'category_name' => $category->name,
+                    'category_id' => null,
                     'excerpt' => $seedKey === 'perspective_psychology_personal_boundaries'
                         ? 'Batasan diri membantu seseorang mengenali kenyamanan, kebutuhan, dan haknya dalam berinteraksi dengan orang lain.'
                         : null,

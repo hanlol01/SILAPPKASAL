@@ -131,4 +131,12 @@ class ContentItemPolicy extends BasePolicy
             && $this->allowRole($user, 'super_admin')
             && $this->allowPermission($user, 'content.category.govern');
     }
+
+    public function manageCampusCategory(User $user): bool
+    {
+        return $user->is_active
+            && $this->allowRole($user, 'admin')
+            && $user->university_id !== null
+            && $this->allowPermission($user, 'content.category.manage.own_campus');
+    }
 }

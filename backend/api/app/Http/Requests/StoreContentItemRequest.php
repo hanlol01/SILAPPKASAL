@@ -20,7 +20,7 @@ class StoreContentItemRequest extends FormRequest
             'content_type' => ['required', Rule::enum(ContentType::class)],
             'section_code' => ['required', 'string', Rule::in(['education', 'policy', 'faq', 'consultation'])],
             'category_public_id' => ['nullable', 'uuid'],
-            'category_name' => ['required_if:content_type,article', 'nullable', 'string', 'max:100'],
+            'category_name' => ['required_if:content_type,article', 'nullable', 'string', 'max:100', 'regex:/[\pL\pN]/u'],
             'scope' => ['required', Rule::enum(ContentScope::class)],
             'university_id' => ['nullable', 'integer', 'exists:universities,id'],
             'title' => ['required', 'string', 'max:255'],

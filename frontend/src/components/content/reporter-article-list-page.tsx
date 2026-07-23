@@ -1,9 +1,12 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { BookOpen, Search } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { ArrowLeft, BookOpen, Search } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { PublishedArticleCard } from "@/components/content/published-article-card";
+import { DashboardInformationBreadcrumb } from "@/components/content/dashboard-information-breadcrumb";
+import { DashboardInformationManagementCta } from "@/components/content/dashboard-information-management-cta";
 import { ReporterInformationBreadcrumb } from "@/components/content/reporter-information-breadcrumb";
 import { ReporterInformationCta } from "@/components/content/reporter-information-cta";
 import { EmptyState } from "@/components/empty-state";
@@ -17,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import { getPublishedArticleCategories, getPublishedArticles, publishedContentKeys, type PublishedContentFilters } from "@/lib/published-content-api";
 
-export function ReporterArticleListPage({ section }: { section: "education" | "policy" }) {
+export function ReporterArticleListPage({ section, area = "portal" }: { section: "education" | "policy"; area?: "portal" | "dashboard" }) {
   const { t } = useTranslation("informationCenter");
   const { user } = useAuth();
   const [input, setInput] = useState("");
@@ -32,7 +35,8 @@ export function ReporterArticleListPage({ section }: { section: "education" | "p
   const submit = (event: FormEvent) => { event.preventDefault(); setSearch(input.trim()); setPage(1); };
 
   return <div className="mx-auto w-full max-w-7xl space-y-7">
-    <ReporterInformationBreadcrumb current={title} />
+    {area === "portal" ? <ReporterInformationBreadcrumb current={title} /> : <DashboardInformationBreadcrumb current={title} />}
+    <Button asChild variant="ghost" className="min-h-11"><Link to={area === "portal" ? "/portal/information-center" : "/dashboard/information-center"}><ArrowLeft className="h-4 w-4" />Kembali ke Information Center</Link></Button>
     <header className="rounded-3xl border bg-gradient-to-br from-primary/10 via-background to-accent/10 p-6 sm:p-8">
       <p className="text-sm font-medium text-primary">{t("eyebrow")}</p><h1 className="mt-2 text-3xl font-semibold">{title}</h1><p className="mt-3 max-w-2xl text-muted-foreground">{t(`articleLists.${section}.description`)}</p>
     </header>
@@ -41,7 +45,7 @@ export function ReporterArticleListPage({ section }: { section: "education" | "p
       <div className="grid gap-2"><Label htmlFor={`${section}-category`}>{t("filters.category")}</Label><Select value={category || "all"} onValueChange={(value) => { setCategory(value === "all" ? "" : value); setPage(1); }}><SelectTrigger id={`${section}-category`} className="h-11" aria-label={t("filters.category")}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">{t("filters.allCategories")}</SelectItem>{(categories.data ?? []).map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}</SelectContent></Select></div>
       <Button type="submit" className="min-h-11">{t("filters.searchAction")}</Button></form>
     </div>
-    {articles.isLoading ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-80 rounded-2xl" />)}</div> : articles.isError ? <QueryErrorState message={t("errors.articles")} onRetry={() => void articles.refetch()} /> : !(articles.data?.data.length) ? <EmptyState icon={BookOpen} title={t("empty.articlesTitle")} description={t("empty.articlesDescription")} /> : <><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{articles.data.data.map((article) => <PublishedArticleCard key={article.public_id} article={article} portal />)}</div><ListPagination meta={articles.data.meta} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={() => undefined} isFetching={articles.isFetching} hidePageSize /></>}
-    <ReporterInformationCta />
+    {articles.isLoading ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-80 rounded-2xl" />)}</div> : articles.isError ? <QueryErrorState message={t("errors.articles")} onRetry={() => void articles.refetch()} /> : !(articles.data?.data.length) ? <EmptyState icon={BookOpen} title={t("empty.articlesTitle")} description={t("empty.articlesDescription")} /> : <><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{articles.data.data.map((article) => <PublishedArticleCard key={article.public_id} article={article} area={area} />)}</div><ListPagination meta={articles.data.meta} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={() => undefined} isFetching={articles.isFetching} hidePageSize /></>}
+    {area === "portal" ? <ReporterInformationCta /> : <DashboardInformationManagementCta />}
   </div>;
 }

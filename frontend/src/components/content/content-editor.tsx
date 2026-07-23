@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  ArrowLeft,
   Eye,
   FileText,
   ImageOff,
@@ -17,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { ContentDocumentPreview } from "@/components/content/content-document-preview";
+import { ContentCategoryCombobox } from "@/components/content/content-category-combobox";
 import { StructuredDocumentEditor } from "@/components/content/structured-document-editor";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -43,9 +45,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { ApiError } from "@/lib/api-client";
+import {
+  articleCategoryEditorState,
+  articleCategoryWriteFields,
+} from "@/lib/content-editor-category";
 import { documentHasText, documentHasUnsafeLink } from "@/lib/content-document";
 import { contentFieldName } from "@/lib/content-management-errors";
 import {
@@ -53,7 +60,6 @@ import {
   createManagedContent,
   getContentManagementCapabilities,
   getContentCategories,
-  getManagedArticleCategories,
   removeContentAttachment,
   submitManagedContent,
   updateManagedContent,
@@ -77,7 +83,7 @@ interface Props {
 
 interface EditorState {
   sectionCode: string;
-  categoryPublicId: string;
+  categoryPublicId: string | null;
   categoryName: string;
   title: string;
   excerpt: string;
@@ -153,11 +159,6 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
     queryKey: contentManagementKeys.categories(state.sectionCode),
     queryFn: () => getContentCategories(state.sectionCode),
     enabled: contentType === "faq" && Boolean(state.sectionCode),
-  });
-  const articleCategoriesQuery = useQuery({
-    queryKey: contentManagementKeys.articleCategories(state.sectionCode),
-    queryFn: () => getManagedArticleCategories(state.sectionCode),
-    enabled: contentType === "article",
   });
   const capabilitiesQuery = useQuery({
     queryKey: contentManagementKeys.capabilities(),
@@ -311,6 +312,8 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
         ? t("content:validation.category")
         : categoryName.length > 100
           ? t("content:validation.categoryLength")
+          : !/[\p{L}\p{N}]/u.test(categoryName)
+            ? t("content:validation.categoryFormat")
           : "",
     }));
   };
@@ -321,6 +324,7 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Button variant="ghost" className="mb-2 -ml-3 min-h-11" onClick={requestBack}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
             {t("content:back")}
           </Button>
           <h1 className="text-2xl font-semibold">
@@ -369,7 +373,7 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
                 errors={errors}
                 categoryError={saveAttempted || touchedFields.has("categoryName") ? errors.categoryName : undefined}
                 onCategoryBlur={handleCategoryBlur}
-                categorySuggestions={articleCategoriesQuery.data ?? []}
+                canManageCategories={permissions.has("content.category.govern") || permissions.has("content.category.manage.own_campus")}
                 locale={locale}
               />
             )}
@@ -589,7 +593,7 @@ function ArticleFields({
   errors,
   categoryError,
   onCategoryBlur,
-  categorySuggestions,
+  canManageCategories,
   locale,
 }: {
   state: EditorState;
@@ -598,7 +602,7 @@ function ArticleFields({
   errors: Record<string, string>;
   categoryError?: string;
   onCategoryBlur: () => void;
-  categorySuggestions: string[];
+  canManageCategories: boolean;
   locale: "id" | "en";
 }) {
   const { t } = useTranslation("content");
@@ -606,23 +610,37 @@ function ArticleFields({
     <>
       <div className="grid gap-4 md:grid-cols-2">
         <Field label={t("section")} error={errors.sectionCode}>
-          <select
-            className="h-11 w-full rounded-md border bg-background px-3"
+          <Select
             disabled={!editable}
             value={state.sectionCode}
-            onChange={(event) => {
-              set("sectionCode", event.target.value);
+            onValueChange={(value) => {
+              set("sectionCode", value);
               set("categoryName", "");
-              set("categoryPublicId", "");
+              set("categoryPublicId", null);
             }}
           >
-            <option value="education">{locale === "en" ? "Education" : "Edukasi"}</option>
-            <option value="policy">{locale === "en" ? "Policy" : "Seputar Kebijakan"}</option>
-          </select>
+            <SelectTrigger className="h-11 w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="education">{locale === "en" ? "Education" : "Edukasi"}</SelectItem>
+              <SelectItem value="policy">{locale === "en" ? "Policy" : "Seputar Kebijakan"}</SelectItem>
+            </SelectContent>
+          </Select>
         </Field>
         <Field label={t("category")} error={categoryError} description={t("categoryFreeTextHelp")}>
-          <Input list="article-category-suggestions" maxLength={100} disabled={!editable} value={state.categoryName} onBlur={onCategoryBlur} onChange={(event) => set("categoryName", event.target.value)} />
-          <datalist id="article-category-suggestions">{categorySuggestions.map((name) => <option key={name} value={name} />)}</datalist>
+          <ContentCategoryCombobox
+            section={state.sectionCode as "education" | "policy"}
+            value={state.categoryName}
+            onValueChange={(value) => {
+              set("categoryName", value);
+              set("categoryPublicId", null);
+            }}
+            disabled={!editable}
+            allowCreate={canManageCategories}
+            allowManage={canManageCategories}
+            onBlur={onCategoryBlur}
+          />
         </Field>
       </div>
       <Field label={t("titleField")} error={errors.title}>
@@ -669,19 +687,23 @@ function FaqFields({
   return (
     <>
       <Field label={t("category")}>
-        <select
-          className="h-11 w-full rounded-md border bg-background px-3"
+        <Select
           disabled={!editable}
-          value={state.categoryPublicId}
-          onChange={(event) => set("categoryPublicId", event.target.value)}
+          value={state.categoryPublicId ?? ""}
+          onValueChange={(value) => set("categoryPublicId", value === "none" ? null : value)}
         >
-          <option value="">{t("noCategory")}</option>
-          {categories.map((category) => (
-            <option key={category.public_id} value={category.public_id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="h-11 w-full">
+            <SelectValue placeholder={t("noCategory")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">{t("noCategory")}</SelectItem>
+            {categories.map((category) => (
+              <SelectItem key={category.public_id} value={category.public_id}>
+                {category.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </Field>
       <Field label={t("question")} error={errors.question}>
         <Input
@@ -900,7 +922,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <fieldset className="min-w-0 space-y-2">
+    <fieldset className="min-w-0 space-y-2 [&>input]:h-11 [&>textarea]:min-h-24">
       <legend className="text-sm font-medium leading-none">{label}</legend>
       {children}
       {description && <p className="text-xs text-muted-foreground">{description}</p>}
@@ -1052,10 +1074,14 @@ function initialState(contentType: ContentType, detail?: ManagedContentDetail): 
   const article = detail?.version.article;
   const faq = detail?.version.faq;
   const consultation = detail?.version.consultation;
+  const articleCategory = articleCategoryEditorState(detail);
   return {
     sectionCode: detail?.section.code ?? (contentType === "article" ? "education" : contentType),
-    categoryPublicId: detail?.category?.public_id ?? "",
-    categoryName: detail?.category_name ?? detail?.category?.name ?? "",
+    categoryPublicId:
+      contentType === "article"
+        ? articleCategory.categoryPublicId
+        : (detail?.category?.public_id ?? null),
+    categoryName: articleCategory.categoryName,
     title: detail?.version.title ?? "",
     excerpt: detail?.version.excerpt ?? "",
     document: article?.document ?? null,
@@ -1102,8 +1128,8 @@ function payloadFromState(
   if (type === "article")
     return {
       ...common,
+      ...articleCategoryWriteFields(state.categoryName, state.categoryPublicId),
       title: state.title.trim(),
-      category_name: state.categoryName.trim(),
       excerpt: state.excerpt.trim() || null,
       cover_alt_text: state.coverAltText.trim() || null,
       document: state.document ?? undefined,
@@ -1151,6 +1177,7 @@ function validate(
     if (!state.title.trim()) errors.title = t("content:validation.required");
     if (!state.categoryName.trim()) errors.categoryName = t("content:validation.category");
     else if (state.categoryName.trim().length > 100) errors.categoryName = t("content:validation.categoryLength");
+    else if (!/[\p{L}\p{N}]/u.test(state.categoryName.trim())) errors.categoryName = t("content:validation.categoryFormat");
     if (!documentHasText(state.document)) errors.document = t("content:validation.document");
     else if (documentHasUnsafeLink(state.document)) errors.document = t("content:validation.https");
   } else if (type === "faq") {

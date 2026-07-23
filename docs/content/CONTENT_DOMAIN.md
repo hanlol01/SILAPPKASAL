@@ -52,10 +52,10 @@ images, or dividers. Consultation contacts use typed fields. Telephone and Whats
 allow common separators, but normalized values contain digits and an optional leading plus while
 preserving a leading zero. Appointment links must be HTTPS and may not carry Report, Case,
 registration, tracking, identity, incident, NIM, email, or telephone query data. Published
-Consultation records require a verification owner and date. Article Consultation CTAs must resolve
-through the target's current published pointer to an active, unarchived, scope-safe Consultation
-payload at submit and publication time. Reader projection omits a CTA that later becomes inactive or
-otherwise ineligible without failing the Article response.
+Consultation records require a verification owner and date. Consultation is a standalone
+Information Center destination; per-Article Consultation CTA input, validation, eager loading, and
+reader projection are no longer used. The nullable legacy relation remains in the schema only so
+historical rows stay readable.
 
 ## Attachments
 
@@ -87,10 +87,31 @@ uses named CHECK constraints; SQLite tests use equivalent named insert/update tr
 pointer existence remains protected by foreign keys. Pointer ownership is additionally enforced by
 locked publication transactions and by reader joins requiring version/item ownership.
 
-Article detail is public-ID-only: `GET /api/v1/content/articles/{publicId}`. Slugs are list metadata,
-not an ambiguous detail resolver. Lists and related/fallback projections use public ID as their final
+Article detail uses the section-aware route
+`GET /api/v1/content/articles/slug/{education|policy}/{slug}`. The database query constrains the
+section before resolving own-campus versus global precedence, so equal slugs in Education and Policy
+cannot cross-resolve. The legacy public-ID reader remains a compatibility endpoint but is not used
+by the Information Center UI. Lists and related/fallback projections use public ID as their final
 stable ordering key. Expired featured placements are deactivated before replacement, future windows
 are not eligible early, and rank remains limited to 1-5.
+
+Article version `category_name` is canonical free text. The registry normalizes category identity with NFC
+when the runtime supports it, trimmed and collapsed whitespace, and lowercase comparison. A database
+unique constraint covers `section_id + scope_key + normalized_name` to close concurrent duplicate
+creation within one global or campus scope. The same normalized name is allowed between Global and
+Campus and between different campuses; the outcome does not depend on which scope creates it first.
+Legacy version `category_id` is consulted only when that version's `category_name IS NULL`. On create
+and draft/revision updates, a non-null canonical name clears any stale legacy relation, including
+when an unrelated field is edited. Management projects the editable/latest version; public readers,
+filters, category lists, related results, and featured cards project the published pointer version.
+Category edits are metadata changes and are not part of immutable section/scope placement. A draft
+revision therefore cannot change the published category, title, or body until publication moves the
+pointer. Item-level category fields remain only for compatibility and denormalized synchronization.
+
+Registry usage is pointer-aware: each item is counted once for a category found on its active current
+draft and once for a different category on its active published version. Thus published A plus draft
+B protects both registry names; after B is published and the draft pointer is cleared, A is no longer
+counted for that item. Stale item-level category metadata is never part of this calculation.
 
 ## Test database isolation
 
@@ -123,7 +144,9 @@ the non-content `/login` shell. Any future service worker must exclude `/api`, `
 `/portal/reports`, all Report/Case/Evidence routes, private attachments, authenticated reader pages,
 and authenticated management pages.
 
-C2 implements the campus Admin management UI at `/dashboard/content`. C3 implements Super Admin
+C2 implements the campus Admin management UI at `/dashboard/content`. The Admin/Super Admin
+Information Center directory is `/dashboard/information-center`, with dedicated Education, Policy,
+FAQ, and Consultation routes. C3 implements Super Admin
 review, distinct approval/publication, global authoring, archive, decision history, and featured
 placement governance at `/dashboard/content-governance`, as documented in `CONTENT_MANAGEMENT.md`.
 Reporter/Satgas Pusat Informasi, the featured carousel, authenticated Article/FAQ/Consultation reader,

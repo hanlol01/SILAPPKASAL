@@ -157,7 +157,9 @@ final class AuditEventCatalog
             AuditAction::ContentAttachmentRemoved,
             AuditAction::ContentAttachmentDownloadAuthorized,
             AuditAction::ContentAttachmentDownloaded,
-            AuditAction::ContentFeaturedPlacementChanged => $this->fields(
+            AuditAction::ContentFeaturedPlacementChanged,
+            AuditAction::ContentCategoryCreated,
+            AuditAction::ContentCategoryDeactivated => $this->fields(
                 [
                     'content_public_id',
                     'version_number',
@@ -173,6 +175,9 @@ final class AuditEventCatalog
                     'purpose',
                     'rank',
                     'result',
+                    'category_public_id',
+                    'category_name',
+                    'usage_count',
                 ],
                 ['lifecycle_status', 'published_version_changed', 'archived'],
             ),
