@@ -15,6 +15,7 @@ class ReportWithdrawalReviewListResource extends JsonResource
         $withdrawal = $this->resource;
         $report = $withdrawal->report;
         $isSuperAdmin = $request->user()?->hasRole('super_admin') === true;
+        $elapsedUntil = $withdrawal->reviewed_at ?? $withdrawal->cancelled_at ?? now();
 
         return [
             'withdrawal_reference' => $withdrawal->public_id,
@@ -23,7 +24,7 @@ class ReportWithdrawalReviewListResource extends JsonResource
             'submitted_at' => $withdrawal->submitted_at?->toJSON(),
             'reviewed_at' => $withdrawal->reviewed_at?->toJSON(),
             'elapsed_waiting_seconds' => $withdrawal->submitted_at
-                ? max(0, $withdrawal->submitted_at->diffInSeconds(now()))
+                ? max(0, $withdrawal->submitted_at->diffInSeconds($elapsedUntil))
                 : null,
             'campus' => $report?->reporter?->university ? [
                 'code' => $report->reporter->university->code,

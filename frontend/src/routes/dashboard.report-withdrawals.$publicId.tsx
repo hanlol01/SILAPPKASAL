@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { AccessDenied } from "@/components/access-denied";
 import { QueryErrorState } from "@/components/query-state";
+import { ReportStatusBadge, StatusBadge } from "@/components/status-badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { ApiError } from "@/lib/api-client";
+import { apiErrorMessage } from "@/lib/form-errors";
 import { formatDateTime } from "@/lib/format";
 import {
   approveReportWithdrawal,
@@ -36,9 +38,15 @@ import {
 } from "@/lib/operations-api";
 import type { ReportWithdrawalStatus } from "@/lib/operations-types";
 
+const WITHDRAWAL_PREVIEW_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+]);
+
 export const Route = createFileRoute("/dashboard/report-withdrawals/$publicId")({
   component: ReportWithdrawalDetailPage,
-  head: () => ({ meta: [{ title: "Withdrawal review detail - SILAPPKASAL" }] }),
+  head: () => ({ meta: [{ title: "Complaint Withdrawal Review Detail - SILAPPKASAL" }] }),
 });
 
 function ReportWithdrawalDetailPage() {
@@ -51,6 +59,7 @@ function ReportWithdrawalDetailPage() {
   const [resubmissionAllowed, setResubmissionAllowed] = useState(false);
   const [preview, setPreview] = useState<{ url: string; mime: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewFailed, setPreviewFailed] = useState(false);
   const previewRequestRef = useRef<AbortController | null>(null);
   const canAccess =
     (roleCode === "admin" && user?.permissions?.includes("reports.withdraw.review.own_campus")) ||
@@ -68,10 +77,7 @@ function ReportWithdrawalDetailPage() {
 
   const refresh = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.withdrawalReview(publicId) }),
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.withdrawalReviewsRoot() }),
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.reportsRoot() }),
-      queryClient.invalidateQueries({ queryKey: operationsQueryKeys.casesRoot() }),
+      queryClient.invalidateQueries({ queryKey: ["operations"] }),
       queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
     ]);
   };
@@ -133,6 +139,7 @@ function ReportWithdrawalDetailPage() {
       URL.revokeObjectURL(preview.url);
       setPreview(null);
     }
+    setPreviewFailed(false);
     const controller = new AbortController();
     previewRequestRef.current = controller;
     setPreviewLoading(true);
@@ -142,6 +149,12 @@ function ReportWithdrawalDetailPage() {
         latestAttachment.attachment_reference,
         controller.signal,
       );
+      if (
+        !WITHDRAWAL_PREVIEW_MIME_TYPES.has(response.contentType) ||
+        response.blob.size === 0
+      ) {
+        throw new ApiError(t("dashboard:withdrawals.documentError"), 500);
+      }
       const url = URL.createObjectURL(response.blob);
       if (controller.signal.aborted) {
         URL.revokeObjectURL(url);
@@ -150,6 +163,7 @@ function ReportWithdrawalDetailPage() {
       setPreview({ url, mime: response.contentType });
     } catch (error) {
       if (controller.signal.aborted) return;
+      setPreviewFailed(true);
       toast.error(reviewError(error, t("dashboard:withdrawals.documentError"), t("dashboard:withdrawals.staleError")));
     } finally {
       if (previewRequestRef.current === controller) {
@@ -163,9 +177,16 @@ function ReportWithdrawalDetailPage() {
     <div className="space-y-6">
       <Button variant="ghost" asChild><Link to="/dashboard/report-withdrawals"><ArrowLeft className="h-4 w-4" />{t("dashboard:withdrawals.backToQueue")}</Link></Button>
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="font-mono text-xl font-semibold">{item.registration_number}</h1>
+        <h1 className="break-all font-mono text-xl font-semibold">{item.registration_number}</h1>
         <WithdrawalBadge status={item.status} />
       </div>
+
+      {reviewQuery.isFetching && !reviewQuery.isPending && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          {t("dashboard:common.loading")}
+        </div>
+      )}
 
       {roleCode === "super_admin" && (
         <div className="rounded-lg border border-info/30 bg-info/10 p-4 text-sm">
@@ -183,12 +204,12 @@ function ReportWithdrawalDetailPage() {
             <Field label={t("dashboard:withdrawals.reviewedAt")}>{formatDateTime(item.reviewed_at, i18n.language)}</Field>
             {roleCode === "admin" && (
               <>
-                <Field label={t("dashboard:withdrawals.reportStatus")}>{item.report_status}</Field>
-                <Field label={t("dashboard:withdrawals.caseStatus")}>{item.case_status ?? t("dashboard:common.notAvailable")}</Field>
+                <Field label={t("dashboard:withdrawals.reportStatus")}><ReportStatusBadge status={item.report_status} /></Field>
+                <Field label={t("dashboard:withdrawals.caseStatus")}><StatusBadge status={item.case_status} /></Field>
               </>
             )}
-            {item.reason !== undefined && <div className="sm:col-span-2"><Field label={t("dashboard:withdrawals.reporterReason")}><p className="whitespace-pre-wrap break-words">{item.reason}</p></Field></div>}
-            {item.rejection_reason && <div className="sm:col-span-2"><Field label={t("dashboard:withdrawals.rejectionReason")}><p className="whitespace-pre-wrap break-words">{item.rejection_reason}</p></Field></div>}
+            {roleCode === "admin" && item.reason !== undefined && <div className="sm:col-span-2"><Field label={t("dashboard:withdrawals.reporterReason")}><p className="whitespace-pre-wrap break-words">{item.reason}</p></Field></div>}
+            {roleCode === "admin" && item.rejection_reason && <div className="sm:col-span-2"><Field label={t("dashboard:withdrawals.rejectionReason")}><p className="whitespace-pre-wrap break-words">{item.rejection_reason}</p></Field></div>}
           </CardContent>
         </Card>
 
@@ -214,10 +235,30 @@ function ReportWithdrawalDetailPage() {
                           title={t("dashboard:withdrawals.signedDocument")}
                           sandbox=""
                           className="h-full w-full"
+                          onError={() => {
+                            setPreviewFailed(true);
+                            setPreview(null);
+                          }}
                         />
                       ) : (
-                        <img src={preview.url} alt={t("dashboard:withdrawals.signedDocument")} className="h-full w-full object-contain" />
+                        <img
+                          src={preview.url}
+                          alt={t("dashboard:withdrawals.signedDocument")}
+                          className="h-full w-full object-contain"
+                          onError={() => {
+                            setPreviewFailed(true);
+                            setPreview(null);
+                          }}
+                        />
                       )}
+                    </div>
+                  )}
+                  {previewFailed && (
+                    <div role="alert" className="rounded-md border border-warning/30 bg-warning/10 p-3 text-sm">
+                      <p>{t("dashboard:withdrawals.documentError")}</p>
+                      <Button type="button" size="sm" variant="outline" className="mt-3" onClick={() => void openPreview()}>
+                        {t("dashboard:common.retry")}
+                      </Button>
                     </div>
                   )}
                 </>
@@ -274,5 +315,7 @@ function WithdrawalBadge({ status }: { status: ReportWithdrawalStatus }) {
 }
 
 function reviewError(error: unknown, fallback: string, stale: string) {
-  return error instanceof ApiError && error.status === 409 ? stale : error instanceof Error ? error.message : fallback;
+  if (error instanceof ApiError && error.status === 409) return stale;
+
+  return apiErrorMessage(error, fallback);
 }

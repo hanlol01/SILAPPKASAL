@@ -84,6 +84,25 @@ class ReportWithdrawalReviewTest extends TestCase
         $attachment = $withdrawal->currentSignedAttachment();
         $this->get("/api/v1/report-withdrawals/{$withdrawal->public_id}/signed-document/{$attachment->public_id}")
             ->assertForbidden();
+
+        $submittedAt = now()->subHours(3)->startOfSecond();
+        $withdrawal->forceFill([
+            'status' => ReportWithdrawalStatus::Approved,
+            'submitted_at' => $submittedAt,
+            'reviewed_at' => $submittedAt->copy()->addHours(2),
+        ])->save();
+        $this->getJson('/api/v1/report-withdrawals?status=approved')
+            ->assertOk()
+            ->assertJsonPath('data.0.elapsed_waiting_seconds', 7200);
+
+        $withdrawal->forceFill([
+            'status' => ReportWithdrawalStatus::Cancelled,
+            'reviewed_at' => null,
+            'cancelled_at' => $submittedAt->copy()->addHour(),
+        ])->save();
+        $this->getJson('/api/v1/report-withdrawals?status=cancelled')
+            ->assertOk()
+            ->assertJsonPath('data.0.elapsed_waiting_seconds', 3600);
     }
 
     public function test_review_routes_fail_closed_for_unauthorized_or_inactive_roles(): void
@@ -734,6 +753,18 @@ class ReportWithdrawalReviewTest extends TestCase
             ->assertJsonPath('data.capabilities.can_view_signed_document', true);
         $this->get(
             "/api/v1/report-withdrawals/{$withdrawal->public_id}/signed-document/{$attachment->public_id}"
+        )->assertOk();
+
+        Sanctum::actingAs($reporter, ['*']);
+        $this->getJson("/api/v1/portal/reports/{$report->registration_number}/withdrawal")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'approved')
+            ->assertJsonPath('data.capabilities.can_cancel_request', false)
+            ->assertJsonPath('data.capabilities.can_resubmit', false)
+            ->assertJsonPath('data.attachments.0.attachment_reference', $attachment->public_id)
+            ->assertJsonMissingPath('data.attachments.0.path');
+        $this->get(
+            "/api/v1/portal/withdrawals/{$withdrawal->public_id}/signed-document/{$attachment->public_id}"
         )->assertOk();
     }
 

@@ -2,7 +2,7 @@
 
 Decision state: provisional, pending leadership confirmation.
 
-| Decision | Current provisional rule (01A + 01B + 01C) |
+| Decision | Current provisional rule (01A + 01B + 01C + 01D) |
 |---|---|
 | Direct cancellation window | Only exact `submitted`, null `forwarded_at`, no Case |
 | Ownership | Active Reporter with exact non-null `reporter_id` ownership |
@@ -15,7 +15,7 @@ Decision state: provisional, pending leadership confirmation.
 | Formal withdrawal eligibility | Feature-on active Reporter owner; forwarded Report or eligible Case before decided/recovery/monitoring/terminal/escalated; Decision not finalized; no active request |
 | Formal state machine | `draft -> waiting_document -> pending_review -> approved/rejected`; active Reporter states may become `cancelled` |
 | Formal document | Authenticated print-safe DRAFT only; not an official campus template or generated official PDF |
-| Signed attachment | Private immutable PDF/JPEG/PNG, 10 MiB maximum, versioned per request, integrity checked |
+| Signed attachment | Private immutable PDF/JPEG/PNG, 10 MiB maximum, versioned per request, integrity checked; owner history remains authenticated and private |
 | Pending effect | Report/Case statuses unchanged; operational Case mutation paused with `withdrawal_pending_review` |
 | Formal cancellation | Reporter may cancel before decision; private attachment history retained and operations resume |
 | Admin decision | Active own-campus Admin with `reports.withdraw.review.own_campus`; lock/version/state/document revalidation required |
@@ -34,3 +34,9 @@ Open leadership decisions for later submilestones:
 1. approved official letter template and final signature/meterai requirements;
 2. Admin review SLA (elapsed time is not currently an SLA);
 3. production activation date and user communication.
+
+Operational validation still pending outside this repository review:
+
+1. PostgreSQL migration/runtime preflight and true parallel concurrency exercise;
+2. external antivirus integration for signed attachments;
+3. browser E2E/UAT across supported devices and assistive-technology combinations.

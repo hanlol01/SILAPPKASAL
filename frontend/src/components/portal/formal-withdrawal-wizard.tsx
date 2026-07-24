@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/form";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
+import { ApiError } from "@/lib/api-client";
 import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import {
   cancelPortalFormalWithdrawal,
@@ -148,12 +149,26 @@ export function FormalWithdrawalWizard({
         queryKey: portalQueryKeys.reportEvidenceFiles(registrationNumber),
       }),
       queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-      queryClient.invalidateQueries({ queryKey: ["operations", "cases"] }),
+      queryClient.invalidateQueries({ queryKey: ["operations"] }),
     ]);
   }
 
   function cacheWithdrawal(data: FormalWithdrawalDetail) {
     queryClient.setQueryData(portalQueryKeys.reportWithdrawal(registrationNumber), data);
+  }
+
+  function handleMutationError(error: unknown, fallback: string) {
+    if (error instanceof ApiError && error.status === 409) {
+      toast.error(t("withdrawal.staleError"), {
+        action: {
+          label: t("withdrawal.refreshAction"),
+          onClick: () => void invalidateWithdrawalState(),
+        },
+      });
+      return;
+    }
+
+    toast.error(apiErrorMessage(error, fallback));
   }
 
   const createMutation = useMutation({
@@ -165,7 +180,10 @@ export function FormalWithdrawalWizard({
       await invalidateWithdrawalState();
       toast.success(t("withdrawal.createSuccess"));
     },
-    onError: (error) => applyLaravelErrors(form, error),
+    onError: (error) => {
+      applyLaravelErrors(form, error);
+      handleMutationError(error, t("withdrawal.createError"));
+    },
   });
   const documentMutation = useMutation({
     mutationFn: (publicId: string) => getPortalWithdrawalDraftDocument(publicId),
@@ -173,7 +191,7 @@ export function FormalWithdrawalWizard({
       setDocumentHtml(html);
       toast.success(t("withdrawal.documentLoaded"));
     },
-    onError: (error) => toast.error(apiErrorMessage(error, t("withdrawal.documentError"))),
+    onError: (error) => handleMutationError(error, t("withdrawal.documentError")),
   });
   const uploadMutation = useMutation({
     mutationFn: ({
@@ -193,7 +211,7 @@ export function FormalWithdrawalWizard({
     },
     onError: (error) => {
       setUploadProgress(0);
-      toast.error(apiErrorMessage(error, t("withdrawal.uploadError")));
+      handleMutationError(error, t("withdrawal.uploadError"));
     },
   });
   const submitMutation = useMutation({
@@ -204,7 +222,7 @@ export function FormalWithdrawalWizard({
       await invalidateWithdrawalState();
       toast.success(t("withdrawal.submitSuccess"));
     },
-    onError: (error) => toast.error(apiErrorMessage(error, t("withdrawal.submitError"))),
+    onError: (error) => handleMutationError(error, t("withdrawal.submitError")),
   });
   const cancelMutation = useMutation({
     mutationFn: ({ publicId, lockVersion }: { publicId: string; lockVersion: number }) =>
@@ -216,7 +234,7 @@ export function FormalWithdrawalWizard({
       setOpen(false);
       toast.success(t("withdrawal.cancelSuccess"));
     },
-    onError: (error) => toast.error(apiErrorMessage(error, t("withdrawal.cancelError"))),
+    onError: (error) => handleMutationError(error, t("withdrawal.cancelError")),
   });
   const resubmitMutation = useMutation({
     mutationFn: ({ publicId, lockVersion }: { publicId: string; lockVersion: number }) =>
@@ -229,7 +247,7 @@ export function FormalWithdrawalWizard({
       await invalidateWithdrawalState();
       toast.success(t("withdrawal.resubmitSuccess"));
     },
-    onError: (error) => toast.error(apiErrorMessage(error, t("withdrawal.resubmitError"))),
+    onError: (error) => handleMutationError(error, t("withdrawal.resubmitError")),
   });
 
   const withdrawal = withdrawalQuery.data ?? createMutation.data ?? null;
@@ -240,6 +258,10 @@ export function FormalWithdrawalWizard({
   const effectiveCapabilities = withdrawal?.capabilities ?? activeWithdrawal?.capabilities ?? null;
   const effectiveAttachment =
     withdrawal?.latest_attachment ?? activeWithdrawal?.latest_attachment ?? null;
+  const effectiveAttachments =
+    withdrawal?.attachments ??
+    activeWithdrawal?.attachments ??
+    (effectiveAttachment ? [effectiveAttachment] : []);
   const currentStep = withdrawalStep(effectiveStatus, effectiveAttachment !== null);
   const isBusy =
     createMutation.isPending ||
@@ -308,6 +330,9 @@ export function FormalWithdrawalWizard({
   }
 
   const hasActiveRequest = activeWithdrawal !== null || withdrawal !== null;
+  const stateUnavailable =
+    activeWithdrawal !== null && withdrawalQuery.data === undefined &&
+    (withdrawalQuery.isPending || withdrawalQuery.isError);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -417,7 +442,7 @@ export function FormalWithdrawalWizard({
           </Form>
         )}
 
-        {effectiveReference && effectiveCapabilities && (
+        {!stateUnavailable && effectiveReference && effectiveCapabilities && (
           <div className="space-y-5">
             <StatusPanel
               status={effectiveStatus}
@@ -518,32 +543,51 @@ export function FormalWithdrawalWizard({
                   </p>
                 </div>
 
-                {effectiveAttachment && (
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/40 p-3">
-                    <div className="min-w-0">
-                      <p className="font-medium">
-                        {t("withdrawal.latestVersion", { version: effectiveAttachment.version })}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {effectiveAttachment.mime_type} · {formatBytes(effectiveAttachment.size, i18n.language)}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        downloadPortalWithdrawalSignedDocument(
-                          effectiveReference,
-                          effectiveAttachment.attachment_reference,
-                        ).catch((error: unknown) =>
-                          toast.error(apiErrorMessage(error, t("withdrawal.downloadError"))),
-                        )
-                      }
-                    >
-                      <Download className="h-4 w-4" aria-hidden="true" />
-                      {t("withdrawal.download")}
-                    </Button>
+                {effectiveAttachments.length > 0 && (
+                  <div className="space-y-2" aria-labelledby="withdrawal-document-history">
+                    <p id="withdrawal-document-history" className="text-sm font-medium">
+                      {t("withdrawal.documentHistory")}
+                    </p>
+                    {effectiveAttachments.map((attachment) => {
+                      const isLatest =
+                        attachment.attachment_reference === effectiveAttachment?.attachment_reference;
+
+                      return (
+                        <div
+                          key={attachment.attachment_reference}
+                          className="flex flex-col gap-3 rounded-md bg-muted/40 p-3 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-medium">
+                              {isLatest
+                                ? t("withdrawal.latestVersion", { version: attachment.version })
+                                : t("withdrawal.previousVersion", { version: attachment.version })}
+                            </p>
+                            <p className="break-words text-sm text-muted-foreground">
+                              {attachment.mime_type} · {formatBytes(attachment.size, i18n.language)}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="self-start sm:self-auto"
+                            aria-label={t("withdrawal.downloadVersion", { version: attachment.version })}
+                            onClick={() =>
+                              downloadPortalWithdrawalSignedDocument(
+                                effectiveReference,
+                                attachment.attachment_reference,
+                              ).catch((error: unknown) =>
+                                toast.error(apiErrorMessage(error, t("withdrawal.downloadError"))),
+                              )
+                            }
+                          >
+                            <Download className="h-4 w-4" aria-hidden="true" />
+                            {t("withdrawal.download")}
+                          </Button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 

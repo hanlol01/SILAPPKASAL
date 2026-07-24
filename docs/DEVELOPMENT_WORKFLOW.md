@@ -1083,8 +1083,9 @@ Before enabling in a target environment:
 4. run the formal-withdrawal, direct-cancellation, Case workflow, notification, and route tests;
 5. set the feature flag and monitor 409 `withdrawal_pending_review` responses.
 
-Database notifications are written, but this revision does not activate or redesign the Dashboard
-notification inbox or provide Admin approve/reject actions.
+Database notifications are written, but this milestone does not activate or redesign the Dashboard
+notification inbox. Admin approve/reject is supplied by REV-WITHDRAW-01C and remains capability-,
+campus-, state-, and `lock_version`-guarded.
 
 ### REV-WITHDRAW-01C deployment note
 
@@ -1100,3 +1101,13 @@ disable Admin list/detail/document/approve/reject for a request already in `pend
 it off must not strand the queue. The review queue's elapsed duration is an informational clock, not
 an SLA or overdue indicator. The browser-print DRAFT is still not an official campus form; the final
 official template, Putusan code, and Berita Acara remain leadership/product decisions.
+
+### REV-WITHDRAW-01D final integration note
+
+REV-WITHDRAW-01D adds no migration and does not change the 01A-01C lifecycle. It completes
+cross-role UI state, immutable owner attachment-history projection, safe stale/refetch handling,
+and cache invalidation for Reporter, operational, withdrawal-review, and Dashboard query roots.
+Before leadership UAT, execute `docs/workflows/REV_WITHDRAW_UAT_CHECKLIST.md` and retain evidence
+for every role and terminal state. PostgreSQL preflight, external antivirus, the official campus
+template, and browser E2E remain explicit release gates or accepted limitations; never substitute
+`migrate:fresh` for the normal additive migration workflow.

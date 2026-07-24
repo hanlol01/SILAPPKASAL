@@ -439,7 +439,14 @@ class ReportFormalWithdrawalTest extends TestCase
         );
         $third
             ->assertCreated()
-            ->assertJsonPath('data.latest_attachment.version', 3);
+            ->assertJsonPath('data.latest_attachment.version', 3)
+            ->assertJsonPath('data.attachments.0.version', 3)
+            ->assertJsonPath('data.attachments.1.version', 2)
+            ->assertJsonPath('data.attachments.2.version', 1)
+            ->assertJsonMissingPath('data.attachments.0.original_name')
+            ->assertJsonMissingPath('data.attachments.0.disk')
+            ->assertJsonMissingPath('data.attachments.0.path')
+            ->assertJsonMissingPath('data.attachments.0.sha256');
 
         $withdrawal = ReportWithdrawal::query()->where('public_id', $publicId)->firstOrFail();
         $this->assertCount(3, $withdrawal->attachments);

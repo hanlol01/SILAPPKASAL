@@ -2338,10 +2338,11 @@ accepted or projected. Each upload creates the next immutable
 `signed_withdrawal_statement` version. Submission rechecks the latest stored file size/checksum
 inside the transaction.
 
-The owner response contains only public references, Reporter-safe status/timestamps, `lock_version`, latest safe
-attachment metadata (`document_type`, `version`, MIME, size, upload time), and authoritative
+The owner response contains only public references, Reporter-safe status/timestamps, `lock_version`, the latest safe
+attachment plus immutable attachment-history metadata (`document_type`, `version`, MIME, size, upload time), and authoritative
 capabilities (`can_view_draft`, `can_upload_document`, `can_submit`,
-`can_cancel_request`). Internal IDs, disk, path, hash, original filename, reviewer metadata, and
+`can_cancel_request`, `can_resubmit`). Attachment history is ordered newest-first and remains
+owner-authenticated after a final decision. Internal IDs, disk, path, hash, original filename, reviewer metadata, and
 attachment contents are absent.
 
 Submission sends `NOTIF-26` after commit only to active same-campus Admin users with
@@ -2391,7 +2392,8 @@ reason, rejection reason, safe version/MIME/size metadata, and capabilities, but
 disk/path, checksums, raw original filenames, or document URLs. Super Admin receives cross-campus
 monitoring metadata only and no reason, document, or mutation capability. Satgas does not use these
 endpoints and receives only generic pause/withdrawn state through existing Case reads. Elapsed
-waiting time is informational and is not an SLA.
+waiting time is informational and is not an SLA; it stops at `reviewed_at` or `cancelled_at` after
+a final outcome.
 
 Search treats `%`, `_`, and the escape marker as literal characters rather than caller-controlled
 wildcards. Approval/rejection notifications contain public references and status only; they omit

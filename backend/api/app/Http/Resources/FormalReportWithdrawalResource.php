@@ -16,6 +16,9 @@ class FormalReportWithdrawalResource extends JsonResource
         /** @var ReportWithdrawal $withdrawal */
         $withdrawal = $this->resource['withdrawal'];
         $attachment = $withdrawal->currentSignedAttachment();
+        $attachments = $withdrawal->relationLoaded('attachments')
+            ? $withdrawal->attachments->sortByDesc('version')->values()
+            : collect();
 
         return [
             'withdrawal_reference' => $withdrawal->public_id,
@@ -39,6 +42,7 @@ class FormalReportWithdrawalResource extends JsonResource
             'latest_attachment' => $attachment
                 ? new ReportWithdrawalAttachmentResource($attachment)
                 : null,
+            'attachments' => ReportWithdrawalAttachmentResource::collection($attachments),
             'capabilities' => $this->resource['capabilities'],
         ];
     }

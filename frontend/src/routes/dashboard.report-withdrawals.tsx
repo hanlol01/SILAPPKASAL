@@ -30,7 +30,7 @@ export const Route = createFileRoute("/dashboard/report-withdrawals")({
     per_page: normalizePageSize(positiveInteger(search.per_page)),
   }),
   component: ReportWithdrawalsPage,
-  head: () => ({ meta: [{ title: "Complaint withdrawal review - SILAPPKASAL" }] }),
+  head: () => ({ meta: [{ title: "Complaint Withdrawal Review - SILAPPKASAL" }] }),
 });
 
 function positiveInteger(value: unknown) {
@@ -65,7 +65,13 @@ function ReportWithdrawalsPage() {
       <PageBreadcrumb crumbs={[{ label: t("dashboard:withdrawals.title") }]} />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard:withdrawals.title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("dashboard:withdrawals.subtitle")}</p>
+        <p className="text-sm text-muted-foreground">
+          {t(
+            roleCode === "super_admin"
+              ? "dashboard:withdrawals.monitoringSubtitle"
+              : "dashboard:withdrawals.subtitle",
+          )}
+        </p>
       </div>
 
       <Card>
@@ -104,12 +110,18 @@ function ReportWithdrawalsPage() {
             </Select>
           </div>
 
-          {withdrawalsQuery.isFetching && (
+          {withdrawalsQuery.isFetching && !withdrawalsQuery.isPending && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
-              <Loader2 className="h-4 w-4 animate-spin" /> {t("dashboard:common.loading")}
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              {t("dashboard:common.loading")}
             </div>
           )}
-          {withdrawalsQuery.isError ? (
+          {withdrawalsQuery.isPending ? (
+            <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-muted-foreground" role="status">
+              <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+              {t("dashboard:common.loading")}
+            </div>
+          ) : withdrawalsQuery.isError ? (
             <QueryErrorState message={t("dashboard:withdrawals.loadError")} onRetry={() => withdrawalsQuery.refetch()} />
           ) : withdrawalsQuery.data?.data.length ? (
             <div className="grid gap-3">
@@ -117,7 +129,7 @@ function ReportWithdrawalsPage() {
                 <article key={item.withdrawal_reference} className="grid gap-3 rounded-lg border p-4 md:grid-cols-[1fr_auto] md:items-center">
                   <div className="min-w-0 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-sm font-semibold">{item.registration_number}</span>
+                      <span className="break-all font-mono text-sm font-semibold">{item.registration_number}</span>
                       <WithdrawalBadge status={item.status} />
                     </div>
                     <div className="grid gap-1 text-sm text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">
@@ -141,7 +153,11 @@ function ReportWithdrawalsPage() {
             <EmptyState
               icon={filtered ? SearchX : Inbox}
               title={filtered ? t("dashboard:withdrawals.filteredEmpty") : t("dashboard:withdrawals.empty")}
-              description={t("dashboard:withdrawals.emptyDescription")}
+              description={t(
+                filtered
+                  ? "dashboard:withdrawals.filteredEmptyDescription"
+                  : "dashboard:withdrawals.emptyDescription",
+              )}
             />
           )}
 

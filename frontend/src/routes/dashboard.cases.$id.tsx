@@ -186,10 +186,6 @@ function CaseDetail() {
     (caseQuery.data?.assignments ?? []).some(
       (assignment) => assignment.is_active && assignment.satgas_id === user?.id,
     );
-  const canUseEmergencyAccess =
-    isAssignedSatgas &&
-    user?.is_active === true &&
-    Boolean(user.permissions?.includes("privacy.request_break_glass"));
   const isSensitiveOversight =
     roleCode === "super_admin" &&
     caseQuery.data?.workflow_context?.facts.sensitive_oversight_enabled === true;
@@ -277,6 +273,13 @@ function CaseDetail() {
   const isOperationallyTerminalCase = ["closed", "csts_14", "withdrawn", "csts_16"].includes(
     caseStatusToken,
   );
+  const operationallyPaused = workflowContext?.facts.operationally_paused !== false;
+  const canUseEmergencyAccess =
+    isAssignedSatgas &&
+    user?.is_active === true &&
+    Boolean(user.permissions?.includes("privacy.request_break_glass")) &&
+    !operationallyPaused &&
+    !isOperationallyTerminalCase;
   const workflowTabContext = `${c.id}:${normalizeWorkflowToken(c.status ?? c.status_code)}`;
   const activeWorkflowTab =
     workflowTabSelection?.context === workflowTabContext
@@ -291,8 +294,10 @@ function CaseDetail() {
     roleCode === "admin" &&
     workflowContext?.facts.same_campus_admin === true &&
     Boolean(user?.permissions?.includes("cases.assign_satgas")) &&
+    !operationallyPaused &&
     !isOperationallyTerminalCase;
-  const canUseSatgasActions = isAssignedSatgas && !isOperationallyTerminalCase;
+  const canUseSatgasActions =
+    isAssignedSatgas && !operationallyPaused && !isOperationallyTerminalCase;
   const canRecommend =
     canUseSatgasActions && Boolean(user?.permissions?.includes("cases.recommend"));
   const canReviewRecommendation =
@@ -304,7 +309,9 @@ function CaseDetail() {
     roleCode === "admin" &&
     user?.is_active === true &&
     Boolean(user.permissions?.includes("cases.record_decision")) &&
-    workflowContext?.facts.same_campus_admin === true;
+    workflowContext?.facts.same_campus_admin === true &&
+    !operationallyPaused &&
+    !isOperationallyTerminalCase;
   const canManageRecoveryActions =
     roleCode === "admin" &&
     Boolean(user?.permissions?.includes("cases.monitor")) &&
@@ -315,9 +322,7 @@ function CaseDetail() {
   const activeAssignments = (c.assignments ?? []).filter((assignment) => assignment.is_active);
   const evidenceInvestigation = selectEvidenceInvestigation(investigationsQuery.data ?? []);
   const canUpdateEvidence =
-    isAssignedSatgas &&
-    Boolean(user?.permissions?.includes("evidence.upload")) &&
-    !isOperationallyTerminalCase;
+    canUseSatgasActions && Boolean(user?.permissions?.includes("evidence.upload"));
   const canDownloadEvidence =
     isSensitiveOversight ||
     (isAssignedSatgas && Boolean(user?.permissions?.includes("evidence.download")));

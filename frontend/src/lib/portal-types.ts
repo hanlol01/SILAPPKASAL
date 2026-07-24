@@ -60,6 +60,7 @@ export interface ActiveWithdrawalSummary {
   submitted_at: string | null;
   has_signed_document: boolean;
   latest_attachment: WithdrawalAttachment | null;
+  attachments?: WithdrawalAttachment[];
   capabilities: FormalWithdrawalCapabilities;
   reviewed_at?: string | null;
   approved_at?: string | null;
@@ -104,6 +105,7 @@ export interface FormalWithdrawalDetail {
   supersedes_reference: string | null;
   has_signed_document: boolean;
   latest_attachment: WithdrawalAttachment | null;
+  attachments: WithdrawalAttachment[];
   capabilities: FormalWithdrawalCapabilities;
 }
 

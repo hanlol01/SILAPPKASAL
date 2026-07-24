@@ -87,6 +87,8 @@ export function CancelComplaintDialog({ registrationNumber }: { registrationNumb
         queryClient.invalidateQueries({
           queryKey: portalQueryKeys.reportEvidenceFiles(registrationNumber),
         }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["operations"] }),
       ]);
       form.reset();
       setOpen(false);

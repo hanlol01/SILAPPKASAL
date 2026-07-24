@@ -321,7 +321,9 @@ test("private query clearing cancels in-flight reader data before removal", asyn
   await clearPrivateContentQueries(queryClient as never);
   assert.deepEqual(calls, ["cancel", "remove"]);
   assert.equal(predicate?.({ queryKey: ["published-content", 99] }), true);
-  assert.equal(predicate?.({ queryKey: ["portal", 99] }), false);
+  assert.equal(predicate?.({ queryKey: ["portal", 99] }), true);
+  assert.equal(predicate?.({ queryKey: ["dashboard", 99] }), true);
+  assert.equal(predicate?.({ queryKey: ["public-information", 99] }), false);
 });
 
 test("carousel keyboard behavior maps only horizontal arrow keys", () => {

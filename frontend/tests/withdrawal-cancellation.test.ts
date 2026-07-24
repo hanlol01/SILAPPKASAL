@@ -131,9 +131,10 @@ test("Admin review detail is capability-gated and protects private document acce
 });
 
 test("withdrawal review navigation and cache isolation cover both authorized monitoring roles", async () => {
-  const [layout, privateCache] = await Promise.all([
+  const [layout, privateCache, authProvider] = await Promise.all([
     source("src/layouts/dashboard-layout.tsx"),
     source("src/lib/private-query-cache.ts"),
+    source("src/components/auth-provider.tsx"),
   ]);
 
   assert.match(
@@ -145,6 +146,12 @@ test("withdrawal review navigation and cache isolation cover both authorized mon
     /key:\s*"reportWithdrawals"[\s\S]*roles:\s*\["super_admin"\][\s\S]*permission:\s*"reports\.read\.all"/,
   );
   assert.match(privateCache, /queryKey\[0\]\s*===\s*"operations"/);
+  assert.match(privateCache, /queryKey\[0\]\s*===\s*"dashboard"/);
+  assert.match(privateCache, /queryKey\[0\]\s*===\s*"portal"/);
+  assert.match(privateCache, /cancelQueries\(\{ predicate \}\)/);
+  assert.match(privateCache, /removeQueries\(\{ predicate \}\)/);
+  assert.match(authProvider, /await clearPrivateContentQueries\(queryClient\)/);
+  assert.match(authProvider, /queryClient\.removeQueries\(\{ queryKey: \["portal"\] \}\)/);
 });
 
 test("Reporter rejected request uses backend capability to create a fresh resubmission", async () => {
@@ -246,7 +253,11 @@ test("signed withdrawal file validation enforces type, extension, path, size, an
 });
 
 test("formal mutations invalidate every Reporter and operational cache affected by pause", async () => {
-  const wizard = await source("src/components/portal/formal-withdrawal-wizard.tsx");
+  const [wizard, directCancellation, reviewDetail] = await Promise.all([
+    source("src/components/portal/formal-withdrawal-wizard.tsx"),
+    source("src/components/portal/cancel-complaint-dialog.tsx"),
+    source("src/routes/dashboard.report-withdrawals.$publicId.tsx"),
+  ]);
 
   for (const expected of [
     "portalQueryKeys.report(registrationNumber)",
@@ -257,10 +268,15 @@ test("formal mutations invalidate every Reporter and operational cache affected 
     "portalQueryKeys.reportHandlingProgress(registrationNumber)",
     "portalQueryKeys.reportEvidenceFiles(registrationNumber)",
     'queryKey: ["dashboard"]',
-    'queryKey: ["operations", "cases"]',
+    'queryKey: ["operations"]',
   ]) {
     assert.ok(wizard.includes(expected), `Missing cache invalidation: ${expected}`);
   }
+
+  assert.match(directCancellation, /queryKey: \["dashboard"\]/);
+  assert.match(directCancellation, /queryKey: \["operations"\]/);
+  assert.match(reviewDetail, /queryKey: \["operations"\]/);
+  assert.match(reviewDetail, /queryKey: \["dashboard"\]/);
 });
 
 test("formal status, timeline, DRAFT, upload, and cancellation copy has ID/EN parity", async () => {
@@ -295,9 +311,127 @@ test("withdrawn Case detail is read-only while retained assignments remain visib
     /const isOperationallyTerminalCase = \["closed", "csts_14", "withdrawn", "csts_16"\]\.includes/,
   );
   assert.match(detail, /canManageAssignments =[\s\S]*!isOperationallyTerminalCase/);
-  assert.match(detail, /canUseSatgasActions = isAssignedSatgas && !isOperationallyTerminalCase/);
+  assert.match(
+    detail,
+    /canUseSatgasActions\s*=\s*[\s\S]*?isAssignedSatgas\s*&&\s*!operationallyPaused\s*&&\s*!isOperationallyTerminalCase/,
+  );
   assert.match(detail, /\(c\.assignments \?\? \[\]\)\.map/);
   assert.doesNotMatch(detail, /canManageAssignments && !c\.closed_at/);
+});
+
+test("approved withdrawal is read-only while owner document history remains available", async () => {
+  const [wizard, types] = await Promise.all([
+    source("src/components/portal/formal-withdrawal-wizard.tsx"),
+    source("src/lib/portal-types.ts"),
+  ]);
+
+  assert.match(wizard, /effectiveAttachments\.map\(\(attachment\)/);
+  assert.match(wizard, /withdrawal\.documentHistory/);
+  assert.match(wizard, /effectiveCapabilities\.can_cancel_request/);
+  assert.match(wizard, /effectiveCapabilities\.can_resubmit/);
+  assert.match(wizard, /effectiveCapabilities\.can_upload_document/);
+  assert.match(wizard, /effectiveCapabilities\.can_submit/);
+  assert.match(types, /attachments:\s*WithdrawalAttachment\[\]/);
+});
+
+test("withdrawal queue separates initial loading, filtered empty, unfiltered empty, and retry states", async () => {
+  const queue = await source("src/routes/dashboard.report-withdrawals.tsx");
+
+  assert.match(queue, /withdrawalsQuery\.isPending\s*\?/);
+  assert.match(queue, /withdrawalsQuery\.isError\s*\?/);
+  assert.match(queue, /filteredEmptyDescription/);
+  assert.match(queue, /withdrawals\.emptyDescription/);
+  assert.match(queue, /<AccessDenied/);
+  assert.match(queue, /onRetry=\{\(\) => withdrawalsQuery\.refetch\(\)\}/);
+  assert.doesNotMatch(queue, /placeholderData|keepPreviousData/);
+});
+
+test("Admin report surfaces pending withdrawal and links queue detail without exposing a new mutation", async () => {
+  const [list, detail] = await Promise.all([
+    source("src/routes/dashboard.reports.index.tsx"),
+    source("src/routes/dashboard.reports.$id.tsx"),
+  ]);
+
+  assert.match(list, /withdrawal_workflow\?\.status\s*===\s*"pending_review"/);
+  assert.match(list, /withdrawals\.pendingBadge/);
+  assert.match(detail, /to="\/dashboard\/report-withdrawals\/\$publicId"/);
+  assert.doesNotMatch(detail, /approveReportWithdrawal|rejectReportWithdrawal/);
+});
+
+test("restricted role UX stays generic for Satgas and metadata-only for Super Admin", async () => {
+  const [caseDetail, reviewDetail] = await Promise.all([
+    source("src/routes/dashboard.cases.$id.tsx"),
+    source("src/routes/dashboard.report-withdrawals.$publicId.tsx"),
+  ]);
+
+  assert.match(caseDetail, /withdrawals\.satgasPendingBanner/);
+  assert.match(caseDetail, /withdrawals\.satgasWithdrawnBanner/);
+  assert.match(caseDetail, /operationallyPaused\s*=\s*workflowContext\?\.facts\.operationally_paused\s*!==\s*false/);
+  assert.match(caseDetail, /canUseSatgasActions\s*=\s*[\s\S]*?isAssignedSatgas\s*&&\s*!operationallyPaused\s*&&\s*!isOperationallyTerminalCase/);
+  assert.match(caseDetail, /canUpdateEvidence\s*=\s*[\s\S]*?canUseSatgasActions/);
+  assert.match(caseDetail, /privacy\.request_break_glass[\s\S]*?!operationallyPaused[\s\S]*?!isOperationallyTerminalCase/);
+  assert.doesNotMatch(caseDetail, /withdrawal_reference|rejection_reason|signed-document/);
+  assert.match(reviewDetail, /roleCode\s*===\s*"super_admin"/);
+  assert.match(reviewDetail, /withdrawals\.monitoringOnly/);
+  assert.match(reviewDetail, /roleCode\s*===\s*"admin"\s*&&\s*item\.reason/);
+  assert.match(reviewDetail, /roleCode\s*===\s*"admin"\s*&&\s*item\.capabilities\.can_review/);
+});
+
+test("withdrawal preview has abort, object URL cleanup, and an accessible fallback", async () => {
+  const detail = await source("src/routes/dashboard.report-withdrawals.$publicId.tsx");
+
+  assert.match(detail, /new AbortController\(\)/);
+  assert.match(detail, /previewRequestRef\.current\?\.abort\(\)/);
+  assert.match(detail, /URL\.revokeObjectURL/);
+  assert.match(detail, /WITHDRAWAL_PREVIEW_MIME_TYPES\.has\(response\.contentType\)/);
+  assert.match(detail, /response\.blob\.size\s*===\s*0/);
+  assert.ok(
+    detail.indexOf("WITHDRAWAL_PREVIEW_MIME_TYPES.has(response.contentType)") <
+      detail.indexOf("URL.createObjectURL(response.blob)"),
+    "MIME validation must run before creating the object URL",
+  );
+  assert.match(detail, /catch \(error\) \{[\s\S]*?setPreviewFailed\(true\)/);
+  assert.match(detail, /onError=\{\(\) => \{/);
+  assert.match(detail, /setPreviewFailed\(true\)/);
+  assert.match(detail, /role="alert"/);
+  assert.match(detail, /dashboard:common\.retry/);
+});
+
+test("withdrawal dialogs and cards retain accessibility, responsive, and theme contracts", async () => {
+  const [wizard, queue, detail] = await Promise.all([
+    source("src/components/portal/formal-withdrawal-wizard.tsx"),
+    source("src/routes/dashboard.report-withdrawals.tsx"),
+    source("src/routes/dashboard.report-withdrawals.$publicId.tsx"),
+  ]);
+
+  assert.match(wizard, /max-h-\[92vh\] overflow-y-auto/);
+  assert.match(wizard, /aria-current=\{item === step \? "step"/);
+  assert.match(wizard, /aria-describedby=/);
+  assert.match(wizard, /sm:flex-row/);
+  assert.match(queue, /sm:grid-cols-/);
+  assert.match(detail, /lg:grid-cols-2/);
+  assert.match(detail, /break-all font-mono/);
+  assert.match(wizard, /iframe[\s\S]*bg-white/);
+  assert.doesNotMatch(wizard, /\b(?:bg-black|text-black)\b/);
+  for (const text of [queue, detail]) {
+    assert.doesNotMatch(text, /\b(?:bg-white|bg-black|text-black)\b/);
+  }
+});
+
+test("withdrawal status copy separates approved requests from withdrawn complaints", async () => {
+  const [portalId, portalEn, dashboardId, dashboardEn] = await Promise.all([
+    source("src/locales/id/portal.json").then(JSON.parse),
+    source("src/locales/en/portal.json").then(JSON.parse),
+    source("src/locales/id/dashboard.json").then(JSON.parse),
+    source("src/locales/en/dashboard.json").then(JSON.parse),
+  ]);
+
+  assert.equal(portalId.withdrawal.status.approved, "Pencabutan Disetujui");
+  assert.equal(portalEn.withdrawal.status.approved, "Withdrawal Approved");
+  assert.equal(dashboardId.withdrawals.status.approved, "Pencabutan Disetujui");
+  assert.equal(dashboardEn.withdrawals.status.approved, "Withdrawal Approved");
+  assert.doesNotMatch(JSON.stringify(portalId.withdrawal), /Laporan/i);
+  assert.doesNotMatch(JSON.stringify(dashboardId.withdrawals), /Laporan/i);
 });
 
 test("Reporter portal locale keys remain in Indonesian and English parity", async () => {
