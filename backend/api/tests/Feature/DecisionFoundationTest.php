@@ -9,6 +9,8 @@ use App\Enums\DecisionOutcome;
 use App\Enums\DecisionStatus as DecisionStatusEnum;
 use App\Enums\RecommendationStatus as RecommendationStatusEnum;
 use App\Enums\ReportStatus;
+use App\Enums\ReportWithdrawalRequestType;
+use App\Enums\ReportWithdrawalStatus;
 use App\Models\AuditLog;
 use App\Models\CaseAssignment;
 use App\Models\CaseRecord;
@@ -21,15 +23,24 @@ use App\Models\Permission;
 use App\Models\Recommendation;
 use App\Models\RecommendationStatus;
 use App\Models\Report;
+use App\Models\ReportWithdrawal;
 use App\Models\Role;
 use App\Models\University;
 use App\Models\User;
+use App\Services\AuditLogService;
+use App\Services\DecisionService;
+use App\Support\ApiErrorCode;
 use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Sanctum;
+use Mockery\MockInterface;
+use RuntimeException;
 use Tests\TestCase;
 
 class DecisionFoundationTest extends TestCase
@@ -50,6 +61,7 @@ class DecisionFoundationTest extends TestCase
         $this->assertTrue(Schema::hasTable('decision_statuses'));
         $this->assertTrue(Schema::hasTable('decisions'));
         $this->assertTrue(Schema::hasTable('decision_status_histories'));
+        $this->assertTrue(Schema::hasTable('decision_number_sequences'));
         $this->assertTrue(Schema::hasColumn('decision_statuses', 'valid_transitions'));
         $this->assertTrue(Schema::hasColumn('decisions', 'recommendation_id'));
         $this->assertFalse(Schema::hasColumn('decisions', 'case_id'));
@@ -79,7 +91,7 @@ class DecisionFoundationTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.status', DecisionStatusEnum::Draft->value)
             ->assertJsonPath('data.outcome_code', DecisionOutcome::Accepted->value)
-            ->assertJsonPath('data.decision_number', 'SK-2026-001')
+            ->assertJsonPath('data.decision_number', null)
             ->assertJsonPath('data.decision_summary', 'Ringkasan keputusan institusi.')
             ->assertJsonMissingPath('data.recommendation.conclusion');
 
@@ -88,7 +100,7 @@ class DecisionFoundationTest extends TestCase
             'recorder_id' => $admin->id,
             'status_code' => 'DECS-01',
             'outcome_code' => DecisionOutcome::Accepted->value,
-            'decision_number' => 'SK-2026-001',
+            'decision_number' => null,
         ]);
         $this->assertDatabaseCount('decision_status_histories', 1);
         $this->assertSame(CaseStatusEnum::Decision->value, $case->refresh()->status->name);
@@ -179,7 +191,10 @@ class DecisionFoundationTest extends TestCase
         $this->actingAsApi($superAdmin);
         $this->getJson("/api/v1/decisions/{$decision->id}")
             ->assertOk()
-            ->assertJsonPath('data.decision_summary', 'Ringkasan keputusan institusi.');
+            ->assertJsonPath('data.decision_number', null)
+            ->assertJsonPath('data.sensitive_details_available', false)
+            ->assertJsonMissingPath('data.decision_summary')
+            ->assertJsonMissingPath('data.decision_content');
         $this->patchJson("/api/v1/decisions/{$decision->id}", [
             'decision_summary' => 'Super Admin tidak boleh mengubah.',
         ])->assertForbidden();
@@ -234,33 +249,28 @@ class DecisionFoundationTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_admin_can_update_draft_decision_and_decision_number_is_nullable_and_non_unique(): void
+    public function test_admin_can_update_draft_decision_but_cannot_write_decision_number(): void
     {
         $admin = $this->makeUser('admin', 'admin@university.ac.id');
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
         $caseA = $this->makeDecisionCase($admin, $satgas);
-        $caseB = $this->makeDecisionCase($admin, $satgas);
         $recommendationA = $this->makeRecommendation($caseA, $satgas, RecommendationStatusEnum::Accepted);
-        $recommendationB = $this->makeRecommendation($caseB, $satgas, RecommendationStatusEnum::Accepted);
         $decisionA = $this->makeDecision($recommendationA, $admin, ['decision_number' => null]);
-        $decisionB = $this->makeDecision($recommendationB, $admin, ['decision_number' => null]);
 
         $this->actingAsApi($admin);
         $this->patchJson("/api/v1/decisions/{$decisionA->id}", [
-            'decision_number' => 'SK-SAMA',
             'outcome_code' => DecisionOutcome::Deferred->value,
             'decision_summary' => 'Ringkasan keputusan diperbarui.',
         ])
             ->assertOk()
-            ->assertJsonPath('data.decision_number', 'SK-SAMA')
+            ->assertJsonPath('data.decision_number', null)
             ->assertJsonPath('data.outcome_code', DecisionOutcome::Deferred->value);
 
-        $this->actingAsApi($admin);
-        $this->patchJson("/api/v1/decisions/{$decisionB->id}", [
+        $this->patchJson("/api/v1/decisions/{$decisionA->id}", [
             'decision_number' => 'SK-SAMA',
         ])
-            ->assertOk()
-            ->assertJsonPath('data.decision_number', 'SK-SAMA');
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('decision_number');
     }
 
     public function test_finalization_advances_case_to_decided_and_locks_decision(): void
@@ -283,7 +293,8 @@ class DecisionFoundationTest extends TestCase
             'status' => DecisionStatusEnum::Finalized->value,
         ])
             ->assertOk()
-            ->assertJsonPath('data.status', DecisionStatusEnum::Finalized->value);
+            ->assertJsonPath('data.status', DecisionStatusEnum::Finalized->value)
+            ->assertJsonPath('data.decision_number', 'SK/PPKS/'.now()->format('Y').'/001');
 
         $decision->refresh();
         $this->assertNotNull($decision->finalized_at);
@@ -464,11 +475,425 @@ class DecisionFoundationTest extends TestCase
             ->assertUnprocessable();
     }
 
+    public function test_formal_code_sequence_is_server_generated_yearly_and_uses_application_timezone(): void
+    {
+        config()->set('app.timezone', 'Asia/Jakarta');
+        Carbon::setTestNow(Carbon::parse('2025-12-31 17:00:00', 'UTC'));
+
+        try {
+            $admin = $this->makeUser('admin', 'admin-sequence@university.ac.id');
+            $satgas = $this->makeUser('satgas_ppks', 'satgas-sequence@university.ac.id');
+            $first = $this->makeDecision(
+                $this->makeRecommendation($this->makeDecisionCase($admin, $satgas), $satgas, RecommendationStatusEnum::Accepted),
+                $admin,
+            );
+            $second = $this->makeDecision(
+                $this->makeRecommendation($this->makeDecisionCase($admin, $satgas), $satgas, RecommendationStatusEnum::Accepted),
+                $admin,
+            );
+
+            $this->markDecisionRecorded($first, $admin);
+            $this->markDecisionRecorded($second, $admin);
+            $this->actingAsApi($admin);
+
+            $this->patchJson("/api/v1/decisions/{$first->id}/status", ['status' => 'finalized'])
+                ->assertOk()
+                ->assertJsonPath('data.decision_number', 'SK/PPKS/2026/001');
+            $this->patchJson("/api/v1/decisions/{$second->id}/status", ['status' => 'finalized'])
+                ->assertOk()
+                ->assertJsonPath('data.decision_number', 'SK/PPKS/2026/002');
+
+            $first->refresh();
+            $issuanceTimestamp = Carbon::getTestNow();
+            $finalizationHistory = $first->statusHistories()
+                ->latest('id')
+                ->firstOrFail();
+            $firstCase = $first->recommendation->case()->firstOrFail();
+
+            $this->assertTrue($first->finalized_at?->equalTo($issuanceTimestamp) ?? false);
+            $this->assertTrue($finalizationHistory->changed_at?->equalTo($issuanceTimestamp) ?? false);
+            $this->assertTrue($firstCase->decision_at?->equalTo($issuanceTimestamp) ?? false);
+            $this->assertSame(
+                '2026',
+                $first->finalized_at?->copy()->setTimezone('Asia/Jakarta')->format('Y'),
+            );
+            $this->assertSame(2, DB::table('decision_number_sequences')->where('year', 2026)->value('last_value'));
+
+            Carbon::setTestNow(Carbon::parse('2026-12-31 17:00:00', 'UTC'));
+            $third = $this->makeDecision(
+                $this->makeRecommendation($this->makeDecisionCase($admin, $satgas), $satgas, RecommendationStatusEnum::Accepted),
+                $admin,
+            );
+            $this->markDecisionRecorded($third, $admin);
+
+            $this->patchJson("/api/v1/decisions/{$third->id}/status", ['status' => 'finalized'])
+                ->assertOk()
+                ->assertJsonPath('data.decision_number', 'SK/PPKS/2027/001');
+            $this->assertSame(1, DB::table('decision_number_sequences')->where('year', 2027)->value('last_value'));
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_finalization_retry_is_idempotent_for_issued_and_legacy_null_decisions(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-retry@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-retry@university.ac.id');
+        $case = $this->makeDecisionCase($admin, $satgas);
+        $decision = $this->makeDecision(
+            $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::Accepted),
+            $admin,
+        );
+        $this->markDecisionRecorded($decision, $admin);
+        $this->actingAsApi($admin);
+
+        $firstResponse = $this->patchJson("/api/v1/decisions/{$decision->id}/status", ['status' => 'finalized'])
+            ->assertOk();
+        $issuedNumber = $firstResponse->json('data.decision_number');
+        $historyCount = $decision->statusHistories()->count();
+        $auditCount = AuditLog::query()
+            ->where('action', AuditAction::DecisionStatusChanged->value)
+            ->where('subject_id', $decision->id)
+            ->count();
+        $notificationCount = $this->notificationsByType($satgas, 'NOTIF-15')->count();
+        $sequenceValue = DB::table('decision_number_sequences')->value('last_value');
+
+        $this->patchJson("/api/v1/decisions/{$decision->id}/status", ['status' => 'finalized'])
+            ->assertOk()
+            ->assertJsonPath('data.decision_number', $issuedNumber);
+
+        $this->assertSame($historyCount, $decision->statusHistories()->count());
+        $this->assertSame($auditCount, AuditLog::query()
+            ->where('action', AuditAction::DecisionStatusChanged->value)
+            ->where('subject_id', $decision->id)
+            ->count());
+        $this->assertSame($notificationCount, $this->notificationsByType($satgas, 'NOTIF-15')->count());
+        $this->assertSame($sequenceValue, DB::table('decision_number_sequences')->value('last_value'));
+
+        $legacyCase = $this->makeDecisionCase($admin, $satgas);
+        $legacy = $this->makeDecision(
+            $this->makeRecommendation($legacyCase, $satgas, RecommendationStatusEnum::Accepted),
+            $admin,
+        );
+        $finalized = DecisionStatus::query()->where('name', DecisionStatusEnum::Finalized->value)->firstOrFail();
+        $legacy->forceFill([
+            'status_code' => $finalized->code,
+            'decision_number' => null,
+            'finalized_at' => now(),
+        ])->save();
+
+        $this->patchJson("/api/v1/decisions/{$legacy->id}/status", ['status' => 'finalized'])
+            ->assertOk()
+            ->assertJsonPath('data.decision_number', null);
+        $this->assertSame($sequenceValue, DB::table('decision_number_sequences')->value('last_value'));
+    }
+
+    public function test_legacy_number_is_preserved_and_canonical_collision_is_skipped_without_rewrite(): void
+    {
+        config()->set('app.timezone', 'Asia/Jakarta');
+        Carbon::setTestNow(Carbon::parse('2026-06-01 03:00:00', 'UTC'));
+
+        try {
+            $admin = $this->makeUser('admin', 'admin-legacy@university.ac.id');
+            $satgas = $this->makeUser('satgas_ppks', 'satgas-legacy@university.ac.id');
+            $legacy = $this->makeDecision(
+                $this->makeRecommendation($this->makeDecisionCase($admin, $satgas), $satgas, RecommendationStatusEnum::Accepted),
+                $admin,
+                ['decision_number' => 'LEGACY/KEPUTUSAN/77'],
+            );
+            $this->markDecisionRecorded($legacy, $admin);
+            $this->actingAsApi($admin);
+            $this->patchJson("/api/v1/decisions/{$legacy->id}/status", ['status' => 'finalized'])
+                ->assertOk()
+                ->assertJsonPath('data.decision_number', 'LEGACY/KEPUTUSAN/77');
+            $this->assertDatabaseCount('decision_number_sequences', 0);
+
+            $occupied = $this->makeDecision(
+                $this->makeRecommendation($this->makeDecisionCase($admin, $satgas), $satgas, RecommendationStatusEnum::Accepted),
+                $admin,
+                ['decision_number' => 'SK/PPKS/2026/001'],
+            );
+            $newDecision = $this->makeDecision(
+                $this->makeRecommendation($this->makeDecisionCase($admin, $satgas), $satgas, RecommendationStatusEnum::Accepted),
+                $admin,
+            );
+            $this->markDecisionRecorded($newDecision, $admin);
+
+            $this->patchJson("/api/v1/decisions/{$newDecision->id}/status", ['status' => 'finalized'])
+                ->assertOk()
+                ->assertJsonPath('data.decision_number', 'SK/PPKS/2026/002');
+            $this->assertSame('SK/PPKS/2026/001', $occupied->refresh()->decision_number);
+            $this->assertSame(2, DB::table('decision_number_sequences')->where('year', 2026)->value('last_value'));
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_sequence_exhaustion_and_audit_failure_roll_back_all_finalization_state(): void
+    {
+        config()->set('app.timezone', 'Asia/Jakarta');
+        Carbon::setTestNow(Carbon::parse('2026-06-01 03:00:00', 'UTC'));
+
+        try {
+            $admin = $this->makeUser('admin', 'admin-rollback-code@university.ac.id');
+            $satgas = $this->makeUser('satgas_ppks', 'satgas-rollback-code@university.ac.id');
+            $case = $this->makeDecisionCase($admin, $satgas);
+            $decision = $this->makeDecision(
+                $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::Accepted),
+                $admin,
+            );
+            $this->markDecisionRecorded($decision, $admin);
+            DB::table('decision_number_sequences')->insert([
+                'year' => 2026,
+                'last_value' => 999,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $historyCount = $decision->statusHistories()->count();
+            $auditCount = AuditLog::query()->count();
+            $this->actingAsApi($admin);
+
+            $this->patchJson("/api/v1/decisions/{$decision->id}/status", ['status' => 'finalized'])
+                ->assertStatus(409)
+                ->assertJsonPath('error_code', ApiErrorCode::DecisionNumberSequenceExhausted);
+            $this->assertSame(DecisionStatusEnum::Recorded->value, $decision->refresh()->status->name);
+            $this->assertNull($decision->decision_number);
+            $this->assertNull($decision->finalized_at);
+            $this->assertSame(CaseStatusEnum::Decision->value, $case->refresh()->status->name);
+            $this->assertSame($historyCount, $decision->statusHistories()->count());
+            $this->assertSame($auditCount, AuditLog::query()->count());
+            $this->assertSame(999, DB::table('decision_number_sequences')->where('year', 2026)->value('last_value'));
+            $this->assertSame(0, $this->notificationsByType($satgas, 'NOTIF-15')->count());
+
+            DB::table('decision_number_sequences')->where('year', 2026)->update(['last_value' => 0]);
+            $this->mock(AuditLogService::class, function (MockInterface $mock): void {
+                $mock->shouldReceive('record')->andThrow(new RuntimeException('simulated audit failure'));
+            });
+
+            try {
+                app(DecisionService::class)->updateStatus($decision->fresh(), $admin->fresh(), 'finalized');
+                $this->fail('Expected the simulated audit failure.');
+            } catch (RuntimeException $exception) {
+                $this->assertSame('simulated audit failure', $exception->getMessage());
+            }
+
+            $this->assertSame(DecisionStatusEnum::Recorded->value, $decision->refresh()->status->name);
+            $this->assertNull($decision->decision_number);
+            $this->assertNull($decision->finalized_at);
+            $this->assertSame(CaseStatusEnum::Decision->value, $case->refresh()->status->name);
+            $this->assertSame(0, DB::table('decision_number_sequences')->where('year', 2026)->value('last_value'));
+            $this->assertSame(0, $this->notificationsByType($satgas, 'NOTIF-15')->count());
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_decision_code_spoofing_is_rejected_on_create_update_and_status_requests(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-spoof@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-spoof@university.ac.id');
+        $recommendation = $this->makeRecommendation(
+            $this->makeDecisionCase($admin, $satgas),
+            $satgas,
+            RecommendationStatusEnum::Accepted,
+        );
+        $aliases = [
+            'decision_number' => 'SK/PPKS/2099/999',
+            'decision_code' => 'spoofed',
+            'formal_decision_code' => 'spoofed',
+            'sequence' => 9,
+            'year' => 2099,
+            'nomor_keputusan' => 'spoofed',
+            'kode_keputusan' => 'spoofed',
+            'decision_no' => 'spoofed',
+        ];
+        $this->actingAsApi($admin);
+
+        $this->postJson(
+            "/api/v1/recommendations/{$recommendation->id}/decisions",
+            [...$this->decisionPayload(), ...$aliases],
+        )
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(array_keys($aliases));
+        $this->assertDatabaseCount('decisions', 0);
+
+        $decision = $this->makeDecision($recommendation, $admin);
+        $this->patchJson("/api/v1/decisions/{$decision->id}", $aliases)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(array_keys($aliases));
+        $this->patchJson(
+            "/api/v1/decisions/{$decision->id}/status",
+            ['status' => 'recorded', ...$aliases],
+        )
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(array_keys($aliases));
+        $this->assertNull($decision->refresh()->decision_number);
+    }
+
+    public function test_finalization_fails_closed_for_invalid_recommendation_withdrawal_and_case_states(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-guards@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-guards@university.ac.id');
+        $this->actingAsApi($admin);
+
+        $draft = $this->makeDecision(
+            $this->makeRecommendation($this->makeDecisionCase($admin, $satgas), $satgas, RecommendationStatusEnum::Accepted),
+            $admin,
+        );
+        $this->patchJson("/api/v1/decisions/{$draft->id}/status", ['status' => 'finalized'])
+            ->assertUnprocessable();
+
+        $invalidRecommendation = $this->makeRecommendation(
+            $this->makeDecisionCase($admin, $satgas),
+            $satgas,
+            RecommendationStatusEnum::Accepted,
+        );
+        $invalidRecommendationDecision = $this->makeDecision($invalidRecommendation, $admin);
+        $this->markDecisionRecorded($invalidRecommendationDecision, $admin);
+        $draftRecommendationStatus = RecommendationStatus::query()
+            ->where('name', RecommendationStatusEnum::Drafting->value)
+            ->firstOrFail();
+        $invalidRecommendation->forceFill(['status_code' => $draftRecommendationStatus->code])->save();
+        $this->patchJson("/api/v1/decisions/{$invalidRecommendationDecision->id}/status", ['status' => 'finalized'])
+            ->assertUnprocessable();
+
+        $withdrawalCase = $this->makeDecisionCase($admin, $satgas);
+        $withdrawalDecision = $this->makeDecision(
+            $this->makeRecommendation($withdrawalCase, $satgas, RecommendationStatusEnum::Accepted),
+            $admin,
+        );
+        $this->markDecisionRecorded($withdrawalDecision, $admin);
+        $report = $withdrawalCase->report()->firstOrFail();
+        ReportWithdrawal::query()->create([
+            'report_id' => $report->id,
+            'case_id' => $withdrawalCase->id,
+            'requester_id' => $report->reporter_id,
+            'registration_number_snapshot' => $report->registration_number,
+            'requester_display_name_snapshot' => 'Pelapor',
+            'request_type' => ReportWithdrawalRequestType::FormalWithdrawal,
+            'status' => ReportWithdrawalStatus::PendingReview,
+            'reason' => 'Permohonan pencabutan formal yang sedang ditinjau.',
+            'previous_report_status' => $report->status,
+            'previous_case_status' => $withdrawalCase->status?->name,
+            'lock_version' => 0,
+        ]);
+        $this->getJson("/api/v1/decisions/{$withdrawalDecision->id}/status-options")
+            ->assertOk()
+            ->assertJsonCount(0, 'data.valid_transitions');
+        $this->patchJson("/api/v1/decisions/{$withdrawalDecision->id}/status", ['status' => 'finalized'])
+            ->assertStatus(409)
+            ->assertJsonPath('error_code', ApiErrorCode::WithdrawalPendingReview);
+
+        $withdrawnReportCase = $this->makeDecisionCase($admin, $satgas);
+        $withdrawnReportDecision = $this->makeDecision(
+            $this->makeRecommendation($withdrawnReportCase, $satgas, RecommendationStatusEnum::Accepted),
+            $admin,
+        );
+        $this->markDecisionRecorded($withdrawnReportDecision, $admin);
+        $withdrawnReportCase->report()->update(['status' => ReportStatus::Withdrawn->value]);
+        $this->patchJson("/api/v1/decisions/{$withdrawnReportDecision->id}/status", ['status' => 'finalized'])
+            ->assertUnprocessable();
+
+        foreach ([CaseStatusEnum::Withdrawn, CaseStatusEnum::Decided] as $caseStatus) {
+            $case = $this->makeDecisionCase($admin, $satgas);
+            $decision = $this->makeDecision(
+                $this->makeRecommendation($case, $satgas, RecommendationStatusEnum::Accepted),
+                $admin,
+            );
+            $this->markDecisionRecorded($decision, $admin);
+            $status = CaseStatus::query()->where('name', $caseStatus->value)->firstOrFail();
+            $case->forceFill(['status_code' => $status->code])->save();
+            $response = $this->patchJson("/api/v1/decisions/{$decision->id}/status", ['status' => 'finalized']);
+            $caseStatus === CaseStatusEnum::Withdrawn
+                ? $response->assertStatus(409)
+                : $response->assertUnprocessable();
+            $this->assertNull($decision->refresh()->decision_number);
+        }
+
+        $this->assertDatabaseCount('decision_number_sequences', 0);
+    }
+
+    public function test_formal_code_visibility_is_role_scoped_and_get_requests_do_not_mutate(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-visibility@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-visibility@university.ac.id');
+        $superAdmin = $this->makeUser('super_admin', 'super-visibility@university.ac.id');
+        $reporter = $this->makeUser('reporter', 'reporter-visibility@university.ac.id');
+        $crossCampusAdmin = $this->makeUser('admin', 'cross-visibility@university.ac.id', 'DEMO-ST');
+        $decision = $this->makeDecision(
+            $this->makeRecommendation($this->makeDecisionCase($admin, $satgas), $satgas, RecommendationStatusEnum::Accepted),
+            $admin,
+        );
+        $this->markDecisionRecorded($decision, $admin);
+        $this->actingAsApi($admin);
+        $number = $this->patchJson("/api/v1/decisions/{$decision->id}/status", ['status' => 'finalized'])
+            ->assertOk()
+            ->json('data.decision_number');
+        $sequenceValue = DB::table('decision_number_sequences')->value('last_value');
+
+        $this->getJson("/api/v1/decisions/{$decision->id}")
+            ->assertOk()
+            ->assertJsonPath('data.decision_number', $number)
+            ->assertJsonPath('data.decision_summary', 'Ringkasan keputusan institusi.');
+        $this->actingAsApi($satgas);
+        $this->getJson("/api/v1/decisions/{$decision->id}")
+            ->assertOk()
+            ->assertJsonPath('data.decision_number', $number);
+        $this->actingAsApi($superAdmin);
+        $this->getJson("/api/v1/decisions/{$decision->id}")
+            ->assertOk()
+            ->assertJsonPath('data.decision_number', $number)
+            ->assertJsonPath('data.sensitive_details_available', false)
+            ->assertJsonMissingPath('data.decision_summary')
+            ->assertJsonMissingPath('data.decision_content');
+        $this->actingAsApi($reporter);
+        $this->getJson("/api/v1/decisions/{$decision->id}")->assertForbidden();
+        $this->actingAsApi($crossCampusAdmin);
+        $this->getJson("/api/v1/decisions/{$decision->id}")->assertForbidden();
+
+        $this->assertSame($number, $decision->refresh()->decision_number);
+        $this->assertSame($sequenceValue, DB::table('decision_number_sequences')->value('last_value'));
+    }
+
+    public function test_database_unique_constraint_rejects_duplicate_non_null_numbers_and_allows_nulls(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-unique@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-unique@university.ac.id');
+        $first = $this->makeDecision(
+            $this->makeRecommendation($this->makeDecisionCase($admin, $satgas), $satgas, RecommendationStatusEnum::Accepted),
+            $admin,
+            ['decision_number' => 'LEGACY-UNIQUE-1'],
+        );
+        $this->makeDecision(
+            $this->makeRecommendation($this->makeDecisionCase($admin, $satgas), $satgas, RecommendationStatusEnum::Accepted),
+            $admin,
+            ['decision_number' => null],
+        );
+        $this->makeDecision(
+            $this->makeRecommendation($this->makeDecisionCase($admin, $satgas), $satgas, RecommendationStatusEnum::Accepted),
+            $admin,
+            ['decision_number' => null],
+        );
+
+        try {
+            $this->makeDecision(
+                $this->makeRecommendation($this->makeDecisionCase($admin, $satgas), $satgas, RecommendationStatusEnum::Accepted),
+                $admin,
+                ['decision_number' => 'LEGACY-UNIQUE-1'],
+            );
+            $this->fail('Expected the global decision number unique constraint to reject the duplicate.');
+        } catch (QueryException $exception) {
+            $this->assertContains((string) ($exception->errorInfo[0] ?? $exception->getCode()), ['23000', '23505']);
+        }
+
+        $this->assertSame('LEGACY-UNIQUE-1', $first->refresh()->decision_number);
+        $this->assertSame(2, Decision::query()->whereNull('decision_number')->count());
+    }
+
     private function decisionPayload(array $overrides = []): array
     {
         return array_merge([
             'outcome_code' => DecisionOutcome::Accepted->value,
-            'decision_number' => 'SK-2026-001',
             'decision_date' => now()->toDateString(),
             'decision_summary' => 'Ringkasan keputusan institusi.',
             'decision_content' => 'Isi keputusan lengkap yang terenkripsi saat tersimpan.',
@@ -500,6 +925,20 @@ class DecisionFoundationTest extends TestCase
         ]);
 
         return $decision;
+    }
+
+    private function markDecisionRecorded(Decision $decision, User $admin): void
+    {
+        $recorded = DecisionStatus::query()->where('name', DecisionStatusEnum::Recorded->value)->firstOrFail();
+        $fromStatusCode = $decision->status_code;
+        $decision->forceFill(['status_code' => $recorded->code])->save();
+        $decision->statusHistories()->create([
+            'from_status_code' => $fromStatusCode,
+            'to_status_code' => $recorded->code,
+            'changed_by' => $admin->id,
+            'changed_at' => now(),
+        ]);
+        $decision->unsetRelation('status');
     }
 
     private function makeRecommendation(CaseRecord $case, User $satgas, RecommendationStatusEnum $statusName): Recommendation

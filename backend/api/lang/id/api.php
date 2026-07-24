@@ -30,6 +30,8 @@ return [
         'case_assignment_unchanged' => 'Tidak ada perubahan pada penugasan Satgas.',
         'case_assignment_read_only' => 'Penugasan tidak dapat diubah setelah Kasus memasuki tahap keputusan final atau tindak lanjut.',
         'withdrawal_pending_review' => 'Kasus dihentikan sementara karena permohonan pencabutan sedang menunggu verifikasi.',
+        'decision_number_sequence_exhausted' => 'Kapasitas tahunan nomor keputusan formal telah tercapai.',
+        'decision_number_conflict' => 'Nomor keputusan formal tidak dapat diterbitkan karena konflik penomoran.',
         'case_investigation_completion_required' => 'Selesaikan investigasi sebelum melanjutkan kasus ke mediasi atau rekomendasi.',
         'investigation_stage_activity_required' => 'Tambahkan minimal satu aktivitas pada tahap :stage sebelum melanjutkan.',
         'investigation_activity_stage_incompatible' => 'Jenis aktivitas tersebut tidak dapat dicatat pada tahap :stage.',

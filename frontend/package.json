@@ -12,6 +12,7 @@
     "test:global-term": "node --experimental-strip-types --test tests/global-term-complaint-filters.test.ts",
     "test:withdrawal": "node --experimental-strip-types --test tests/withdrawal-cancellation.test.ts",
     "test:assignment": "node --experimental-strip-types --test tests/case-assignment.test.ts",
+    "test:decision": "node --experimental-strip-types --test tests/decision-formal-code.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

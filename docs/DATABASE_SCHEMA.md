@@ -77,7 +77,7 @@ erDiagram
     cases ||--o{ risk_assessments : "assessed"
     cases ||--o{ investigations : "investigated"
     cases ||--o{ recommendations : "recommended"
-    cases ||--o{ decisions : "decided"
+    recommendations ||--o| decisions : "decided"
     cases ||--o{ recovery_monitorings : "monitored"
     cases ||--o{ messages : "has messages"
     cases ||--o{ evidences : "has evidence"
@@ -109,7 +109,7 @@ erDiagram
 | `cases` | `investigations` | 1:1 | `investigations.case_id` |
 | `investigations` | `investigation_activities` | 1:N | `investigation_activities.investigation_id` |
 | `cases` | `recommendations` | 1:1 | `recommendations.case_id` |
-| `cases` | `decisions` | 1:1 | `decisions.case_id` |
+| `recommendations` | `decisions` | 1:0..1 | `decisions.recommendation_id` (UNIQUE) |
 | `cases` | `recovery_monitorings` | 1:N | `recovery_monitorings.case_id` |
 | `cases` | `messages` | 1:N | `messages.case_id` |
 | `users` | `notifications` | 1:N | `notifications.user_id` |
@@ -389,13 +389,35 @@ Baris lama tidak dihapus saat reassign. Assignment yang berakhir diubah menjadi 
 | Kolom | Tipe | Constraint | Deskripsi |
 |-------|------|-----------|-----------|
 | `id` | `bigint` | PK, auto-increment | — |
-| `case_id` | `bigint` | FK → `cases.id`, UNIQUE, NOT NULL | 1:1 |
-| `recorder_id` | `bigint` | FK → `users.id`, NOT NULL | Satgas pencatat |
-| `decision_number` | `varchar(100)` | NOT NULL | Nomor SK |
+| `recommendation_id` | `bigint` | FK → `recommendations.id`, UNIQUE, NOT NULL | Satu Decision per Recommendation |
+| `recorder_id` | `bigint` | FK → `users.id`, NOT NULL | Admin pencatat |
+| `status_code` | `varchar(20)` | FK → `decision_statuses.code`, NOT NULL | Status master Decision |
+| `outcome_code` | `varchar(50)` | NOT NULL | Hasil institusional |
+| `decision_number` | `varchar(100)` | NULLABLE, UNIQUE (`decisions_decision_number_unique`) | Kode formal server-side; format baru `SK/PPKS/YYYY/NNN`; nilai legacy dipertahankan |
 | `decision_date` | `date` | NOT NULL | Tanggal keputusan |
+| `decision_summary` | `text` | NOT NULL | **ENCRYPTED** — Ringkasan keputusan |
 | `decision_content` | `text` | NOT NULL | **ENCRYPTED** — Isi keputusan |
+| `recorded_at` | `timestamp` | NOT NULL | Waktu pencatatan |
+| `finalized_at` | `timestamp` | NULLABLE | Timestamp issuance/finalization; sumber tahun kode dalam timezone aplikasi |
 | `created_at` | `timestamp` | — | — |
 | `updated_at` | `timestamp` | — | — |
+
+`decision_number` tetap nullable untuk draft/recorded dan kompatibilitas Decision finalized
+legacy yang tidak memiliki nomor. Unique index bersifat global dan mengizinkan banyak `NULL`.
+Tidak ada backfill atau normalisasi nilai legacy.
+
+### 3.14.1 `decision_number_sequences`
+
+| Kolom | Tipe | Constraint | Deskripsi |
+|-------|------|-----------|-----------|
+| `year` | `smallint` | PK | Tahun bisnis dari application timezone |
+| `last_value` | `unsigned bigint` | NOT NULL, DEFAULT `0` | Nilai sequence terakhir; maksimum domain `999` |
+| `created_at` | `timestamp` | — | — |
+| `updated_at` | `timestamp` | — | — |
+
+Tabel ini global (tanpa campus scope). Generator membuat row secara race-safe, lalu
+`lockForUpdate`; ia tidak memakai `MAX(decision_number)`, jumlah Decision, random, atau UUID.
+Kapasitas canonical tetap `001` sampai `999` per tahun.
 
 ### 3.15 `recovery_monitorings`
 
@@ -894,7 +916,7 @@ Phase 3 — Core Business (FK dependencies resolved by order)
   026_create_investigations_table             ← FK ke cases, users
   027_create_investigation_activities_table   ← FK ke investigations, users
   028_create_recommendations_table            ← FK ke cases, users
-  029_create_decisions_table                  ← FK ke cases, users
+  029_create_decisions_table                  ← FK ke recommendations, users
   030_create_recovery_monitorings_table       ← FK ke cases, users
   031_create_messages_table                   ← FK ke cases, users (nullable)
   032_create_notifications_table              ← FK ke users
@@ -915,6 +937,16 @@ Phase 6 — Laravel Queue (built-in)
 
 Phase 7 — Laravel Cache (jika Redis tidak digunakan)
   041_create_cache_table                      ← php artisan cache:table
+```
+
+Current additive Decision numbering revision:
+
+```text
+2026_07_24_040000_add_formal_decision_number_sequence
+  - preflight duplicate non-null decisions.decision_number
+  - create decision_number_sequences
+  - add decisions_decision_number_unique
+  - no backfill; rollback preserves decisions.decision_number
 ```
 
 ---

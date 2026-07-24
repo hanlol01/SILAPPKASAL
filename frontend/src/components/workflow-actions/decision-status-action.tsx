@@ -70,6 +70,12 @@ export function DecisionStatusAction({
     () => optionsQuery.data?.valid_transitions ?? [],
     [optionsQuery.data],
   );
+  const selectedStatus = form.watch("status");
+  const isFinalizing = options.some(
+    (option) =>
+      (option.code === selectedStatus || option.name === selectedStatus)
+      && option.name === "finalized",
+  );
   useEffect(() => {
     if (!optionsQuery.isSuccess) return;
     const selected = form.getValues("status");
@@ -112,6 +118,17 @@ export function DecisionStatusAction({
     },
     onError: (error) => {
       applyLaravelErrors(form, error);
+      void synchronizeWorkflowCaches(queryClient, {
+        caseId,
+        exactKeys: [
+          operationsQueryKeys.decisions(decision.recommendation_id),
+          operationsQueryKeys.recommendations(caseId),
+          operationsQueryKeys.recommendation(decision.recommendation_id),
+          operationsQueryKeys.recommendationStatusOptions(decision.recommendation_id),
+          operationsQueryKeys.decision(decision.id),
+          operationsQueryKeys.decisionStatusOptions(decision.id),
+        ],
+      }).catch(() => undefined);
       toast.error(apiErrorMessage(error, t("dashboard:workflow.decisionStatusError")));
     },
   });
@@ -184,12 +201,20 @@ export function DecisionStatusAction({
               )}
             />
 
+            {isFinalizing && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
+                {t("dashboard:workflow.decisionFinalizeConfirmation")}
+              </div>
+            )}
+
             <DialogFooter>
               <Button type="submit" disabled={mutation.isPending || options.length === 0}>
                 {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {mutation.isPending
                   ? t("dashboard:common.saving")
-                  : t("dashboard:workflow.saveStatus")}
+                  : isFinalizing
+                    ? t("dashboard:workflow.finalizeDecision")
+                    : t("dashboard:workflow.saveStatus")}
               </Button>
             </DialogFooter>
           </form>

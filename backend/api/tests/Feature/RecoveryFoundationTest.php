@@ -573,7 +573,7 @@ class RecoveryFoundationTest extends TestCase
             'recorder_id' => $admin->id,
             'status_code' => $status->code,
             'outcome_code' => DecisionOutcome::Accepted->value,
-            'decision_number' => 'SK-2026-001',
+            'decision_number' => 'LEGACY-'.$recommendation->id,
             'decision_date' => now()->toDateString(),
             'decision_summary' => 'Ringkasan keputusan institusi.',
             'decision_content' => 'Isi keputusan lengkap yang terenkripsi saat tersimpan.',

@@ -30,6 +30,8 @@ return [
         'case_assignment_unchanged' => 'The Satgas assignment did not change.',
         'case_assignment_read_only' => 'Assignments cannot change after the Case enters a final-decision or follow-up stage.',
         'withdrawal_pending_review' => 'The Case is temporarily paused while the withdrawal request awaits verification.',
+        'decision_number_sequence_exhausted' => 'The annual formal decision number capacity has been reached.',
+        'decision_number_conflict' => 'The formal decision number could not be issued because of a numbering conflict.',
         'case_investigation_completion_required' => 'Complete the investigation before advancing the case to mediation or recommendation.',
         'investigation_stage_activity_required' => 'Add at least one activity in the :stage stage before continuing.',
         'investigation_activity_stage_incompatible' => 'That activity type cannot be recorded in the :stage stage.',

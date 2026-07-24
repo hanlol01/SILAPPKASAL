@@ -163,8 +163,16 @@ final class AuditEventCatalog
             AuditAction::DecisionCreated,
             AuditAction::DecisionUpdated,
             AuditAction::DecisionStatusChanged => $this->fields(
-                ['case_number', 'decision_number', 'status_code', 'outcome_code'],
-                ['status_code', 'outcome_code'],
+                [
+                    'case_number',
+                    'decision_number',
+                    'status_code',
+                    'outcome_code',
+                    'from_status',
+                    'to_status',
+                    'finalized_at',
+                ],
+                ['status_code', 'outcome_code', 'decision_number', 'finalized_at'],
             ),
 
             AuditAction::RecoveryCreated,

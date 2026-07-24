@@ -319,7 +319,6 @@ export interface Decision {
 
 export interface DecisionCreatePayload {
   outcome_code: string;
-  decision_number?: string | null;
   decision_date: string;
   decision_summary: string;
   decision_content: string;
@@ -535,7 +534,6 @@ export interface RecommendationStatusOptions {
 
 export interface DecisionUpdatePayload {
   outcome_code?: string;
-  decision_number?: string | null;
   decision_date?: string;
   decision_summary?: string;
   decision_content?: string;

@@ -1136,12 +1136,48 @@ Audit Event: decision.created
 ```json
 {
   "outcome_code": "accepted",
-  "decision_number": "SK/PPKS/2026/001",
   "decision_date": "2026-06-20",
   "decision_summary": "Ringkasan putusan yang telah ditetapkan.",
   "decision_content": "Berdasarkan rekomendasi Satgas PPKS..."
 }
 ```
+
+`decision_number` is server-owned and remains `null` while the Decision is `draft` or
+`recorded`. Create and update requests prohibit `decision_number`, `decision_code`,
+`formal_decision_code`, `sequence`, `year`, `nomor_keputusan`, `kode_keputusan`, and
+`decision_no`; supplied values return validation `422`.
+
+### 7.9.1 Finalize Decision and Issue Formal Number
+
+```http
+PATCH /api/v1/decisions/{decision}/status
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{"status":"finalized"}
+```
+
+Only an active same-campus Admin with `cases.record_decision` may mutate a Decision.
+Finalization is valid only from `recorded`, after the approved Recommendation and Case
+workflow prerequisites pass. It atomically issues:
+
+```text
+SK/PPKS/{application-timezone year}/{global yearly sequence 001..999}
+```
+
+The same server timestamp determines the code year and `finalized_at`. The endpoint does not
+accept a client number. An identical retry against an already finalized Decision returns the
+existing resource without another sequence increment, audit, notification, or Case
+transition. Legacy finalized Decisions with a null number remain null.
+
+`409 decision_number_sequence_exhausted` indicates that the annual capacity of 999 has been
+reached. `409 decision_number_conflict` indicates a database uniqueness conflict. Both are
+transactional failures with no partial finalization.
+
+Read projection is role-aware: same-campus Admin and assigned Satgas retain their authorized
+Decision view; Super Admin receives metadata only (including `decision_number`); Reporter and
+cross-campus/unauthorized actors receive no Decision projection. GET/resource serialization
+never generates or changes a number.
 
 ### 7.10 Add Recovery Monitoring
 

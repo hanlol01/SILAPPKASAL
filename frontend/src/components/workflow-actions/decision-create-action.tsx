@@ -25,7 +25,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -55,7 +54,6 @@ function createDecisionSchema(t: ReturnType<typeof useTranslation>["t"]) {
     outcome_code: z.enum(DECISION_OUTCOMES, {
       errorMap: () => ({ message: t("dashboard:workflow.required") }),
     }),
-    decision_number: z.string().trim().max(100, t("dashboard:workflow.max100")).optional(),
     decision_date: requiredDate,
     decision_summary: requiredText,
     decision_content: z.string().trim()
@@ -80,7 +78,6 @@ export function DecisionCreateAction({
     resolver: zodResolver(createDecisionSchema(t)),
     defaultValues: {
       outcome_code: "accepted",
-      decision_number: "",
       decision_date: today,
       decision_summary: "",
       decision_content: "",
@@ -152,7 +149,6 @@ export function DecisionCreateAction({
                 </FormItem>
               )}
             />
-            <InputField form={form} name="decision_number" label={t("dashboard:workflow.decisionNumber")} />
             <DatePickerField form={form} name="decision_date" label={t("dashboard:workflow.decisionDate")} disableFuture />
             <TextareaField form={form} name="decision_summary" label={t("dashboard:workflow.summary")} />
             <TextareaField form={form} name="decision_content" label={t("dashboard:workflow.content")} className="min-h-32" />
@@ -169,34 +165,6 @@ export function DecisionCreateAction({
         </Form>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function InputField<T extends FieldValues>({
-  form,
-  name,
-  label,
-  type = "text",
-}: {
-  form: UseFormReturn<T>;
-  name: Path<T>;
-  label: string;
-  type?: string;
-}) {
-  return (
-    <FormField
-      control={form.control}
-      name={name}
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>{label}</FormLabel>
-          <FormControl>
-            <Input type={type} {...field} value={(field.value as string | undefined) ?? ""} />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )}
-    />
   );
 }
 

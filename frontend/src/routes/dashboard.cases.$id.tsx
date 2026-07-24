@@ -1061,7 +1061,7 @@ function DecisionsSection({
         <div key={item.id} className="min-w-0 rounded-lg border p-3 text-sm">
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
             <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">
-              {item.decision_number?.trim() || t("dashboard:sections.decisionNumber")}
+              {item.decision_number?.trim() || t("dashboard:sections.decisionNumberPending")}
             </div>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <WorkflowStatusBadge family="decision" status={item.status} />

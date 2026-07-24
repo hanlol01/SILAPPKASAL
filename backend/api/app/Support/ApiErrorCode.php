@@ -62,6 +62,10 @@ final class ApiErrorCode
 
     public const WithdrawalPendingReview = 'withdrawal_pending_review';
 
+    public const DecisionNumberSequenceExhausted = 'decision_number_sequence_exhausted';
+
+    public const DecisionNumberConflict = 'decision_number_conflict';
+
     public const CaseInvestigationCompletionRequired = 'case_investigation_completion_required';
 
     public const InvestigationStageActivityRequired = 'investigation_stage_activity_required';

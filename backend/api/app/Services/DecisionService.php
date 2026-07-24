@@ -8,6 +8,8 @@ use App\Enums\AuditSeverity;
 use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\DecisionStatus as DecisionStatusEnum;
 use App\Enums\RecommendationStatus as RecommendationStatusEnum;
+use App\Enums\ReportStatus;
+use App\Exceptions\DecisionNumberSequenceExhausted;
 use App\Models\CaseAssignment;
 use App\Models\CaseRecord;
 use App\Models\CaseStatus;
@@ -15,9 +17,13 @@ use App\Models\Decision;
 use App\Models\DecisionStatus;
 use App\Models\Recommendation;
 use App\Models\User;
+use App\Support\ApiErrorCode;
 use App\Support\CaseCampusScope;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\DB;
 
@@ -28,6 +34,7 @@ class DecisionService
         private readonly AuditLogService $auditLogService,
         private readonly CaseCampusScope $campusScope,
         private readonly CaseMutationGuard $caseMutationGuard,
+        private readonly DecisionNumberGenerator $decisionNumberGenerator,
     ) {}
 
     /**
@@ -60,7 +67,7 @@ class DecisionService
                 'recorder_id' => $actor->id,
                 'status_code' => $status->code,
                 'outcome_code' => $data['outcome_code'],
-                'decision_number' => $data['decision_number'] ?? null,
+                'decision_number' => null,
                 'decision_date' => $data['decision_date'],
                 'decision_summary' => $data['decision_summary'],
                 'decision_content' => $data['decision_content'],
@@ -144,7 +151,6 @@ class DecisionService
 
             $before = $decision->only([
                 'outcome_code',
-                'decision_number',
                 'decision_date',
                 'decision_summary',
                 'decision_content',
@@ -154,7 +160,6 @@ class DecisionService
 
             $after = $decision->only([
                 'outcome_code',
-                'decision_number',
                 'decision_date',
                 'decision_summary',
                 'decision_content',
@@ -181,77 +186,143 @@ class DecisionService
 
     public function updateStatus(Decision $decision, User $actor, string $requestedStatus): Decision
     {
-        $decision->loadMissing('recommendation:id,case_id');
-        $caseId = $decision->recommendation->case_id;
+        $nextStatus = $this->resolveStatus($requestedStatus);
+        $decision->loadMissing(['status', 'recommendation.case.report.reporter:id,university_id']);
+        $actor->loadMissing('role.permissions');
 
-        return DB::transaction(function () use ($decision, $actor, $requestedStatus, $caseId): Decision {
-            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($caseId);
-            $decision = Decision::query()->with(['status', 'recommendation.case.report.reporter:id,university_id'])->whereKey($decision->id)->lockForUpdate()->firstOrFail();
-            $decision->recommendation->setRelation('case', $lockedCase);
-            $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
+        if (
+            $decision->status?->name === DecisionStatusEnum::Finalized->value
+            && $nextStatus->name === DecisionStatusEnum::Finalized->value
+        ) {
             $this->authorizeDecisionRecorder($actor, $decision->recommendation);
 
-            $this->ensureDecisionOpen($decision);
+            return $decision->load($this->detailRelations());
+        }
 
-            $nextStatus = $this->resolveStatus($requestedStatus);
-            $allowedTransitions = $decision->status?->valid_transitions ?? [];
+        $caseId = $decision->recommendation->case_id;
 
-            if (! in_array($nextStatus->name, $allowedTransitions, true)) {
-                throw $this->unprocessable('Invalid decision status transition');
-            }
-
-            $case = null;
-
-            if ($nextStatus->name === DecisionStatusEnum::Finalized->value) {
+        try {
+            return DB::transaction(function () use ($decision, $actor, $nextStatus, $caseId): Decision {
+                $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($caseId);
                 $recommendation = Recommendation::query()
+                    ->with(['case.report.reporter:id,university_id', 'status'])
                     ->whereKey($decision->recommendation_id)
                     ->lockForUpdate()
                     ->firstOrFail();
-                $case = $lockedCase;
+                $recommendation->setRelation('case', $lockedCase);
+                $decision = Decision::query()
+                    ->with('status')
+                    ->whereKey($decision->id)
+                    ->where('recommendation_id', $recommendation->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                $decision->setRelation('recommendation', $recommendation);
+                $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
+                $this->authorizeDecisionRecorder($actor, $recommendation);
 
-                if ($case->status?->name !== CaseStatusEnum::Decision->value) {
-                    throw $this->unprocessable('Case must be in decision status before finalization');
+                if (
+                    $decision->status?->name === DecisionStatusEnum::Finalized->value
+                    && $nextStatus->name === DecisionStatusEnum::Finalized->value
+                ) {
+                    return $decision->load($this->detailRelations());
                 }
+
+                $this->ensureDecisionOpen($decision);
+
+                $allowedTransitions = $decision->status?->valid_transitions ?? [];
+
+                if (! in_array($nextStatus->name, $allowedTransitions, true)) {
+                    throw $this->unprocessable('Invalid decision status transition');
+                }
+
+                $case = null;
+                $issuanceTimestamp = null;
+                $decisionNumber = $decision->decision_number;
+
+                if ($nextStatus->name === DecisionStatusEnum::Finalized->value) {
+                    $case = $lockedCase;
+
+                    if ($recommendation->status?->name !== RecommendationStatusEnum::Accepted->value) {
+                        throw $this->unprocessable('Decision finalization requires an approved recommendation');
+                    }
+
+                    $case->loadMissing('report');
+
+                    if ($case->report?->status === ReportStatus::Withdrawn->value) {
+                        throw $this->unprocessable('Withdrawn reports cannot receive a finalized decision');
+                    }
+
+                    if ($case->status?->name !== CaseStatusEnum::Decision->value) {
+                        throw $this->unprocessable('Case must be in decision status before finalization');
+                    }
+
+                    $issuanceTimestamp = CarbonImmutable::now('UTC');
+
+                    if ($decisionNumber === null) {
+                        $decisionNumber = $this->decisionNumberGenerator->issue($issuanceTimestamp);
+                    }
+                }
+
+                $fromStatusCode = $decision->status_code;
+                $fromStatusName = $decision->status?->name;
+                $decision->forceFill([
+                    'status_code' => $nextStatus->code,
+                    'decision_number' => $decisionNumber,
+                    'finalized_at' => $issuanceTimestamp ?? $decision->finalized_at,
+                ])->save();
+
+                $this->recordStatusHistory(
+                    $decision,
+                    $fromStatusCode,
+                    $nextStatus->code,
+                    $actor,
+                    $issuanceTimestamp,
+                );
+
+                if ($case && $issuanceTimestamp) {
+                    $this->advanceCaseToDecided($case, $actor, $issuanceTimestamp);
+                }
+
+                $decision = $decision->load($this->detailRelations());
+
+                $this->recordAudit(
+                    AuditAction::DecisionStatusChanged,
+                    $actor,
+                    $decision,
+                    [
+                        'case_number' => $decision->recommendation?->case?->case_number,
+                        'decision_number' => $decision->decision_number,
+                        'status_code' => $decision->status_code,
+                        'outcome_code' => $decision->outcome_code,
+                        'from_status' => $fromStatusName,
+                        'to_status' => $nextStatus->name,
+                        'finalized_at' => $decision->finalized_at?->toJSON(),
+                    ],
+                    beforeChanges: ['status_code' => $fromStatusCode],
+                    afterChanges: [
+                        'status_code' => $decision->status_code,
+                        'decision_number' => $decision->decision_number,
+                        'finalized_at' => $decision->finalized_at?->toJSON(),
+                    ],
+                );
+
+                if ($nextStatus->name === DecisionStatusEnum::Finalized->value) {
+                    $this->notificationService->decisionFinalized($decision);
+                } else {
+                    $this->notificationService->decisionStatusChanged($decision);
+                }
+
+                return $decision;
+            });
+        } catch (DecisionNumberSequenceExhausted) {
+            throw $this->conflict(ApiErrorCode::DecisionNumberSequenceExhausted);
+        } catch (QueryException $exception) {
+            if ($this->isDecisionNumberUniqueViolation($exception)) {
+                throw $this->conflict(ApiErrorCode::DecisionNumberConflict);
             }
 
-            $fromStatusCode = $decision->status_code;
-            $fromStatusName = $decision->status?->name;
-            $decision->forceFill([
-                'status_code' => $nextStatus->code,
-                'finalized_at' => $nextStatus->name === DecisionStatusEnum::Finalized->value ? now() : $decision->finalized_at,
-            ])->save();
-
-            $this->recordStatusHistory($decision, $fromStatusCode, $nextStatus->code, $actor);
-
-            if ($case) {
-                $this->advanceCaseToDecided($case, $actor);
-            }
-
-            $decision = $decision->load($this->detailRelations());
-
-            $this->recordAudit(
-                AuditAction::DecisionStatusChanged,
-                $actor,
-                $decision,
-                [
-                    'decision_id' => $decision->id,
-                    'recommendation_id' => $decision->recommendation_id,
-                    'case_id' => $decision->recommendation?->case_id,
-                    'from_status' => $fromStatusName,
-                    'to_status' => $nextStatus->name,
-                ],
-                beforeChanges: ['status_code' => $fromStatusCode],
-                afterChanges: ['status_code' => $decision->status_code],
-            );
-
-            if ($nextStatus->name === DecisionStatusEnum::Finalized->value) {
-                $this->notificationService->decisionFinalized($decision);
-            } else {
-                $this->notificationService->decisionStatusChanged($decision);
-            }
-
-            return $decision;
-        });
+            throw $exception;
+        }
     }
 
     /**
@@ -259,7 +330,12 @@ class DecisionService
      */
     public function statusOptions(Decision $decision, User $user): array
     {
-        $decision->loadMissing(['status', 'recommendation.case.status', 'recommendation.case.report.reporter:id,university_id']);
+        $decision->loadMissing([
+            'status',
+            'recommendation.status',
+            'recommendation.case.status',
+            'recommendation.case.report.reporter:id,university_id',
+        ]);
 
         $statuses = [];
 
@@ -268,6 +344,13 @@ class DecisionService
             && ! $decision->recommendation->case->isOperationallyTerminal()
         ) {
             $transitionNames = $decision->status?->valid_transitions ?? [];
+
+            if (! $this->canOfferFinalization($decision)) {
+                $transitionNames = array_values(array_filter(
+                    $transitionNames,
+                    fn (string $transition): bool => $transition !== DecisionStatusEnum::Finalized->value,
+                ));
+            }
 
             $statuses = DecisionStatus::query()
                 ->where('is_active', true)
@@ -324,6 +407,23 @@ class DecisionService
         }
     }
 
+    private function canOfferFinalization(Decision $decision): bool
+    {
+        $recommendation = $decision->recommendation;
+        $case = $recommendation?->case;
+
+        if (
+            $decision->status?->name !== DecisionStatusEnum::Recorded->value
+            || $recommendation?->status?->name !== RecommendationStatusEnum::Accepted->value
+            || $case?->status?->name !== CaseStatusEnum::Decision->value
+            || $case->report?->status === ReportStatus::Withdrawn->value
+        ) {
+            return false;
+        }
+
+        return ! $case->pendingFormalWithdrawal()->exists();
+    }
+
     private function authorizeDecisionRecorder(User $actor, Recommendation $recommendation): void
     {
         if (! $this->canManageDecision($actor, $recommendation)) {
@@ -351,7 +451,6 @@ class DecisionService
         $decision->loadMissing('recommendation.case.report.reporter:id,university_id');
 
         return $this->canManageDecision($user, $decision->recommendation)
-            || $this->campusScope->canSensitiveOversight($user)
             || $this->isAssignedToRecommendationCase($decision->recommendation, $user);
     }
 
@@ -375,7 +474,7 @@ class DecisionService
             ->firstOrFail();
     }
 
-    private function advanceCaseToDecided(CaseRecord $case, User $actor): void
+    private function advanceCaseToDecided(CaseRecord $case, User $actor, CarbonInterface $transitionedAt): void
     {
         $status = CaseStatus::query()
             ->where('name', CaseStatusEnum::Decided->value)
@@ -387,7 +486,7 @@ class DecisionService
         $case->forceFill([
             'status_code' => $status->code,
             'current_stage' => $status->workflow_stage,
-            'decision_at' => now(),
+            'decision_at' => $transitionedAt,
         ])->save();
 
         $this->auditLogService->record(
@@ -420,13 +519,18 @@ class DecisionService
             ->first() ?? throw $this->unprocessable('Unknown decision status');
     }
 
-    private function recordStatusHistory(Decision $decision, ?string $fromStatusCode, string $toStatusCode, User $actor): void
-    {
+    private function recordStatusHistory(
+        Decision $decision,
+        ?string $fromStatusCode,
+        string $toStatusCode,
+        User $actor,
+        ?CarbonInterface $changedAt = null,
+    ): void {
         $decision->statusHistories()->create([
             'from_status_code' => $fromStatusCode,
             'to_status_code' => $toStatusCode,
             'changed_by' => $actor->id,
-            'changed_at' => now(),
+            'changed_at' => $changedAt ?? now(),
         ]);
     }
 
@@ -486,5 +590,29 @@ class DecisionService
             'message' => $message,
             'errors' => null,
         ], 422));
+    }
+
+    private function conflict(string $errorCode): HttpResponseException
+    {
+        return new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => __("api.errors.{$errorCode}"),
+            'error_code' => $errorCode,
+            'errors' => null,
+        ], 409));
+    }
+
+    private function isDecisionNumberUniqueViolation(QueryException $exception): bool
+    {
+        $sqlState = (string) ($exception->errorInfo[0] ?? $exception->getCode());
+
+        if (! in_array($sqlState, ['23000', '23505'], true)) {
+            return false;
+        }
+
+        $message = mb_strtolower($exception->getMessage());
+
+        return str_contains($message, 'decisions_decision_number_unique')
+            || str_contains($message, 'decisions.decision_number');
     }
 }

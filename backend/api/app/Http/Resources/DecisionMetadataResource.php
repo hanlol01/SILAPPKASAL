@@ -18,6 +18,7 @@ class DecisionMetadataResource extends JsonResource
             'registration_number' => $this->whenLoaded('recommendation', fn () => $this->recommendation?->case?->registration_number),
             'status' => $this->whenLoaded('status', fn () => $this->status?->name),
             'status_code' => $this->status_code,
+            'decision_number' => $this->decision_number,
             'recorded_at' => $this->recorded_at?->toJSON(),
             'finalized_at' => $this->finalized_at?->toJSON(),
             'created_at' => $this->created_at?->toJSON(),

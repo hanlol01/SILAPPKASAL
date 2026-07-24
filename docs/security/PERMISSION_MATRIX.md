@@ -95,6 +95,16 @@ Legend: ✅ Full · 📖 Read · ✏️ Write · 👤 Own only · 🔒 Denied ·
 | View (assigned) | 🔒 | 📖 | 📖 metadata | 📖 metadata |
 | Record decision | 🔒 | 🔒 | ✏️ same campus | 🔒 read-only |
 
+Formal Decision numbering follows the same exact authority. `cases.record_decision` alone is
+not a role bypass: the policy and locked service require an active `admin` in the Case campus.
+Super Admin remains mutation-denied even if a legacy RBAC assignment contains that permission.
+
+| Formal decision code operation | Reporter | Satgas PPKS | Admin | Super Admin |
+|---|---|---|---|---|
+| Issue on `recorded -> finalized` | 🔒 | 🔒 | ✏️ same campus | 🔒 |
+| View formal code | 🔒 | 📖 assigned Case | 📖 same campus | 📖 metadata-only |
+| View sensitive Decision narrative | 🔒 | 📖 assigned Case | 📖 same campus | 🔒 metadata-only |
+
 ### 3.5 Evidence
 
 | Operation | Reporter | Satgas PPKS | Admin | Super Admin |

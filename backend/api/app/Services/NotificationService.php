@@ -346,6 +346,7 @@ class NotificationService
             'decision_id' => $decision->id,
             'status_code' => $decision->status_code,
             'outcome_code' => $decision->outcome_code,
+            'decision_number' => $decision->decision_number,
         ]);
     }
 
@@ -561,6 +562,7 @@ class NotificationService
             'recovery_id',
             'status_code',
             'outcome_code',
+            'decision_number',
             'recovery_type_code',
             'registration_number',
             'withdrawal_public_id',

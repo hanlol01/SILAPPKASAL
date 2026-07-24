@@ -122,7 +122,6 @@ function createDecisionSchema(t: TFunction) {
     outcome_code: z.enum(DECISION_OUTCOMES, {
       errorMap: () => ({ message: t("dashboard:workflow.required") }),
     }),
-    decision_number: z.string().trim().max(100, t("dashboard:workflow.max100")).optional(),
     decision_date: requiredDate(t),
     decision_summary: requiredText(t),
     decision_content: requiredText(t, 20000),
@@ -445,7 +444,6 @@ export function DecisionUpdateAction({
     resolver: zodResolver(createDecisionSchema(t)),
     defaultValues: {
       outcome_code: asDecisionOutcome(decision.outcome_code),
-      decision_number: decision.decision_number ?? "",
       decision_date: dateInput(decision.decision_date) || today,
       decision_summary: decision.decision_summary ?? "",
       decision_content: decision.decision_content ?? "",
@@ -489,7 +487,6 @@ export function DecisionUpdateAction({
             if (!mutation.isPending) mutation.mutate(values);
           })}>
             <SelectField form={form} name="outcome_code" label={t("dashboard:workflow.outcome")} options={DECISION_OUTCOMES} formatter={(value) => formatDecisionOutcome(t, value)} />
-            <InputField form={form} name="decision_number" label={t("dashboard:workflow.decisionNumber")} />
             <DatePickerField form={form} name="decision_date" label={t("dashboard:workflow.decisionDate")} disableFuture />
             <TextareaField form={form} name="decision_summary" label={t("dashboard:workflow.summary")} />
             <TextareaField form={form} name="decision_content" label={t("dashboard:workflow.content")} className="min-h-32" />

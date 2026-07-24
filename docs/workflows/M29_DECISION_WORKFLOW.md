@@ -1,5 +1,13 @@
 # Milestone 29 — Decision Workflow
 
+> **Historical planning record.** The implemented authority and formal-number behavior are
+> superseded by [REV-DECISION-CODE-01](./REV_DECISION_CODE_01.md). Current behavior is:
+> only an active same-campus Admin may mutate Decisions; Super Admin is metadata-only;
+> `decision_number` is server-issued on `recorded -> finalized`; finalization advances the
+> Case to `decided`; Reporter has no Decision access. Statements below that allow Super Admin
+> mutation, client-authored numbers, full sensitive oversight, or no Case transition describe
+> the original M29 proposal and are retained only as historical context.
+
 > Phase: M29  
 > Status: PLANNING  
 > Date: 2026-06-23  
