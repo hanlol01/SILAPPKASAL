@@ -2,8 +2,8 @@
 
 namespace Database\Seeders\Foundation;
 
-use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Enums\DecisionStatus as DecisionStatusEnum;
+use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Enums\RecommendationStatus as RecommendationStatusEnum;
 use App\Enums\RecoveryStatus as RecoveryStatusEnum;
 use App\Models\CampusStatus;
@@ -13,11 +13,12 @@ use App\Models\EscalationType;
 use App\Models\EvidenceType;
 use App\Models\InvestigationStatus;
 use App\Models\LocationType;
+use App\Models\MasterData;
 use App\Models\NotificationType;
 use App\Models\PriorityLevel;
 use App\Models\RecommendationStatus;
-use App\Models\RecoveryType;
 use App\Models\RecoveryStatus;
+use App\Models\RecoveryType;
 use App\Models\Relation;
 use App\Models\ReportCategory;
 use App\Models\ReportType;
@@ -56,7 +57,7 @@ class MasterDataSeeder extends Seeder
             ['PRIO-01', 'urgent', 'Kekerasan berat, ancaman keselamatan aktif, korban anak.'],
             ['PRIO-02', 'high', 'Kekerasan fisik, potensi eskalasi.'],
             ['PRIO-03', 'normal', 'Kasus standar, membutuhkan penanganan reguler.'],
-            ['PRIO-04', 'low', 'Laporan informasional, tidak ada urgensi langsung.'],
+            ['PRIO-04', 'low', 'Pengaduan informasional, tidak ada urgensi langsung.'],
         ]);
         $this->seedSimple(CampusStatus::class, [
             ['CAMP-01', 'mahasiswa', 'Mahasiswa aktif.'],
@@ -141,11 +142,11 @@ class MasterDataSeeder extends Seeder
     private function seedCaseStatuses(): void
     {
         $rows = [
-            ['CSTS-01', 'submitted', 'Laporan baru masuk ke sistem.', 1, 'Pelaporan', false, 'system', ['under_review']],
-            ['CSTS-02', 'under_review', 'Admin sedang memeriksa kelengkapan laporan.', 2, 'Verifikasi', false, 'admin', ['need_info', 'forwarded', 'rejected']],
+            ['CSTS-01', 'submitted', 'Pengaduan baru masuk ke sistem.', 1, 'Pengaduan', false, 'system', ['under_review']],
+            ['CSTS-02', 'under_review', 'Admin sedang memeriksa kelengkapan pengaduan.', 2, 'Verifikasi', false, 'admin', ['need_info', 'forwarded', 'rejected']],
             ['CSTS-03', 'need_info', 'Admin membutuhkan informasi tambahan.', 2, 'Verifikasi', false, 'admin', ['under_review']],
-            ['CSTS-04', 'rejected', 'Laporan ditolak dengan alasan tertulis.', 2, 'Verifikasi', true, 'admin', []],
-            ['CSTS-05', 'forwarded', 'Laporan diteruskan ke Satgas PPKS.', 2, 'Verifikasi', false, 'admin', ['assessment']],
+            ['CSTS-04', 'rejected', 'Pengaduan ditolak dengan alasan tertulis.', 2, 'Verifikasi', true, 'admin', []],
+            ['CSTS-05', 'forwarded', 'Pengaduan diteruskan ke Satgas PPKS.', 2, 'Verifikasi', false, 'admin', ['assessment']],
             ['CSTS-06', 'assessment', 'Satgas melakukan asesmen risiko.', 3, 'Asesmen', false, 'satgas_ppks', ['investigation']],
             ['CSTS-07', 'investigation', 'Proses investigasi sedang berjalan.', 4, 'Investigasi', false, 'satgas_ppks', ['mediation', 'recommendation']],
             ['CSTS-08', 'mediation', 'Proses mediasi opsional.', 4, 'Investigasi', false, 'satgas_ppks', ['recommendation']],
@@ -325,11 +326,11 @@ class MasterDataSeeder extends Seeder
     private function seedNotificationTypes(): void
     {
         $rows = [
-            ['NOTIF-01', 'Laporan baru masuk', 'Admin', 'both', 'report.new', 'mvp_extended'],
-            ['NOTIF-02', 'Konfirmasi laporan diterima', 'Pelapor', 'whatsapp', 'report.confirmed', 'mvp_extended'],
+            ['NOTIF-01', 'Pengaduan baru masuk', 'Admin', 'both', 'report.new', 'mvp_extended'],
+            ['NOTIF-02', 'Konfirmasi pengaduan diterima', 'Pelapor', 'whatsapp', 'report.confirmed', 'mvp_extended'],
             ['NOTIF-03', 'Status kasus berubah', 'Pelapor', 'whatsapp', 'case.status_changed', 'mvp_extended'],
             ['NOTIF-04', 'Info tambahan dibutuhkan', 'Pelapor', 'whatsapp', 'report.need_info', 'mvp_extended'],
-            ['NOTIF-05', 'Laporan ditolak', 'Pelapor', 'whatsapp', 'report.rejected', 'mvp_extended'],
+            ['NOTIF-05', 'Pengaduan ditolak', 'Pelapor', 'whatsapp', 'report.rejected', 'mvp_extended'],
             ['NOTIF-06', 'Kasus di-forward ke Satgas', 'Satgas', 'both', 'case.forwarded', 'mvp_extended'],
             ['NOTIF-07', 'Pesan baru di messaging', 'Pelapor/Satgas', 'both', 'message.new', 'mvp_extended'],
             ['NOTIF-08', 'SLA warning (75%)', 'Admin/Satgas', 'both', 'sla.warning', 'post_mvp'],
@@ -369,8 +370,8 @@ class MasterDataSeeder extends Seeder
     }
 
     /**
-     * @param class-string<\App\Models\MasterData> $model
-     * @param list<array{0: string, 1: string, 2: string}> $rows
+     * @param  class-string<MasterData>  $model
+     * @param  list<array{0: string, 1: string, 2: string}>  $rows
      */
     private function seedSimple(string $model, array $rows): void
     {

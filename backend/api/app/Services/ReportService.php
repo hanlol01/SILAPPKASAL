@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Support\ApiErrorCode;
 use App\Support\CaseCampusScope;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\DB;
@@ -21,11 +22,10 @@ class ReportService
     public function __construct(
         private readonly AuditLogService $auditLogService,
         private readonly CaseCampusScope $campusScope,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function submit(array $data): Report
     {
@@ -64,7 +64,7 @@ class ReportService
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return LengthAwarePaginator<int, Report>
      */
     public function listForUser(User $user, array $filters = []): LengthAwarePaginator
@@ -99,6 +99,27 @@ class ReportService
             if (! empty($filters[$filter])) {
                 $query->where($filter, $filters[$filter]);
             }
+        }
+
+        if (! empty($filters['satgas_id'])) {
+            $query->whereHas(
+                'case.activeAssignments',
+                fn (Builder $assignment): Builder => $assignment
+                    ->where('satgas_id', $filters['satgas_id'])
+                    ->where('is_active', true),
+            );
+        }
+
+        if (($filters['assignment_status'] ?? null) === 'unassigned') {
+            $query->whereDoesntHave('case.activeAssignments');
+        }
+
+        if (! empty($filters['university_id'])) {
+            $query->whereHas(
+                'reporter',
+                fn (Builder $reporter): Builder => $reporter
+                    ->where('university_id', $filters['university_id']),
+            );
         }
 
         $reports = $query->paginate((int) ($filters['per_page'] ?? 15));
@@ -141,7 +162,7 @@ class ReportService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     private function createReportWithUniqueIdentifiers(array $data, User $user): Report
     {

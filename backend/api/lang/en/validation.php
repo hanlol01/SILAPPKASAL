@@ -174,8 +174,8 @@ return [
             'faculty_selection' => 'The selected study program does not belong to the selected faculty.',
         ],
         'report_id' => [
-            'anonymous_only' => 'Emergency access may only be requested for anonymous reports.',
-            'pending_access_exists' => 'A pending emergency access request already exists for this report.',
+            'anonymous_only' => 'Emergency access may only be requested for anonymous complaints.',
+            'pending_access_exists' => 'A pending emergency access request already exists for this complaint.',
         ],
         'date_from' => [
             'before_or_equal_date_to' => 'The start date must be before or equal to the end date.',

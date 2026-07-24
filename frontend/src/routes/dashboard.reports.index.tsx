@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { Eye, Inbox, Lock, Search, SearchX, SlidersHorizontal } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Eye, Inbox, Loader2, Lock, Search, SearchX, SlidersHorizontal } from "lucide-react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { AccessDenied } from "@/components/access-denied";
 import { QueryErrorState } from "@/components/query-state";
@@ -24,47 +24,106 @@ import { EmptyState } from "@/components/empty-state";
 import { PageBreadcrumb } from "@/components/page-breadcrumb";
 import { FilterResetButton } from "@/components/filter-reset-button";
 import { ListPagination } from "@/components/list-pagination";
-import { DEFAULT_PAGE_SIZE } from "@/lib/list-controls";
+import {
+  DEFAULT_PAGE_SIZE,
+  normalizePageSize,
+  type PageSize,
+} from "@/lib/list-controls";
 import { ReportStatusBadge } from "@/components/status-badge";
+import { OperationalScopeFilter } from "@/components/operational-scope-filter";
 
 export const Route = createFileRoute("/dashboard/reports/")({
+  validateSearch: (search: Record<string, unknown>): ReportsSearch => ({
+    q: typeof search.q === "string" && search.q.length > 0 ? search.q : undefined,
+    status: REPORT_STATUSES.find((item) => item === search.status) as ReportStatusFilter | undefined,
+    report_type: REPORT_TYPES.find((item) => item === search.report_type) as ReportTypeFilter | undefined,
+    satgas_id: positiveInteger(search.satgas_id),
+    assignment_status: search.assignment_status === "unassigned" ? "unassigned" : undefined,
+    university_id: positiveInteger(search.university_id),
+    page: positiveInteger(search.page),
+    per_page: normalizePageSize(positiveInteger(search.per_page)),
+  }),
   component: ReportsPage,
-  head: () => ({ meta: [{ title: "Reports - SILAPPKASAL Admin" }] }),
+  head: () => ({ meta: [{ title: "Complaints - SILAPPKASAL Admin" }] }),
 });
 
-const REPORT_STATUSES = ["submitted", "under_review", "need_info", "rejected", "forwarded"];
-const REPORT_TYPES = ["open", "confidential", "anonymous"];
+const REPORT_STATUSES = ["submitted", "under_review", "need_info", "rejected", "forwarded"] as const;
+const REPORT_TYPES = ["open", "confidential", "anonymous"] as const;
+type ReportStatusFilter = (typeof REPORT_STATUSES)[number];
+type ReportTypeFilter = (typeof REPORT_TYPES)[number];
+
+type ReportsSearch = {
+  q?: string;
+  status?: ReportStatusFilter;
+  report_type?: ReportTypeFilter;
+  satgas_id?: number;
+  assignment_status?: "unassigned";
+  university_id?: number;
+  page?: number;
+  per_page?: PageSize;
+};
+
+function positiveInteger(value: unknown): number | undefined {
+  const parsed = Number(value);
+
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
 
 function ReportsPage() {
   const { roleCode } = useAuth();
   const { t, i18n } = useTranslation(["dashboard"]);
-  const [q, setQ] = useState("");
-  const [status, setStatus] = useState("all");
-  const [reportType, setReportType] = useState("all");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
-  const filtersActive = q !== "" || status !== "all" || reportType !== "all";
+  const navigate = Route.useNavigate();
+  const search = Route.useSearch();
+  const q = search.q ?? "";
+  const status = search.status ?? "all";
+  const reportType = search.report_type ?? "all";
+  const satgasId =
+    search.assignment_status === "unassigned"
+      ? "unassigned"
+      : search.satgas_id
+        ? String(search.satgas_id)
+        : "all";
+  const universityId = search.university_id ? String(search.university_id) : "all";
+  const page = search.page ?? 1;
+  const pageSize = search.per_page ?? DEFAULT_PAGE_SIZE;
+  const scopeFilterActive =
+    (roleCode === "admin" && satgasId !== "all") ||
+    (roleCode === "super_admin" && universityId !== "all");
+  const filtersActive =
+    q !== "" ||
+    status !== "all" ||
+    reportType !== "all" ||
+    scopeFilterActive;
 
-  const resetFilters = () => {
-    setQ("");
-    setStatus("all");
-    setReportType("all");
-    setPage(1);
+  const updateFilters = (patch: Partial<ReportsSearch>) => {
+    void navigate({
+      search: (current) => ({
+        ...current,
+        ...patch,
+        page: undefined,
+      }),
+      replace: true,
+    });
   };
 
-  // Any filter change must return to page 1 to preserve URL/query consistency.
-  useEffect(() => {
-    setPage(1);
-  }, [status, reportType, pageSize]);
+  const resetFilters = () => void navigate({ search: {}, replace: true });
 
   const query = useMemo(
     () => ({
       status: status === "all" ? undefined : status,
       report_type: reportType === "all" ? undefined : reportType,
+      satgas_id:
+        roleCode === "admin" && satgasId !== "all" && satgasId !== "unassigned"
+          ? Number(satgasId)
+          : undefined,
+      assignment_status:
+        roleCode === "admin" && satgasId === "unassigned" ? "unassigned" : undefined,
+      university_id:
+        roleCode === "super_admin" && universityId !== "all" ? Number(universityId) : undefined,
       per_page: pageSize,
       page,
     }),
-    [status, reportType, pageSize, page],
+    [roleCode, status, reportType, satgasId, universityId, pageSize, page],
   );
   const reportsQuery = useQuery({
     queryKey: operationsQueryKeys.reports(query),
@@ -98,17 +157,22 @@ function ReportsPage() {
       <Card>
         <CardContent className="space-y-4 p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[220px] flex-1">
+           <div className="relative min-w-[220px] flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder={t("dashboard:reports.search")}
                 value={q}
-                onChange={(e) => setQ(e.target.value)}
+                onChange={(e) => updateFilters({ q: e.target.value || undefined })}
                 className="pl-9"
               />
             </div>
             <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
-            <Select value={status} onValueChange={setStatus}>
+            <Select
+              value={status}
+              onValueChange={(value) =>
+                updateFilters({ status: value === "all" ? undefined : (value as ReportStatusFilter) })
+              }
+            >
               <SelectTrigger className="w-[170px]"><SelectValue placeholder={t("dashboard:common.status")} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("dashboard:common.allStatuses")}</SelectItem>
@@ -117,7 +181,12 @@ function ReportsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={reportType} onValueChange={setReportType}>
+            <Select
+              value={reportType}
+              onValueChange={(value) =>
+                updateFilters({ report_type: value === "all" ? undefined : (value as ReportTypeFilter) })
+              }
+            >
               <SelectTrigger className="w-[170px]"><SelectValue placeholder={t("dashboard:common.type")} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("dashboard:common.allTypes")}</SelectItem>
@@ -126,7 +195,34 @@ function ReportsPage() {
                 ))}
               </SelectContent>
             </Select>
+            <OperationalScopeFilter
+              roleCode={roleCode}
+              satgasId={satgasId}
+              universityId={universityId}
+              includeUnassigned
+              onSatgasChange={(value) =>
+                updateFilters({
+                  satgas_id:
+                    value !== "all" && value !== "unassigned" ? Number(value) : undefined,
+                  assignment_status: value === "unassigned" ? "unassigned" : undefined,
+                  university_id: undefined,
+                })
+              }
+              onUniversityChange={(value) =>
+                updateFilters({
+                  satgas_id: undefined,
+                  assignment_status: undefined,
+                  university_id: value !== "all" ? Number(value) : undefined,
+                })
+              }
+            />
             <FilterResetButton active={filtersActive} onReset={resetFilters} />
+            {reportsQuery.isFetching && (
+              <Loader2
+                className="h-4 w-4 animate-spin text-muted-foreground"
+                aria-label={t("dashboard:common.loading")}
+              />
+            )}
           </div>
 
           {reportsQuery.isLoading && (
@@ -171,8 +267,8 @@ function ReportsPage() {
                     </div>
                   </div>
                 ))}
-                {filtered.length === 0 && (
-                  status !== "all" || reportType !== "all" || q ? (
+                 {filtered.length === 0 && (
+                   filtersActive ? (
                     <EmptyState icon={SearchX} title={t("dashboard:reports.filteredEmptyTitle")} description={t("dashboard:reports.filteredEmptyDesc")} />
                   ) : (
                     <EmptyState icon={Inbox} title={t("dashboard:reports.emptyTitle")} description={t("dashboard:reports.emptyDesc")} />
@@ -226,7 +322,7 @@ function ReportsPage() {
                     {filtered.length === 0 && (
                       <tr>
                         <td colSpan={8} className="p-0">
-                          {status !== "all" || reportType !== "all" || q ? (
+                           {filtersActive ? (
                             <EmptyState icon={SearchX} title={t("dashboard:reports.filteredEmptyTitle")} description={t("dashboard:reports.filteredEmptyDesc")} />
                           ) : (
                             <EmptyState icon={Inbox} title={t("dashboard:reports.emptyTitle")} description={t("dashboard:reports.emptyDesc")} />
@@ -243,8 +339,15 @@ function ReportsPage() {
             meta={reportsQuery.data?.meta}
             page={page}
             pageSize={pageSize}
-            onPageChange={setPage}
-            onPageSizeChange={setPageSize}
+            onPageChange={(nextPage) =>
+              void navigate({
+                search: (current) => ({ ...current, page: nextPage }),
+                replace: true,
+              })
+            }
+            onPageSizeChange={(nextPageSize) =>
+              updateFilters({ per_page: normalizePageSize(nextPageSize) })
+            }
             isFetching={reportsQuery.isFetching}
           />
         </CardContent>

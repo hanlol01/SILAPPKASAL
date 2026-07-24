@@ -1,7 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, ClipboardCheck, FileSearch, Gavel, HeartHandshake, Scale } from "lucide-react";
+import { useMemo } from "react";
+import {
+  ArrowRight,
+  ClipboardCheck,
+  FileSearch,
+  Gavel,
+  HeartHandshake,
+  Loader2,
+  Scale,
+} from "lucide-react";
+import { FilterResetButton } from "@/components/filter-reset-button";
+import { OperationalScopeFilter } from "@/components/operational-scope-filter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +20,9 @@ import { QueryErrorState } from "@/components/query-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageBreadcrumb } from "@/components/page-breadcrumb";
 import { dashboardQueryKeys, getDashboardWorkflow } from "@/lib/dashboard-api";
+import type { DashboardFilters } from "@/lib/api-types";
 import { formatDate } from "@/lib/format";
+import { useAuth } from "@/hooks/use-auth";
 import {
   formatDecisionOutcome,
   formatDecisionStatus,
@@ -20,9 +33,26 @@ import {
 } from "@/lib/format-labels";
 
 export const Route = createFileRoute("/dashboard/workflow")({
+  validateSearch: (search: Record<string, unknown>): WorkflowSearch => ({
+    satgas_id: positiveInteger(search.satgas_id),
+    assignment_status: search.assignment_status === "unassigned" ? "unassigned" : undefined,
+    university_id: positiveInteger(search.university_id),
+  }),
   component: WorkflowPage,
   head: () => ({ meta: [{ title: "Workflow - SILAPPKASAL Admin" }] }),
 });
+
+type WorkflowSearch = {
+  satgas_id?: number;
+  assignment_status?: "unassigned";
+  university_id?: number;
+};
+
+function positiveInteger(value: unknown): number | undefined {
+  const parsed = Number(value);
+
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
 
 const steps = [
   {
@@ -53,13 +83,43 @@ const steps = [
 ] as const;
 
 function WorkflowPage() {
+  const { roleCode } = useAuth();
   const { t, i18n } = useTranslation(["dashboard"]);
+  const navigate = Route.useNavigate();
+  const search = Route.useSearch();
+  const filters = useMemo<DashboardFilters>(() => {
+    if (roleCode === "admin") {
+      return {
+        satgas_id: search.assignment_status ? undefined : search.satgas_id,
+        assignment_status: search.assignment_status,
+      };
+    }
+
+    if (roleCode === "super_admin") {
+      return { university_id: search.university_id };
+    }
+
+    return {};
+  }, [roleCode, search.assignment_status, search.satgas_id, search.university_id]);
+  const satgasValue =
+    search.assignment_status === "unassigned"
+      ? "unassigned"
+      : search.satgas_id
+        ? String(search.satgas_id)
+        : "all";
+  const universityValue = search.university_id ? String(search.university_id) : "all";
+  const filterActive =
+    (roleCode === "admin" && satgasValue !== "all") ||
+    (roleCode === "super_admin" && universityValue !== "all");
   const workflowQuery = useQuery({
-    queryKey: dashboardQueryKeys.workflow(),
-    queryFn: () => getDashboardWorkflow(),
+    queryKey: dashboardQueryKeys.workflow(filters),
+    queryFn: () => getDashboardWorkflow(filters),
   });
 
-  if (workflowQuery.isLoading) {
+  const isScopeLoading =
+    workflowQuery.isLoading || (workflowQuery.isFetching && !workflowQuery.data);
+
+  if (isScopeLoading) {
     return (
       <div className="space-y-6">
         <PageBreadcrumb crumbs={[{ label: t("dashboard:nav.workflow") }]} />
@@ -118,10 +178,55 @@ function WorkflowPage() {
   return (
     <div className="space-y-6">
       <PageBreadcrumb crumbs={[{ label: t("dashboard:nav.workflow") }]} />
-      <PageHeader
-        title={t("dashboard:workflow.pipeline.title")}
-        description={t("dashboard:workflow.pipeline.description")}
-      />
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <PageHeader
+          title={t("dashboard:workflow.pipeline.title")}
+          description={t("dashboard:workflow.pipeline.description")}
+        />
+        {(roleCode === "admin" || roleCode === "super_admin") && (
+          <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+            <OperationalScopeFilter
+              roleCode={roleCode}
+              satgasId={satgasValue}
+              universityId={universityValue}
+              includeUnassigned
+              onSatgasChange={(value) => {
+                void navigate({
+                  search: (current) => ({
+                    ...current,
+                    satgas_id:
+                      value !== "all" && value !== "unassigned" ? Number(value) : undefined,
+                    assignment_status: value === "unassigned" ? "unassigned" : undefined,
+                    university_id: undefined,
+                  }),
+                  replace: true,
+                });
+              }}
+              onUniversityChange={(value) => {
+                void navigate({
+                  search: (current) => ({
+                    ...current,
+                    satgas_id: undefined,
+                    assignment_status: undefined,
+                    university_id: value === "all" ? undefined : Number(value),
+                  }),
+                  replace: true,
+                });
+              }}
+            />
+            <FilterResetButton
+              active={filterActive}
+              onReset={() => void navigate({ search: {}, replace: true })}
+            />
+            {workflowQuery.isFetching && (
+              <Loader2
+                className="h-4 w-4 animate-spin text-muted-foreground"
+                aria-label={t("dashboard:common.loading")}
+              />
+            )}
+          </div>
+        )}
+      </div>
 
       <Card>
         <CardHeader>

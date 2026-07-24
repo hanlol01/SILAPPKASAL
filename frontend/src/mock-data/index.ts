@@ -77,7 +77,7 @@ export const mockCases: CaseReport[] = Array.from({ length: 28 }).map((_, i) => 
       { type: "document", name: "statement.pdf" },
     ],
     timeline: [
-      { date, actor: "System", action: "Report received" },
+      { date, actor: "System", action: "Complaint received" },
       {
         date: new Date(new Date(date).getTime() + 86400000).toISOString(),
         actor: "Maya Lestari",
@@ -153,7 +153,7 @@ export const mockUsers: AppUser[] = [
 ];
 
 export const mockNotifications: Notification[] = [
-  { id: "n1", type: "report", title: "New report received", message: "RPT-2025-1027 was submitted anonymously.", date: "2025-05-13T09:14:00Z", read: false },
+  { id: "n1", type: "report", title: "New complaint received", message: "RPT-2025-1027 was submitted anonymously.", date: "2025-05-13T09:14:00Z", read: false },
   { id: "n2", type: "status", title: "Status updated", message: "RPT-2025-1018 moved to Investigation.", date: "2025-05-13T08:02:00Z", read: false },
   { id: "n3", type: "reminder", title: "Investigation reminder", message: "Case RPT-2025-1009 has been pending review for 5 days.", date: "2025-05-12T15:30:00Z", read: true },
   { id: "n4", type: "article", title: "Article published", message: '"Bystander Intervention: The 5 D\'s" is now live.', date: "2025-05-11T11:00:00Z", read: true },

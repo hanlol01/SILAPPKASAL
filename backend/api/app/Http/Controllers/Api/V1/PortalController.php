@@ -18,9 +18,7 @@ use Illuminate\Support\Facades\Gate;
 
 class PortalController extends Controller
 {
-    public function __construct(private readonly ReporterPortalService $portalService)
-    {
-    }
+    public function __construct(private readonly ReporterPortalService $portalService) {}
 
     public function summary(NotificationIndexRequest $request): JsonResponse
     {
@@ -44,7 +42,7 @@ class PortalController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Portal reports retrieved successfully',
+            'message' => 'Portal complaints retrieved successfully',
             'data' => PortalReportResource::collection($reports->items()),
             'meta' => [
                 'current_page' => $reports->currentPage(),
@@ -72,7 +70,7 @@ class PortalController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Portal report retrieved successfully',
+            'message' => 'Portal complaint retrieved successfully',
             'data' => new PortalReportDetailResource($report),
         ]);
     }
@@ -94,7 +92,7 @@ class PortalController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Portal report handling progress retrieved successfully',
+            'message' => 'Portal complaint handling progress retrieved successfully',
             'data' => new PortalReportHandlingProgressResource($progress),
         ]);
     }
@@ -116,7 +114,7 @@ class PortalController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Portal report timeline retrieved successfully',
+            'message' => 'Portal complaint timeline retrieved successfully',
             'data' => new PortalReportTimelineResource($timeline),
         ]);
     }

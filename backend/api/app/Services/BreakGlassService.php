@@ -29,8 +29,7 @@ class BreakGlassService
     public function __construct(
         private readonly AuditLogService $auditLogService,
         private readonly CaseCampusScope $campusScope,
-    ) {
-    }
+    ) {}
 
     /** @param array<string, mixed> $data */
     public function request(array $data, User $requestor): BreakGlassRequest
@@ -408,7 +407,7 @@ class BreakGlassService
             || $report->report_type !== 'anonymous'
             || $report->reporter_id === null
         ) {
-            throw $this->unprocessable('Emergency access requires a valid anonymous Report linked to the Case');
+            throw $this->unprocessable('Emergency access requires a valid anonymous complaint linked to the case');
         }
 
         return $report;
@@ -468,7 +467,7 @@ class BreakGlassService
         $universityId = $this->campusScope->reportUniversityId($report);
 
         if ($actor->university_id === null || $universityId === null || (int) $actor->university_id !== $universityId) {
-            throw $this->forbidden('The assigned Satgas and Report must belong to the same campus');
+            throw $this->forbidden('The assigned Satgas and complaint must belong to the same campus');
         }
     }
 
@@ -719,7 +718,7 @@ class BreakGlassService
             'notification_type_code' => 'privacy_notice',
             'event' => 'break_glass_approved',
             'title' => 'Pemberitahuan Privasi',
-            'body' => 'Permintaan akses darurat terhadap identitas pada laporan '.$report->registration_number.' telah disetujui sesuai kebijakan privasi SILAPPKASAL.',
+            'body' => 'Permintaan akses darurat terhadap identitas pada pengaduan '.$report->registration_number.' telah disetujui sesuai kebijakan privasi SILAPPKASAL.',
             'registration_number' => $report->registration_number,
         ]));
     }

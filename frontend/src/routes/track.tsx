@@ -20,8 +20,8 @@ export const Route = createFileRoute("/track")({
   component: TrackPage,
   head: () => ({
     meta: [
-      { title: "Lacak Laporan - SILAPPKASAL" },
-      { name: "description", content: "Lacak status aman laporan anonim." },
+      { title: "Lacak Pengaduan - SILAPPKASAL" },
+      { name: "description", content: "Lacak status aman pengaduan anonim." },
     ],
   }),
 });

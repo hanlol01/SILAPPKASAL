@@ -296,7 +296,7 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/{breakGlassRequest}/reveal', [BreakGlassController::class, 'reveal'])->name('break_glass.reveal');
     });
 
-    Route::middleware('auth:sanctum')->prefix('dashboard')->group(function (): void {
+    Route::middleware(['private.no-store', 'auth:sanctum'])->prefix('dashboard')->group(function (): void {
         Route::get('/summary', [DashboardController::class, 'summary']);
         Route::get('/reports', [DashboardController::class, 'reports']);
         Route::get('/cases', [DashboardController::class, 'cases']);

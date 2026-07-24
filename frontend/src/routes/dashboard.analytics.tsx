@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useMemo } from "react";
 import {
   BarChart,
   Bar,
@@ -17,6 +18,9 @@ import {
   Legend,
 } from "recharts";
 import { AccessDenied } from "@/components/access-denied";
+import { EmptyState } from "@/components/empty-state";
+import { FilterResetButton } from "@/components/filter-reset-button";
+import { OperationalScopeFilter } from "@/components/operational-scope-filter";
 import { QueryErrorState, StatSkeletonGrid } from "@/components/query-state";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
@@ -26,6 +30,7 @@ import {
   getDashboardEvidence,
   getDashboardReports,
   getDashboardSummary,
+  getDashboardWorkflow,
 } from "@/lib/dashboard-api";
 import {
   formatCaseStatus,
@@ -33,11 +38,30 @@ import {
   formatReportCategory,
 } from "@/lib/format-labels";
 import { PageBreadcrumb } from "@/components/page-breadcrumb";
+import { Loader2, SearchX } from "lucide-react";
+import type { DashboardFilters } from "@/lib/api-types";
 
 export const Route = createFileRoute("/dashboard/analytics")({
+  validateSearch: (search: Record<string, unknown>): AnalyticsSearch => ({
+    satgas_id: positiveInteger(search.satgas_id),
+    assignment_status: search.assignment_status === "unassigned" ? "unassigned" : undefined,
+    university_id: positiveInteger(search.university_id),
+  }),
   component: AnalyticsPage,
   head: () => ({ meta: [{ title: "Analytics - SILAPPKASAL Admin" }] }),
 });
+
+type AnalyticsSearch = {
+  satgas_id?: number;
+  assignment_status?: "unassigned";
+  university_id?: number;
+};
+
+function positiveInteger(value: unknown): number | undefined {
+  const parsed = Number(value);
+
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
 
 const PIE = [
   "var(--chart-1)",
@@ -51,26 +75,57 @@ const PIE = [
 function AnalyticsPage() {
   const { roleCode } = useAuth();
   const { t } = useTranslation(["dashboard"]);
+  const navigate = Route.useNavigate();
+  const search = Route.useSearch();
   const canViewAnalytics = roleCode === "super_admin" || roleCode === "admin";
+  const filters = useMemo<DashboardFilters>(() => {
+    if (roleCode === "admin") {
+      return {
+        satgas_id: search.assignment_status ? undefined : search.satgas_id,
+        assignment_status: search.assignment_status,
+      };
+    }
+
+    if (roleCode === "super_admin") {
+      return { university_id: search.university_id };
+    }
+
+    return {};
+  }, [roleCode, search.assignment_status, search.satgas_id, search.university_id]);
+  const satgasValue =
+    search.assignment_status === "unassigned"
+      ? "unassigned"
+      : search.satgas_id
+        ? String(search.satgas_id)
+        : "all";
+  const universityValue = search.university_id ? String(search.university_id) : "all";
+  const filterActive =
+    (roleCode === "admin" && satgasValue !== "all") ||
+    (roleCode === "super_admin" && universityValue !== "all");
 
   const summaryQuery = useQuery({
-    queryKey: dashboardQueryKeys.summary(),
-    queryFn: () => getDashboardSummary(),
+    queryKey: dashboardQueryKeys.summary(filters),
+    queryFn: () => getDashboardSummary(filters),
     enabled: canViewAnalytics,
   });
   const reportsQuery = useQuery({
-    queryKey: dashboardQueryKeys.reports(),
-    queryFn: () => getDashboardReports(),
+    queryKey: dashboardQueryKeys.reports(filters),
+    queryFn: () => getDashboardReports(filters),
     enabled: canViewAnalytics,
   });
   const casesQuery = useQuery({
-    queryKey: dashboardQueryKeys.cases(),
-    queryFn: () => getDashboardCases(),
+    queryKey: dashboardQueryKeys.cases(filters),
+    queryFn: () => getDashboardCases(filters),
     enabled: canViewAnalytics,
   });
   const evidenceQuery = useQuery({
-    queryKey: dashboardQueryKeys.evidence(),
-    queryFn: () => getDashboardEvidence(),
+    queryKey: dashboardQueryKeys.evidence(filters),
+    queryFn: () => getDashboardEvidence(filters),
+    enabled: canViewAnalytics,
+  });
+  const workflowQuery = useQuery({
+    queryKey: dashboardQueryKeys.workflow(filters),
+    queryFn: () => getDashboardWorkflow(filters),
     enabled: canViewAnalytics,
   });
 
@@ -79,11 +134,26 @@ function AnalyticsPage() {
   }
 
   const isLoading =
-    summaryQuery.isLoading || reportsQuery.isLoading || casesQuery.isLoading || evidenceQuery.isLoading;
+    summaryQuery.isLoading ||
+    reportsQuery.isLoading ||
+    casesQuery.isLoading ||
+    evidenceQuery.isLoading ||
+    workflowQuery.isLoading;
+  const isScopeLoading =
+    isLoading ||
+    (summaryQuery.isFetching && !summaryQuery.data) ||
+    (reportsQuery.isFetching && !reportsQuery.data) ||
+    (casesQuery.isFetching && !casesQuery.data) ||
+    (evidenceQuery.isFetching && !evidenceQuery.data) ||
+    (workflowQuery.isFetching && !workflowQuery.data);
   const isError =
-    summaryQuery.isError || reportsQuery.isError || casesQuery.isError || evidenceQuery.isError;
+    summaryQuery.isError ||
+    reportsQuery.isError ||
+    casesQuery.isError ||
+    evidenceQuery.isError ||
+    workflowQuery.isError;
 
-  if (isLoading) {
+  if (isScopeLoading) {
     return (
       <div className="space-y-6">
         <PageBreadcrumb crumbs={[{ label: t("dashboard:nav.analytics") }]} />
@@ -101,7 +171,8 @@ function AnalyticsPage() {
     !summaryQuery.data ||
     !reportsQuery.data ||
     !casesQuery.data ||
-    !evidenceQuery.data
+    !evidenceQuery.data ||
+    !workflowQuery.data
   ) {
     return (
       <div className="space-y-6">
@@ -117,6 +188,7 @@ function AnalyticsPage() {
             reportsQuery.refetch();
             casesQuery.refetch();
             evidenceQuery.refetch();
+            workflowQuery.refetch();
           }}
         />
       </div>
@@ -127,6 +199,13 @@ function AnalyticsPage() {
   const reports = reportsQuery.data;
   const cases = casesQuery.data;
   const evidence = evidenceQuery.data;
+  const workflow = workflowQuery.data;
+  const noFilteredResults =
+    filterActive &&
+    reports.total === 0 &&
+    cases.total === 0 &&
+    evidence.total === 0 &&
+    Object.values(workflow.conversion_counts).every((count) => count === 0);
   const anonymousShare =
     reports.total > 0 ? Math.round((reports.by_identity_mode.anonymous / reports.total) * 100) : 0;
   const trend = reports.time_series.map((point) => ({
@@ -160,10 +239,63 @@ function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <PageBreadcrumb crumbs={[{ label: t("dashboard:nav.analytics") }]} />
-      <PageHeader
-        title={t("dashboard:analytics.title")}
-        description={t("dashboard:analytics.subtitle")}
-      />
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <PageHeader
+          title={t("dashboard:analytics.title")}
+          description={t("dashboard:analytics.subtitle")}
+        />
+        <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+          <OperationalScopeFilter
+            roleCode={roleCode}
+            satgasId={satgasValue}
+            universityId={universityValue}
+            includeUnassigned
+            onSatgasChange={(value) => {
+              void navigate({
+                search: (current) => ({
+                  ...current,
+                  satgas_id: value !== "all" && value !== "unassigned" ? Number(value) : undefined,
+                  assignment_status: value === "unassigned" ? "unassigned" : undefined,
+                  university_id: undefined,
+                }),
+                replace: true,
+              });
+            }}
+            onUniversityChange={(value) => {
+              void navigate({
+                search: (current) => ({
+                  ...current,
+                  satgas_id: undefined,
+                  assignment_status: undefined,
+                  university_id: value === "all" ? undefined : Number(value),
+                }),
+                replace: true,
+              });
+            }}
+          />
+          <FilterResetButton
+            active={filterActive}
+            onReset={() => void navigate({ search: {}, replace: true })}
+          />
+          {summaryQuery.isFetching ||
+          reportsQuery.isFetching ||
+          casesQuery.isFetching ||
+          evidenceQuery.isFetching ||
+          workflowQuery.isFetching ? (
+            <Loader2
+              className="h-4 w-4 animate-spin text-muted-foreground"
+              aria-label={t("dashboard:common.loading")}
+            />
+          ) : null}
+        </div>
+      </div>
+      {noFilteredResults && (
+        <EmptyState
+          icon={SearchX}
+          title={t("dashboard:analytics.empty.filteredTitle")}
+          description={t("dashboard:analytics.empty.filteredDesc")}
+        />
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -197,7 +329,11 @@ function AnalyticsPage() {
           <CardContent>
             <div className="h-72">
               {caseStages.length === 0 ? (
-                <EmptyChart>{t("dashboard:analytics.empty.caseStage")}</EmptyChart>
+                <EmptyChart>
+                  {filterActive
+                    ? t("dashboard:analytics.empty.filteredDesc")
+                    : t("dashboard:analytics.empty.caseStage")}
+                </EmptyChart>
               ) : (
                 <ResponsiveContainer>
                   <BarChart data={caseStages} layout="vertical" margin={{ left: 30 }}>
@@ -221,7 +357,11 @@ function AnalyticsPage() {
           <CardContent>
             <div className="h-72">
               {categories.length === 0 ? (
-                <EmptyChart>{t("dashboard:analytics.empty.category")}</EmptyChart>
+                <EmptyChart>
+                  {filterActive
+                    ? t("dashboard:analytics.empty.filteredDesc")
+                    : t("dashboard:analytics.empty.category")}
+                </EmptyChart>
               ) : (
                 <ResponsiveContainer>
                   <PieChart>
@@ -270,7 +410,11 @@ function AnalyticsPage() {
           <CardContent>
             <div className="h-80">
               {evidenceClasses.length === 0 ? (
-                <EmptyChart>{t("dashboard:analytics.empty.evidenceClassification")}</EmptyChart>
+                <EmptyChart>
+                  {filterActive
+                    ? t("dashboard:analytics.empty.filteredDesc")
+                    : t("dashboard:analytics.empty.evidenceClassification")}
+                </EmptyChart>
               ) : (
                 <ResponsiveContainer>
                   <PieChart>

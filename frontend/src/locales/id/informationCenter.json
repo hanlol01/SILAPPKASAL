@@ -7,7 +7,7 @@
   "introduction": "Temukan materi edukasi, kebijakan, jawaban atas pertanyaan umum, dan kanal konsultasi yang telah ditinjau serta diterbitkan.",
   "dashboard": {
     "title": "Jelajahi Pusat Informasi",
-    "description": "Informasi pendukung tersedia tanpa mengurangi prioritas pelaporan dan pemantauan laporan Anda."
+    "description": "Informasi pendukung tersedia tanpa mengurangi prioritas pengaduan dan pemantauan pengaduan Anda."
   },
   "sections": {
     "title": "Pilih informasi yang dibutuhkan",
@@ -44,7 +44,7 @@
     "title": "Informasi Pilihan",
     "description": "Materi terbit yang dipilih untuk membantu Anda menemukan informasi penting.",
     "empty": "Belum ada informasi pilihan yang diterbitkan. Materi lain tetap dapat dijelajahi di bawah.",
-    "error": "Informasi pilihan belum dapat dimuat. Fitur pelaporan Anda tetap tersedia.",
+    "error": "Informasi pilihan belum dapat dimuat. Fitur pengaduan Anda tetap tersedia.",
     "carouselLabel": "Artikel pilihan",
     "position": "Posisi {{current}} dari {{total}}",
     "previous": "Artikel sebelumnya",
@@ -118,14 +118,14 @@
     "appointment": "Buat janji",
     "procedure": "Prosedur layanan",
     "confidentiality": "Kerahasiaan",
-    "confirmPhone": "Hubungi {{service}} melalui telepon? Jangan sertakan rincian laporan sensitif jika tidak diminta melalui prosedur resmi.",
-    "confirmWhatsapp": "Buka WhatsApp untuk {{service}}? Jangan sertakan identitas atau rincian laporan sensitif dalam pesan awal.",
+    "confirmPhone": "Hubungi {{service}} melalui telepon? Jangan sertakan rincian pengaduan sensitif jika tidak diminta melalui prosedur resmi.",
+    "confirmWhatsapp": "Buka WhatsApp untuk {{service}}? Jangan sertakan identitas atau rincian pengaduan sensitif dalam pesan awal.",
     "emergencyNotice": "Layanan ini ditandai memiliki dukungan darurat oleh pengelola konten. Periksa jam dan kanal yang tersedia sebelum menghubungi."
   },
   "reportCta": {
-    "title": "Perlu menyampaikan laporan?",
-    "description": "Gunakan formulir pelaporan resmi agar laporan dapat ditangani sesuai alur yang berlaku.",
-    "action": "Buat Laporan"
+    "title": "Perlu menyampaikan pengaduan?",
+    "description": "Gunakan formulir pengaduan resmi agar pengaduan dapat ditangani sesuai alur yang berlaku.",
+    "action": "Buat Pengaduan"
   },
   "attachment": {
     "title": "Lampiran Artikel",

@@ -556,6 +556,8 @@ Semua master data endpoints bersifat **read-only** dan **public-authenticated** 
 
 Base path: `/api/v1/reports`
 
+> **Terminologi UI**: kontrak teknis tetap menggunakan nama domain `Report`, tabel/field `reports`, dan route `/reports` untuk backward compatibility. Seluruh teks yang ditampilkan kepada pengguna menggunakan **Pengaduan** (ID) atau **Complaint** (EN).
+
 ### 6.1 Create Report (Authenticated)
 
 ```
@@ -591,7 +593,7 @@ Audit Event: AUD-RPT-01
 ```json
 {
   "success": true,
-  "message": "Report submitted successfully",
+  "message": "Complaint submitted successfully",
   "data": {
     "id": 1,
     "registration_number": "SLP-2026-0610-0001",
@@ -631,7 +633,7 @@ Audit Event: AUD-RPT-01 (actor_id = NULL, actor_ip = NULL)
 ```json
 {
   "success": true,
-  "message": "Anonymous report submitted successfully. Please save your tracking code.",
+  "message": "Anonymous complaint submitted successfully. Please save your tracking code.",
   "data": {
     "registration_number": "SLP-2026-0610-0002",
     "tracking_code": "A7X9-K2M4-P8Q3-R1W5",
@@ -646,22 +648,26 @@ Audit Event: AUD-RPT-01 (actor_id = NULL, actor_ip = NULL)
 ```
 GET /api/v1/reports
 Auth: Bearer Token
-Roles: super_admin, admin (all reports); reporter (own reports)
+Roles: super_admin (cross-campus metadata), admin (same-campus metadata), reporter (own reports)
 Permission: reports.read.all / reports.read.own
-Query Params: ?status=submitted&type=anonymous&category=RCAT-01&search=SLP-2026&sort=-submitted_at&page=1
+Query Params: ?status=submitted&report_type=anonymous&category_code=RCAT-01&satgas_id=42&assignment_status=unassigned&university_id=7&page=1
 ```
 
 > **Role-based filtering**:
-> - Admin/Super Admin → sees all reports
-> - Reporter → sees only own reports (`reporter_id = auth()->id()`)
-> - Satgas → does NOT have direct report access (accesses via case)
+> - Admin hanya melihat pengaduan kampusnya; `satgas_id` memfilter pengaduan yang kasusnya memiliki penugasan aktif kepada Satgas tersebut.
+> - Admin dapat memakai `assignment_status=unassigned` untuk Pengaduan yang belum mempunyai Case atau yang Case-nya tidak mempunyai penugasan aktif. Riwayat penugasan nonaktif tidak dianggap penugasan aktif.
+> - Super Admin melihat metadata pengaduan lintas kampus; `university_id` memfilter kampus pelapor.
+> - Reporter hanya melihat pengaduannya sendiri (`reporter_id = auth()->id()`).
+> - Satgas tidak memiliki akses langsung ke endpoint Report (akses melalui Case).
+> - `satgas_id` dan `assignment_status` saling eksklusif, hanya tersedia bagi Admin yang mempunyai kampus, dan divalidasi dalam scope kampus tersebut.
+> - `satgas_id`/`assignment_status` ditolak untuk role selain Admin dan `university_id` ditolak untuk role selain Super Admin dengan `422`.
 
 **Success Response (200):**
 
 ```json
 {
   "success": true,
-  "message": "Reports retrieved successfully",
+  "message": "Complaints retrieved successfully",
   "data": [
     {
       "id": 1,
@@ -695,7 +701,7 @@ Policy: ReportPolicy@view
 ```json
 {
   "success": true,
-  "message": "Report retrieved successfully",
+  "message": "Complaint retrieved successfully",
   "data": {
     "id": 1,
     "registration_number": "SLP-2026-0610-0001",
@@ -872,7 +878,7 @@ Rate Limit: 10 requests per menit per IP
 ```json
 {
   "success": true,
-  "message": "Report status retrieved",
+  "message": "Complaint status retrieved",
   "data": {
     "registration_number": "SLP-2026-0610-0002",
     "status": "investigation",
@@ -906,8 +912,16 @@ Role-based behavior:
   - super_admin: metadata semua kasus (via cases.read.all) → nomor registrasi, status, SLA, assignment
   - admin: metadata semua kasus (via cases.read.metadata) → nomor registrasi, status, SLA, assignment
   - satgas_ppks: kasus yang ditugaskan (via cases.read.assigned) → full data
-Query Params: ?status=investigation&risk_level=high&sort=-forwarded_at&page=1
+Query Params: ?status=investigation&risk_level=high&satgas_id=42&assignment_status=unassigned&sort=-forwarded_at&page=1
 ```
+
+Filter scope opsional:
+
+- `satgas_id`: hanya Admin; memfilter kasus dengan penugasan aktif kepada Satgas tersebut dan tetap dibatasi ke kampus Admin.
+- `assignment_status=unassigned`: hanya Admin dengan kampus; memfilter kasus yang tidak mempunyai penugasan aktif. Assignment historis/nonaktif diabaikan.
+- `satgas_id` dan `assignment_status` saling eksklusif. Nilai status lain, kombinasi kedua parameter, Admin tanpa kampus, dan penggunaan oleh role lain menghasilkan `422`.
+- `university_id` tidak didukung pada daftar Kasus; filter Kampus Super Admin tersedia pada Ringkasan dan daftar Pengaduan.
+- Parameter role yang salah atau filter yang tidak didukung ditolak dengan `422`; filter tidak memperluas campus isolation atau akses data sensitif.
 
 **Success Response — Admin/Super Admin (metadata only):**
 
@@ -1396,138 +1410,76 @@ Auth: Bearer Token
 
 Base path: `/api/v1/dashboard`
 
-### 11.1 Admin Dashboard
+Dashboard analytics menggunakan endpoint berikut:
 
-```
-GET /api/v1/dashboard/admin
+```text
+GET /api/v1/dashboard/summary
+GET /api/v1/dashboard/reports
+GET /api/v1/dashboard/cases
+GET /api/v1/dashboard/workflow
+GET /api/v1/dashboard/evidence
 Auth: Bearer Token
-Roles: super_admin, admin
-Permission: dashboard.admin
+Roles: super_admin, admin, satgas_ppks
+Cache-Control: private, no-store, max-age=0
 ```
 
-**Success Response (200):**
+Reporter tidak mempunyai akses ke dashboard analytics.
 
-```json
-{
-  "success": true,
-  "data": {
-    "summary": {
-      "total_reports": 42,
-      "pending_review": 5,
-      "under_review": 8,
-      "need_info": 2,
-      "rejected": 7,
-      "forwarded": 25,
-      "active_cases": 15,
-      "closed_cases": 10
-    },
-    "reports_by_category": [
-      { "category": "RCAT-01", "name": "Pelecehan Verbal", "count": 12 }
-    ],
-    "reports_by_type": [
-      { "type": "open", "count": 20 },
-      { "type": "confidential", "count": 15 },
-      { "type": "anonymous", "count": 7 }
-    ],
-    "recent_reports": [
-      {
-        "id": 42,
-        "registration_number": "SLP-2026-0610-0042",
-        "status": "submitted",
-        "submitted_at": "2026-06-10T23:00:00Z"
-      }
-    ],
-    "sla_alerts": [
-      {
-        "case_id": 3,
-        "registration_number": "SLP-2026-0605-0003",
-        "status": "assessment",
-        "days_in_current_stage": 5,
-        "sla_days": 3,
-        "is_overdue": true
-      }
-    ]
-  }
-}
+Catatan implementasi: middleware `private.no-store` dipertahankan pada seluruh endpoint
+Dashboard. Middleware ini hanya menambahkan kebijakan response cache privat
+(`Cache-Control: private, no-store, max-age=0`) dan tidak mengubah bentuk response, otorisasi,
+atau kontrak filter endpoint.
+
+### 11.1 Filter umum
+
+| Parameter | Nilai | Keterangan |
+|---|---|---|
+| `date_from` | tanggal ISO | Awal rentang; default 29 hari sebelum `date_to`. |
+| `date_to` | tanggal ISO | Akhir rentang; default hari ini. |
+| `granularity` | `day`, `week`, `month` | Bucket grafik. |
+
+Rentang maksimal adalah 366 hari. Parameter invalid menghasilkan `422`, bukan fallback diam-diam atau error `500`.
+
+### 11.2 Filter Ringkasan Admin Kampus
+
+Admin tetap dibatasi pada kampusnya sendiri:
+
+- Tanpa parameter: agregasi baseline seluruh kampus Admin.
+- `satgas_id={user_id}`: hanya Pengaduan, Kasus, dan data workflow turunannya yang mempunyai penugasan aktif kepada Satgas kampus tersebut.
+- `assignment_status=unassigned`: hanya Pengaduan/Kasus yang belum memiliki penugasan aktif.
+- `satgas_id` dan `assignment_status` tidak boleh dikirim bersamaan.
+- Satgas nonaktif, bukan role Satgas, atau berasal dari kampus lain ditolak dengan `422`.
+
+Contoh:
+
+```text
+GET /api/v1/dashboard/summary?satgas_id=42
+GET /api/v1/dashboard/reports?assignment_status=unassigned
 ```
 
-### 11.2 Satgas Dashboard
+### 11.3 Filter Ringkasan Super Admin
 
-```
-GET /api/v1/dashboard/satgas
-Auth: Bearer Token
-Roles: satgas_ppks
-Permission: dashboard.satgas
-```
+- Tanpa `university_id`: agregasi global seluruh kampus.
+- `university_id={id}`: agregasi Pengaduan, Kasus, distribusi, dan workflow terkait kampus aktif tersebut.
+- `university_id` hanya diterima untuk Super Admin; role lain memperoleh `422`.
 
-**Success Response (200):**
+Contoh:
 
-```json
-{
-  "success": true,
-  "data": {
-    "my_cases": {
-      "total": 5,
-      "active": 3,
-      "completed": 2
-    },
-    "cases_by_stage": [
-      { "stage": 2, "stage_name": "Asesmen Risiko", "count": 1 },
-      { "stage": 3, "stage_name": "Investigasi", "count": 2 }
-    ],
-    "urgent_cases": [
-      {
-        "case_id": 1,
-        "registration_number": "SLP-2026-0610-0001",
-        "risk_level": "high",
-        "status": "investigation",
-        "is_lead": true
-      }
-    ],
-    "recent_activities": [
-      {
-        "case_id": 1,
-        "activity": "investigation_activity_added",
-        "timestamp": "2026-06-11T14:00:00Z"
-      }
-    ]
-  }
-}
+```text
+GET /api/v1/dashboard/summary?university_id=7
+GET /api/v1/dashboard/reports?university_id=7
 ```
 
-### 11.3 Reporter Dashboard
+Filter ini merupakan kontrak dashboard analytics. Daftar operasional Kasus `GET /api/v1/cases` tidak menerima `university_id`; filter Kampus Super Admin pada milestone ini tersedia pada Ringkasan dan daftar Pengaduan.
 
-```
-GET /api/v1/dashboard/reporter
-Auth: Bearer Token
-Roles: reporter
-```
+Kelima endpoint Dashboard (`summary`, `reports`, `cases`, `workflow`, dan `evidence`) menerima
+filter role-scoped yang sama. Frontend Ringkasan, Analytics, dan Workflow menyimpan filter pada URL
+dan meneruskannya ke setiap query beserta query key, sehingga refresh, navigasi browser, bookmark,
+dan cache tidak mencampur scope berbeda.
 
-**Success Response (200):**
+### 11.4 Satgas Dashboard
 
-```json
-{
-  "success": true,
-  "data": {
-    "my_reports": {
-      "total": 2,
-      "submitted": 1,
-      "under_review": 0,
-      "forwarded": 1,
-      "rejected": 0
-    },
-    "reports": [
-      {
-        "id": 1,
-        "registration_number": "SLP-2026-0610-0001",
-        "status": "forwarded",
-        "submitted_at": "2026-06-10T00:00:00Z"
-      }
-    ],
-    "unread_messages": 1
-  }
-}
-```
+Satgas tidak mendapat filter kampus atau Satgas. Seluruh agregasi tetap dibatasi pada Kasus dengan penugasan aktif miliknya.
 
 ---
 

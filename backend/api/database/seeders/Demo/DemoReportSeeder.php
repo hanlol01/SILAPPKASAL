@@ -51,7 +51,7 @@ class DemoReportSeeder extends Seeder
                 'tracking_code' => $anonymous ? 'TRK-DEMO-'.substr(str_replace('-', '', $registrationNumber), -8) : null,
                 'report_type' => $reportType,
                 'category_code' => DemoSeed::masterCode('report_categories', $categoryOffset),
-                'chronology' => 'Laporan demo ini menggambarkan situasi fiktif di lingkungan kampus untuk kebutuhan pelatihan, QA, dan UAT. Narasi dibuat realistis namun tidak merujuk pada identitas, tempat, atau kejadian nyata.',
+                'chronology' => 'Pengaduan demo ini menggambarkan situasi fiktif di lingkungan kampus untuk kebutuhan pelatihan, QA, dan UAT. Narasi dibuat realistis namun tidak merujuk pada identitas, tempat, atau kejadian nyata.',
                 'incident_date' => DemoSeed::date($daysAgo + 1)->toDateString(),
                 'incident_time' => '14:30',
                 'incident_location' => 'Area kampus pada skenario demo internal',
@@ -64,8 +64,8 @@ class DemoReportSeeder extends Seeder
                 'reporter_phone_encrypted' => $reportType === 'confidential' ? $reporter->phone_number : null,
                 'status' => $status,
                 'priority' => DemoSeed::masterCode('priority_levels', $categoryOffset % 3),
-                'admin_notes' => $status === ReportStatus::Rejected->value ? 'Laporan demo ditolak karena data tidak lengkap.' : null,
-                'rejection_reason' => $status === ReportStatus::Rejected->value ? 'Informasi awal pada laporan demo belum memenuhi syarat tindak lanjut.' : null,
+                'admin_notes' => $status === ReportStatus::Rejected->value ? 'Pengaduan demo ditolak karena data tidak lengkap.' : null,
+                'rejection_reason' => $status === ReportStatus::Rejected->value ? 'Informasi awal pada pengaduan demo belum memenuhi syarat tindak lanjut.' : null,
                 'submitted_at' => DemoSeed::date($daysAgo),
                 'reviewed_at' => in_array($status, [ReportStatus::UnderReview->value, ReportStatus::NeedInfo->value, ReportStatus::Rejected->value, ReportStatus::Forwarded->value], true)
                     ? DemoSeed::date(max(1, $daysAgo - 1))

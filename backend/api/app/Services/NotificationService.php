@@ -2,41 +2,52 @@
 
 namespace App\Services;
 
+use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\DecisionStatus as DecisionStatusEnum;
 use App\Enums\RecommendationStatus as RecommendationStatusEnum;
-use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Models\CaseRecord;
 use App\Models\Decision;
 use App\Models\Recommendation;
 use App\Models\Recovery;
 use App\Models\User;
 use App\Notifications\WorkflowDatabaseNotification;
+use App\Support\CaseCampusScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
-use App\Support\CaseCampusScope;
 
 class NotificationService
 {
     public const TYPE_CASE_ASSIGNED = 'NOTIF-12';
+
     public const TYPE_CASE_STATUS_CHANGED = 'NOTIF-13';
+
     public const TYPE_RECOMMENDATION_SUBMITTED_FOR_REVIEW = 'NOTIF-14';
+
     /** @deprecated One-release compatibility alias. */
     public const TYPE_RECOMMENDATION_SUBMITTED_TO_LEADER = self::TYPE_RECOMMENDATION_SUBMITTED_FOR_REVIEW;
+
     public const TYPE_DECISION_FINALIZED = 'NOTIF-15';
+
     public const TYPE_RECOMMENDATION_CREATED = 'NOTIF-16';
+
     public const TYPE_RECOMMENDATION_STATUS_CHANGED = 'NOTIF-17';
+
     public const TYPE_DECISION_CREATED = 'NOTIF-18';
+
     public const TYPE_DECISION_STATUS_CHANGED = 'NOTIF-19';
+
     public const TYPE_RECOVERY_CREATED = 'NOTIF-20';
+
     public const TYPE_RECOVERY_STATUS_CHANGED = 'NOTIF-21';
+
     public const TYPE_CASE_ASSESSMENT_RECORDED = 'NOTIF-22';
+
     public const TYPE_RECOMMENDATION_RETURNED = 'NOTIF-23';
+
     public const TYPE_RECOMMENDATION_APPROVED = 'NOTIF-24';
 
-    public function __construct(private readonly CaseCampusScope $campusScope)
-    {
-    }
+    public function __construct(private readonly CaseCampusScope $campusScope) {}
 
     public function caseAssessmentRecorded(CaseRecord $case): void
     {
@@ -55,7 +66,7 @@ class NotificationService
     }
 
     /**
-     * @param list<int> $satgasIds
+     * @param  list<int>  $satgasIds
      */
     public function caseAssigned(CaseRecord $case, array $satgasIds): void
     {
@@ -96,8 +107,8 @@ class NotificationService
             $this->send(collect([$case->report->reporter]), [
                 'notification_type_code' => self::TYPE_CASE_STATUS_CHANGED,
                 'event' => 'case_completed',
-                'title' => 'Report completed',
-                'body' => 'Your report process has been completed.',
+                'title' => 'Complaint completed',
+                'body' => 'Your complaint process has been completed.',
                 'subject_type' => 'case',
                 'subject_id' => $case->id,
                 'case_id' => $case->id,
@@ -204,16 +215,16 @@ class NotificationService
         $this->send($recommendation->case
             ? $this->campusAdminsForCase($recommendation->case, 'cases.record_decision', $actor?->id)
             : collect(), [
-            'notification_type_code' => self::TYPE_RECOMMENDATION_APPROVED,
-            'event' => 'recommendation_approved',
-            'title' => 'Recommendation approved',
-            'body' => 'An approved recommendation is ready for decision recording.',
-            'subject_type' => 'recommendation',
-            'subject_id' => $recommendation->id,
-            'case_id' => $recommendation->case_id,
-            'recommendation_id' => $recommendation->id,
-            'status_code' => $recommendation->status_code,
-        ]);
+                'notification_type_code' => self::TYPE_RECOMMENDATION_APPROVED,
+                'event' => 'recommendation_approved',
+                'title' => 'Recommendation approved',
+                'body' => 'An approved recommendation is ready for decision recording.',
+                'subject_type' => 'recommendation',
+                'subject_id' => $recommendation->id,
+                'case_id' => $recommendation->case_id,
+                'recommendation_id' => $recommendation->id,
+                'status_code' => $recommendation->status_code,
+            ]);
     }
 
     public function decisionFinalized(Decision $decision): void
@@ -355,8 +366,8 @@ class NotificationService
     }
 
     /**
-     * @param iterable<int, User> $recipients
-     * @param array<string, mixed> $payload
+     * @param  iterable<int, User>  $recipients
+     * @param  array<string, mixed>  $payload
      */
     private function send(iterable $recipients, array $payload): void
     {
@@ -399,7 +410,7 @@ class NotificationService
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
     private function safePayload(array $payload): array

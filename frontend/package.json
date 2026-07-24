@@ -9,6 +9,7 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "test:content": "node --experimental-strip-types --test tests/content-repair.test.ts tests/information-center.test.ts",
+    "test:global-term": "node --experimental-strip-types --test tests/global-term-complaint-filters.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

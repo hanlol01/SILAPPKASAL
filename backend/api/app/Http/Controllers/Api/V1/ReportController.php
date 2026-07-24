@@ -24,9 +24,7 @@ class ReportController extends Controller
     public function __construct(
         private readonly ReportService $reportService,
         private readonly CaseService $caseService,
-    )
-    {
-    }
+    ) {}
 
     public function store(ReportStoreRequest $request): JsonResponse
     {
@@ -36,7 +34,7 @@ class ReportController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Report submitted successfully',
+            'message' => 'Complaint submitted successfully',
             'data' => new ReportSubmissionResource($report),
         ], 201);
     }
@@ -47,7 +45,7 @@ class ReportController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Reports retrieved successfully',
+            'message' => 'Complaints retrieved successfully',
             'data' => ReportMetadataResource::collection($reports->items()),
             'meta' => [
                 'current_page' => $reports->currentPage(),
@@ -91,7 +89,7 @@ class ReportController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Report retrieved successfully',
+            'message' => 'Complaint retrieved successfully',
             'data' => new ReportMetadataResource($report),
         ]);
     }
@@ -111,7 +109,7 @@ class ReportController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Report tracking retrieved successfully',
+            'message' => 'Complaint tracking retrieved successfully',
             'data' => new ReportTrackingResource($report),
         ]);
     }
@@ -124,7 +122,7 @@ class ReportController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Report forwarded to Satgas. Case created.',
+            'message' => 'Complaint forwarded to Satgas. Case created.',
             'data' => new ForwardReportToCaseResource($case),
         ]);
     }

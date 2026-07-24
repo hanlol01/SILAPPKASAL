@@ -147,6 +147,142 @@ class CaseFoundationTest extends TestCase
         $this->getJson("/api/v1/cases/{$caseId}")->assertForbidden();
     }
 
+    public function test_admin_satgas_filters_and_super_admin_report_campus_filter_are_role_scoped(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-filter@university.ac.id');
+        $satgasA = $this->makeUser('satgas_ppks', 'satgas-a-filter@university.ac.id');
+        $satgasB = $this->makeUser('satgas_ppks', 'satgas-b-filter@university.ac.id');
+        $campusACase = $this->forwardedCase($admin, [$satgasA], $satgasA);
+        $secondCampusACase = $this->forwardedCase($admin, [$satgasB], $satgasB);
+
+        $otherAdmin = $this->makeUser('admin', 'other-admin-filter@university.ac.id', 'DEMO-ST');
+        $otherSatgas = $this->makeUser('satgas_ppks', 'other-satgas-filter@university.ac.id', 'DEMO-ST');
+        $otherReporter = $this->makeUser('reporter', 'other-reporter-filter@university.ac.id', 'DEMO-ST');
+        $otherReport = $this->makeReport(['reporter_id' => $otherReporter->id]);
+        $this->actingAsApi($otherAdmin);
+        $this->postJson("/api/v1/reports/{$otherReport->id}/forward-to-case", [
+            'satgas_ids' => [$otherSatgas->id],
+            'lead_satgas_id' => $otherSatgas->id,
+        ])->assertOk();
+
+        $this->actingAsApi($admin);
+        $this->getJson("/api/v1/reports?satgas_id={$satgasA->id}")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $campusACase->report_id);
+        $this->getJson("/api/v1/cases?satgas_id={$satgasA->id}")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $campusACase->id);
+        $this->getJson("/api/v1/reports?satgas_id={$otherSatgas->id}")
+            ->assertUnprocessable();
+        $this->getJson("/api/v1/cases?satgas_id={$otherSatgas->id}")
+            ->assertUnprocessable();
+        $this->getJson('/api/v1/reports?university_id=1')->assertUnprocessable();
+        $this->getJson('/api/v1/cases?university_id=1')->assertUnprocessable();
+
+        $campusAId = University::query()->where('code', 'DEMO-UNIV')->value('id');
+        $campusBId = University::query()->where('code', 'DEMO-ST')->value('id');
+        $superAdmin = $this->makeUser('super_admin', 'super-filter@university.ac.id', null);
+        $this->actingAsApi($superAdmin);
+        $this->getJson("/api/v1/reports?university_id={$campusAId}")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2);
+        $this->getJson("/api/v1/reports?university_id={$campusBId}")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $otherReport->id);
+        $this->getJson("/api/v1/cases?university_id={$campusAId}")->assertUnprocessable();
+        $this->getJson("/api/v1/cases?university_id={$campusBId}")->assertUnprocessable();
+        $this->getJson("/api/v1/reports?satgas_id={$satgasA->id}")->assertUnprocessable();
+        $this->getJson("/api/v1/cases?satgas_id={$satgasA->id}")->assertUnprocessable();
+
+        $this->assertNotSame($campusACase->id, $secondCampusACase->id);
+    }
+
+    public function test_admin_unassigned_filters_use_only_active_assignments_and_preserve_pagination_scope(): void
+    {
+        $admin = $this->makeUser('admin', 'admin-unassigned-filter@university.ac.id');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas-unassigned-filter@university.ac.id');
+        $foreignSatgas = $this->makeUser(
+            'satgas_ppks',
+            'foreign-satgas-unassigned-filter@university.ac.id',
+            'DEMO-ST',
+        );
+        $reportWithoutCase = $this->makeReport();
+        $caseWithoutAssignment = $this->forwardedCase($admin, [$satgas], $satgas);
+        CaseAssignment::query()->where('case_id', $caseWithoutAssignment->id)->delete();
+        $caseWithHistoricalAssignment = $this->forwardedCase($admin, [$satgas], $satgas);
+        CaseAssignment::query()
+            ->where('case_id', $caseWithHistoricalAssignment->id)
+            ->update([
+                'is_active' => false,
+                'is_lead' => false,
+                'unassigned_at' => now(),
+            ]);
+        $caseWithActiveAssignment = $this->forwardedCase($admin, [$satgas], $satgas);
+
+        $otherReporter = $this->makeUser(
+            'reporter',
+            'foreign-reporter-unassigned-filter@university.ac.id',
+            'DEMO-ST',
+        );
+        $this->makeReport(['reporter_id' => $otherReporter->id]);
+
+        $this->actingAsApi($admin);
+        $reportResponse = $this->getJson('/api/v1/reports?assignment_status=unassigned&per_page=1')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 3)
+            ->assertJsonPath('meta.per_page', 1)
+            ->assertJsonPath('meta.last_page', 3)
+            ->assertJsonCount(1, 'data');
+        $this->assertNotSame($caseWithActiveAssignment->report_id, $reportResponse->json('data.0.id'));
+
+        $unassignedReportIds = $this->getJson('/api/v1/reports?assignment_status=unassigned&per_page=100')
+            ->assertOk()
+            ->json('data');
+        $unassignedReportIds = collect($unassignedReportIds)->pluck('id')->all();
+        $this->assertContains($reportWithoutCase->id, $unassignedReportIds);
+        $this->assertContains($caseWithoutAssignment->report_id, $unassignedReportIds);
+        $this->assertContains($caseWithHistoricalAssignment->report_id, $unassignedReportIds);
+        $this->assertNotContains($caseWithActiveAssignment->report_id, $unassignedReportIds);
+
+        $caseResponse = $this->getJson('/api/v1/cases?assignment_status=unassigned&per_page=100')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2);
+        $unassignedCaseIds = collect($caseResponse->json('data'))->pluck('id')->all();
+        $this->assertContains($caseWithoutAssignment->id, $unassignedCaseIds);
+        $this->assertContains($caseWithHistoricalAssignment->id, $unassignedCaseIds);
+        $this->assertNotContains($caseWithActiveAssignment->id, $unassignedCaseIds);
+
+        $this->getJson("/api/v1/reports?satgas_id={$satgas->id}&assignment_status=unassigned")
+            ->assertUnprocessable();
+        $this->getJson("/api/v1/cases?satgas_id={$satgas->id}&assignment_status=unassigned")
+            ->assertUnprocessable();
+        $this->getJson('/api/v1/reports?assignment_status=assigned')->assertUnprocessable();
+        $this->getJson('/api/v1/cases?assignment_status=assigned')->assertUnprocessable();
+        $this->getJson("/api/v1/reports?satgas_id={$foreignSatgas->id}")->assertUnprocessable();
+        $this->getJson("/api/v1/cases?satgas_id={$foreignSatgas->id}")->assertUnprocessable();
+
+        $superAdmin = $this->makeUser('super_admin', 'super-unassigned-filter@university.ac.id', null);
+        $this->actingAsApi($superAdmin);
+        $this->getJson('/api/v1/reports?assignment_status=unassigned')->assertUnprocessable();
+        $this->getJson('/api/v1/cases?assignment_status=unassigned')->assertUnprocessable();
+
+        $this->actingAsApi($satgas);
+        $this->getJson('/api/v1/reports?assignment_status=unassigned')->assertUnprocessable();
+        $this->getJson('/api/v1/cases?assignment_status=unassigned')->assertUnprocessable();
+
+        $adminWithoutCampus = $this->makeUser(
+            'admin',
+            'admin-without-campus-unassigned-filter@university.ac.id',
+            null,
+        );
+        $this->actingAsApi($adminWithoutCampus);
+        $this->getJson('/api/v1/reports?assignment_status=unassigned')->assertUnprocessable();
+        $this->getJson('/api/v1/cases?assignment_status=unassigned')->assertUnprocessable();
+    }
+
     public function test_invalid_satgas_assignment_does_not_forward_report(): void
     {
         $admin = $this->makeUser('admin', 'admin@university.ac.id');

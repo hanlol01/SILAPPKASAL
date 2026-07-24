@@ -41,7 +41,7 @@ class DemoRecommendationSeeder extends Seeder
                     'recommended_actions' => 'Rekomendasi demo: pembatasan interaksi, pendampingan pelapor, dan tindak lanjut kelembagaan sesuai prosedur.',
                     'sanction_recommendation' => 'Sanksi demo disesuaikan dengan tingkat risiko dan bukti yang tersedia.',
                     'recovery_recommendation' => 'Pendampingan psikologis dan akademik direkomendasikan untuk skenario demo.',
-                    'prevention_recommendation' => 'Sosialisasi ulang kanal pelaporan dan kode etik di unit terkait.',
+                    'prevention_recommendation' => 'Sosialisasi ulang kanal pengaduan dan kode etik di unit terkait.',
                     'submitted_at' => $statusName === RecommendationStatusEnum::Drafting->value ? null : DemoSeed::date(5),
                 ]
             );

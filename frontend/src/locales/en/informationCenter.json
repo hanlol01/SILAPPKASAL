@@ -7,7 +7,7 @@
   "introduction": "Find educational materials, policies, frequently asked questions, and consultation channels that have been reviewed and published.",
   "dashboard": {
     "title": "Explore the Information Center",
-    "description": "Supporting information is available without reducing the priority of reporting and tracking your reports."
+    "description": "Supporting information is available without reducing the priority of complaint submission and tracking your complaints."
   },
   "sections": {
     "title": "Choose the information you need",
@@ -44,7 +44,7 @@
     "title": "Featured Information",
     "description": "Published materials selected to help you find important information.",
     "empty": "No featured information has been published yet. Other materials can still be explored below.",
-    "error": "Featured information could not be loaded. Your reporting features remain available.",
+    "error": "Featured information could not be loaded. Your complaint submission features remain available.",
     "carouselLabel": "Featured articles",
     "position": "Position {{current}} of {{total}}",
     "previous": "Previous article",
@@ -118,14 +118,14 @@
     "appointment": "Book an appointment",
     "procedure": "Service procedure",
     "confidentiality": "Confidentiality",
-    "confirmPhone": "Call {{service}}? Do not include sensitive report details unless requested through an official procedure.",
-    "confirmWhatsapp": "Open WhatsApp for {{service}}? Do not include identity or sensitive report details in the initial message.",
+    "confirmPhone": "Call {{service}}? Do not include sensitive complaint details unless requested through an official procedure.",
+    "confirmWhatsapp": "Open WhatsApp for {{service}}? Do not include identity or sensitive complaint details in the initial message.",
     "emergencyNotice": "This service is marked as offering emergency support by the content manager. Check the available hours and channels before contacting it."
   },
   "reportCta": {
-    "title": "Need to submit a report?",
-    "description": "Use the official report form so your report can follow the established handling process.",
-    "action": "Create Report"
+    "title": "Need to submit a complaint?",
+    "description": "Use the official complaint form so your complaint can follow the established handling process.",
+    "action": "Create Complaint"
   },
   "attachment": {
     "title": "Article Attachments",

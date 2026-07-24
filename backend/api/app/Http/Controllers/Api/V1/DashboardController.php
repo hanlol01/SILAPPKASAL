@@ -11,9 +11,7 @@ use Illuminate\Support\Facades\Gate;
 
 class DashboardController extends Controller
 {
-    public function __construct(private readonly DashboardService $dashboardService)
-    {
-    }
+    public function __construct(private readonly DashboardService $dashboardService) {}
 
     public function summary(DashboardFilterRequest $request): JsonResponse
     {
@@ -30,7 +28,7 @@ class DashboardController extends Controller
         Gate::authorize('viewDashboard');
 
         return $this->respond(
-            'Report analytics retrieved successfully',
+            'Complaint analytics retrieved successfully',
             $this->dashboardService->reports($request->user(), $request->dashboardFilters())
         );
     }

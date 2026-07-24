@@ -17,7 +17,7 @@ export const Route = createFileRoute("/portal/notifications")({
       { title: "Notifikasi - SILAPPKASAL" },
       {
         name: "description",
-        content: "View notifications about your report status updates.",
+        content: "View notifications about your complaint status updates.",
       },
     ],
   }),

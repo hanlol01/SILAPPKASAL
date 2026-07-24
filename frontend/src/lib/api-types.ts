@@ -94,6 +94,15 @@ export interface DashboardFilters {
   date_from?: string;
   date_to?: string;
   granularity?: "day" | "week" | "month";
+  satgas_id?: number;
+  assignment_status?: "unassigned";
+  university_id?: number;
+}
+
+export interface DashboardAppliedFilters extends DashboardFilters {
+  date_from: string;
+  date_to: string;
+  granularity: "day" | "week" | "month";
 }
 
 export interface DashboardGroupCount {
@@ -108,7 +117,7 @@ export interface DashboardTimeSeriesPoint {
 
 export interface DashboardSummary {
   scope: string;
-  filters: Required<DashboardFilters>;
+  filters: DashboardAppliedFilters;
   totals: {
     reports: number;
     cases: number;
@@ -132,7 +141,7 @@ export interface DashboardSummary {
 
 export interface DashboardReports {
   scope: string;
-  filters: Required<DashboardFilters>;
+  filters: DashboardAppliedFilters;
   total: number;
   by_status: DashboardGroupCount[];
   by_report_type: DashboardGroupCount[];
@@ -147,7 +156,7 @@ export interface DashboardReports {
 
 export interface DashboardCases {
   scope: string;
-  filters: Required<DashboardFilters>;
+  filters: DashboardAppliedFilters;
   total: number;
   by_status_code: DashboardGroupCount[];
   by_risk_level_code: DashboardGroupCount[];
@@ -163,7 +172,7 @@ export interface DashboardCases {
 
 export interface DashboardWorkflow {
   scope: string;
-  filters: Required<DashboardFilters>;
+  filters: DashboardAppliedFilters;
   metric_semantics: string;
   status_distributions: {
     investigations: DashboardGroupCount[];
@@ -185,7 +194,7 @@ export interface DashboardWorkflow {
 
 export interface DashboardEvidence {
   scope: string;
-  filters: Required<DashboardFilters>;
+  filters: DashboardAppliedFilters;
   privacy: string;
   total: number;
   by_status: DashboardGroupCount[];

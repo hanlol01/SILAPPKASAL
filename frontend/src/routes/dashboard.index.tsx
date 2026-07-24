@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   AreaChart,
   Area,
@@ -14,7 +14,10 @@ import {
   Legend,
 } from "recharts";
 import { ArrowRight, FileWarning, Inbox, Loader2, CheckCircle2, Clock, FileArchive } from "lucide-react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { FilterResetButton } from "@/components/filter-reset-button";
+import { OperationalScopeFilter } from "@/components/operational-scope-filter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { QueryErrorState, StatSkeletonGrid } from "@/components/query-state";
@@ -25,8 +28,26 @@ import {
   getDashboardReports,
   getDashboardSummary,
 } from "@/lib/dashboard-api";
+import type { DashboardFilters } from "@/lib/api-types";
+
+type DashboardSearch = {
+  satgas_id?: number;
+  assignment_status?: "unassigned";
+  university_id?: number;
+};
+
+function positiveInteger(value: unknown): number | undefined {
+  const parsed = Number(value);
+
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
 
 export const Route = createFileRoute("/dashboard/")({
+  validateSearch: (search: Record<string, unknown>): DashboardSearch => ({
+    satgas_id: positiveInteger(search.satgas_id),
+    assignment_status: search.assignment_status === "unassigned" ? "unassigned" : undefined,
+    university_id: positiveInteger(search.university_id),
+  }),
   component: Overview,
   head: () => ({ meta: [{ title: "Overview - SILAPPKASAL Admin" }] }),
 });
@@ -91,22 +112,96 @@ function Overview() {
   const { roleCode } = useAuth();
   const { t } = useTranslation(["dashboard"]);
   const navigate = Route.useNavigate();
+  const search = Route.useSearch();
+  const filters = useMemo<DashboardFilters>(() => {
+    if (roleCode === "admin") {
+      return {
+        satgas_id: search.assignment_status ? undefined : search.satgas_id,
+        assignment_status: search.assignment_status,
+      };
+    }
+
+    if (roleCode === "super_admin") {
+      return { university_id: search.university_id };
+    }
+
+    return {};
+  }, [roleCode, search.assignment_status, search.satgas_id, search.university_id]);
   const summaryQuery = useQuery({
-    queryKey: dashboardQueryKeys.summary(),
-    queryFn: () => getDashboardSummary(),
+    queryKey: dashboardQueryKeys.summary(filters),
+    queryFn: () => getDashboardSummary(filters),
+    placeholderData: keepPreviousData,
   });
   const reportsQuery = useQuery({
-    queryKey: dashboardQueryKeys.reports(),
-    queryFn: () => getDashboardReports(),
+    queryKey: dashboardQueryKeys.reports(filters),
+    queryFn: () => getDashboardReports(filters),
+    placeholderData: keepPreviousData,
   });
+  const satgasValue =
+    search.assignment_status === "unassigned"
+      ? "unassigned"
+      : search.satgas_id
+        ? String(search.satgas_id)
+        : "all";
+  const universityValue = search.university_id ? String(search.university_id) : "all";
+  const filterActive =
+    (roleCode === "admin" && satgasValue !== "all") ||
+    (roleCode === "super_admin" && universityValue !== "all");
+  const header = (
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard:overview.title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("dashboard:overview.subtitle")}</p>
+      </div>
+      {(roleCode === "admin" || roleCode === "super_admin") && (
+        <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+          <OperationalScopeFilter
+            roleCode={roleCode}
+            satgasId={satgasValue}
+            universityId={universityValue}
+            includeUnassigned
+            onSatgasChange={(value) => {
+              void navigate({
+                search: (current) => ({
+                  ...current,
+                  satgas_id: value !== "all" && value !== "unassigned" ? Number(value) : undefined,
+                  assignment_status: value === "unassigned" ? "unassigned" : undefined,
+                  university_id: undefined,
+                }),
+                replace: true,
+              });
+            }}
+            onUniversityChange={(value) => {
+              void navigate({
+                search: (current) => ({
+                  ...current,
+                  satgas_id: undefined,
+                  assignment_status: undefined,
+                  university_id: value === "all" ? undefined : Number(value),
+                }),
+                replace: true,
+              });
+            }}
+          />
+          <FilterResetButton
+            active={filterActive}
+            onReset={() => void navigate({ search: {}, replace: true })}
+          />
+          {(summaryQuery.isFetching || reportsQuery.isFetching) && (
+            <Loader2
+              className="h-4 w-4 animate-spin text-muted-foreground"
+              aria-label={t("dashboard:common.loading")}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   if (summaryQuery.isLoading || reportsQuery.isLoading) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard:overview.title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("dashboard:overview.subtitle")}</p>
-        </div>
+        {header}
         <StatSkeletonGrid />
       </div>
     );
@@ -115,10 +210,7 @@ function Overview() {
   if (summaryQuery.isError || reportsQuery.isError || !summaryQuery.data || !reportsQuery.data) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard:overview.title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("dashboard:overview.subtitle")}</p>
-        </div>
+        {header}
         <QueryErrorState
           message={t("dashboard:overview.unavailable")}
           onRetry={() => {
@@ -145,10 +237,7 @@ function Overview() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard:overview.title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("dashboard:overview.subtitle")}</p>
-      </div>
+      {header}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard

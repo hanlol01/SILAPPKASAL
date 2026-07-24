@@ -67,10 +67,10 @@ export const Route = createFileRoute("/portal/reports/$registrationNumber")({
   component: PortalReportDetailPage,
   head: () => ({
     meta: [
-      { title: "Report Detail — SILAPPKASAL Portal" },
+      { title: "Complaint Detail — SILAPPKASAL Portal" },
       {
         name: "description",
-        content: "View the current status and details of your report.",
+        content: "View the current status and details of your complaint.",
       },
     ],
   }),

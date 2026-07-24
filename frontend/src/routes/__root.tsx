@@ -70,7 +70,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "SILAPPKASAL: dashboard aman untuk Satgas PPKS kampus dalam mengelola laporan dan alur penanganan.",
+          "SILAPPKASAL: dashboard aman untuk Satgas PPKS kampus dalam mengelola pengaduan dan alur penanganan.",
       },
       {
         property: "og:title",

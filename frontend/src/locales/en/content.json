@@ -137,7 +137,7 @@
   "verificationDate": "Verification date",
   "verifiedOwner": "Verified owner",
   "phoneHelp": "Use digits, spaces, +, hyphens, or parentheses for the displayed contact.",
-  "noInventedContacts": "Enter only verified institutional service information. Do not put report or Reporter identity data in URLs.",
+  "noInventedContacts": "Enter only verified institutional service information. Do not put complaint or Reporter identity data in URLs.",
   "validation": {
     "required": "This field is required.",
     "category": "Category is required.",

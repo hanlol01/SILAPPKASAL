@@ -30,7 +30,7 @@ import type { ReportReporter } from "@/lib/operations-types";
 
 export const Route = createFileRoute("/dashboard/reports/$id")({
   component: ReportDetailPage,
-  head: () => ({ meta: [{ title: "Report detail - SILAPPKASAL Admin" }] }),
+  head: () => ({ meta: [{ title: "Complaint detail - SILAPPKASAL Admin" }] }),
 });
 
 function ReportDetailPage() {
@@ -158,7 +158,7 @@ function ReportDetailPage() {
           </CollapsibleDataCard>
         )}
 
-        <div className="min-w-0 space-y-4">
+        <div className="min-w-0 space-y-4 lg:col-start-3 lg:row-start-1">
           <Card className="min-w-0">
             <CardHeader>
               <CardTitle className="text-base">{t("dashboard:cases.assignments")}</CardTitle>

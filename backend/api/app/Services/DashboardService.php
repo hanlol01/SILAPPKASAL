@@ -3,14 +3,13 @@
 namespace App\Services;
 
 use App\Models\User;
-use Carbon\CarbonInterface;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 class DashboardService
 {
     /**
-     * @param  array{date_from: CarbonInterface, date_to: CarbonInterface, granularity: string}  $filters
+     * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
     public function summary(User $user, array $filters): array
@@ -45,7 +44,7 @@ class DashboardService
     }
 
     /**
-     * @param  array{date_from: CarbonInterface, date_to: CarbonInterface, granularity: string}  $filters
+     * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
     public function reports(User $user, array $filters): array
@@ -69,7 +68,7 @@ class DashboardService
     }
 
     /**
-     * @param  array{date_from: CarbonInterface, date_to: CarbonInterface, granularity: string}  $filters
+     * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
     public function cases(User $user, array $filters): array
@@ -94,7 +93,7 @@ class DashboardService
     }
 
     /**
-     * @param  array{date_from: CarbonInterface, date_to: CarbonInterface, granularity: string}  $filters
+     * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
     public function workflow(User $user, array $filters): array
@@ -123,7 +122,7 @@ class DashboardService
     }
 
     /**
-     * @param  array{date_from: CarbonInterface, date_to: CarbonInterface, granularity: string}  $filters
+     * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
     public function evidence(User $user, array $filters): array
@@ -147,7 +146,7 @@ class DashboardService
     }
 
     /**
-     * @param  array{date_from: CarbonInterface, date_to: CarbonInterface, granularity: string}  $filters
+     * @param  array<string, mixed>  $filters
      */
     private function reportsQuery(User $user, array $filters): Builder
     {
@@ -170,6 +169,55 @@ class DashboardService
                 ->where('case_assignments.is_active', true);
         }
 
+        return $this->applyReportScopeFilter($query, $user, $filters);
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function applyReportScopeFilter(Builder $query, User $user, array $filters): Builder
+    {
+        if ($user->hasRole('admin')) {
+            if (! empty($filters['satgas_id'])) {
+                return $query->whereExists(function (Builder $assignment) use ($filters): void {
+                    $assignment->selectRaw('1')
+                        ->from('cases as dashboard_report_cases')
+                        ->join(
+                            'case_assignments as dashboard_report_assignments',
+                            'dashboard_report_assignments.case_id',
+                            '=',
+                            'dashboard_report_cases.id'
+                        )
+                        ->whereColumn('dashboard_report_cases.report_id', 'reports.id')
+                        ->whereColumn('dashboard_report_cases.registration_number', 'reports.registration_number')
+                        ->whereNull('dashboard_report_cases.deleted_at')
+                        ->where('dashboard_report_assignments.is_active', true)
+                        ->where('dashboard_report_assignments.satgas_id', $filters['satgas_id']);
+                });
+            }
+
+            if (($filters['assignment_status'] ?? null) === 'unassigned') {
+                return $query->whereNotExists(function (Builder $assignment): void {
+                    $assignment->selectRaw('1')
+                        ->from('cases as dashboard_report_cases')
+                        ->join(
+                            'case_assignments as dashboard_report_assignments',
+                            'dashboard_report_assignments.case_id',
+                            '=',
+                            'dashboard_report_cases.id'
+                        )
+                        ->whereColumn('dashboard_report_cases.report_id', 'reports.id')
+                        ->whereColumn('dashboard_report_cases.registration_number', 'reports.registration_number')
+                        ->whereNull('dashboard_report_cases.deleted_at')
+                        ->where('dashboard_report_assignments.is_active', true);
+                });
+            }
+        } elseif ($this->isGlobalScope($user) && ! empty($filters['university_id'])) {
+            $query
+                ->join('users as dashboard_report_filter_reporters', 'dashboard_report_filter_reporters.id', '=', 'reports.reporter_id')
+                ->where('dashboard_report_filter_reporters.university_id', $filters['university_id']);
+        }
+
         return $query;
     }
 
@@ -187,7 +235,7 @@ class DashboardService
     }
 
     /**
-     * @param  array{date_from: CarbonInterface, date_to: CarbonInterface, granularity: string}  $filters
+     * @param  array<string, mixed>  $filters
      */
     private function casesQuery(User $user, array $filters): Builder
     {
@@ -195,11 +243,11 @@ class DashboardService
             ->whereNull('cases.deleted_at')
             ->whereBetween('cases.forwarded_at', [$filters['date_from'], $filters['date_to']]);
 
-        return $this->scopeCasesToUser($query, $user);
+        return $this->scopeCasesToUser($query, $user, $filters);
     }
 
     /**
-     * @param  array{date_from: CarbonInterface, date_to: CarbonInterface, granularity: string}  $filters
+     * @param  array<string, mixed>  $filters
      */
     private function investigationsQuery(User $user, array $filters): Builder
     {
@@ -208,11 +256,11 @@ class DashboardService
             ->whereNull('cases.deleted_at')
             ->whereBetween('investigations.started_at', [$filters['date_from'], $filters['date_to']]);
 
-        return $this->scopeCasesToUser($query, $user);
+        return $this->scopeCasesToUser($query, $user, $filters);
     }
 
     /**
-     * @param  array{date_from: CarbonInterface, date_to: CarbonInterface, granularity: string}  $filters
+     * @param  array<string, mixed>  $filters
      */
     private function recommendationsQuery(User $user, array $filters): Builder
     {
@@ -221,11 +269,11 @@ class DashboardService
             ->whereNull('cases.deleted_at')
             ->whereBetween('recommendations.created_at', [$filters['date_from'], $filters['date_to']]);
 
-        return $this->scopeCasesToUser($query, $user);
+        return $this->scopeCasesToUser($query, $user, $filters);
     }
 
     /**
-     * @param  array{date_from: CarbonInterface, date_to: CarbonInterface, granularity: string}  $filters
+     * @param  array<string, mixed>  $filters
      */
     private function decisionsQuery(User $user, array $filters): Builder
     {
@@ -235,11 +283,11 @@ class DashboardService
             ->whereNull('cases.deleted_at')
             ->whereBetween('decisions.recorded_at', [$filters['date_from'], $filters['date_to']]);
 
-        return $this->scopeCasesToUser($query, $user);
+        return $this->scopeCasesToUser($query, $user, $filters);
     }
 
     /**
-     * @param  array{date_from: CarbonInterface, date_to: CarbonInterface, granularity: string}  $filters
+     * @param  array<string, mixed>  $filters
      */
     private function recoveriesQuery(User $user, array $filters): Builder
     {
@@ -251,11 +299,11 @@ class DashboardService
             ->whereNull('cases.deleted_at')
             ->whereBetween('recoveries.created_at', [$filters['date_from'], $filters['date_to']]);
 
-        return $this->scopeCasesToUser($query, $user);
+        return $this->scopeCasesToUser($query, $user, $filters);
     }
 
     /**
-     * @param  array{date_from: CarbonInterface, date_to: CarbonInterface, granularity: string}  $filters
+     * @param  array<string, mixed>  $filters
      */
     private function monitoringQuery(User $user, array $filters): Builder
     {
@@ -268,11 +316,11 @@ class DashboardService
             ->whereNull('cases.deleted_at')
             ->whereBetween('recovery_monitorings.monitoring_date', [$filters['date_from']->toDateString(), $filters['date_to']->toDateString()]);
 
-        return $this->scopeCasesToUser($query, $user);
+        return $this->scopeCasesToUser($query, $user, $filters);
     }
 
     /**
-     * @param  array{date_from: CarbonInterface, date_to: CarbonInterface, granularity: string}  $filters
+     * @param  array<string, mixed>  $filters
      */
     private function evidencesQuery(User $user, array $filters): Builder
     {
@@ -283,11 +331,11 @@ class DashboardService
             ->whereNull('cases.deleted_at')
             ->whereBetween('evidences.created_at', [$filters['date_from'], $filters['date_to']]);
 
-        return $this->scopeCasesToUser($query, $user);
+        return $this->scopeCasesToUser($query, $user, $filters);
     }
 
     /**
-     * @param  array{date_from: CarbonInterface, date_to: CarbonInterface, granularity: string}  $filters
+     * @param  array<string, mixed>  $filters
      */
     private function evidencesWithFileMetadataQuery(User $user, array $filters): Builder
     {
@@ -301,7 +349,7 @@ class DashboardService
     }
 
     /**
-     * @param  array{date_from: CarbonInterface, date_to: CarbonInterface, granularity: string}  $filters
+     * @param  array<string, mixed>  $filters
      */
     private function evidencesWithoutFileMetadataQuery(User $user, array $filters): Builder
     {
@@ -312,9 +360,20 @@ class DashboardService
             ->whereNull('evidences.checksum_sha256');
     }
 
-    private function scopeCasesToUser(Builder $query, User $user): Builder
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function scopeCasesToUser(Builder $query, User $user, array $filters): Builder
     {
         if ($this->isGlobalScope($user)) {
+            if (! empty($filters['university_id'])) {
+                $query
+                    ->join('reports as dashboard_case_reports', 'dashboard_case_reports.id', '=', 'cases.report_id')
+                    ->join('users as dashboard_case_reporters', 'dashboard_case_reporters.id', '=', 'dashboard_case_reports.reporter_id')
+                    ->whereColumn('dashboard_case_reports.registration_number', 'cases.registration_number')
+                    ->where('dashboard_case_reporters.university_id', $filters['university_id']);
+            }
+
             return $query;
         }
 
@@ -323,11 +382,13 @@ class DashboardService
                 return $query->whereRaw('1 = 0');
             }
 
-            return $query
+            $query
                 ->join('reports as campus_reports', 'campus_reports.id', '=', 'cases.report_id')
                 ->join('users as campus_reporters', 'campus_reporters.id', '=', 'campus_reports.reporter_id')
                 ->whereColumn('campus_reports.registration_number', 'cases.registration_number')
                 ->where('campus_reporters.university_id', $user->university_id);
+
+            return $this->applyAdminCaseAssignmentFilter($query, $filters);
         }
 
         return $query
@@ -336,9 +397,49 @@ class DashboardService
             ->where('case_assignments.is_active', true);
     }
 
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function applyAdminCaseAssignmentFilter(Builder $query, array $filters): Builder
+    {
+        if (! empty($filters['satgas_id'])) {
+            return $query->whereExists(function (Builder $assignment) use ($filters): void {
+                $assignment->selectRaw('1')
+                    ->from('case_assignments as dashboard_case_assignment_filter')
+                    ->whereColumn('dashboard_case_assignment_filter.case_id', 'cases.id')
+                    ->where('dashboard_case_assignment_filter.is_active', true)
+                    ->where('dashboard_case_assignment_filter.satgas_id', $filters['satgas_id']);
+            });
+        }
+
+        if (($filters['assignment_status'] ?? null) === 'unassigned') {
+            return $query->whereNotExists(function (Builder $assignment): void {
+                $assignment->selectRaw('1')
+                    ->from('case_assignments as dashboard_case_assignment_filter')
+                    ->whereColumn('dashboard_case_assignment_filter.case_id', 'cases.id')
+                    ->where('dashboard_case_assignment_filter.is_active', true);
+            });
+        }
+
+        return $query;
+    }
+
     private function assignedCaseCount(User $user, array $filters): int
     {
-        return $this->count($this->casesQuery($user, $filters));
+        $query = $this->casesQuery($user, $filters);
+
+        if (! ($user->hasRole('admin') || $this->isGlobalScope($user))) {
+            return $this->count($query);
+        }
+
+        return $this->count(
+            $query->whereExists(function (Builder $assignment): void {
+                $assignment->selectRaw('1')
+                    ->from('case_assignments as dashboard_assigned_case_filter')
+                    ->whereColumn('dashboard_assigned_case_filter.case_id', 'cases.id')
+                    ->where('dashboard_assigned_case_filter.is_active', true);
+            })
+        );
     }
 
     private function unassignedCaseCount(User $user, array $filters): int
@@ -375,6 +476,17 @@ class DashboardService
                     ->whereColumn('assignment_reports.registration_number', 'cases.registration_number')
                     ->where('assignment_reporters.university_id', $user->university_id);
             }
+            if (! empty($filters['satgas_id'])) {
+                $query->where('case_assignments.satgas_id', $filters['satgas_id']);
+            } elseif (($filters['assignment_status'] ?? null) === 'unassigned') {
+                $query->whereRaw('1 = 0');
+            }
+        } elseif ($this->isGlobalScope($user) && ! empty($filters['university_id'])) {
+            $query
+                ->join('reports as assignment_campus_reports', 'assignment_campus_reports.id', '=', 'cases.report_id')
+                ->join('users as assignment_campus_reporters', 'assignment_campus_reporters.id', '=', 'assignment_campus_reports.reporter_id')
+                ->whereColumn('assignment_campus_reports.registration_number', 'cases.registration_number')
+                ->where('assignment_campus_reporters.university_id', $filters['university_id']);
         } elseif (! $this->isGlobalScope($user)) {
             $query->where('case_assignments.satgas_id', $user->id);
         }
@@ -460,15 +572,23 @@ class DashboardService
     }
 
     /**
-     * @param  array{date_from: CarbonInterface, date_to: CarbonInterface, granularity: string}  $filters
-     * @return array<string, string>
+     * @param  array<string, mixed>  $filters
+     * @return array<string, int|string>
      */
     private function formatFilters(array $filters): array
     {
-        return [
+        $formatted = [
             'date_from' => $filters['date_from']->toDateString(),
             'date_to' => $filters['date_to']->toDateString(),
             'granularity' => $filters['granularity'],
         ];
+
+        foreach (['satgas_id', 'assignment_status', 'university_id'] as $filter) {
+            if (array_key_exists($filter, $filters)) {
+                $formatted[$filter] = $filters[$filter];
+            }
+        }
+
+        return $formatted;
     }
 }

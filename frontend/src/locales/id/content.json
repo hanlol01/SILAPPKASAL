@@ -137,7 +137,7 @@
   "verificationDate": "Tanggal verifikasi",
   "verifiedOwner": "Penanggung jawab verifikasi",
   "phoneHelp": "Gunakan angka, spasi, tanda +, tanda hubung, atau tanda kurung untuk tampilan kontak.",
-  "noInventedContacts": "Masukkan hanya informasi layanan institusional yang telah diverifikasi. Jangan memasukkan data laporan atau identitas pelapor ke URL.",
+  "noInventedContacts": "Masukkan hanya informasi layanan institusional yang telah diverifikasi. Jangan memasukkan data pengaduan atau identitas pelapor ke URL.",
   "validation": {
     "required": "Kolom ini wajib diisi.",
     "category": "Kategori wajib diisi.",

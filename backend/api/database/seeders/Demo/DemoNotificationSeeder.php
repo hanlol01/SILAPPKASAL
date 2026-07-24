@@ -16,7 +16,7 @@ class DemoNotificationSeeder extends Seeder
                 'super_admin' => [],
                 'admin' => [
                     ['NOTIF-14', 'recommendation_submitted_for_review', 'Ada rekomendasi demo menunggu peninjauan Admin Kampus.'],
-                    ['NOTIF-01', 'report_new', 'Laporan demo baru masuk untuk kampus Anda.'],
+                    ['NOTIF-01', 'report_new', 'Pengaduan demo baru masuk untuk kampus Anda.'],
                     ['NOTIF-13', 'case_status_changed', 'Status kasus demo berubah.'],
                 ],
                 'satgas_ppks' => [
@@ -25,8 +25,8 @@ class DemoNotificationSeeder extends Seeder
                     ['NOTIF-15', 'decision_finalized', 'Keputusan demo telah difinalisasi.'],
                 ],
                 'reporter' => [
-                    ['NOTIF-02', 'report_confirmed', 'Laporan demo Anda telah diterima.'],
-                    ['NOTIF-03', 'case_status_changed', 'Status laporan demo Anda diperbarui.'],
+                    ['NOTIF-02', 'report_confirmed', 'Pengaduan demo Anda telah diterima.'],
+                    ['NOTIF-03', 'case_status_changed', 'Status pengaduan demo Anda diperbarui.'],
                 ],
                 default => [],
             };

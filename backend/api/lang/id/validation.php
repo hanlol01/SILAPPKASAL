@@ -174,8 +174,8 @@ return [
             'faculty_selection' => 'Program studi yang dipilih tidak berada di fakultas yang dipilih.',
         ],
         'report_id' => [
-            'anonymous_only' => 'Akses darurat hanya dapat diajukan untuk laporan anonim.',
-            'pending_access_exists' => 'Permintaan akses darurat yang tertunda sudah ada untuk laporan ini.',
+            'anonymous_only' => 'Akses darurat hanya dapat diajukan untuk pengaduan anonim.',
+            'pending_access_exists' => 'Permintaan akses darurat yang tertunda sudah ada untuk pengaduan ini.',
         ],
         'date_from' => [
             'before_or_equal_date_to' => 'Tanggal mulai harus sebelum atau sama dengan tanggal akhir.',

@@ -27,6 +27,7 @@ class ReportEvidenceSubmissionService
     public const MAX_FILES_PER_REPORT = 5;
 
     private const FILE_DISK = 'evidence';
+
     private const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
     /** @var array<string, string> */
@@ -54,8 +55,7 @@ class ReportEvidenceSubmissionService
     public function __construct(
         private readonly AuditLogService $auditLogService,
         private readonly CaseCampusScope $campusScope,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{files: Collection<int, ReportEvidenceSubmission>, upload_allowed: bool, remaining_slots: int}
@@ -336,7 +336,7 @@ class ReportEvidenceSubmissionService
                             $actor,
                         ));
                     }
-                    : null,
+                : null,
             );
         } catch (Throwable $exception) {
             if (is_resource($stream)) {
@@ -443,7 +443,7 @@ class ReportEvidenceSubmissionService
     }
 
     /**
-     * @param Collection<int, ReportEvidenceSubmission> $files
+     * @param  Collection<int, ReportEvidenceSubmission>  $files
      */
     private function maskAnonymousInternalFilenames(Collection $files, ?Report $report): void
     {
@@ -506,7 +506,7 @@ class ReportEvidenceSubmissionService
     private function ensureUploadEligible(Report $report): void
     {
         if (! $this->reportAcceptsUpload($report)) {
-            throw $this->conflict('This report cannot accept supporting files');
+            throw $this->conflict('This complaint cannot accept supporting files');
         }
     }
 

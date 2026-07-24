@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { Eye, Inbox, Search, SearchX, SlidersHorizontal } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Eye, Inbox, Loader2, Search, SearchX, SlidersHorizontal } from "lucide-react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { QueryErrorState } from "@/components/query-state";
 import { Button } from "@/components/ui/button";
@@ -21,8 +21,10 @@ import { EmptyState } from "@/components/empty-state";
 import { PageBreadcrumb } from "@/components/page-breadcrumb";
 import { FilterResetButton } from "@/components/filter-reset-button";
 import { ListPagination } from "@/components/list-pagination";
-import { DEFAULT_PAGE_SIZE } from "@/lib/list-controls";
+import { DEFAULT_PAGE_SIZE, normalizePageSize, type PageSize } from "@/lib/list-controls";
 import { StatusBadge } from "@/components/status-badge";
+import { OperationalScopeFilter } from "@/components/operational-scope-filter";
+import { useAuth } from "@/hooks/use-auth";
 
 const CASE_STATUSES = [
   "forwarded",
@@ -44,35 +46,70 @@ type CaseStatusFilter = (typeof CASE_STATUSES)[number];
 type CaseQuickFilter = (typeof CASE_QUICK_FILTERS)[number];
 
 type CasesSearch = {
+  q?: string;
   status?: CaseStatusFilter;
   quick_filter?: CaseQuickFilter;
+  satgas_id?: number;
+  assignment_status?: "unassigned";
+  page?: number;
+  per_page?: PageSize;
 };
 
 export const Route = createFileRoute("/dashboard/cases/")({
   validateSearch: (search: Record<string, unknown>): CasesSearch => ({
+    q: typeof search.q === "string" && search.q.length > 0 ? search.q : undefined,
     status: CASE_STATUSES.find((status) => status === search.status),
     quick_filter: CASE_QUICK_FILTERS.find((filter) => filter === search.quick_filter),
+    satgas_id: positiveInteger(search.satgas_id),
+    assignment_status: search.assignment_status === "unassigned" ? "unassigned" : undefined,
+    page: positiveInteger(search.page),
+    per_page: normalizePageSize(positiveInteger(search.per_page)),
   }),
   component: CasesPage,
   head: () => ({ meta: [{ title: "Cases - SILAPPKASAL Admin" }] }),
 });
 
+function positiveInteger(value: unknown): number | undefined {
+  const parsed = Number(value);
+
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
 function CasesPage() {
+  const { roleCode } = useAuth();
   const { t, i18n } = useTranslation(["dashboard"]);
   const navigate = Route.useNavigate();
   const search = Route.useSearch();
-  const [q, setQ] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const q = search.q ?? "";
+  const satgasId =
+    search.assignment_status === "unassigned"
+      ? "unassigned"
+      : search.satgas_id
+        ? String(search.satgas_id)
+        : "all";
+  const page = search.page ?? 1;
+  const pageSize = search.per_page ?? DEFAULT_PAGE_SIZE;
   const status = search.status ?? "all";
   const quickFilter = search.quick_filter ?? "all";
-  const filtersActive = q !== "" || status !== "all" || quickFilter !== "all";
+  const scopeFilterActive = roleCode === "admin" && satgasId !== "all";
+  const filtersActive =
+    q !== "" ||
+    status !== "all" ||
+    quickFilter !== "all" ||
+    scopeFilterActive;
 
-  const resetFilters = () => {
-    setQ("");
-    setPage(1);
-    void navigate({ search: {}, replace: true });
+  const updateFilters = (patch: Partial<CasesSearch>) => {
+    void navigate({
+      search: (current) => ({
+        ...current,
+        ...patch,
+        page: undefined,
+      }),
+      replace: true,
+    });
   };
+
+  const resetFilters = () => void navigate({ search: {}, replace: true });
 
   const setStatus = (nextStatus: string) => {
     void navigate({
@@ -94,18 +131,20 @@ function CasesPage() {
     });
   };
 
-  useEffect(() => {
-    setPage(1);
-  }, [status, quickFilter, pageSize]);
-
   const query = useMemo(
     () => ({
       status: status === "all" ? undefined : status,
       quick_filter: quickFilter === "all" ? undefined : quickFilter,
+      satgas_id:
+        roleCode === "admin" && satgasId !== "all" && satgasId !== "unassigned"
+          ? Number(satgasId)
+          : undefined,
+      assignment_status:
+        roleCode === "admin" && satgasId === "unassigned" ? "unassigned" : undefined,
       per_page: pageSize,
       page,
     }),
-    [status, quickFilter, pageSize, page],
+    [roleCode, status, quickFilter, satgasId, pageSize, page],
   );
   const casesQuery = useQuery({
     queryKey: operationsQueryKeys.cases(query),
@@ -134,7 +173,7 @@ function CasesPage() {
               <Input
                 placeholder={t("dashboard:cases.search")}
                 value={q}
-                onChange={(e) => setQ(e.target.value)}
+                onChange={(e) => updateFilters({ q: e.target.value || undefined })}
                 className="pl-9"
               />
             </div>
@@ -161,7 +200,27 @@ function CasesPage() {
                 ))}
               </SelectContent>
             </Select>
+            <OperationalScopeFilter
+              roleCode={roleCode === "admin" ? roleCode : null}
+              satgasId={satgasId}
+              universityId="all"
+              includeUnassigned
+              onSatgasChange={(value) =>
+                updateFilters({
+                  satgas_id:
+                    value !== "all" && value !== "unassigned" ? Number(value) : undefined,
+                  assignment_status: value === "unassigned" ? "unassigned" : undefined,
+                })
+              }
+              onUniversityChange={() => undefined}
+            />
             <FilterResetButton active={filtersActive} onReset={resetFilters} />
+            {casesQuery.isFetching && (
+              <Loader2
+                className="h-4 w-4 animate-spin text-muted-foreground"
+                aria-label={t("dashboard:common.loading")}
+              />
+            )}
           </div>
 
           {casesQuery.isLoading && (
@@ -255,8 +314,15 @@ function CasesPage() {
             meta={casesQuery.data?.meta}
             page={page}
             pageSize={pageSize}
-            onPageChange={setPage}
-            onPageSizeChange={setPageSize}
+            onPageChange={(nextPage) =>
+              void navigate({
+                search: (current) => ({ ...current, page: nextPage }),
+                replace: true,
+              })
+            }
+            onPageSizeChange={(nextPageSize) =>
+              updateFilters({ per_page: normalizePageSize(nextPageSize) })
+            }
             isFetching={casesQuery.isFetching}
           />
         </CardContent>

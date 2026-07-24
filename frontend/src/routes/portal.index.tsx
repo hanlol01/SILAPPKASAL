@@ -34,7 +34,7 @@ export const Route = createFileRoute("/portal/")({
       { title: "Beranda Portal - SILAPPKASAL" },
       {
         name: "description",
-        content: "Ringkasan laporan dan aktivitas terakhir Anda.",
+        content: "Ringkasan pengaduan dan aktivitas terakhir Anda.",
       },
     ],
   }),

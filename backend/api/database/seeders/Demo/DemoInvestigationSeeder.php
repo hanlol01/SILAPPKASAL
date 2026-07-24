@@ -46,7 +46,7 @@ class DemoInvestigationSeeder extends Seeder
                 ]
             );
 
-            $this->activity($investigation, $lead->id, InvestigationActivityType::CaseReview->value, 8, 'Review awal laporan dan metadata kasus.');
+            $this->activity($investigation, $lead->id, InvestigationActivityType::CaseReview->value, 8, 'Review awal pengaduan dan metadata kasus.');
             $this->activity($investigation, $lead->id, InvestigationActivityType::DocumentReview->value, 7, 'Penelaahan dokumen dan tangkapan layar yang dicatat sebagai metadata.');
 
             if ($completed) {

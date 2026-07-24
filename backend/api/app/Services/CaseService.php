@@ -7,13 +7,14 @@ use App\Enums\AuditCategory;
 use App\Enums\AuditSeverity;
 use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\InvestigationStatus as InvestigationStatusEnum;
+use App\Enums\RecoveryStatus;
 use App\Enums\ReportStatus;
 use App\Models\CaseAssignment;
 use App\Models\CaseRecord;
 use App\Models\CaseStatus;
 use App\Models\Investigation;
-use App\Models\Report;
 use App\Models\Recovery;
+use App\Models\Report;
 use App\Models\User;
 use App\Support\ApiErrorCode;
 use App\Support\CaseCampusScope;
@@ -29,15 +30,14 @@ class CaseService
         private readonly AuditLogService $auditLogService,
         private readonly CaseWorkflowContextService $workflowContextService,
         private readonly CaseCampusScope $campusScope,
-    ) {
-    }
+    ) {}
 
     /**
      * Records the risk and priority assessment for a case that is currently
      * in the assessment status. Master data validity is enforced by the form
      * request; this method enforces the case-status invariant transactionally.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function recordAssessment(CaseRecord $case, User $actor, array $data): CaseRecord
     {
@@ -61,9 +61,9 @@ class CaseService
             ])->save();
 
             $this->auditLogService->record(
-                action: \App\Enums\AuditAction::CaseAssessmentRecorded,
-                category: \App\Enums\AuditCategory::Case,
-                severity: \App\Enums\AuditSeverity::Info,
+                action: AuditAction::CaseAssessmentRecorded,
+                category: AuditCategory::Case,
+                severity: AuditSeverity::Info,
                 actor: $actor,
                 subject: $case,
                 metadata: [
@@ -90,7 +90,7 @@ class CaseService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function forwardReport(Report $report, User $actor, array $data): CaseRecord
     {
@@ -175,7 +175,7 @@ class CaseService
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return LengthAwarePaginator<int, CaseRecord>
      */
     public function listForUser(User $user, array $filters = []): LengthAwarePaginator
@@ -229,6 +229,19 @@ class CaseService
             $query->where('priority_code', $filters['priority']);
         }
 
+        if (! empty($filters['satgas_id'])) {
+            $query->whereHas(
+                'activeAssignments',
+                fn (Builder $assignment): Builder => $assignment
+                    ->where('satgas_id', $filters['satgas_id'])
+                    ->where('is_active', true),
+            );
+        }
+
+        if (($filters['assignment_status'] ?? null) === 'unassigned') {
+            $query->whereDoesntHave('activeAssignments');
+        }
+
         return $query->paginate((int) ($filters['per_page'] ?? 15));
     }
 
@@ -261,7 +274,7 @@ class CaseService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function assignSatgas(CaseRecord $case, User $actor, array $data): CaseRecord
     {
@@ -383,7 +396,7 @@ class CaseService
                     ->first();
 
                 if (
-                    $recovery?->status?->name !== \App\Enums\RecoveryStatus::Completed->value
+                    $recovery?->status?->name !== RecoveryStatus::Completed->value
                     || ! $recovery->monitorings()->exists()
                 ) {
                     throw $this->unprocessableCode(ApiErrorCode::CaseRecoveryCompletionRequired);
@@ -434,7 +447,7 @@ class CaseService
     }
 
     /**
-     * @param list<int|string> $satgasIds
+     * @param  list<int|string>  $satgasIds
      * @return list<int>
      */
     private function validatedSatgasIds(array $satgasIds, int $leadSatgasId, ?int $universityId): array
@@ -464,7 +477,7 @@ class CaseService
     }
 
     /**
-     * @param list<int> $satgasIds
+     * @param  list<int>  $satgasIds
      */
     private function createAssignments(CaseRecord $case, User $actor, array $satgasIds, int $leadSatgasId): void
     {
@@ -508,15 +521,15 @@ class CaseService
     private function ensureForwardable(Report $report): void
     {
         if ($report->trashed()) {
-            throw $this->unprocessable('Soft-deleted reports cannot be forwarded');
+            throw $this->unprocessable('Soft-deleted complaints cannot be forwarded');
         }
 
         if ($report->case()->exists()) {
-            throw $this->unprocessable('Report has already been forwarded to a case');
+            throw $this->unprocessable('Complaint has already been forwarded to a case');
         }
 
         if (! in_array($report->status, [ReportStatus::Submitted->value, ReportStatus::UnderReview->value], true)) {
-            throw $this->unprocessable('Report status is not eligible for forwarding');
+            throw $this->unprocessable('Complaint status is not eligible for forwarding');
         }
     }
 
