@@ -1161,3 +1161,28 @@ Migration `2026_07_24_010000_reconcile_report_withdrawal_foundation.php` additiv
 three withdrawal permissions, future terminal Case status `withdrawn`, and notification type
 `NOTIF-25`. Its role assignments are Reporter for own cancellation/withdrawal and campus Admin for
 withdrawal review.
+
+### REV-WITHDRAW-01B additive snapshot fields
+
+Migration
+`2026_07_24_020000_extend_report_withdrawals_for_reporter_formal_flow.php` adds only nullable fields
+to `report_withdrawals`:
+
+- `registration_number_snapshot` (`varchar(64)`) for the stable DRAFT document reference;
+- encrypted-at-model `requester_display_name_snapshot` (`text`) for the Reporter-safe document name;
+- `draft_document_viewed_at` (`timestamp`, nullable reserved audit projection); rendering the DRAFT
+  does not mutate lifecycle state, timestamps, or `lock_version`
+  transition and Reporter timeline.
+
+It also registers non-colliding notification types `NOTIF-26` (formal request submitted) and
+`NOTIF-27` (pending request cancelled). It does not rewrite Report/Case state or existing withdrawal
+rows. Rollback deletes those two notification codes and drops only the three added columns. The
+migration uses Laravel schema operations supported by PostgreSQL and SQLite; the SQLite
+fresh/rollback/reapply behavior is covered by a behavioral test.
+
+REV-WITHDRAW-01B actively uses `report_withdrawal_attachments` with
+`document_type=signed_withdrawal_statement`. The existing unique key
+`(withdrawal_id, document_type, version)` protects monotonically increasing versions while the
+withdrawal row is locked. `disk`, UUID `path`, encrypted `original_name`, detected MIME, byte size,
+SHA-256, uploader, and timestamps remain internal. Binary data is stored on the separate private
+`withdrawal` disk; replacing a document creates a new row/file and never overwrites history.

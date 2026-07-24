@@ -30,6 +30,7 @@ class CaseWorkflowContextService
             'recommendation.decision.status',
             'recommendation.decision.recoveries.status',
             'finalSummary',
+            'pendingFormalWithdrawal',
         ]);
 
         $caseStatus = $case->status?->name;
@@ -53,6 +54,7 @@ class CaseWorkflowContextService
             && $finalOutcome->isCompatibleWithRecovery($recoveryStatusEnum);
         $assessmentComplete = filled($case->risk_level_code) && filled($case->priority_code);
         $isOperationallyTerminal = $case->isOperationallyTerminal();
+        $isOperationallyPaused = $case->pendingFormalWithdrawal !== null;
         $activeAssignment = $case->activeAssignments->firstWhere('satgas_id', $actor->id);
         $isAssigned = $actor->is_active && $actor->hasRole('satgas_ppks') && $activeAssignment !== null;
         $isLead = $isAssigned && (bool) $activeAssignment?->is_lead;
@@ -300,6 +302,7 @@ class CaseWorkflowContextService
         );
 
         $primaryTip = match (true) {
+            $isOperationallyPaused => ApiErrorCode::WithdrawalPendingReview,
             $caseStatus === CaseStatusEnum::Withdrawn->value => 'case_withdrawn',
             $caseStatus === CaseStatusEnum::Closed->value && ! $finalSummaryExists => 'legacy_completion',
             $caseStatus === CaseStatusEnum::Closed->value => 'case_closed',
@@ -313,6 +316,31 @@ class CaseWorkflowContextService
             $caseStatus === CaseStatusEnum::Monitoring->value && $isAssigned => 'wait_for_final_summary',
             default => $primaryTip,
         };
+        $actions = [
+            'update_case_status' => $updateCaseStatus,
+            'create_investigation' => $createInvestigation,
+            'add_activity' => $addActivity,
+            'update_investigation_status' => $updateInvestigationStatus,
+            'add_evidence' => $addEvidence,
+            'create_recommendation' => $createRecommendation,
+            'review_recommendation' => $reviewRecommendation,
+            'create_decision' => $createDecision,
+            'manage_recovery' => $manageRecovery,
+            'add_monitoring' => $addMonitoring,
+            'complete_recovery' => $completeRecovery,
+            'discontinue_recovery' => $discontinueRecovery,
+            'create_final_summary' => $createFinalSummary,
+            'update_final_summary' => $updateFinalSummary,
+            'publish_final_summary' => $publishFinalSummary,
+            'finalize_closure' => $finalizeClosure,
+        ];
+
+        if ($isOperationallyPaused) {
+            $actions = array_map(
+                fn (array $_action): array => $this->action(false, ApiErrorCode::WithdrawalPendingReview),
+                $actions,
+            );
+        }
 
         return [
             'facts' => [
@@ -337,30 +365,14 @@ class CaseWorkflowContextService
                 'final_summary_published' => $finalSummaryPublished,
                 'final_outcome_code' => $finalOutcome?->value,
                 'final_outcome_compatible' => $finalOutcomeCompatible,
+                'operationally_paused' => $isOperationallyPaused,
                 'finalization_path' => $isOperationallyTerminal && ! $finalSummaryExists
                     ? 'legacy_completion'
                     : ($recoveryStatusEnum && in_array($recoveryStatusEnum, [RecoveryStatusEnum::Completed, RecoveryStatusEnum::Discontinued], true)
                         ? $recoveryStatusEnum->value
                         : null),
             ],
-            'actions' => [
-                'update_case_status' => $updateCaseStatus,
-                'create_investigation' => $createInvestigation,
-                'add_activity' => $addActivity,
-                'update_investigation_status' => $updateInvestigationStatus,
-                'add_evidence' => $addEvidence,
-                'create_recommendation' => $createRecommendation,
-                'review_recommendation' => $reviewRecommendation,
-                'create_decision' => $createDecision,
-                'manage_recovery' => $manageRecovery,
-                'add_monitoring' => $addMonitoring,
-                'complete_recovery' => $completeRecovery,
-                'discontinue_recovery' => $discontinueRecovery,
-                'create_final_summary' => $createFinalSummary,
-                'update_final_summary' => $updateFinalSummary,
-                'publish_final_summary' => $publishFinalSummary,
-                'finalize_closure' => $finalizeClosure,
-            ],
+            'actions' => $actions,
             'primary_tip_code' => $primaryTip,
             'primary_tip_params' => [
                 'stage' => $investigationStatus,

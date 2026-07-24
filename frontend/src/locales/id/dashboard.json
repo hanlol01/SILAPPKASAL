@@ -757,6 +757,7 @@
       "permission_missing": "Izin yang diperlukan untuk aksi ini tidak tersedia.",
       "case_closed": "Kasus telah ditutup sehingga aksi ini tidak tersedia.",
       "lifecycle_controlled": "Status kasus pada tahap ini dikendalikan oleh alur rekomendasi atau putusan.",
+      "withdrawal_pending_review": "Operasional kasus dijeda karena permohonan pencabutan formal sedang menunggu verifikasi.",
       "case_not_investigation": "Kasus harus berada pada tahap investigasi.",
       "investigation_missing": "Buat Investigasi terlebih dahulu sebelum menambahkan bukti.",
       "investigation_completed": "Investigasi telah selesai sehingga bukti atau aktivitas baru tidak dapat ditambahkan.",
@@ -789,6 +790,7 @@
       "action_unavailable": "Aksi belum tersedia untuk kondisi alur kerja saat ini."
     },
     "tips": {
+      "withdrawal_pending_review": "Tunggu verifikasi permohonan pencabutan formal sebelum melanjutkan tindakan operasional.",
       "start_assessment": "Ubah kasus ke tahap asesmen untuk mulai mencatat risiko dan prioritas.",
       "case_assessment_required": "Catat tingkat risiko dan prioritas sebelum melanjutkan kasus ke tahap investigasi.",
       "assessment_completed": "Asesmen lengkap. Kasus dapat dilanjutkan ke tahap investigasi.",

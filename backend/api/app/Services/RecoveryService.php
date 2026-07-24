@@ -40,17 +40,17 @@ class RecoveryService
         $this->authorizeRecoveryManager($actor, $decision);
         $this->caseMutationGuard->assertMutable($decision->recommendation->case);
         $this->ensureDecisionCanReceiveRecovery($decision);
+        $caseId = $decision->recommendation->case_id;
 
-        return DB::transaction(function () use ($decision, $actor, $data): Recovery {
+        return DB::transaction(function () use ($decision, $actor, $data, $caseId): Recovery {
+            $case = $this->caseMutationGuard
+                ->lockAndAssertMutable($caseId)
+                ->load(['finalSummary', 'report.reporter:id,university_id']);
             $decision = Decision::query()
                 ->with(['status', 'recommendation.case.status', 'recommendation.case.report.reporter:id,university_id'])
                 ->whereKey($decision->id)
                 ->lockForUpdate()
                 ->firstOrFail();
-
-            $case = $this->caseMutationGuard
-                ->lockAndAssertMutable($decision->recommendation?->case_id)
-                ->load(['finalSummary', 'report.reporter:id,university_id']);
             $decision->recommendation?->setRelation('case', $case);
 
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
@@ -133,9 +133,12 @@ class RecoveryService
      */
     public function update(Recovery $recovery, User $actor, array $data): Recovery
     {
-        return DB::transaction(function () use ($recovery, $actor, $data): Recovery {
+        $recovery->loadMissing('decision.recommendation:id,case_id');
+        $caseId = $recovery->decision->recommendation->case_id;
+
+        return DB::transaction(function () use ($recovery, $actor, $data, $caseId): Recovery {
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($caseId);
             $recovery = Recovery::query()->with(['status', 'decision.recommendation.case.report.reporter:id,university_id'])->whereKey($recovery->id)->lockForUpdate()->firstOrFail();
-            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($recovery->decision->recommendation->case);
             $recovery->decision->recommendation->setRelation('case', $lockedCase);
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
             $this->authorizeRecoveryManager($actor, $recovery);
@@ -184,9 +187,12 @@ class RecoveryService
     /** @param array{status: string, discontinuation_reason?: string|null} $data */
     public function updateStatus(Recovery $recovery, User $actor, array $data): Recovery
     {
-        return DB::transaction(function () use ($recovery, $actor, $data): Recovery {
+        $recovery->loadMissing('decision.recommendation:id,case_id');
+        $caseId = $recovery->decision->recommendation->case_id;
+
+        return DB::transaction(function () use ($recovery, $actor, $data, $caseId): Recovery {
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($caseId);
             $recovery = Recovery::query()->with(['status', 'decision.recommendation.case.report.reporter:id,university_id'])->whereKey($recovery->id)->lockForUpdate()->firstOrFail();
-            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($recovery->decision->recommendation->case);
             $recovery->decision->recommendation->setRelation('case', $lockedCase);
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
             $this->authorizeRecoveryManager($actor, $recovery);
@@ -325,9 +331,12 @@ class RecoveryService
      */
     public function createMonitoring(Recovery $recovery, User $actor, array $data): RecoveryMonitoring
     {
-        return DB::transaction(function () use ($recovery, $actor, $data): RecoveryMonitoring {
+        $recovery->loadMissing('decision.recommendation:id,case_id');
+        $caseId = $recovery->decision->recommendation->case_id;
+
+        return DB::transaction(function () use ($recovery, $actor, $data, $caseId): RecoveryMonitoring {
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($caseId);
             $recovery = Recovery::query()->with(['status', 'decision.recommendation.case'])->whereKey($recovery->id)->lockForUpdate()->firstOrFail();
-            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($recovery->decision->recommendation->case);
             $recovery->decision->recommendation->setRelation('case', $lockedCase);
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
 

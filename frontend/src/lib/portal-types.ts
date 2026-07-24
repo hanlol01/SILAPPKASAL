@@ -54,7 +54,44 @@ export interface ActiveWithdrawalSummary {
   withdrawal_reference: string;
   request_type: "early_cancellation" | "formal_withdrawal";
   status: string;
+  lock_version: number;
+  created_at: string | null;
+  draft_document_viewed_at: string | null;
   submitted_at: string | null;
+  has_signed_document: boolean;
+  latest_attachment: WithdrawalAttachment | null;
+  capabilities: FormalWithdrawalCapabilities;
+}
+
+export interface WithdrawalAttachment {
+  attachment_reference: string;
+  document_type: "signed_withdrawal_statement";
+  version: number;
+  mime_type: "application/pdf" | "image/jpeg" | "image/png";
+  size: number;
+  uploaded_at: string | null;
+}
+
+export interface FormalWithdrawalCapabilities {
+  can_view_draft: boolean;
+  can_upload_document: boolean;
+  can_submit: boolean;
+  can_cancel_request: boolean;
+}
+
+export interface FormalWithdrawalDetail {
+  withdrawal_reference: string;
+  request_type: "formal_withdrawal";
+  status: "draft" | "waiting_document" | "pending_review" | "cancelled";
+  lock_version: number;
+  reason: string;
+  created_at: string | null;
+  draft_document_viewed_at: string | null;
+  submitted_at: string | null;
+  cancelled_at: string | null;
+  has_signed_document: boolean;
+  latest_attachment: WithdrawalAttachment | null;
+  capabilities: FormalWithdrawalCapabilities;
 }
 
 export interface WithdrawalCapabilities {
@@ -66,6 +103,15 @@ export interface WithdrawalCapabilities {
     | "ownership_unavailable"
     | "active_request"
     | "feature_disabled"
+    | null;
+  withdrawal_block_reason_code:
+    | "feature_disabled"
+    | "ownership_unavailable"
+    | "active_request"
+    | "terminal_state"
+    | "not_forwarded"
+    | "case_stage_ineligible"
+    | "decision_finalized"
     | null;
   active_withdrawal: ActiveWithdrawalSummary | null;
 }

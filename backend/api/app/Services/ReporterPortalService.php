@@ -9,6 +9,7 @@ use App\Enums\RecommendationStatus;
 use App\Enums\RecoveryStatus;
 use App\Enums\ReporterSafeStatus;
 use App\Enums\ReportStatus;
+use App\Enums\ReportWithdrawalRequestType;
 use App\Models\CaseFinalSummary;
 use App\Models\Decision;
 use App\Models\Investigation;
@@ -74,7 +75,7 @@ class ReporterPortalService
                 'reporter.studyProgram',
                 'case.status',
                 'case.finalSummary',
-                'activeWithdrawal',
+                'activeWithdrawal.attachments',
             ])
             ->where('registration_number', $registrationNumber)
             ->first();
@@ -160,7 +161,10 @@ class ReporterPortalService
     public function reportTimeline(User $user, string $registrationNumber): ?array
     {
         $report = $this->ownedReportsQuery($user)
-            ->with('case.status')
+            ->with([
+                'case.status',
+                'withdrawals.attachments',
+            ])
             ->where('registration_number', $registrationNumber)
             ->first();
 
@@ -194,6 +198,43 @@ class ReporterPortalService
             $events[] = ['stage' => 'pengaduan_dicabut', 'occurred_at' => $report->withdrawn_at];
         }
 
+        foreach ($report->withdrawals as $withdrawal) {
+            if ($withdrawal->request_type !== ReportWithdrawalRequestType::FormalWithdrawal) {
+                continue;
+            }
+
+            $events[] = [
+                'stage' => 'permohonan_pencabutan_dibuat',
+                'occurred_at' => $withdrawal->created_at,
+            ];
+
+            $events[] = [
+                'stage' => 'dokumen_pencabutan_disiapkan',
+                'occurred_at' => $withdrawal->created_at,
+            ];
+
+            foreach ($withdrawal->attachments as $attachment) {
+                $events[] = [
+                    'stage' => 'surat_pencabutan_diunggah',
+                    'occurred_at' => $attachment->created_at,
+                ];
+            }
+
+            if ($withdrawal->submitted_at) {
+                $events[] = [
+                    'stage' => 'pencabutan_dikirim_untuk_verifikasi',
+                    'occurred_at' => $withdrawal->submitted_at,
+                ];
+            }
+
+            if ($withdrawal->cancelled_at) {
+                $events[] = [
+                    'stage' => 'permohonan_pencabutan_dibatalkan',
+                    'occurred_at' => $withdrawal->cancelled_at,
+                ];
+            }
+        }
+
         if ($isCompleted && $case?->closed_at) {
             $events[] = ['stage' => 'selesai', 'occurred_at' => $case->closed_at];
         }
@@ -204,6 +245,11 @@ class ReporterPortalService
             'proses_penanganan',
             'pengaduan_dibatalkan',
             'pengaduan_dicabut',
+            'permohonan_pencabutan_dibuat',
+            'dokumen_pencabutan_disiapkan',
+            'surat_pencabutan_diunggah',
+            'pencabutan_dikirim_untuk_verifikasi',
+            'permohonan_pencabutan_dibatalkan',
             'selesai',
         ]);
         usort($events, static function (array $a, array $b) use ($stageOrder): int {

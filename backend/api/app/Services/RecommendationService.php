@@ -119,9 +119,11 @@ class RecommendationService
      */
     public function update(Recommendation $recommendation, User $actor, array $data): Recommendation
     {
-        return DB::transaction(function () use ($recommendation, $actor, $data): Recommendation {
+        $caseId = $recommendation->case_id;
+
+        return DB::transaction(function () use ($recommendation, $actor, $data, $caseId): Recommendation {
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($caseId);
             $recommendation = Recommendation::query()->with(['case.status', 'status'])->whereKey($recommendation->id)->lockForUpdate()->firstOrFail();
-            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($recommendation->case);
             $recommendation->setRelation('case', $lockedCase);
 
             $this->authorizeAssignedRecommender($recommendation->case, $actor);
@@ -165,13 +167,15 @@ class RecommendationService
 
     public function submit(Recommendation $recommendation, User $actor): Recommendation
     {
-        return DB::transaction(function () use ($recommendation, $actor): Recommendation {
+        $caseId = $recommendation->case_id;
+
+        return DB::transaction(function () use ($recommendation, $actor, $caseId): Recommendation {
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($caseId);
             $recommendation = Recommendation::query()
                 ->with(['case.status', 'status'])
                 ->whereKey($recommendation->id)
                 ->lockForUpdate()
                 ->firstOrFail();
-            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($recommendation->case);
             $recommendation->setRelation('case', $lockedCase);
 
             $this->authorizeAssignedRecommender($recommendation->case, $actor);
@@ -223,15 +227,18 @@ class RecommendationService
      */
     public function review(Recommendation $recommendation, User $actor, array $data): Recommendation
     {
-        return DB::transaction(function () use ($recommendation, $actor, $data): Recommendation {
+        $caseId = $recommendation->case_id;
+
+        return DB::transaction(function () use ($recommendation, $actor, $data, $caseId): Recommendation {
+            $case = $this->caseMutationGuard
+                ->lockAndAssertMutable($caseId)
+                ->load('report.reporter:id,university_id');
             $recommendation = Recommendation::query()
                 ->with(['status', 'case.report.reporter:id,university_id'])
                 ->whereKey($recommendation->id)
                 ->lockForUpdate()
                 ->firstOrFail();
-            $case = $this->caseMutationGuard
-                ->lockAndAssertMutable($recommendation->case_id)
-                ->load('report.reporter:id,university_id');
+            $recommendation->setRelation('case', $case);
 
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
             $this->authorizeRecommendationReviewer($case, $actor);
@@ -307,9 +314,11 @@ class RecommendationService
 
     public function updateStatus(Recommendation $recommendation, User $actor, string $requestedStatus): Recommendation
     {
-        return DB::transaction(function () use ($recommendation, $actor, $requestedStatus): Recommendation {
+        $caseId = $recommendation->case_id;
+
+        return DB::transaction(function () use ($recommendation, $actor, $requestedStatus, $caseId): Recommendation {
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($caseId);
             $recommendation = Recommendation::query()->with(['case.status', 'status'])->whereKey($recommendation->id)->lockForUpdate()->firstOrFail();
-            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($recommendation->case);
             $recommendation->setRelation('case', $lockedCase);
 
             $this->authorizeAssignedRecommender($recommendation->case, $actor);

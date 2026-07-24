@@ -126,5 +126,32 @@ class AppServiceProvider extends ServiceProvider
                 $userId ? 'user:'.$userId : 'ip:'.$request->ip()
             );
         });
+
+        RateLimiter::for('reporter.withdrawal.read', function (Request $request) {
+            return Limit::perMinute(30)->by($this->rateLimitKey($request));
+        });
+
+        RateLimiter::for('reporter.withdrawal.create', function (Request $request) {
+            return Limit::perHour(5)->by($this->rateLimitKey($request));
+        });
+
+        RateLimiter::for('reporter.withdrawal.document', function (Request $request) {
+            return Limit::perHour(20)->by($this->rateLimitKey($request));
+        });
+
+        RateLimiter::for('reporter.withdrawal.upload', function (Request $request) {
+            return Limit::perHour(10)->by($this->rateLimitKey($request));
+        });
+
+        RateLimiter::for('reporter.withdrawal.mutate', function (Request $request) {
+            return Limit::perHour(10)->by($this->rateLimitKey($request));
+        });
+    }
+
+    private function rateLimitKey(Request $request): string
+    {
+        $userId = $request->user()?->getAuthIdentifier();
+
+        return $userId ? 'user:'.$userId : 'ip:'.$request->ip();
     }
 }

@@ -39,14 +39,15 @@ class DecisionService
         $this->authorizeDecisionRecorder($actor, $recommendation);
         $this->caseMutationGuard->assertMutable($recommendation->case);
         $this->ensureRecommendationCanReceiveDecision($recommendation);
+        $caseId = $recommendation->case_id;
 
-        return DB::transaction(function () use ($recommendation, $actor, $data): Decision {
+        return DB::transaction(function () use ($recommendation, $actor, $data, $caseId): Decision {
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($caseId);
             $recommendation = Recommendation::query()
                 ->with(['case.status', 'case.report.reporter:id,university_id', 'status', 'decision'])
                 ->whereKey($recommendation->id)
                 ->lockForUpdate()
                 ->firstOrFail();
-            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($recommendation->case);
             $recommendation->setRelation('case', $lockedCase);
 
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
@@ -129,9 +130,12 @@ class DecisionService
      */
     public function update(Decision $decision, User $actor, array $data): Decision
     {
-        return DB::transaction(function () use ($decision, $actor, $data): Decision {
+        $decision->loadMissing('recommendation:id,case_id');
+        $caseId = $decision->recommendation->case_id;
+
+        return DB::transaction(function () use ($decision, $actor, $data, $caseId): Decision {
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($caseId);
             $decision = Decision::query()->with(['status', 'recommendation.case.report.reporter:id,university_id'])->whereKey($decision->id)->lockForUpdate()->firstOrFail();
-            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($decision->recommendation->case);
             $decision->recommendation->setRelation('case', $lockedCase);
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
             $this->authorizeDecisionRecorder($actor, $decision->recommendation);
@@ -177,9 +181,12 @@ class DecisionService
 
     public function updateStatus(Decision $decision, User $actor, string $requestedStatus): Decision
     {
-        return DB::transaction(function () use ($decision, $actor, $requestedStatus): Decision {
+        $decision->loadMissing('recommendation:id,case_id');
+        $caseId = $decision->recommendation->case_id;
+
+        return DB::transaction(function () use ($decision, $actor, $requestedStatus, $caseId): Decision {
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($caseId);
             $decision = Decision::query()->with(['status', 'recommendation.case.report.reporter:id,university_id'])->whereKey($decision->id)->lockForUpdate()->firstOrFail();
-            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($decision->recommendation->case);
             $decision->recommendation->setRelation('case', $lockedCase);
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
             $this->authorizeDecisionRecorder($actor, $decision->recommendation);

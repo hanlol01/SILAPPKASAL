@@ -2272,18 +2272,79 @@ the disabled flag uses 409 with `report_cancellation_feature_disabled`.
 {
   "withdrawal_capabilities": {
     "can_cancel": false,
-    "can_request_withdrawal": false,
-    "cancellation_block_reason_code": "feature_disabled",
+    "can_request_withdrawal": true,
+    "cancellation_block_reason_code": "case_exists",
+    "withdrawal_block_reason_code": null,
     "active_withdrawal": null
   }
 }
 ```
 
-The capability is backend-authoritative. Formal withdrawal fields are reserved for a later
-submilestone and no formal mutation or document endpoint exists in REV-WITHDRAW-01A.
+The capability is backend-authoritative. Direct cancellation and formal withdrawal are mutually
+exclusive in the Reporter UI.
 
 Case status `withdrawn` is operationally terminal. Existing Case detail/read endpoints remain
 available to authorized assigned Satgas for historical visibility, but active/workload projections
 exclude it. Every Case or child-workflow mutation rechecks the locked Case and returns `409` with
 `case_operationally_terminal`; active assignment rows are retained and are not mutation authority
 for a terminal Case.
+
+## REV-WITHDRAW-01B Formal Reporter Withdrawal
+
+Formal withdrawal is available only when `REPORT_FORMAL_WITHDRAWAL_ENABLED=true`, the active
+Reporter has `reports.withdraw.own`, exact non-null ownership is verified, the Report is forwarded
+or has a Case, and the Report/Case/Decision state remains eligible. A legacy anonymous Report with
+null `reporter_id` is hidden; an authenticated anonymous owner is supported with a masked document
+identity.
+
+All endpoints use Sanctum, `private.no-store`, public UUID references, and an explicit named
+throttle:
+
+| Method | Endpoint | Purpose | Throttle |
+|---|---|---|---|
+| `GET` | `/api/v1/portal/reports/{registrationNumber}/withdrawal` | Restore the active Reporter wizard | `reporter.withdrawal.read` |
+| `POST` | `/api/v1/portal/reports/{registrationNumber}/withdrawals` | Create a `draft` request | `reporter.withdrawal.create` |
+| `GET` | `/api/v1/portal/withdrawals/{publicId}/draft-document` | Render authenticated print-safe DRAFT HTML | `reporter.withdrawal.document` |
+| `POST` | `/api/v1/portal/withdrawals/{publicId}/signed-document` | Upload an immutable signed-document version | `reporter.withdrawal.upload` |
+| `GET` | `/api/v1/portal/withdrawals/{publicId}/signed-document/{attachmentPublicId}` | Download an owned private version | `reporter.withdrawal.document` |
+| `POST` | `/api/v1/portal/withdrawals/{publicId}/submit` | Move `waiting_document` to `pending_review` | `reporter.withdrawal.mutate` |
+| `POST` | `/api/v1/portal/withdrawals/{publicId}/cancel` | Cancel an active request | `reporter.withdrawal.mutate` |
+
+Create accepts JSON `{ "reason": "..." }`. Boundary Unicode whitespace is trimmed before the
+20–2,000 character validation; the normalized reason is encrypted. The owner detail may project the
+owner's reason for the wizard, but summary, notification, timeline, and audit projections omit it.
+
+The active state machine in 01B is:
+
+```text
+draft -> waiting_document -> pending_review
+draft | waiting_document | pending_review -> cancelled
+```
+
+`GET draft-document` is read-only for withdrawal lifecycle state, timestamps, and `lock_version`.
+The first accepted signed-document upload is the explicit authenticated mutation that performs
+`draft -> waiting_document`; later uploads remain in `waiting_document`. Upload, submit, and cancel
+must include the current `lock_version`, and stale values return HTTP 409 with `stale_update`.
+No `approved` or `rejected` endpoint exists in this submilestone. Report and Case status values do
+not change. While a formal request is `pending_review`, operational Case mutations return HTTP 409
+with `error_code=withdrawal_pending_review`; read-only detail and history remain available.
+
+Signed-document upload is multipart with fields `file` and current integer `lock_version`. Submit
+and cancel accept JSON `{ "lock_version": <current> }`. Allowed formats are PDF, JPEG, and PNG, at
+most 10 MiB. The server enforces detected/declared MIME parity, matching single extension, non-empty
+content, structural checks, image pixel limits, safe filename handling, a private disk, a UUID path,
+and SHA-256 integrity. SVG, executable/remote content, raw storage paths, and public URLs are not
+accepted or projected. Each upload creates the next immutable
+`signed_withdrawal_statement` version. Submission rechecks the latest stored file size/checksum
+inside the transaction.
+
+The owner response contains only public references, Reporter-safe status/timestamps, `lock_version`, latest safe
+attachment metadata (`document_type`, `version`, MIME, size, upload time), and authoritative
+capabilities (`can_view_draft`, `can_upload_document`, `can_submit`,
+`can_cancel_request`). Internal IDs, disk, path, hash, original filename, reviewer metadata, and
+attachment contents are absent.
+
+Submission sends `NOTIF-26` after commit only to active same-campus Admin users with
+`reports.withdraw.review.own_campus`. Cancelling a request that had reached `pending_review` sends
+`NOTIF-27` to the same recipient scope. Neither notification contains the reason or an attachment
+URL.

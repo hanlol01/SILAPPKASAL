@@ -1411,5 +1411,42 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
   `reports.withdraw.review.own_campus`; Satgas receives no notification because no Case exists.
 - The mutation response is `private, no-store`, authenticated with Sanctum, and protected by the
   explicit `reporter.cancellation` limiter.
-- Formal withdrawal flags, fields, and storage metadata are foundation only. No formal mutation,
-  review, document upload, generator, or Admin queue is exposed in REV-WITHDRAW-01A.
+- REV-WITHDRAW-01A does not expose a formal flow by itself; REV-WITHDRAW-01B activates only the
+  Reporter-side formal flow described below. Admin decision endpoints and an official document
+  generator remain unavailable.
+
+## 24. REV-WITHDRAW-01B Formal Withdrawal Boundary
+
+- Formal create/submit requires the enabled feature flag, an active Reporter with
+  `reports.withdraw.own`, exact non-null Reporter ownership, an undeleted eligible Report, a
+  forwarded Report or existing Case, an eligible pre-decision Case stage, an unfinalized Decision,
+  and no active withdrawal. Eligibility is rechecked under the global lock order
+  Report → Case → Withdrawal.
+- The DRAFT is authenticated HTML, not an official PDF. It is owner-only, private/no-store,
+  `nosniff`, protected by a restrictive CSP, uses a masked identity for authenticated anonymous
+  Reports, and excludes database IDs, respondent information, and internal Case data. Its GET is
+  lifecycle read-only; the first accepted upload performs the explicit `draft -> waiting_document`
+  mutation. Upload, submit, and cancel require the current `lock_version` after row locking.
+- Signed PDF/JPEG/PNG documents are limited to 10 MiB and stored on the separate private
+  `withdrawal` disk. Server-detected MIME, declared MIME, single client extension, magic/structure,
+  image dimensions, size, UUID path, and SHA-256 are checked fail-closed. SVG, executable markers,
+  suspicious PDF actions, path traversal, and public/raw storage access are rejected.
+- REV-WITHDRAW-01B does not integrate an external antivirus service. This limitation never weakens
+  the mandatory fail-closed MIME, signature, active-content, size, and image-dimension checks.
+- Attachment binaries are immutable and versioned. A failed database/audit transaction removes the
+  newly written file. Submission and download revalidate disk, expected path, byte size, and hash.
+  API resources never expose original filename, disk, path, hash, internal IDs, or public URLs.
+- At `pending_review`, Report and Case lifecycle statuses remain unchanged, but centralized Case
+  mutation authority is paused. The guard locks Report, Case, then pending Withdrawal and returns
+  HTTP 409 `withdrawal_pending_review` for assignment, workflow, evidence, decision, recovery,
+  summary, closure, escalation, and Reporter evidence mutations. Read-only history remains
+  available. Reporter cancellation removes the pause without deleting attachments.
+- Audit metadata is allowlisted to public references, version/type, safe MIME/size, status
+  transition, request type, result, actor, and request ID. It excludes reason, original filename,
+  storage path, checksum, document content, signature, and meterai data.
+- `NOTIF-26` and `NOTIF-27` are queued after commit only to active same-campus Admin users with
+  `reports.withdraw.review.own_campus`. Satgas and other campuses are excluded; reason and
+  attachment URL are absent.
+- Every formal endpoint is protected by Sanctum, `private.no-store`, owner policy, public
+  identifiers, and a named risk-adjusted rate limiter. Approval, rejection, resubmission, an Admin
+  review UI, official template, and final withdrawn lifecycle transitions remain out of scope.

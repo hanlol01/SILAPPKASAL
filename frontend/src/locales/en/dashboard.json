@@ -757,6 +757,7 @@
       "permission_missing": "The required permission for this action is unavailable.",
       "case_closed": "This case is closed, so the action is unavailable.",
       "lifecycle_controlled": "Case status at this stage is controlled by the Recommendation or Decision workflow.",
+      "withdrawal_pending_review": "Case operations are paused while a formal withdrawal request awaits verification.",
       "case_not_investigation": "The case must be in the investigation stage.",
       "investigation_missing": "Create the Investigation before adding evidence.",
       "investigation_completed": "The Investigation is completed, so no new evidence or activities can be added.",
@@ -789,6 +790,7 @@
       "action_unavailable": "The action is unavailable for the current workflow state."
     },
     "tips": {
+      "withdrawal_pending_review": "Wait for the formal withdrawal request verification before continuing operational actions.",
       "start_assessment": "Move the case to assessment to begin recording risk and priority.",
       "case_assessment_required": "Record the risk level and priority before advancing the case to investigation.",
       "assessment_completed": "Assessment is complete. The case can advance to investigation.",

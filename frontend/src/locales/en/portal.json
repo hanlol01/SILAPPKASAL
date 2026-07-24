@@ -157,6 +157,82 @@
       "confirmationRequired": "Confirm this action to continue."
     }
   },
+  "withdrawal": {
+    "createTrigger": "Request Withdrawal",
+    "continueTrigger": "Continue Withdrawal",
+    "title": "Formal Complaint Withdrawal",
+    "description": "Provide a reason, review the DRAFT document, upload the signed document, then submit it for review.",
+    "progressLabel": "Formal withdrawal stages",
+    "steps": {
+      "1": "Reason",
+      "2": "DRAFT",
+      "3": "Document",
+      "4": "Confirm",
+      "5": "Submitted"
+    },
+    "status": {
+      "draft": "Withdrawal Request Prepared",
+      "waiting_document": "Waiting for Withdrawal Letter",
+      "pending_review": "Pending Withdrawal Verification",
+      "cancelled": "Withdrawal Request Cancelled"
+    },
+    "loading": "Loading the withdrawal request...",
+    "loadError": "The withdrawal request could not be loaded.",
+    "reasonLabel": "Withdrawal reason",
+    "reasonPlaceholder": "Explain why you are withdrawing the complaint...",
+    "reasonHelp": "{{count}}/2,000 characters. Minimum 20 characters.",
+    "confirmationLabel": "I understand that this request does not complete the withdrawal and must be submitted for review.",
+    "createAction": "Create Withdrawal Draft",
+    "createSuccess": "The withdrawal draft was created.",
+    "createError": "The withdrawal draft could not be created.",
+    "documentTitle": "DRAFT Document",
+    "documentDescription": "Review the details, print the DRAFT document, then sign it. This is not yet an official letter.",
+    "viewDraft": "View DRAFT",
+    "printDraft": "Print DRAFT",
+    "documentFrameTitle": "Formal withdrawal DRAFT document preview",
+    "documentLoaded": "The DRAFT document was loaded.",
+    "documentError": "The DRAFT document could not be loaded.",
+    "uploadTitle": "Signed Document",
+    "uploadDescription": "Upload a scan of the signed DRAFT document. A new upload creates a new version and does not overwrite earlier versions.",
+    "chooseFile": "Choose signed document",
+    "uploadHelp": "PDF, JPG, or PNG. Maximum 10 MB with exactly one file extension.",
+    "selectedFile": "Selected file: {{name}}",
+    "uploadProgress": "Uploading {{progress}}%",
+    "uploadAction": "Upload Document",
+    "replaceDocument": "Upload New Version",
+    "uploadSuccess": "The signed document was uploaded.",
+    "uploadError": "The signed document could not be uploaded.",
+    "latestVersion": "Document version {{version}}",
+    "download": "Download",
+    "downloadError": "The document could not be downloaded.",
+    "submitTitle": "Submit for Review",
+    "submitDescription": "Make sure the latest document is correct. After submission, case operations are paused until the request is cancelled or handled in a later milestone.",
+    "submitNeedsDocument": "Upload a signed document before submitting the request.",
+    "submitAction": "Submit Withdrawal",
+    "submitSuccess": "The withdrawal request was submitted.",
+    "submitError": "The withdrawal request could not be submitted.",
+    "pendingDocumentReceived": "The document was received and the request is pending review.",
+    "pendingCasePaused": "Case operations are temporarily paused. Complaint and Case statuses remain unchanged.",
+    "pendingSubmittedAt": "Submitted {{value}}.",
+    "cancelTrigger": "Cancel Request",
+    "cancelTitle": "Cancel the withdrawal request?",
+    "cancelDescription": "The active request will be cancelled. The Complaint and Case remain stored, and case operations can resume.",
+    "cancelAction": "Yes, Cancel Request",
+    "cancelSuccess": "The withdrawal request was cancelled.",
+    "cancelError": "The withdrawal request could not be cancelled.",
+    "fileValidation": {
+      "invalidFormat": "Choose a PDF, JPG, or PNG file with a matching extension.",
+      "unsafeFilename": "The filename must have exactly one PDF, JPG, JPEG, or PNG extension and no path.",
+      "emptyFile": "The file must not be empty.",
+      "fileTooLarge": "The file must not exceed 10 MB."
+    },
+    "validation": {
+      "reasonRequired": "The withdrawal reason is required.",
+      "reasonMin": "The withdrawal reason must be at least 20 characters.",
+      "reasonMax": "The withdrawal reason may not exceed 2,000 characters.",
+      "confirmationRequired": "Confirm your understanding to continue."
+    }
+  },
   "collapsible": {
     "expand": "Expand section",
     "collapse": "Collapse section"
@@ -344,6 +420,26 @@
       "pengaduan_dicabut": {
         "title": "Complaint withdrawn",
         "desc": "The complaint withdrawal has been completed."
+      },
+      "permohonan_pencabutan_dibuat": {
+        "title": "Withdrawal request prepared",
+        "desc": "A draft withdrawal request was created."
+      },
+      "dokumen_pencabutan_disiapkan": {
+        "title": "DRAFT document prepared",
+        "desc": "The withdrawal DRAFT document was displayed for review and signing."
+      },
+      "surat_pencabutan_diunggah": {
+        "title": "Withdrawal letter uploaded",
+        "desc": "The signed document was uploaded securely."
+      },
+      "pencabutan_dikirim_untuk_verifikasi": {
+        "title": "Withdrawal submitted for verification",
+        "desc": "The request is pending verification. Case operations are temporarily paused."
+      },
+      "permohonan_pencabutan_dibatalkan": {
+        "title": "Withdrawal request cancelled",
+        "desc": "The Reporter cancelled the request and case operations may resume."
       },
       "selesai": {
         "title": "Completed",

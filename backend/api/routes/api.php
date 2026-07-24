@@ -324,6 +324,35 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/reports/{registrationNumber}/cancel', [ReportWithdrawalController::class, 'cancel'])
             ->middleware(['private.no-store', 'throttle:reporter.cancellation'])
             ->name('portal.reports.cancel');
+        Route::middleware('private.no-store')->group(function (): void {
+            Route::get('/reports/{registrationNumber}/withdrawal', [ReportWithdrawalController::class, 'current'])
+                ->middleware('throttle:reporter.withdrawal.read')
+                ->name('portal.reports.withdrawal.current');
+            Route::post('/reports/{registrationNumber}/withdrawals', [ReportWithdrawalController::class, 'store'])
+                ->middleware('throttle:reporter.withdrawal.create')
+                ->name('portal.reports.withdrawals.store');
+            Route::get('/withdrawals/{publicId}/draft-document', [ReportWithdrawalController::class, 'draftDocument'])
+                ->whereUuid('publicId')
+                ->middleware('throttle:reporter.withdrawal.document')
+                ->name('portal.withdrawals.draft-document');
+            Route::post('/withdrawals/{publicId}/signed-document', [ReportWithdrawalController::class, 'uploadSignedDocument'])
+                ->whereUuid('publicId')
+                ->middleware('throttle:reporter.withdrawal.upload')
+                ->name('portal.withdrawals.signed-document.store');
+            Route::get('/withdrawals/{publicId}/signed-document/{attachmentPublicId}', [ReportWithdrawalController::class, 'downloadSignedDocument'])
+                ->whereUuid('publicId')
+                ->whereUuid('attachmentPublicId')
+                ->middleware('throttle:reporter.withdrawal.document')
+                ->name('portal.withdrawals.signed-document.download');
+            Route::post('/withdrawals/{publicId}/submit', [ReportWithdrawalController::class, 'submit'])
+                ->whereUuid('publicId')
+                ->middleware('throttle:reporter.withdrawal.mutate')
+                ->name('portal.withdrawals.submit');
+            Route::post('/withdrawals/{publicId}/cancel', [ReportWithdrawalController::class, 'cancelFormal'])
+                ->whereUuid('publicId')
+                ->middleware('throttle:reporter.withdrawal.mutate')
+                ->name('portal.withdrawals.cancel');
+        });
         Route::get('/reports/{registrationNumber}', [PortalController::class, 'report']);
         Route::get('/notifications', [PortalController::class, 'notifications']);
     });

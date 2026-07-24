@@ -38,11 +38,19 @@ final class ApiErrorCode
 
     public const ReportCancellationConflict = 'report_cancellation_conflict';
 
+    public const ReportWithdrawalConflict = 'report_withdrawal_conflict';
+
+    public const ReportWithdrawalDocumentInvalid = 'report_withdrawal_document_invalid';
+
+    public const ReportWithdrawalStorageFailed = 'report_withdrawal_storage_failed';
+
     public const AuditExportTooManyRows = 'audit_export.too_many_rows';
 
     public const CaseAssessmentRequired = 'case_assessment_required';
 
     public const CaseOperationallyTerminal = 'case_operationally_terminal';
+
+    public const WithdrawalPendingReview = 'withdrawal_pending_review';
 
     public const CaseInvestigationCompletionRequired = 'case_investigation_completion_required';
 

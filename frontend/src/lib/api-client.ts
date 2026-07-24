@@ -251,6 +251,41 @@ export async function apiFetchBlob(
   };
 }
 
+export async function apiFetchText(
+  path: string,
+  options: { signal?: AbortSignal; accept?: string } = {},
+): Promise<string> {
+  const token = getAuthToken();
+  const headers = new Headers({ Accept: options.accept ?? "text/plain" });
+  headers.set("Accept-Language", activeApiLocale());
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(buildUrl(path), {
+    headers,
+    signal: options.signal,
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as ApiEnvelope<unknown> | null;
+
+    if (response.status === 401) {
+      invalidateAuthSession();
+    }
+
+    throw new ApiError(
+      payload?.message || "Request failed",
+      response.status,
+      payload?.errors ?? null,
+      payload?.error_code ?? null,
+    );
+  }
+
+  return response.text();
+}
+
 function parseDownloadFilename(contentDisposition: string | null, fallbackFilename: string) {
   const encodedFilename = contentDisposition?.match(/filename\*\s*=\s*UTF-8''([^;]+)/i)?.[1];
   const basicFilename = contentDisposition?.match(/filename\s*=\s*(?:"([^"]*)"|([^;]+))/i);

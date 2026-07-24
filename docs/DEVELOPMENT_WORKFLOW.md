@@ -1068,7 +1068,20 @@ REPORT_FORMAL_WITHDRAWAL_ENABLED=false
 ```
 
 Both flags default to false. Enable `REPORT_EARLY_CANCELLATION_ENABLED` only after product approval
-and operational communication. Keep `REPORT_FORMAL_WITHDRAWAL_ENABLED=false` until the later formal
-withdrawal submilestone supplies its mutation, private document flow, and Admin review workflow.
+and operational communication. REV-WITHDRAW-01B supplies the Reporter-side formal mutation, private
+versioned signed-document flow, authenticated print-safe DRAFT, submission, cancellation, and
+operational pause, but no Admin decision workflow. Enable `REPORT_FORMAL_WITHDRAWAL_ENABLED` only
+after the additive 020000 migration has been applied through the normal deployment migration step,
+private `withdrawal` storage is writable, queue workers are available, and the provisional flow has
+product/operations approval. Do not claim the DRAFT is an official campus template.
+
+Before enabling in a target environment:
+
+1. deploy code and run normal additive migrations (never `migrate:fresh`);
+2. verify `reports.withdraw.own` and `reports.withdraw.review.own_campus`;
+3. verify the private `withdrawal` disk is not web served;
+4. run the formal-withdrawal, direct-cancellation, Case workflow, notification, and route tests;
+5. set the feature flag and monitor 409 `withdrawal_pending_review` responses.
+
 Database notifications are written, but this revision does not activate or redesign the Dashboard
-notification inbox.
+notification inbox or provide Admin approve/reject actions.

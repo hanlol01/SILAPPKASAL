@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\CaseStatus as CaseStatusEnum;
+use App\Enums\ReportWithdrawalRequestType;
+use App\Enums\ReportWithdrawalStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -104,6 +106,14 @@ class CaseRecord extends Model
     public function withdrawals(): HasMany
     {
         return $this->hasMany(ReportWithdrawal::class, 'case_id');
+    }
+
+    public function pendingFormalWithdrawal(): HasOne
+    {
+        return $this->hasOne(ReportWithdrawal::class, 'case_id')
+            ->where('request_type', ReportWithdrawalRequestType::FormalWithdrawal->value)
+            ->where('status', ReportWithdrawalStatus::PendingReview->value)
+            ->latestOfMany();
     }
 
     public function isAssignedTo(User $user): bool

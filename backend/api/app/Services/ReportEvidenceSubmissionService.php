@@ -525,7 +525,8 @@ class ReportEvidenceSubmissionService
             return true;
         }
 
-        return ! $case->isOperationallyTerminal();
+        return ! $case->isOperationallyTerminal()
+            && ! $case->pendingFormalWithdrawal()->exists();
     }
 
     /**

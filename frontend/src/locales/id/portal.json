@@ -157,6 +157,82 @@
       "confirmationRequired": "Konfirmasi tindakan ini untuk melanjutkan."
     }
   },
+  "withdrawal": {
+    "createTrigger": "Ajukan Pencabutan",
+    "continueTrigger": "Lanjutkan Pencabutan",
+    "title": "Pencabutan Formal Pengaduan",
+    "description": "Lengkapi alasan, periksa dokumen DRAF, unggah dokumen yang telah ditandatangani, lalu ajukan untuk ditinjau.",
+    "progressLabel": "Tahapan pencabutan formal",
+    "steps": {
+      "1": "Alasan",
+      "2": "DRAF",
+      "3": "Dokumen",
+      "4": "Konfirmasi",
+      "5": "Diajukan"
+    },
+    "status": {
+      "draft": "Permohonan Pencabutan Disiapkan",
+      "waiting_document": "Menunggu Surat Pencabutan",
+      "pending_review": "Menunggu Verifikasi Pencabutan",
+      "cancelled": "Permohonan Pencabutan Dibatalkan"
+    },
+    "loading": "Memuat permohonan pencabutan...",
+    "loadError": "Permohonan pencabutan tidak dapat dimuat.",
+    "reasonLabel": "Alasan pencabutan",
+    "reasonPlaceholder": "Jelaskan alasan pencabutan pengaduan...",
+    "reasonHelp": "{{count}}/2.000 karakter. Minimum 20 karakter.",
+    "confirmationLabel": "Saya memahami bahwa permohonan ini belum menyelesaikan pencabutan dan harus diajukan untuk ditinjau.",
+    "createAction": "Buat Draf Pencabutan",
+    "createSuccess": "Draf pencabutan berhasil dibuat.",
+    "createError": "Draf pencabutan tidak dapat dibuat.",
+    "documentTitle": "Dokumen DRAF",
+    "documentDescription": "Periksa data, cetak dokumen DRAF, lalu tandatangani. Dokumen ini belum merupakan surat resmi.",
+    "viewDraft": "Tampilkan DRAF",
+    "printDraft": "Cetak DRAF",
+    "documentFrameTitle": "Pratinjau dokumen DRAF pencabutan",
+    "documentLoaded": "Dokumen DRAF berhasil dimuat.",
+    "documentError": "Dokumen DRAF tidak dapat dimuat.",
+    "uploadTitle": "Dokumen yang Ditandatangani",
+    "uploadDescription": "Unggah hasil pindai dokumen DRAF yang telah ditandatangani. Unggahan baru membuat versi baru dan tidak menimpa versi sebelumnya.",
+    "chooseFile": "Pilih dokumen bertanda tangan",
+    "uploadHelp": "PDF, JPG, atau PNG. Maksimal 10 MB dan hanya satu ekstensi file.",
+    "selectedFile": "File dipilih: {{name}}",
+    "uploadProgress": "Mengunggah {{progress}}%",
+    "uploadAction": "Unggah Dokumen",
+    "replaceDocument": "Unggah Versi Baru",
+    "uploadSuccess": "Dokumen bertanda tangan berhasil diunggah.",
+    "uploadError": "Dokumen bertanda tangan tidak dapat diunggah.",
+    "latestVersion": "Dokumen versi {{version}}",
+    "download": "Unduh",
+    "downloadError": "Dokumen tidak dapat diunduh.",
+    "submitTitle": "Ajukan untuk Ditinjau",
+    "submitDescription": "Pastikan dokumen terbaru sudah benar. Setelah diajukan, penanganan kasus dijeda sampai permohonan dibatalkan atau ditindaklanjuti pada milestone berikutnya.",
+    "submitNeedsDocument": "Unggah dokumen bertanda tangan sebelum mengajukan permohonan.",
+    "submitAction": "Ajukan Pencabutan",
+    "submitSuccess": "Permohonan pencabutan berhasil diajukan.",
+    "submitError": "Permohonan pencabutan tidak dapat diajukan.",
+    "pendingDocumentReceived": "Dokumen telah diterima dan permohonan menunggu peninjauan.",
+    "pendingCasePaused": "Aksi operasional kasus dijeda sementara. Status Pengaduan dan Kasus tidak berubah.",
+    "pendingSubmittedAt": "Diajukan pada {{value}}.",
+    "cancelTrigger": "Batalkan Permohonan",
+    "cancelTitle": "Batalkan permohonan pencabutan?",
+    "cancelDescription": "Permohonan aktif akan dibatalkan. Pengaduan dan Kasus tetap tersimpan, dan penanganan operasional dapat dilanjutkan.",
+    "cancelAction": "Ya, Batalkan Permohonan",
+    "cancelSuccess": "Permohonan pencabutan berhasil dibatalkan.",
+    "cancelError": "Permohonan pencabutan tidak dapat dibatalkan.",
+    "fileValidation": {
+      "invalidFormat": "Pilih file PDF, JPG, atau PNG dengan ekstensi yang sesuai.",
+      "unsafeFilename": "Nama file harus memiliki tepat satu ekstensi PDF, JPG, JPEG, atau PNG tanpa path.",
+      "emptyFile": "File tidak boleh kosong.",
+      "fileTooLarge": "Ukuran file tidak boleh melebihi 10 MB."
+    },
+    "validation": {
+      "reasonRequired": "Alasan pencabutan wajib diisi.",
+      "reasonMin": "Alasan pencabutan minimal 20 karakter.",
+      "reasonMax": "Alasan pencabutan maksimal 2.000 karakter.",
+      "confirmationRequired": "Konfirmasi pemahaman Anda untuk melanjutkan."
+    }
+  },
   "collapsible": {
     "expand": "Buka bagian",
     "collapse": "Tutup bagian"
@@ -344,6 +420,26 @@
       "pengaduan_dicabut": {
         "title": "Pengaduan dicabut",
         "desc": "Pencabutan pengaduan telah diselesaikan."
+      },
+      "permohonan_pencabutan_dibuat": {
+        "title": "Permohonan pencabutan disiapkan",
+        "desc": "Draf permohonan pencabutan telah dibuat."
+      },
+      "dokumen_pencabutan_disiapkan": {
+        "title": "Dokumen DRAF disiapkan",
+        "desc": "Dokumen DRAF pencabutan telah ditampilkan untuk diperiksa dan ditandatangani."
+      },
+      "surat_pencabutan_diunggah": {
+        "title": "Surat pencabutan diunggah",
+        "desc": "Dokumen bertanda tangan telah diunggah secara aman."
+      },
+      "pencabutan_dikirim_untuk_verifikasi": {
+        "title": "Pencabutan dikirim untuk verifikasi",
+        "desc": "Permohonan pencabutan menunggu verifikasi. Penanganan operasional dijeda sementara."
+      },
+      "permohonan_pencabutan_dibatalkan": {
+        "title": "Permohonan pencabutan dibatalkan",
+        "desc": "Permohonan dibatalkan oleh Pelapor dan penanganan dapat dilanjutkan."
       },
       "selesai": {
         "title": "Selesai",

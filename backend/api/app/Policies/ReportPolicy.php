@@ -50,6 +50,16 @@ class ReportPolicy extends BasePolicy
             && ! $report->trashed();
     }
 
+    public function withdraw(User $user, Report $report): bool
+    {
+        return $user->is_active
+            && $this->allowRole($user, 'reporter')
+            && $this->allowPermission($user, 'reports.withdraw.own')
+            && $report->reporter_id !== null
+            && $report->reporter_id === $user->id
+            && ! $report->trashed();
+    }
+
     private function canReadAllReports(User $user): bool
     {
         return $this->allowPermission($user, 'reports.read.all')

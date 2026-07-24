@@ -116,9 +116,11 @@ class InvestigationService
      */
     public function addActivity(Investigation $investigation, User $actor, array $data): InvestigationActivity
     {
-        return DB::transaction(function () use ($investigation, $actor, $data): InvestigationActivity {
+        $caseId = $investigation->case_id;
+
+        return DB::transaction(function () use ($investigation, $actor, $data, $caseId): InvestigationActivity {
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($caseId);
             $investigation = Investigation::query()->with(['case.status', 'status'])->whereKey($investigation->id)->lockForUpdate()->firstOrFail();
-            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($investigation->case);
             $investigation->setRelation('case', $lockedCase);
 
             $this->authorizeAssignedInvestigator($investigation->case, $actor);
@@ -171,9 +173,11 @@ class InvestigationService
 
     public function updateStatus(Investigation $investigation, User $actor, string $requestedStatus): Investigation
     {
-        return DB::transaction(function () use ($investigation, $actor, $requestedStatus): Investigation {
+        $caseId = $investigation->case_id;
+
+        return DB::transaction(function () use ($investigation, $actor, $requestedStatus, $caseId): Investigation {
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($caseId);
             $investigation = Investigation::query()->with(['case.status', 'case.activeAssignments.satgas', 'status'])->whereKey($investigation->id)->lockForUpdate()->firstOrFail();
-            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($investigation->case);
             $investigation->setRelation('case', $lockedCase);
 
             $this->authorizeAssignedInvestigator($investigation->case, $actor);

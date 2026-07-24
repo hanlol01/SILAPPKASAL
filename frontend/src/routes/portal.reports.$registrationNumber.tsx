@@ -47,6 +47,7 @@ import { PortalStatusBadge } from "@/components/portal/portal-status-badge";
 import { PortalReportTypeBadge } from "@/components/portal/portal-report-type-badge";
 import { ReporterEvidenceSubmissions } from "@/components/portal/reporter-evidence-submissions";
 import { CancelComplaintDialog } from "@/components/portal/cancel-complaint-dialog";
+import { FormalWithdrawalWizard } from "@/components/portal/formal-withdrawal-wizard";
 import {
   ProgressTimeline,
   ProgressTimelineSkeleton,
@@ -190,8 +191,17 @@ function ReportDetail({ report }: ReportDetailProps) {
           portalStatus={report.portal_status}
         />
         <PortalReportTypeBadge reportType={report.report_type} />
-        {report.withdrawal_capabilities.can_cancel && (
+        {report.withdrawal_capabilities.can_cancel ? (
           <CancelComplaintDialog registrationNumber={report.registration_number} />
+        ) : (
+          (report.withdrawal_capabilities.can_request_withdrawal ||
+            report.withdrawal_capabilities.active_withdrawal) && (
+            <FormalWithdrawalWizard
+              registrationNumber={report.registration_number}
+              canRequestWithdrawal={report.withdrawal_capabilities.can_request_withdrawal}
+              activeWithdrawal={report.withdrawal_capabilities.active_withdrawal}
+            />
+          )
         )}
       </div>
 
@@ -307,6 +317,11 @@ const TIMELINE_STAGE_ICONS: Record<string, LucideIcon> = {
   proses_penanganan: ShieldCheck,
   pengaduan_dibatalkan: OctagonX,
   pengaduan_dicabut: OctagonX,
+  permohonan_pencabutan_dibuat: Send,
+  dokumen_pencabutan_disiapkan: FileCheck2,
+  surat_pencabutan_diunggah: FileCheck2,
+  pencabutan_dikirim_untuk_verifikasi: ShieldCheck,
+  permohonan_pencabutan_dibatalkan: OctagonX,
   selesai: CheckCircle2,
 };
 

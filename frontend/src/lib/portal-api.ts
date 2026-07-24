@@ -8,7 +8,14 @@
  * cache collisions with admin ["operations", ...] / ["dashboard", ...] keys.
  */
 
-import { apiDownload, apiFetchBlob, apiRequest, apiRequestEnvelope } from "@/lib/api-client";
+import {
+  apiDownload,
+  apiFetchBlob,
+  apiFetchText,
+  apiRequest,
+  apiRequestEnvelope,
+  apiUpload,
+} from "@/lib/api-client";
 import type {
   PortalSummary,
   PortalReport,
@@ -27,6 +34,7 @@ import type {
   ReportSubmissionResult,
   TrackingLookupResult,
   DirectCancellationResult,
+  FormalWithdrawalDetail,
 } from "@/lib/portal-types";
 import type { PaginationMeta } from "@/lib/api-types";
 
@@ -44,6 +52,7 @@ export const portalQueryKeys = {
   reportTimeline: (regNum: string)           => ["portal", "report", regNum, "timeline"] as const,
   reportHandlingProgress: (regNum: string)   => ["portal", "report", regNum, "handling-progress"] as const,
   reportEvidenceFiles: (regNum: string)      => ["portal", "report", regNum, "evidence-files"] as const,
+  reportWithdrawal: (regNum: string)         => ["portal", "report", regNum, "withdrawal"] as const,
   notifications: ()                          => ["portal", "notifications"] as const,
   profile:       ()                          => ["portal", "profile"] as const,
   accountStatus: ()                          => ["portal", "account-status"] as const,
@@ -95,6 +104,77 @@ export function cancelPortalReport(registrationNumber: string, data: { reason: s
       method: "POST",
       body: JSON.stringify(data),
     },
+  );
+}
+
+/** GET /api/v1/portal/reports/{registrationNumber}/withdrawal */
+export function getPortalFormalWithdrawal(registrationNumber: string) {
+  return apiRequest<FormalWithdrawalDetail>(
+    `/portal/reports/${encodeURIComponent(registrationNumber)}/withdrawal`,
+  );
+}
+
+/** POST /api/v1/portal/reports/{registrationNumber}/withdrawals */
+export function createPortalFormalWithdrawal(registrationNumber: string, reason: string) {
+  return apiRequest<FormalWithdrawalDetail>(
+    `/portal/reports/${encodeURIComponent(registrationNumber)}/withdrawals`,
+    {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    },
+  );
+}
+
+/** GET /api/v1/portal/withdrawals/{publicId}/draft-document */
+export function getPortalWithdrawalDraftDocument(publicId: string, signal?: AbortSignal) {
+  return apiFetchText(
+    `/portal/withdrawals/${encodeURIComponent(publicId)}/draft-document`,
+    { signal, accept: "text/html" },
+  );
+}
+
+/** POST /api/v1/portal/withdrawals/{publicId}/signed-document */
+export function uploadPortalWithdrawalSignedDocument(
+  publicId: string,
+  file: File,
+  lockVersion: number,
+  onProgress?: (percent: number) => void,
+) {
+  const body = new FormData();
+  body.append("file", file);
+  body.append("lock_version", String(lockVersion));
+
+  return apiUpload<FormalWithdrawalDetail>(
+    `/portal/withdrawals/${encodeURIComponent(publicId)}/signed-document`,
+    body,
+    onProgress,
+  );
+}
+
+/** GET /api/v1/portal/withdrawals/{publicId}/signed-document/{attachmentPublicId} */
+export function downloadPortalWithdrawalSignedDocument(
+  publicId: string,
+  attachmentPublicId: string,
+) {
+  return apiDownload(
+    `/portal/withdrawals/${encodeURIComponent(publicId)}/signed-document/${encodeURIComponent(attachmentPublicId)}`,
+    `surat-pencabutan-${attachmentPublicId}`,
+  );
+}
+
+/** POST /api/v1/portal/withdrawals/{publicId}/submit */
+export function submitPortalFormalWithdrawal(publicId: string, lockVersion: number) {
+  return apiRequest<FormalWithdrawalDetail>(
+    `/portal/withdrawals/${encodeURIComponent(publicId)}/submit`,
+    { method: "POST", body: JSON.stringify({ lock_version: lockVersion }) },
+  );
+}
+
+/** POST /api/v1/portal/withdrawals/{publicId}/cancel */
+export function cancelPortalFormalWithdrawal(publicId: string, lockVersion: number) {
+  return apiRequest<FormalWithdrawalDetail>(
+    `/portal/withdrawals/${encodeURIComponent(publicId)}/cancel`,
+    { method: "POST", body: JSON.stringify({ lock_version: lockVersion }) },
   );
 }
 

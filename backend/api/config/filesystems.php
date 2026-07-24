@@ -63,6 +63,14 @@ return [
             'report' => false,
         ],
 
+        'withdrawal' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/withdrawals'),
+            'visibility' => 'private',
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

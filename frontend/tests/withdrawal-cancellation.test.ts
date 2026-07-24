@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import {
+  validateWithdrawalDocumentFile,
+  WITHDRAWAL_DOCUMENT_MAX_BYTES,
+} from "../src/lib/withdrawal-document-file.ts";
 
 const source = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -19,9 +23,10 @@ test("Reporter detail renders direct cancellation only from authoritative capabi
 
   assert.match(
     route,
-    /report\.withdrawal_capabilities\.can_cancel\s*&&\s*\(\s*<CancelComplaintDialog/,
+    /report\.withdrawal_capabilities\.can_cancel\s*\?\s*\(\s*<CancelComplaintDialog/,
   );
-  assert.doesNotMatch(route, /can_request_withdrawal\s*&&/);
+  assert.match(route, /can_request_withdrawal\s*\|\|\s*[\s\S]*active_withdrawal/);
+  assert.match(route, /<FormalWithdrawalWizard/);
   assert.match(route, /registrationNumber=\{report\.registration_number\}/);
 });
 
@@ -75,16 +80,145 @@ test("cancelled status is localized and rendered with a terminal visual", async 
   assert.equal(portalEn.cancellation.trigger, "Cancel Complaint");
 });
 
-test("REV-WITHDRAW-01A exposes no formal withdrawal action or upload UI", async () => {
-  const files = await Promise.all([
-    source("src/components/portal/cancel-complaint-dialog.tsx"),
-    source("src/routes/portal.reports.$registrationNumber.tsx"),
-  ]);
-  const ui = files.join("\n");
+test("REV-WITHDRAW-01B wizard restores state from backend and has no Admin decision UI", async () => {
+  const wizard = await source("src/components/portal/formal-withdrawal-wizard.tsx");
 
-  assert.doesNotMatch(ui, /FormalWithdrawal|formal_withdrawal/);
-  assert.doesNotMatch(ui, /withdrawal.*upload|upload.*withdrawal/i);
-  assert.doesNotMatch(ui, /request.*withdrawal|withdrawal.*request/i);
+  assert.match(wizard, /queryKey:\s*portalQueryKeys\.reportWithdrawal\(registrationNumber\)/);
+  assert.match(wizard, /queryFn:\s*\(\)\s*=>\s*getPortalFormalWithdrawal\(registrationNumber\)/);
+  assert.match(wizard, /withdrawalQuery\.data\s*\?\?\s*createMutation\.data/);
+  assert.match(wizard, /activeWithdrawal\?\.status/);
+  assert.match(wizard, /effectiveCapabilities\.can_view_draft/);
+  assert.match(wizard, /effectiveCapabilities\.can_upload_document/);
+  assert.match(wizard, /effectiveCapabilities\.can_submit/);
+  assert.match(wizard, /effectiveCapabilities\.can_cancel_request/);
+  assert.doesNotMatch(wizard, /approve|reject|reviewer/i);
+  assert.doesNotMatch(wizard, /localStorage|sessionStorage|console\./);
+});
+
+test("formal withdrawal API uses authenticated text, upload, submit, cancel, and download routes", async () => {
+  const [api, client] = await Promise.all([
+    source("src/lib/portal-api.ts"),
+    source("src/lib/api-client.ts"),
+  ]);
+
+  assert.match(api, /\/portal\/reports\/\$\{encodeURIComponent\(registrationNumber\)\}\/withdrawal/);
+  assert.match(api, /\/portal\/reports\/\$\{encodeURIComponent\(registrationNumber\)\}\/withdrawals/);
+  assert.match(api, /\/portal\/withdrawals\/\$\{encodeURIComponent\(publicId\)\}\/draft-document/);
+  assert.match(api, /apiFetchText\(/);
+  assert.match(api, /apiUpload<FormalWithdrawalDetail>/);
+  assert.match(api, /body\.append\("lock_version", String\(lockVersion\)\)/);
+  assert.match(api, /JSON\.stringify\(\{ lock_version: lockVersion \}\)/);
+  assert.match(api, /signed-document\/\$\{encodeURIComponent\(attachmentPublicId\)\}/);
+  assert.match(api, /\/submit`/);
+  assert.match(api, /\/cancel`/);
+  assert.match(client, /export async function apiFetchText/);
+  assert.match(client, /headers\.set\("Authorization", `Bearer \$\{token\}`\)/);
+});
+
+test("formal withdrawal reason, upload, and submit controls are fail-closed", async () => {
+  const wizard = await source("src/components/portal/formal-withdrawal-wizard.tsx");
+
+  assert.match(wizard, /\.min\(20,\s*messages\.min\)/);
+  assert.match(wizard, /\.max\(2000,\s*messages\.max\)/);
+  assert.match(wizard, /confirmed:\s*z\.boolean\(\)\.refine/);
+  assert.match(wizard, /!selectedFile \|\| effectiveLockVersion === null \|\| uploadMutation\.isPending/);
+  assert.match(
+    wizard,
+    /!effectiveCapabilities\.can_submit[\s\S]*effectiveLockVersion === null[\s\S]*submitMutation\.isPending/,
+  );
+  assert.match(wizard, /latestVersion/);
+  assert.match(wizard, /uploadProgress/);
+  assert.match(wizard, /sandbox="allow-modals allow-same-origin"/);
+  assert.doesNotMatch(wizard, /sandbox="[^"]*allow-scripts/);
+  assert.match(wizard, /documentFrameRef\.current\?\.contentWindow/);
+  assert.match(wizard, /printWindow\.print\(\)/);
+  assert.doesNotMatch(wizard, /window\.open|URL\.createObjectURL/);
+  assert.match(wizard, /htmlFor=\{`withdrawal-document-/);
+});
+
+test("signed withdrawal file validation enforces type, extension, path, size, and empty limits", () => {
+  assert.equal(
+    validateWithdrawalDocumentFile({
+      name: "signed.pdf",
+      size: WITHDRAWAL_DOCUMENT_MAX_BYTES,
+      type: "application/pdf",
+    }),
+    null,
+  );
+  assert.equal(
+    validateWithdrawalDocumentFile({ name: "signed.jpeg", size: 1, type: "image/jpeg" }),
+    null,
+  );
+  assert.equal(
+    validateWithdrawalDocumentFile({ name: "signed.png", size: 1, type: "image/png" }),
+    null,
+  );
+  assert.equal(
+    validateWithdrawalDocumentFile({ name: "signed.svg", size: 1, type: "image/svg+xml" }),
+    "invalidFormat",
+  );
+  assert.equal(
+    validateWithdrawalDocumentFile({ name: "../signed.pdf", size: 1, type: "application/pdf" }),
+    "unsafeFilename",
+  );
+  assert.equal(
+    validateWithdrawalDocumentFile({ name: "signed.v2.pdf", size: 1, type: "application/pdf" }),
+    "unsafeFilename",
+  );
+  assert.equal(
+    validateWithdrawalDocumentFile({ name: "signed.pdf", size: 0, type: "application/pdf" }),
+    "emptyFile",
+  );
+  assert.equal(
+    validateWithdrawalDocumentFile({
+      name: "signed.pdf",
+      size: WITHDRAWAL_DOCUMENT_MAX_BYTES + 1,
+      type: "application/pdf",
+    }),
+    "fileTooLarge",
+  );
+});
+
+test("formal mutations invalidate every Reporter and operational cache affected by pause", async () => {
+  const wizard = await source("src/components/portal/formal-withdrawal-wizard.tsx");
+
+  for (const expected of [
+    "portalQueryKeys.report(registrationNumber)",
+    "portalQueryKeys.reportsRoot()",
+    "portalQueryKeys.summary()",
+    "portalQueryKeys.reportWithdrawal(registrationNumber)",
+    "portalQueryKeys.reportTimeline(registrationNumber)",
+    "portalQueryKeys.reportHandlingProgress(registrationNumber)",
+    "portalQueryKeys.reportEvidenceFiles(registrationNumber)",
+    'queryKey: ["dashboard"]',
+    'queryKey: ["operations", "cases"]',
+  ]) {
+    assert.ok(wizard.includes(expected), `Missing cache invalidation: ${expected}`);
+  }
+});
+
+test("formal status, timeline, DRAFT, upload, and cancellation copy has ID/EN parity", async () => {
+  const [portalId, portalEn] = await Promise.all([
+    source("src/locales/id/portal.json").then(JSON.parse),
+    source("src/locales/en/portal.json").then(JSON.parse),
+  ]);
+
+  assert.equal(
+    portalId.withdrawal.status.pending_review,
+    "Menunggu Verifikasi Pencabutan",
+  );
+  assert.equal(
+    portalEn.withdrawal.status.pending_review,
+    "Pending Withdrawal Verification",
+  );
+  assert.match(portalId.withdrawal.documentDescription, /DRAF/);
+  assert.match(portalEn.withdrawal.documentDescription, /DRAFT/);
+  assert.ok(portalId.withdrawal.fileValidation.unsafeFilename);
+  assert.ok(portalEn.withdrawal.fileValidation.unsafeFilename);
+  assert.ok(portalId.timeline.stages.permohonan_pencabutan_dibuat);
+  assert.ok(portalEn.timeline.stages.permohonan_pencabutan_dibuat);
+  assert.ok(portalId.timeline.stages.pencabutan_dikirim_untuk_verifikasi);
+  assert.ok(portalEn.timeline.stages.pencabutan_dikirim_untuk_verifikasi);
 });
 
 test("withdrawn Case detail is read-only while retained assignments remain visible", async () => {

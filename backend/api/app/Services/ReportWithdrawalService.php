@@ -25,6 +25,7 @@ class ReportWithdrawalService
         private readonly ReportPolicy $reportPolicy,
         private readonly AuditLogService $auditLog,
         private readonly NotificationService $notifications,
+        private readonly FormalReportWithdrawalService $formalWithdrawalService,
     ) {}
 
     /**
@@ -130,15 +131,21 @@ class ReportWithdrawalService
      *     can_cancel: bool,
      *     can_request_withdrawal: bool,
      *     cancellation_block_reason_code: string|null,
+     *     withdrawal_block_reason_code: string|null,
      *     active_withdrawal: array<string, mixed>|null
      * }
      */
     public function capabilities(Report $report, User $actor): array
     {
-        $report->loadMissing('case');
+        $report->loadMissing([
+            'case.status',
+            'case.recommendation.decision.status',
+        ]);
 
         if (! $report->relationLoaded('activeWithdrawal')) {
-            $report->load('activeWithdrawal');
+            $report->load('activeWithdrawal.attachments');
+        } elseif ($report->activeWithdrawal !== null) {
+            $report->activeWithdrawal->loadMissing('attachments');
         }
 
         $activeWithdrawal = $report->activeWithdrawal;
@@ -149,29 +156,38 @@ class ReportWithdrawalService
             $activeWithdrawal
         );
 
-        $canRequestFormalWithdrawal = (bool) config('withdrawal.formal_withdrawal_enabled', false)
-            && $actor->is_active
-            && $actor->hasRole('reporter')
-            && $actor->hasPermission('reports.withdraw.own')
-            && $report->reporter_id !== null
-            && $report->reporter_id === $actor->id
-            && ! $report->trashed()
-            && $activeWithdrawal === null
-            && in_array($report->status, [
-                ReportStatus::UnderReview->value,
-                ReportStatus::NeedInfo->value,
-                ReportStatus::Forwarded->value,
-            ], true);
+        $formalBlockReason = $this->formalWithdrawalService->formalBlockReason(
+            $report,
+            $actor,
+            $report->case,
+            $activeWithdrawal,
+        );
+        $activeAttachment = $activeWithdrawal?->currentSignedAttachment();
 
         return [
             'can_cancel' => $blockReason === null,
-            'can_request_withdrawal' => $canRequestFormalWithdrawal,
+            'can_request_withdrawal' => $formalBlockReason === null,
             'cancellation_block_reason_code' => $blockReason,
+            'withdrawal_block_reason_code' => $formalBlockReason,
             'active_withdrawal' => $activeWithdrawal ? [
                 'withdrawal_reference' => $activeWithdrawal->public_id,
                 'request_type' => $activeWithdrawal->request_type->value,
                 'status' => $activeWithdrawal->status->value,
+                'lock_version' => $activeWithdrawal->lock_version,
+                'created_at' => $activeWithdrawal->created_at?->toJSON(),
+                'draft_document_viewed_at' => $activeWithdrawal->draft_document_viewed_at?->toJSON(),
                 'submitted_at' => $activeWithdrawal->submitted_at?->toJSON(),
+                'has_signed_document' => $activeAttachment !== null,
+                'latest_attachment' => $activeAttachment ? [
+                    'attachment_reference' => $activeAttachment->public_id,
+                    'document_type' => $activeAttachment->document_type->value,
+                    'version' => $activeAttachment->version,
+                    'mime_type' => $activeAttachment->server_mime,
+                    'size' => $activeAttachment->size,
+                    'uploaded_at' => $activeAttachment->created_at?->toJSON(),
+                ] : null,
+                'capabilities' => $this->formalWithdrawalService
+                    ->withdrawalCapabilities($activeWithdrawal, $actor),
             ] : null,
         ];
     }

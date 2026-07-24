@@ -51,6 +51,10 @@ class NotificationService
 
     public const TYPE_REPORT_DIRECT_CANCELLATION = 'NOTIF-25';
 
+    public const TYPE_REPORT_FORMAL_WITHDRAWAL_SUBMITTED = 'NOTIF-26';
+
+    public const TYPE_REPORT_FORMAL_WITHDRAWAL_CANCELLED = 'NOTIF-27';
+
     public function __construct(private readonly CaseCampusScope $campusScope) {}
 
     public function caseAssessmentRecorded(CaseRecord $case): void
@@ -73,20 +77,7 @@ class NotificationService
         Report $report,
         ReportWithdrawal $withdrawal,
     ): void {
-        $report->loadMissing('reporter:id,university_id');
-        $universityId = $report->reporter?->university_id;
-
-        $recipients = $universityId === null
-            ? collect()
-            : User::query()
-                ->where('is_active', true)
-                ->where('university_id', $universityId)
-                ->whereHas('role', fn (Builder $query): Builder => $query->where('code', 'admin'))
-                ->get()
-                ->filter(fn (User $user): bool => $user->hasPermission('reports.withdraw.review.own_campus'))
-                ->values();
-
-        $this->send($recipients, [
+        $this->send($this->campusWithdrawalReviewers($report), [
             'notification_type_code' => self::TYPE_REPORT_DIRECT_CANCELLATION,
             'event' => 'report_direct_cancellation_completed',
             'title' => 'Pengaduan dibatalkan oleh Pelapor',
@@ -96,6 +87,40 @@ class NotificationService
             'registration_number' => $report->registration_number,
             'withdrawal_public_id' => $withdrawal->public_id,
             'status_code' => $report->status,
+        ]);
+    }
+
+    public function formalReportWithdrawalSubmitted(
+        Report $report,
+        ReportWithdrawal $withdrawal,
+    ): void {
+        $this->send($this->campusWithdrawalReviewers($report), [
+            'notification_type_code' => self::TYPE_REPORT_FORMAL_WITHDRAWAL_SUBMITTED,
+            'event' => 'report_formal_withdrawal_submitted',
+            'title' => 'Permohonan pencabutan menunggu verifikasi',
+            'body' => "Pengaduan {$report->registration_number} mengajukan pencabutan dan menunggu verifikasi.",
+            'subject_type' => 'report',
+            'subject_id' => $report->id,
+            'registration_number' => $report->registration_number,
+            'withdrawal_public_id' => $withdrawal->public_id,
+            'status_code' => $withdrawal->status->value,
+        ]);
+    }
+
+    public function formalReportWithdrawalCancelled(
+        Report $report,
+        ReportWithdrawal $withdrawal,
+    ): void {
+        $this->send($this->campusWithdrawalReviewers($report), [
+            'notification_type_code' => self::TYPE_REPORT_FORMAL_WITHDRAWAL_CANCELLED,
+            'event' => 'report_formal_withdrawal_cancelled',
+            'title' => 'Permohonan pencabutan dibatalkan',
+            'body' => "Permohonan pencabutan Pengaduan {$report->registration_number} telah dibatalkan oleh Pelapor.",
+            'subject_type' => 'report',
+            'subject_id' => $report->id,
+            'registration_number' => $report->registration_number,
+            'withdrawal_public_id' => $withdrawal->public_id,
+            'status_code' => $withdrawal->status->value,
         ]);
     }
 
@@ -440,6 +465,27 @@ class NotificationService
             ->whereHas('role', fn (Builder $query): Builder => $query->where('code', 'admin'))
             ->get()
             ->filter(fn (User $user): bool => $user->hasPermission($permission))
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    private function campusWithdrawalReviewers(Report $report): Collection
+    {
+        $report->loadMissing('reporter:id,university_id');
+        $universityId = $report->reporter?->university_id;
+
+        if ($universityId === null) {
+            return collect();
+        }
+
+        return User::query()
+            ->where('is_active', true)
+            ->where('university_id', $universityId)
+            ->whereHas('role', fn (Builder $query): Builder => $query->where('code', 'admin'))
+            ->get()
+            ->filter(fn (User $user): bool => $user->hasPermission('reports.withdraw.review.own_campus'))
             ->values();
     }
 

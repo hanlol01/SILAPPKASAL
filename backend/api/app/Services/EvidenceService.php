@@ -51,10 +51,11 @@ class EvidenceService
         $this->authorizeAssignedSatgas($investigation, $actor);
         $this->caseMutationGuard->assertMutable($investigation->case);
         $this->ensureInvestigationCanAcceptEvidence($investigation);
+        $caseId = $investigation->case_id;
 
-        return DB::transaction(function () use ($investigation, $actor, $data): Evidence {
+        return DB::transaction(function () use ($investigation, $actor, $data, $caseId): Evidence {
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($caseId);
             $investigation = Investigation::query()->with(['case.status', 'status'])->whereKey($investigation->id)->lockForUpdate()->firstOrFail();
-            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($investigation->case);
             $investigation->setRelation('case', $lockedCase);
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
 
@@ -125,10 +126,11 @@ class EvidenceService
         $evidence->loadMissing('investigation.case.status');
         $this->authorizeAssignedSatgas($evidence->investigation, $actor);
         $this->ensureEvidenceOpen($evidence);
+        $caseId = $evidence->investigation->case_id;
 
-        return DB::transaction(function () use ($evidence, $actor, $data): Evidence {
+        return DB::transaction(function () use ($evidence, $actor, $data, $caseId): Evidence {
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($caseId);
             $evidence = Evidence::query()->with('investigation.case.status')->whereKey($evidence->id)->lockForUpdate()->firstOrFail();
-            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($evidence->investigation->case);
             $evidence->investigation->setRelation('case', $lockedCase);
 
             $this->ensureEvidenceOpen($evidence);
@@ -153,10 +155,11 @@ class EvidenceService
     {
         $evidence->loadMissing('investigation.case.status');
         $this->authorizeAssignedSatgas($evidence->investigation, $actor);
+        $caseId = $evidence->investigation->case_id;
 
-        return DB::transaction(function () use ($evidence, $actor, $nextStatus): Evidence {
+        return DB::transaction(function () use ($evidence, $actor, $nextStatus, $caseId): Evidence {
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($caseId);
             $evidence = Evidence::query()->with('investigation.case.status')->whereKey($evidence->id)->lockForUpdate()->firstOrFail();
-            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($evidence->investigation->case);
             $evidence->investigation->setRelation('case', $lockedCase);
 
             $this->ensureEvidenceOpen($evidence);
@@ -214,6 +217,7 @@ class EvidenceService
         $this->caseMutationGuard->assertMutable($evidence->investigation->case);
         $this->ensureEvidenceOpen($evidence);
         $this->ensureInvestigationCanAcceptEvidence($evidence->investigation);
+        $caseId = $evidence->investigation->case_id;
 
         $mimeType = $file->getMimeType();
         $extension = $mimeType ? (self::EXTENSION_BY_MIME[$mimeType] ?? null) : null;
@@ -243,14 +247,15 @@ class EvidenceService
                 $fileSize,
                 $checksum,
                 $originalFilename,
+                $caseId,
                 &$storedPath,
             ): Evidence {
+                $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($caseId);
                 $lockedEvidence = Evidence::query()
                     ->with('investigation.case.status')
                     ->whereKey($evidence->id)
                     ->lockForUpdate()
                     ->firstOrFail();
-                $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($lockedEvidence->investigation->case);
                 $lockedEvidence->investigation->setRelation('case', $lockedCase);
 
                 $this->authorizeAssignedSatgas($lockedEvidence->investigation, $actor, 'evidence.upload');
