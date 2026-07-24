@@ -24,8 +24,7 @@ class DemoEvidenceSeeder extends Seeder
         ];
 
         Investigation::query()->with('case.activeAssignments')->orderBy('id')->get()->each(function (Investigation $investigation, int $index) use ($statuses): void {
-            $actor = $investigation->case->activeAssignments->firstWhere('is_lead', true)?->satgas
-                ?? $investigation->case->activeAssignments->first()?->satgas;
+            $actor = $investigation->case->activeAssignments->sortBy('id')->first()?->satgas;
 
             if (! $actor) {
                 return;

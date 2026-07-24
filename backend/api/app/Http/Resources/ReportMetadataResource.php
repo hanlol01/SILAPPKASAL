@@ -43,11 +43,11 @@ class ReportMetadataResource extends JsonResource
                     return [
                         'id' => $this->case->id,
                         'case_number' => $this->case->case_number,
+                        'lock_version' => $this->case->assignmentLockVersion(),
                         'active_assignments' => $this->case->relationLoaded('activeAssignments')
                             ? $this->case->activeAssignments->map(fn ($assignment) => [
                                 'satgas_id' => $assignment->satgas_id,
                                 'satgas_name' => $assignment->satgas?->name,
-                                'is_lead' => $assignment->is_lead,
                                 'is_active' => $assignment->is_active,
                             ])->values()
                             : [],

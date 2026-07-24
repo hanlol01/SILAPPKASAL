@@ -114,9 +114,21 @@ final class AuditEventCatalog
 
             AuditAction::CaseCreated,
             AuditAction::CaseAssigned,
+            AuditAction::CaseReassigned,
+            AuditAction::CaseSelfAssigned,
             AuditAction::CaseStatusChanged,
             AuditAction::CaseAssessmentRecorded => $this->fields(
-                ['case_number', 'registration_number', 'status_code', 'risk_level_code', 'priority_code', 'assignment_count'],
+                [
+                    'case_number',
+                    'registration_number',
+                    'status_code',
+                    'risk_level_code',
+                    'priority_code',
+                    'assignment_count',
+                    'assignment_action',
+                    'previous_assignee_ids',
+                    'assignee_ids',
+                ],
                 ['status_code', 'risk_level_code', 'priority_code', 'is_active', 'is_lead'],
             ),
             AuditAction::CaseFinalSummaryCreated,

@@ -28,7 +28,7 @@ class DemoRecommendationSeeder extends Seeder
         foreach ($this->statuses as $caseNumber => $statusName) {
             $case = CaseRecord::query()->where('case_number', $caseNumber)->firstOrFail();
             $investigation = $case->investigation()->firstOrFail();
-            $author = $case->activeAssignments()->where('is_lead', true)->firstOrFail()->satgas;
+            $author = $case->activeAssignments()->oldest('id')->firstOrFail()->satgas;
             $status = DemoSeed::recommendationStatus($statusName);
 
             $recommendation = Recommendation::query()->updateOrCreate(

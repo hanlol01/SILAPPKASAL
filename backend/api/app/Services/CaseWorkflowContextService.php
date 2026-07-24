@@ -57,7 +57,6 @@ class CaseWorkflowContextService
         $isOperationallyPaused = $case->pendingFormalWithdrawal !== null;
         $activeAssignment = $case->activeAssignments->firstWhere('satgas_id', $actor->id);
         $isAssigned = $actor->is_active && $actor->hasRole('satgas_ppks') && $activeAssignment !== null;
-        $isLead = $isAssigned && (bool) $activeAssignment?->is_lead;
         $canUpdateCaseStatus = $isAssigned && $actor->hasPermission('cases.read.assigned');
         $canInvestigate = $isAssigned && $actor->hasPermission('cases.investigate');
         $canRecommend = $isAssigned && $actor->hasPermission('cases.recommend');
@@ -108,15 +107,12 @@ class CaseWorkflowContextService
             $canInvestigate
                 && ! $isOperationallyTerminal
                 && $caseStatus === CaseStatusEnum::Investigation->value
-                && $investigation === null
-                && $isLead,
+                && $investigation === null,
             ! $isAssigned
                 ? 'read_only_no_assignment'
                 : (! $canInvestigate
                     ? 'permission_missing'
-                    : (! $isLead
-                        ? 'investigation_lead_required'
-                        : ($investigation !== null ? 'investigation_exists' : 'case_not_investigation'))),
+                    : ($investigation !== null ? 'investigation_exists' : 'case_not_investigation')),
         );
 
         $addActivity = $this->action(
@@ -296,7 +292,6 @@ class CaseWorkflowContextService
             $investigationStatus,
             $currentStageActivityCount,
             $recommendationExists,
-            $isLead,
             $canInvestigate,
             $canRecommend,
         );
@@ -351,7 +346,6 @@ class CaseWorkflowContextService
                 'current_stage_activity_count' => $currentStageActivityCount,
                 'recommendation_exists' => $recommendationExists,
                 'active_assignment' => $isAssigned,
-                'active_lead_assignment' => $isLead,
                 'recommendation_status' => $recommendationStatus,
                 'decision_exists' => $decision !== null,
                 'decision_status' => $decisionStatus,
@@ -482,7 +476,6 @@ class CaseWorkflowContextService
         ?string $investigationStatus,
         int $currentStageActivityCount,
         bool $recommendationExists,
-        bool $isLead,
         bool $canInvestigate,
         bool $canRecommend,
     ): string {
@@ -495,7 +488,6 @@ class CaseWorkflowContextService
             $caseStatus === CaseStatusEnum::Assessment->value && ! $assessmentComplete => ApiErrorCode::CaseAssessmentRequired,
             $caseStatus === CaseStatusEnum::Assessment->value => 'assessment_completed',
             $caseStatus === CaseStatusEnum::Investigation->value && ! $canInvestigate => 'permission_missing',
-            $caseStatus === CaseStatusEnum::Investigation->value && ! $investigationExists && ! $isLead => 'investigation_lead_required',
             $caseStatus === CaseStatusEnum::Investigation->value && ! $investigationExists => 'create_investigation',
             $caseStatus === CaseStatusEnum::Investigation->value && $investigationStatus !== InvestigationStatusEnum::Completed->value && $currentStageActivityCount === 0 => ApiErrorCode::InvestigationStageActivityRequired,
             $caseStatus === CaseStatusEnum::Investigation->value && $investigationStatus !== InvestigationStatusEnum::Completed->value => 'current_stage_activity_completed',

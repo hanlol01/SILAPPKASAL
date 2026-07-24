@@ -8,8 +8,8 @@ use App\Models\CaseRecord;
 use App\Models\CaseStatus;
 use App\Models\Report;
 use App\Models\Role;
-use App\Models\User;
 use App\Models\University;
+use App\Models\User;
 use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
@@ -178,7 +178,6 @@ class CaseAssessmentTest extends TestCase
         $this->actingAsApi($admin);
         $response = $this->postJson("/api/v1/reports/{$report->id}/forward-to-case", [
             'satgas_ids' => [$satgas->id],
-            'lead_satgas_id' => $satgas->id,
         ]);
         $response->assertOk();
         $this->flushHeaders();

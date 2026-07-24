@@ -34,7 +34,13 @@ class CaseResource extends JsonResource
             'closed_at' => $this->closed_at?->toJSON(),
             'withdrawn_at' => $this->withdrawn_at?->toJSON(),
             'escalated_at' => $this->escalated_at?->toJSON(),
+            'lock_version' => $this->assignmentLockVersion(),
             'assignments' => CaseAssignmentResource::collection($this->whenLoaded('activeAssignments')),
+            'assignment_history' => CaseAssignmentResource::collection($this->whenLoaded('assignments')),
+            'assignment_capabilities' => $this->when(
+                $this->resource->getAttribute('assignment_capabilities') !== null,
+                $this->resource->getAttribute('assignment_capabilities'),
+            ),
             'workflow_context' => $this->when(
                 $this->resource->getAttribute('workflow_context') !== null,
                 $this->resource->getAttribute('workflow_context'),

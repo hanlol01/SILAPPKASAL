@@ -45,7 +45,7 @@ class DemoCaseSeeder extends Seeder
                     ],
                     [
                         'assigned_by' => $admin->id,
-                        'is_lead' => $i === 1,
+                        'is_lead' => false,
                         'is_active' => true,
                         'assigned_at' => $case->forwarded_at,
                         'unassigned_at' => null,
@@ -56,7 +56,7 @@ class DemoCaseSeeder extends Seeder
     }
 
     /**
-     * @param list<string> $statuses
+     * @param  list<string>  $statuses
      */
     private function timestampFor(string $currentStatus, array $statuses, int $daysAgo): mixed
     {

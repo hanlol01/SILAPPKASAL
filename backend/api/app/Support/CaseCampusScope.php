@@ -4,8 +4,8 @@ namespace App\Support;
 
 use App\Models\CaseRecord;
 use App\Models\Decision;
-use App\Models\Recovery;
 use App\Models\Recommendation;
+use App\Models\Recovery;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -81,6 +81,30 @@ final class CaseCampusScope
         };
 
         return $universityId !== null && (int) $actor->university_id === $universityId;
+    }
+
+    public function sameOperationalCampus(User $actor, CaseRecord $case): bool
+    {
+        return $actor->is_active
+            && $actor->university_id !== null
+            && ($actor->hasRole('admin') || $actor->hasRole('satgas_ppks'))
+            && $this->caseUniversityId($case) === (int) $actor->university_id;
+    }
+
+    public function scopeCasesToOperationalCampus(Builder $query, User $actor): Builder
+    {
+        if (
+            ! $actor->is_active
+            || $actor->university_id === null
+            || (! $actor->hasRole('admin') && ! $actor->hasRole('satgas_ppks'))
+        ) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereHas('report', fn (Builder $report): Builder => $report
+            ->whereColumn('reports.registration_number', 'cases.registration_number')
+            ->whereHas('reporter', fn (Builder $reporter): Builder => $reporter
+                ->where('university_id', $actor->university_id)));
     }
 
     public function canSensitiveOversight(User $actor): bool

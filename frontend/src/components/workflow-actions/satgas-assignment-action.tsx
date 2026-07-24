@@ -15,13 +15,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { apiErrorMessage, laravelFieldErrors } from "@/lib/form-errors";
 import {
   assignCaseSatgas,
@@ -36,7 +29,7 @@ type SatgasAssignmentActionProps = {
   mode: "forward-report" | "assign-case";
   targetId: string | number;
   currentSatgasIds?: number[];
-  currentLeadSatgasId?: number | null;
+  lockVersion?: string;
   reportId?: string | number;
 };
 
@@ -44,13 +37,12 @@ export function SatgasAssignmentAction({
   mode,
   targetId,
   currentSatgasIds = [],
-  currentLeadSatgasId = null,
+  lockVersion,
   reportId,
 }: SatgasAssignmentActionProps) {
   const { t } = useTranslation(["dashboard"]);
   const [open, setOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>(currentSatgasIds);
-  const [leadId, setLeadId] = useState<number | null>(currentLeadSatgasId);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const queryClient = useQueryClient();
 
@@ -62,19 +54,14 @@ export function SatgasAssignmentAction({
   });
 
   const satgasUsers = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
-  const selectedUsers = useMemo(
-    () => satgasUsers.filter((user) => selectedIds.includes(user.id)),
-    [satgasUsers, selectedIds],
-  );
   const currentSatgasKey = currentSatgasIds.join(",");
 
   useEffect(() => {
     if (!open) return;
 
     setSelectedIds(currentSatgasKey === "" ? [] : currentSatgasKey.split(",").map(Number));
-    setLeadId(currentLeadSatgasId);
     setFieldErrors({});
-  }, [currentLeadSatgasId, currentSatgasKey, open]);
+  }, [currentSatgasKey, open]);
 
   const mutation = useMutation<unknown, Error, SatgasAssignmentPayload>({
     mutationFn: (payload: SatgasAssignmentPayload) =>
@@ -101,6 +88,11 @@ export function SatgasAssignmentAction({
       );
     },
     onError: (error) => {
+      void synchronizeWorkflowCaches(queryClient, {
+        caseId: mode === "assign-case" ? targetId : undefined,
+        reportId: reportId ?? (mode === "forward-report" ? targetId : undefined),
+        includeReports: true,
+      }).catch(() => undefined);
       const errors = laravelErrors(error);
       setFieldErrors(errors);
       toast.error(apiErrorMessage(error, t("dashboard:workflow.assignment.actionError")));
@@ -114,10 +106,6 @@ export function SatgasAssignmentAction({
         ? [...current, user.id]
         : current.filter((id) => id !== user.id);
 
-      if (!next.includes(leadId ?? -1)) {
-        setLeadId(null);
-      }
-
       return next;
     });
   }
@@ -125,13 +113,13 @@ export function SatgasAssignmentAction({
   function submit() {
     if (mutation.isPending) return;
 
-    const errors = validateSelection(selectedIds, leadId, t);
+    const errors = validateSelection(selectedIds, t);
     setFieldErrors(errors);
-    if (Object.keys(errors).length > 0 || leadId === null) return;
+    if (Object.keys(errors).length > 0) return;
 
     mutation.mutate({
       satgas_ids: selectedIds,
-      lead_satgas_id: leadId,
+      lock_version: mode === "assign-case" ? lockVersion : undefined,
     });
   }
 
@@ -192,31 +180,6 @@ export function SatgasAssignmentAction({
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label>{t("dashboard:workflow.assignment.leadSatgas")}</Label>
-                <Select
-                  value={leadId === null ? "" : String(leadId)}
-                  onValueChange={(value) => {
-                    setFieldErrors({});
-                    setLeadId(Number(value));
-                  }}
-                  disabled={selectedUsers.length === 0 || mutation.isPending}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("dashboard:workflow.assignment.leadPlaceholder")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectedUsers.map((user) => (
-                      <SelectItem key={user.id} value={String(user.id)}>
-                        {user.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {fieldErrors.lead_satgas_id && (
-                  <p className="text-xs text-destructive">{fieldErrors.lead_satgas_id}</p>
-                )}
-              </div>
             </>
           )}
         </div>
@@ -268,19 +231,12 @@ function actionCopy(
 
 function validateSelection(
   selectedIds: number[],
-  leadId: number | null,
   t: (key: string) => string,
 ) {
   const errors: Record<string, string> = {};
 
   if (selectedIds.length === 0) {
     errors.satgas_ids = t("dashboard:workflow.assignment.selectAtLeastOne");
-  }
-
-  if (leadId === null) {
-    errors.lead_satgas_id = t("dashboard:workflow.assignment.selectLead");
-  } else if (!selectedIds.includes(leadId)) {
-    errors.lead_satgas_id = t("dashboard:workflow.assignment.leadFromSelected");
   }
 
   return errors;

@@ -44,7 +44,7 @@ class InvestigationService
                 ->lockAndAssertMutable($case)
                 ->load(['investigation', 'activeAssignments.satgas']);
 
-            $this->authorizeAssignedLead($case, $actor);
+            $this->authorizeAssignedSatgas($case, $actor);
             $this->ensureCaseCanStartInvestigation($case);
 
             $status = $this->statusByName(InvestigationStatusEnum::Planning);
@@ -334,19 +334,18 @@ class InvestigationService
         }
     }
 
-    private function authorizeAssignedLead(CaseRecord $case, User $actor): void
+    private function authorizeAssignedSatgas(CaseRecord $case, User $actor): void
     {
-        $isActiveLead = CaseAssignment::query()
+        $isActiveAssignment = CaseAssignment::query()
             ->where('case_id', $case->id)
             ->where('satgas_id', $actor->id)
             ->where('is_active', true)
-            ->where('is_lead', true)
             ->whereHas('satgas', fn (Builder $query): Builder => $query
                 ->where('is_active', true)
                 ->whereHas('role', fn (Builder $roleQuery): Builder => $roleQuery->where('code', 'satgas_ppks')))
             ->exists();
 
-        if (! $isActiveLead) {
+        if (! $isActiveAssignment) {
             throw $this->forbidden();
         }
     }

@@ -292,10 +292,7 @@ function CaseDetail() {
   }
   const canManageAssignments =
     roleCode === "admin" &&
-    workflowContext?.facts.same_campus_admin === true &&
-    Boolean(user?.permissions?.includes("cases.assign_satgas")) &&
-    !operationallyPaused &&
-    !isOperationallyTerminalCase;
+    c.assignment_capabilities?.manage.allowed === true;
   const canUseSatgasActions =
     isAssignedSatgas && !operationallyPaused && !isOperationallyTerminalCase;
   const canRecommend =
@@ -320,6 +317,7 @@ function CaseDetail() {
     roleCode === "satgas_ppks" &&
     workflowContext?.actions.add_monitoring.allowed === true;
   const activeAssignments = (c.assignments ?? []).filter((assignment) => assignment.is_active);
+  const pastAssignments = (c.assignment_history ?? []).filter((assignment) => !assignment.is_active);
   const evidenceInvestigation = selectEvidenceInvestigation(investigationsQuery.data ?? []);
   const canUpdateEvidence =
     canUseSatgasActions && Boolean(user?.permissions?.includes("evidence.upload"));
@@ -643,22 +641,39 @@ function CaseDetail() {
                     {assignment.satgas_name ?? t("dashboard:common.metadataUnavailable")}
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {assignment.is_lead
-                      ? t("dashboard:cases.leadSatgas")
-                      : t("dashboard:cases.assignedSatgas")}{" "}
-                    - {formatDateTime(assignment.assigned_at, i18n.language)}
+                    {t("dashboard:cases.assignedSatgas")} - {formatDateTime(assignment.assigned_at, i18n.language)}
                   </div>
                 </div>
               ))}
+              {pastAssignments.length > 0 && (
+                <div className="space-y-2 border-t pt-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t("dashboard:cases.assignmentHistory")}
+                  </p>
+                  {pastAssignments.map((assignment) => (
+                    <div key={assignment.id} className="min-w-0 rounded-lg bg-muted/40 p-3 text-sm">
+                      <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere]">
+                        {assignment.satgas_name ?? t("dashboard:common.metadataUnavailable")}
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {t(`dashboard:cases.assignmentTypes.${assignment.assignment_type}`)} · {formatDateTime(assignment.assigned_at, i18n.language)} – {formatDateTime(assignment.unassigned_at, i18n.language)}
+                      </div>
+                      {assignment.assigned_by_name && (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {t("dashboard:cases.assignedBy", { name: assignment.assigned_by_name })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
               {canManageAssignments && (
                 <>
                   <SatgasAssignmentAction
                     mode="assign-case"
                     targetId={c.id}
                     currentSatgasIds={activeAssignments.map((assignment) => assignment.satgas_id)}
-                    currentLeadSatgasId={
-                      activeAssignments.find((assignment) => assignment.is_lead)?.satgas_id ?? null
-                    }
+                    lockVersion={c.lock_version}
                   />
                   <p className="text-xs text-muted-foreground">
                     {t("dashboard:reports.satgasHint")}
@@ -667,7 +682,7 @@ function CaseDetail() {
               )}
               {roleCode === "satgas_ppks" && (
                 <p className="text-xs text-muted-foreground">
-                  {t("dashboard:cases.assignmentManagedBy")}
+                  {t("dashboard:cases.assignmentSelfServiceInfo")}
                 </p>
               )}
             </CardContent>

@@ -52,6 +52,14 @@ final class ApiErrorCode
 
     public const CaseOperationallyTerminal = 'case_operationally_terminal';
 
+    public const CaseAssignmentStale = 'case_assignment_stale';
+
+    public const CaseAssignmentUnavailable = 'case_assignment_unavailable';
+
+    public const CaseAssignmentUnchanged = 'case_assignment_unchanged';
+
+    public const CaseAssignmentReadOnly = 'case_assignment_read_only';
+
     public const WithdrawalPendingReview = 'withdrawal_pending_review';
 
     public const CaseInvestigationCompletionRequired = 'case_investigation_completion_required';

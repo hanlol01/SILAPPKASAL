@@ -6,11 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\CaseAssessmentRequest;
 use App\Http\Requests\CaseAssignRequest;
 use App\Http\Requests\CaseIndexRequest;
+use App\Http\Requests\CaseSelfAssignRequest;
 use App\Http\Requests\CaseStatusUpdateRequest;
 use App\Http\Resources\CaseResource;
 use App\Models\CaseRecord;
-use App\Services\CaseService;
 use App\Services\CaseClosureService;
+use App\Services\CaseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -20,9 +21,7 @@ class CaseController extends Controller
     public function __construct(
         private readonly CaseService $caseService,
         private readonly CaseClosureService $caseClosureService,
-    )
-    {
-    }
+    ) {}
 
     public function index(CaseIndexRequest $request): JsonResponse
     {
@@ -61,6 +60,19 @@ class CaseController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Case assignments updated successfully',
+            'data' => new CaseResource($case),
+        ]);
+    }
+
+    public function selfAssign(CaseSelfAssignRequest $request, CaseRecord $case): JsonResponse
+    {
+        Gate::authorize('selfAssign', $case);
+
+        $case = $this->caseService->selfAssign($case, $request->user(), $request->validated('lock_version'));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Case assignment claimed successfully',
             'data' => new CaseResource($case),
         ]);
     }

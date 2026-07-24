@@ -815,15 +815,15 @@ Audit Event: AUD-RPT-05
 }
 ```
 
-### 6.8 Forward to Satgas
+### 6.8 Forward to Case and Assign Satgas
 
 ```
-PATCH /api/v1/reports/{id}/forward-to-satgas
+POST /api/v1/reports/{id}/forward-to-case
 Auth: Bearer Token
-Roles: super_admin, admin
+Role: admin
 Permission: reports.forward
 Policy: ReportPolicy@forward
-Audit Event: AUD-RPT-04
+Audit Events: report.forwarded, case.created, case.assigned
 ```
 
 > Endpoint ini membuat `Case` baru dari `Report`. Status report → `forwarded`. Case otomatis dibuat.
@@ -832,9 +832,7 @@ Audit Event: AUD-RPT-04
 
 ```json
 {
-  "satgas_ids": [3, 5],
-  "lead_satgas_id": 3,
-  "notes": "Prioritas tinggi. Segera lakukan asesmen risiko."
+  "satgas_ids": [3, 5]
 }
 ```
 
@@ -854,9 +852,10 @@ Audit Event: AUD-RPT-04
       "id": 1,
       "registration_number": "SLP-2026-0610-0001",
       "status": "forwarded",
+      "lock_version": "9be4...64-character-sha256-token",
       "assignments": [
-        { "satgas_id": 3, "is_lead": true },
-        { "satgas_id": 5, "is_lead": false }
+        { "satgas_id": 3, "assignment_type": "assign", "is_active": true },
+        { "satgas_id": 5, "assignment_type": "assign", "is_active": true }
       ]
     }
   }
@@ -911,15 +910,15 @@ Auth: Bearer Token
 Role-based behavior:
   - super_admin: metadata semua kasus (via cases.read.all) → nomor registrasi, status, SLA, assignment
   - admin: metadata semua kasus (via cases.read.metadata) → nomor registrasi, status, SLA, assignment
-  - satgas_ppks: kasus yang ditugaskan (via cases.read.assigned) → full data
+  - satgas_ppks: metadata kasus yang ditugaskan, atau antrean same-campus tanpa penugasan melalui `assignment_status=unassigned`; detail sensitif tetap hanya melalui endpoint detail setelah assignment sah
 Query Params: ?status=investigation&risk_level=high&satgas_id=42&assignment_status=unassigned&sort=-forwarded_at&page=1
 ```
 
 Filter scope opsional:
 
 - `satgas_id`: hanya Admin; memfilter kasus dengan penugasan aktif kepada Satgas tersebut dan tetap dibatasi ke kampus Admin.
-- `assignment_status=unassigned`: hanya Admin dengan kampus; memfilter kasus yang tidak mempunyai penugasan aktif. Assignment historis/nonaktif diabaikan.
-- `satgas_id` dan `assignment_status` saling eksklusif. Nilai status lain, kombinasi kedua parameter, Admin tanpa kampus, dan penggunaan oleh role lain menghasilkan `422`.
+- `assignment_status=unassigned`: tersedia untuk Admin dan Satgas aktif dengan kampus. Admin memperoleh filter kasus tanpa penugasan; Satgas memperoleh antrean same-campus yang mutable, tidak dipause withdrawal, dan dapat diambil. Assignment historis/nonaktif diabaikan.
+- `satgas_id` dan `assignment_status` saling eksklusif. Nilai status lain, kombinasi kedua parameter, actor tanpa kampus, dan penggunaan oleh role lain menghasilkan `422`.
 - `university_id` tidak didukung pada daftar Kasus; filter Kampus Super Admin tersedia pada Ringkasan dan daftar Pengaduan.
 - Parameter role yang salah atau filter yang tidak didukung ditolak dengan `422`; filter tidak memperluas campus isolation atau akses data sensitif.
 
@@ -940,9 +939,14 @@ Filter scope opsional:
       "current_stage": 3,
       "current_stage_label": "Investigasi",
       "forwarded_at": "2026-06-10T12:00:00Z",
+      "lock_version": "9be4...64-character-sha256-token",
       "assignments": [
-        { "satgas_id": 3, "satgas_name": "Satgas A", "is_lead": true }
-      ]
+        { "satgas_id": 3, "satgas_name": "Satgas A", "assignment_type": "assign", "is_active": true }
+      ],
+      "assignment_capabilities": {
+        "manage": { "allowed": true, "reason_code": null },
+        "self_assign": { "allowed": false, "reason_code": "permission_missing" }
+      }
     }
   ],
   "meta": { "current_page": 1, "per_page": 15, "total": 5, "last_page": 1 }
@@ -984,15 +988,15 @@ Policy: CasePolicy@view
 
 > Response scope bergantung pada role dan permission (metadata vs full data).
 
-### 7.3 Assign Satgas
+### 7.3 Assign or Reassign Satgas
 
 ```
-PATCH /api/v1/cases/{id}/assign-satgas
+PATCH /api/v1/cases/{id}/assign
 Auth: Bearer Token
-Roles: super_admin, admin
+Role: admin
 Permission: cases.assign_satgas
-Policy: CasePolicy@assignSatgas
-Audit Event: AUD-CASE-09
+Policy: CasePolicy@assign
+Audit Events: case.assigned, case.reassigned
 ```
 
 **Request Body:**
@@ -1000,11 +1004,33 @@ Audit Event: AUD-CASE-09
 ```json
 {
   "satgas_ids": [3, 5],
-  "lead_satgas_id": 3
+  "lock_version": "9be4...64-character-sha256-token"
 }
 ```
 
-### 7.4 Update Case Status
+`lock_version` adalah token opaque dari response Case. Token stale, penugasan tanpa perubahan, Case terminal, Case pada tahap `decided`, `recovery`, `monitoring`, atau `escalated`, serta Case yang dipause withdrawal ditolak fail-closed. Reassign mengakhiri assignment yang dihapus dan mempertahankan seluruh baris histori. `lead_satgas_id` tidak lagi diterima.
+
+### 7.4 Self-Assign Case
+
+```
+POST /api/v1/cases/{id}/self-assign
+Auth: Bearer Token
+Role: satgas_ppks
+Permission gate: cases.read.assigned + role/same-campus checks
+Policy: CasePolicy@selfAssign
+Rate limit: 30 requests/minute
+Audit Event: case.self_assigned
+```
+
+```json
+{
+  "lock_version": "9be4...64-character-sha256-token"
+}
+```
+
+Identitas assignee selalu berasal dari authenticated actor. Field `user_id`, `satgas_id`, `satgas_ids`, `assignee_id`, dan `lead_satgas_id` dilarang. Self-assignment hanya berhasil bila tidak ada assignment aktif dan Case belum memasuki tahap keputusan final/tindak lanjut; transaksi mengunci Report → Case → pending Withdrawal sehingga dua klaim bersamaan menghasilkan tepat satu pemenang.
+
+### 7.5 Update Case Status
 
 ```
 PATCH /api/v1/cases/{id}/status
@@ -1025,7 +1051,7 @@ Audit Event: AUD-CASE-06
 
 > Status transitions divalidasi di backend sesuai `case_statuses.valid_transitions`. Contoh: `assessment` → `investigation` (valid), `forwarded` → `closed` (invalid).
 
-### 7.5 Risk Assessment
+### 7.6 Risk Assessment
 
 ```
 POST /api/v1/cases/{id}/risk-assessment
@@ -1048,7 +1074,7 @@ Audit Event: AUD-CASE-01
 }
 ```
 
-### 7.6 Add Investigation Activity
+### 7.7 Add Investigation Activity
 
 ```
 POST /api/v1/cases/{id}/investigation-activities
@@ -1071,7 +1097,7 @@ Audit Event: AUD-CASE-03
 }
 ```
 
-### 7.7 Submit Recommendation
+### 7.8 Submit Recommendation
 
 ```
 POST /api/v1/cases/{id}/recommendations
@@ -1094,7 +1120,7 @@ Audit Event: AUD-CASE-04
 }
 ```
 
-### 7.8 Record Decision
+### 7.9 Record Decision
 
 ```
 POST /api/v1/recommendations/{recommendation}/decisions
@@ -1117,7 +1143,7 @@ Audit Event: decision.created
 }
 ```
 
-### 7.9 Add Recovery Monitoring
+### 7.10 Add Recovery Monitoring
 
 ```
 POST /api/v1/recoveries/{recovery}/monitoring
@@ -1141,7 +1167,7 @@ Audit Event: recovery.monitoring_created
 Monitoring is accepted only while the Recovery is `ongoing`. It does not complete a Recovery or
 close a Case automatically.
 
-### 7.10 Close Case
+### 7.11 Close Case
 
 ```
 POST /api/v1/cases/{case}/close
@@ -1156,7 +1182,7 @@ No request body. The service revalidates the active assignment, terminal Recover
 published compatible final summary, Monitoring requirement for the completed path, and rejects
 generic Case status transitions to `closed`.
 
-### 7.11 Escalate Case
+### 7.12 Escalate Case
 
 ```
 PATCH /api/v1/cases/{id}/escalate

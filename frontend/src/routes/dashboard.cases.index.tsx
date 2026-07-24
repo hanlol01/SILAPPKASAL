@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, Inbox, Loader2, Search, SearchX, SlidersHorizontal } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { QueryErrorState } from "@/components/query-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +17,10 @@ import {
 } from "@/components/ui/select";
 import { formatDateTime } from "@/lib/format";
 import { formatCaseStatus, formatPriorityLevel, formatRiskLevel } from "@/lib/format-labels";
-import { getCases, operationsQueryKeys } from "@/lib/operations-api";
+import { getCases, operationsQueryKeys, selfAssignCase } from "@/lib/operations-api";
+import type { CaseRecord } from "@/lib/operations-types";
+import { apiErrorMessage } from "@/lib/form-errors";
+import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 import { EmptyState } from "@/components/empty-state";
 import { PageBreadcrumb } from "@/components/page-breadcrumb";
 import { FilterResetButton } from "@/components/filter-reset-button";
@@ -78,6 +82,7 @@ function positiveInteger(value: unknown): number | undefined {
 function CasesPage() {
   const { roleCode } = useAuth();
   const { t, i18n } = useTranslation(["dashboard"]);
+  const queryClient = useQueryClient();
   const navigate = Route.useNavigate();
   const search = Route.useSearch();
   const q = search.q ?? "";
@@ -91,7 +96,9 @@ function CasesPage() {
   const pageSize = search.per_page ?? DEFAULT_PAGE_SIZE;
   const status = search.status ?? "all";
   const quickFilter = search.quick_filter ?? "all";
-  const scopeFilterActive = roleCode === "admin" && satgasId !== "all";
+  const scopeFilterActive =
+    (roleCode === "admin" && satgasId !== "all") ||
+    (roleCode === "satgas_ppks" && search.assignment_status === "unassigned");
   const filtersActive =
     q !== "" ||
     status !== "all" ||
@@ -140,7 +147,9 @@ function CasesPage() {
           ? Number(satgasId)
           : undefined,
       assignment_status:
-        roleCode === "admin" && satgasId === "unassigned" ? "unassigned" : undefined,
+        (roleCode === "admin" || roleCode === "satgas_ppks") && satgasId === "unassigned"
+          ? "unassigned"
+          : undefined,
       per_page: pageSize,
       page,
     }),
@@ -149,7 +158,17 @@ function CasesPage() {
   const casesQuery = useQuery({
     queryKey: operationsQueryKeys.cases(query),
     queryFn: () => getCases(query),
-    placeholderData: keepPreviousData,
+  });
+  const selfAssignMutation = useMutation<CaseRecord, Error, CaseRecord>({
+    mutationFn: (item) => selfAssignCase(item.id, item.lock_version),
+    onSuccess: async (item) => {
+      await synchronizeWorkflowCaches(queryClient, { caseId: item.id });
+      toast.success(t("dashboard:cases.selfAssignSuccess"));
+    },
+    onError: (error, item) => {
+      void synchronizeWorkflowCaches(queryClient, { caseId: item.id }).catch(() => undefined);
+      toast.error(apiErrorMessage(error, t("dashboard:cases.selfAssignError")));
+    },
   });
   const filtered =
     casesQuery.data?.data.filter((item) => {
@@ -214,6 +233,24 @@ function CasesPage() {
               }
               onUniversityChange={() => undefined}
             />
+            {roleCode === "satgas_ppks" && (
+              <Select
+                value={search.assignment_status === "unassigned" ? "unassigned" : "assigned"}
+                onValueChange={(value) =>
+                  updateFilters({
+                    assignment_status: value === "unassigned" ? "unassigned" : undefined,
+                  })
+                }
+              >
+                <SelectTrigger className="w-[210px]">
+                  <SelectValue placeholder={t("dashboard:cases.assignmentQueue.label")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="assigned">{t("dashboard:cases.assignmentQueue.mine")}</SelectItem>
+                  <SelectItem value="unassigned">{t("dashboard:cases.assignmentQueue.available")}</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
             <FilterResetButton active={filtersActive} onReset={resetFilters} />
             {casesQuery.isFetching && (
               <Loader2
@@ -246,12 +283,26 @@ function CasesPage() {
                       <MobileField label={t("dashboard:common.priority")}>{formatPriorityValue(t, item.priority)}</MobileField>
                       <MobileField label={t("dashboard:common.forwarded")}>{formatDateTime(item.forwarded_at, i18n.language)}</MobileField>
                     </div>
-                    <Button asChild size="sm" variant="outline" className="mt-3 w-full">
-                      <Link to="/dashboard/cases/$id" params={{ id: String(item.id) }}>
-                        <Eye />
-                        {t("dashboard:common.detail")}
-                      </Link>
-                    </Button>
+                    {item.assignment_capabilities?.self_assign.allowed ? (
+                      <Button
+                        size="sm"
+                        className="mt-3 w-full"
+                        onClick={() => selfAssignMutation.mutate(item)}
+                        disabled={selfAssignMutation.isPending}
+                      >
+                        {selfAssignMutation.isPending && selfAssignMutation.variables?.id === item.id
+                          ? <Loader2 className="animate-spin" />
+                          : <Inbox />}
+                        {t("dashboard:cases.selfAssign")}
+                      </Button>
+                    ) : (
+                      <Button asChild size="sm" variant="outline" className="mt-3 w-full">
+                        <Link to="/dashboard/cases/$id" params={{ id: String(item.id) }}>
+                          <Eye />
+                          {t("dashboard:common.detail")}
+                        </Link>
+                      </Button>
+                    )}
                   </div>
                 ))}
                 {filtered.length === 0 && (
@@ -285,12 +336,25 @@ function CasesPage() {
                         <td className="px-3 py-2">{formatPriorityValue(t, item.priority)}</td>
                         <td className="px-3 py-2 text-muted-foreground">{formatDateTime(item.forwarded_at, i18n.language)}</td>
                         <td className="px-3 py-2 text-right">
-                          <Button asChild size="sm" variant="ghost">
-                            <Link to="/dashboard/cases/$id" params={{ id: String(item.id) }}>
-                              <Eye />
-                              {t("dashboard:common.detail")}
-                            </Link>
-                          </Button>
+                          {item.assignment_capabilities?.self_assign.allowed ? (
+                            <Button
+                              size="sm"
+                              onClick={() => selfAssignMutation.mutate(item)}
+                              disabled={selfAssignMutation.isPending}
+                            >
+                              {selfAssignMutation.isPending && selfAssignMutation.variables?.id === item.id
+                                ? <Loader2 className="animate-spin" />
+                                : <Inbox />}
+                              {t("dashboard:cases.selfAssign")}
+                            </Button>
+                          ) : (
+                            <Button asChild size="sm" variant="ghost">
+                              <Link to="/dashboard/cases/$id" params={{ id: String(item.id) }}>
+                                <Eye />
+                                {t("dashboard:common.detail")}
+                              </Link>
+                            </Button>
+                          )}
                         </td>
                       </tr>
                     ))}

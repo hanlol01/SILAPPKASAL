@@ -108,8 +108,8 @@ export interface CaseAssignment {
   id: number;
   satgas_id: number;
   satgas_name?: string | null;
-  assigned_by: number | null;
-  is_lead: boolean;
+  assigned_by_name?: string | null;
+  assignment_type: "assign" | "self_assign";
   is_active: boolean;
   assigned_at: string | null;
   unassigned_at: string | null;
@@ -138,7 +138,13 @@ export interface CaseRecord {
   closed_at?: string | null;
   withdrawn_at?: string | null;
   escalated_at?: string | null;
+  lock_version: string;
   assignments?: CaseAssignment[];
+  assignment_history?: CaseAssignment[];
+  assignment_capabilities?: {
+    manage: WorkflowActionCapability;
+    self_assign: WorkflowActionCapability;
+  };
   report?: ReportInputDetails;
   workflow_context?: WorkflowContext;
 }
@@ -157,7 +163,6 @@ export interface WorkflowContext {
     current_stage_activity_count: number;
     recommendation_exists: boolean;
     active_assignment: boolean;
-    active_lead_assignment: boolean;
     recommendation_status: string | null;
     decision_exists: boolean;
     decision_status: string | null;
@@ -451,13 +456,13 @@ export type RecommendationReviewPayload =
 export interface ReportCaseAssignmentSummary {
   satgas_id: number;
   satgas_name?: string | null;
-  is_lead: boolean;
   is_active: boolean;
 }
 
 export interface ReportCaseSummary {
   id: number;
   case_number: string;
+  lock_version: string;
   active_assignments: ReportCaseAssignmentSummary[];
 }
 
@@ -584,7 +589,7 @@ export interface UserLookupItem {
 
 export interface SatgasAssignmentPayload {
   satgas_ids: number[];
-  lead_satgas_id: number;
+  lock_version?: string;
 }
 
 export interface ForwardReportToCaseResult {

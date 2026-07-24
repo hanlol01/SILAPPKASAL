@@ -248,7 +248,6 @@ class MyWorkService
 
         return [
             'satgas_id' => $assignment->satgas_id,
-            'is_lead' => (bool) $assignment->is_lead,
             'assigned_at' => $assignment->assigned_at?->toJSON(),
         ];
     }

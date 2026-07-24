@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class ForwardReportToCaseRequest extends FormRequest
+class CaseSelfAssignRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -17,8 +17,11 @@ class ForwardReportToCaseRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'satgas_ids' => ['required', 'array', 'min:1'],
-            'satgas_ids.*' => ['required', 'integer', 'distinct', 'exists:users,id'],
+            'lock_version' => ['required', 'string', 'regex:/\\A[a-f0-9]{64}\\z/'],
+            'satgas_id' => ['prohibited'],
+            'satgas_ids' => ['prohibited'],
+            'assignee_id' => ['prohibited'],
+            'user_id' => ['prohibited'],
             'lead_satgas_id' => ['prohibited'],
         ];
     }

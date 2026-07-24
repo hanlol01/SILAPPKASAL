@@ -19,7 +19,8 @@ class CaseAssignRequest extends FormRequest
         return [
             'satgas_ids' => ['required', 'array', 'min:1'],
             'satgas_ids.*' => ['required', 'integer', 'distinct', 'exists:users,id'],
-            'lead_satgas_id' => ['required', 'integer', 'exists:users,id'],
+            'lock_version' => ['required', 'string', 'regex:/\\A[a-f0-9]{64}\\z/'],
+            'lead_satgas_id' => ['prohibited'],
         ];
     }
 }

@@ -93,10 +93,6 @@ test("operational filters are role-scoped and query the existing authoritative l
       route,
       /satgas_id:[\s\S]*roleCode === "admin" && satgasId !== "all" && satgasId !== "unassigned"/,
     );
-    assert.match(
-      route,
-      /assignment_status:\s*roleCode === "admin" && satgasId === "unassigned"/,
-    );
     assert.match(route, /<OperationalScopeFilter/);
     assert.match(route, /includeUnassigned/);
     assert.match(
@@ -106,6 +102,15 @@ test("operational filters are role-scoped and query the existing authoritative l
     assert.match(route, /assignment_status: value === "unassigned" \? "unassigned" : undefined/);
     assert.match(route, /navigate\(\{ search: \{\}, replace: true \}\)/);
   }
+
+  assert.match(
+    reports,
+    /assignment_status:\s*roleCode === "admin" && satgasId === "unassigned"/,
+  );
+  assert.match(
+    cases,
+    /assignment_status:\s*\(roleCode === "admin" \|\| roleCode === "satgas_ppks"\) && satgasId === "unassigned"/,
+  );
 
   assert.match(
     reports,

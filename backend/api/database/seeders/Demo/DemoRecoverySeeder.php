@@ -59,7 +59,7 @@ class DemoRecoverySeeder extends Seeder
             );
 
             if ($statusName !== RecoveryStatusEnum::Planned->value) {
-                $monitor = $case->activeAssignments()->where('is_lead', true)->firstOrFail()->satgas;
+                $monitor = $case->activeAssignments()->oldest('id')->firstOrFail()->satgas;
                 RecoveryMonitoring::query()->updateOrCreate(
                     [
                         'recovery_id' => $recovery->id,

@@ -25,6 +25,13 @@ use Illuminate\Support\Facades\DB;
 
 class CaseService
 {
+    private const ASSIGNMENT_READ_ONLY_STATUSES = [
+        'decided',
+        'recovery',
+        'monitoring',
+        'escalated',
+    ];
+
     public function __construct(
         private readonly NotificationService $notificationService,
         private readonly AuditLogService $auditLogService,
@@ -94,11 +101,10 @@ class CaseService
         $this->authorizeForward($report, $actor);
         $satgasIds = $this->validatedSatgasIds(
             $data['satgas_ids'],
-            (int) $data['lead_satgas_id'],
             $this->campusScope->reportUniversityId($report),
         );
 
-        return DB::transaction(function () use ($report, $actor, $satgasIds, $data): CaseRecord {
+        return DB::transaction(function () use ($report, $actor, $satgasIds): CaseRecord {
             $report = Report::query()
                 ->with('reporter:id,university_id')
                 ->whereKey($report->id)
@@ -109,7 +115,6 @@ class CaseService
             $this->authorizeForward($report, $actor);
             $satgasIds = $this->validatedSatgasIds(
                 $satgasIds,
-                (int) $data['lead_satgas_id'],
                 $this->campusScope->reportUniversityId($report),
             );
             $status = $this->statusByName(CaseStatusEnum::Forwarded);
@@ -126,7 +131,7 @@ class CaseService
                 'forwarded_at' => $forwardedAt,
             ]);
 
-            $this->createAssignments($case, $actor, $satgasIds, (int) $data['lead_satgas_id']);
+            $this->createAssignments($case, $actor, $satgasIds);
 
             $previousReportStatus = $report->status;
             $report->forceFill([
@@ -163,7 +168,14 @@ class CaseService
                 ],
                 afterChanges: ['status_code' => $case->status_code],
             );
-            $this->recordAssignmentAudit($case, $actor, count($satgasIds));
+            $this->recordAssignmentAudit(
+                $case,
+                $actor,
+                AuditAction::CaseAssigned,
+                [],
+                $satgasIds,
+                'assign',
+            );
 
             $this->notificationService->caseAssigned($case, $satgasIds);
 
@@ -178,7 +190,7 @@ class CaseService
     public function listForUser(User $user, array $filters = []): LengthAwarePaginator
     {
         $query = CaseRecord::query()
-            ->with(['status', 'riskLevel', 'priorityLevel', 'activeAssignments.satgas'])
+            ->with(['status', 'riskLevel', 'priorityLevel', 'activeAssignments.satgas', 'pendingFormalWithdrawal'])
             ->latest('forwarded_at');
 
         if ($this->canReadMetadata($user)) {
@@ -186,9 +198,20 @@ class CaseService
                 $this->campusScope->scopeCases($query, $user);
             }
         } elseif ($this->canReadAssigned($user)) {
-            $query
-                ->with('reportSensitive')
-                ->whereHas('activeAssignments', fn (Builder $query): Builder => $query->where('satgas_id', $user->id));
+            $this->campusScope->scopeCasesToOperationalCampus($query, $user);
+
+            if (($filters['assignment_status'] ?? null) === 'unassigned') {
+                $query
+                    ->operationallyActive()
+                    ->whereHas('status', fn (Builder $query): Builder => $query
+                        ->whereNotIn('name', self::ASSIGNMENT_READ_ONLY_STATUSES))
+                    ->whereDoesntHave('activeAssignments')
+                    ->whereDoesntHave('pendingFormalWithdrawal');
+            } else {
+                $query
+                    ->with('reportSensitive')
+                    ->whereHas('activeAssignments', fn (Builder $query): Builder => $query->where('satgas_id', $user->id));
+            }
         } else {
             throw $this->forbidden();
         }
@@ -235,16 +258,21 @@ class CaseService
             );
         }
 
-        if (($filters['assignment_status'] ?? null) === 'unassigned') {
+        if (($filters['assignment_status'] ?? null) === 'unassigned' && $user->hasRole('admin')) {
             $query->whereDoesntHave('activeAssignments');
         }
 
-        return $query->paginate((int) ($filters['per_page'] ?? 15));
+        $paginator = $query->paginate((int) ($filters['per_page'] ?? 15));
+        $paginator->getCollection()->each(function (CaseRecord $case) use ($user): void {
+            $case->setAttribute('assignment_capabilities', $this->assignmentCapabilities($case, $user));
+        });
+
+        return $paginator;
     }
 
     public function loadForUser(CaseRecord $case, User $user): CaseRecord
     {
-        $relations = ['status', 'riskLevel', 'priorityLevel', 'activeAssignments.satgas'];
+        $relations = ['status', 'riskLevel', 'priorityLevel', 'activeAssignments.satgas', 'pendingFormalWithdrawal'];
         $canReadSubmittedDetails = ($this->canReadAssigned($user) && $this->isAssignedTo($case, $user))
             || $this->campusScope->canSensitiveOversight($user)
             || ($user->hasRole('admin') && $this->campusScope->sameCampus($user, $case));
@@ -263,9 +291,17 @@ class CaseService
             $relations[] = 'report';
         }
 
+        if (
+            ($user->hasRole('admin') && $this->campusScope->sameCampus($user, $case))
+            || ($this->canReadAssigned($user) && $this->isAssignedTo($case, $user))
+        ) {
+            array_push($relations, 'assignments.satgas:id,name', 'assignments.assignedBy:id,name');
+        }
+
         $case->load($relations);
         $case->setAttribute('include_report_input_details', $canReadSubmittedDetails);
         $case->setAttribute('workflow_context', $this->workflowContextService->forCase($case, $user));
+        $case->setAttribute('assignment_capabilities', $this->assignmentCapabilities($case, $user));
 
         return $case;
     }
@@ -275,13 +311,7 @@ class CaseService
      */
     public function assignSatgas(CaseRecord $case, User $actor, array $data): CaseRecord
     {
-        $satgasIds = $this->validatedSatgasIds(
-            $data['satgas_ids'],
-            (int) $data['lead_satgas_id'],
-            $this->campusScope->caseUniversityId($case),
-        );
-
-        return DB::transaction(function () use ($case, $actor, $satgasIds, $data): CaseRecord {
+        return DB::transaction(function () use ($case, $actor, $data): CaseRecord {
             $case = $this->caseMutationGuard
                 ->lockAndAssertMutable($case)
                 ->load('report.reporter:id,university_id');
@@ -291,19 +321,29 @@ class CaseService
                 ! $actor->is_active
                 || ! $actor->hasRole('admin')
                 || ! $actor->hasPermission('cases.assign_satgas')
-                || ! $this->campusScope->sameCampus($actor, $case)
+                || ! $this->campusScope->sameOperationalCampus($actor, $case)
             ) {
                 throw $this->forbidden();
             }
+
+            $this->assertAssignmentLifecycleMutable($case);
+            $this->assertAssignmentLockVersion($case, (string) $data['lock_version']);
             $satgasIds = $this->validatedSatgasIds(
-                $satgasIds,
-                (int) $data['lead_satgas_id'],
+                $data['satgas_ids'],
                 $this->campusScope->caseUniversityId($case),
             );
             $previousActiveSatgasIds = $case->activeAssignments()
                 ->pluck('satgas_id')
                 ->map(fn ($id): int => (int) $id)
                 ->all();
+
+            sort($previousActiveSatgasIds);
+            $sortedSatgasIds = $satgasIds;
+            sort($sortedSatgasIds);
+
+            if ($previousActiveSatgasIds === $sortedSatgasIds) {
+                throw $this->conflict(ApiErrorCode::CaseAssignmentUnchanged);
+            }
 
             $case->activeAssignments()
                 ->whereNotIn('satgas_id', $satgasIds)
@@ -318,24 +358,19 @@ class CaseService
                     ->where('satgas_id', $satgasId)
                     ->first();
 
-                if (! $assignment) {
-                    $assignment = $case->assignments()->make([
-                        'satgas_id' => $satgasId,
-                        'assigned_at' => now(),
-                    ]);
+                if ($assignment) {
+                    continue;
                 }
 
-                $assignment->fill([
+                $case->assignments()->create([
+                    'satgas_id' => $satgasId,
                     'assigned_by' => $actor->id,
-                    'is_lead' => $satgasId === (int) $data['lead_satgas_id'],
+                    'is_lead' => false,
                     'is_active' => true,
+                    'assigned_at' => now(),
                     'unassigned_at' => null,
-                ])->save();
+                ]);
             }
-
-            $case->activeAssignments()
-                ->where('satgas_id', '!=', (int) $data['lead_satgas_id'])
-                ->update(['is_lead' => false]);
 
             $newlyAssignedSatgasIds = array_values(array_diff($satgasIds, $previousActiveSatgasIds));
 
@@ -343,9 +378,62 @@ class CaseService
                 $this->notificationService->caseAssigned($case, $newlyAssignedSatgasIds);
             }
 
-            $this->recordAssignmentAudit($case, $actor, count($satgasIds));
+            $this->recordAssignmentAudit(
+                $case,
+                $actor,
+                $previousActiveSatgasIds === [] ? AuditAction::CaseAssigned : AuditAction::CaseReassigned,
+                $previousActiveSatgasIds,
+                $satgasIds,
+                $previousActiveSatgasIds === [] ? 'assign' : 'reassign',
+            );
 
-            return $this->loadForUser($case, $actor);
+            return $this->loadForAssignmentResponse($case, $actor);
+        });
+    }
+
+    public function selfAssign(CaseRecord $case, User $actor, string $expectedLockVersion): CaseRecord
+    {
+        return DB::transaction(function () use ($case, $actor, $expectedLockVersion): CaseRecord {
+            $case = $this->caseMutationGuard
+                ->lockAndAssertMutable($case)
+                ->load('report.reporter:id,university_id');
+            $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
+
+            if (
+                ! $actor->is_active
+                || ! $actor->hasRole('satgas_ppks')
+                || ! $actor->hasPermission('cases.read.assigned')
+                || ! $this->campusScope->sameOperationalCampus($actor, $case)
+            ) {
+                throw $this->forbidden();
+            }
+
+            $this->assertAssignmentLifecycleMutable($case);
+            $this->assertAssignmentLockVersion($case, $expectedLockVersion);
+
+            if ($case->activeAssignments()->exists()) {
+                throw $this->conflict(ApiErrorCode::CaseAssignmentUnavailable);
+            }
+
+            $case->assignments()->create([
+                'satgas_id' => $actor->id,
+                'assigned_by' => $actor->id,
+                'is_lead' => false,
+                'is_active' => true,
+                'assigned_at' => now(),
+            ]);
+
+            $this->recordAssignmentAudit(
+                $case,
+                $actor,
+                AuditAction::CaseSelfAssigned,
+                [],
+                [$actor->id],
+                'self_assign',
+            );
+            $this->notificationService->caseAssigned($case, [$actor->id]);
+
+            return $this->loadForAssignmentResponse($case, $actor);
         });
     }
 
@@ -441,12 +529,12 @@ class CaseService
      * @param  list<int|string>  $satgasIds
      * @return list<int>
      */
-    private function validatedSatgasIds(array $satgasIds, int $leadSatgasId, ?int $universityId): array
+    private function validatedSatgasIds(array $satgasIds, ?int $universityId): array
     {
         $ids = array_values(array_unique(array_map('intval', $satgasIds)));
 
-        if ($ids === [] || ! in_array($leadSatgasId, $ids, true)) {
-            throw $this->unprocessable('Lead Satgas must be included in satgas_ids');
+        if ($ids === []) {
+            throw $this->unprocessable('At least one Satgas assignee is required');
         }
 
         if ($universityId === null) {
@@ -470,23 +558,33 @@ class CaseService
     /**
      * @param  list<int>  $satgasIds
      */
-    private function createAssignments(CaseRecord $case, User $actor, array $satgasIds, int $leadSatgasId): void
+    private function createAssignments(CaseRecord $case, User $actor, array $satgasIds): void
     {
         foreach ($satgasIds as $satgasId) {
             $case->assignments()->create([
                 'satgas_id' => $satgasId,
                 'assigned_by' => $actor->id,
-                'is_lead' => $satgasId === $leadSatgasId,
+                'is_lead' => false,
                 'is_active' => true,
                 'assigned_at' => now(),
             ]);
         }
     }
 
-    private function recordAssignmentAudit(CaseRecord $case, User $actor, int $assignmentCount): void
-    {
+    /**
+     * @param  list<int>  $previousAssigneeIds
+     * @param  list<int>  $assigneeIds
+     */
+    private function recordAssignmentAudit(
+        CaseRecord $case,
+        User $actor,
+        AuditAction $action,
+        array $previousAssigneeIds,
+        array $assigneeIds,
+        string $assignmentAction,
+    ): void {
         $this->auditLogService->record(
-            action: AuditAction::CaseAssigned,
+            action: $action,
             category: AuditCategory::Case,
             severity: AuditSeverity::Info,
             actor: $actor,
@@ -495,7 +593,10 @@ class CaseService
                 'case_number' => $case->case_number,
                 'registration_number' => $case->registration_number,
                 'status_code' => $case->status_code,
-                'assignment_count' => $assignmentCount,
+                'assignment_count' => count($assigneeIds),
+                'assignment_action' => $assignmentAction,
+                'previous_assignee_ids' => implode(',', $previousAssigneeIds),
+                'assignee_ids' => implode(',', $assigneeIds),
             ],
         );
     }
@@ -602,10 +703,117 @@ class CaseService
     private function loadForWorkflowResponse(CaseRecord $case, User $actor): CaseRecord
     {
         $case->unsetRelation('report')->unsetRelation('reportSensitive');
-        $case->load(['status', 'riskLevel', 'priorityLevel', 'activeAssignments.satgas']);
+        $case->load(['status', 'riskLevel', 'priorityLevel', 'activeAssignments.satgas', 'pendingFormalWithdrawal']);
         $case->setAttribute('workflow_context', $this->workflowContextService->forCase($case, $actor));
+        $case->setAttribute('assignment_capabilities', $this->assignmentCapabilities($case, $actor));
 
         return $case;
+    }
+
+    private function loadForAssignmentResponse(CaseRecord $case, User $actor): CaseRecord
+    {
+        $case->unsetRelation('reportSensitive');
+        $case->load([
+            'status',
+            'riskLevel',
+            'priorityLevel',
+            'activeAssignments.satgas',
+            'pendingFormalWithdrawal',
+            'assignments.satgas:id,name',
+            'assignments.assignedBy:id,name',
+        ]);
+        $case->setAttribute('workflow_context', $this->workflowContextService->forCase($case, $actor));
+        $case->setAttribute('assignment_capabilities', $this->assignmentCapabilities($case, $actor));
+
+        return $case;
+    }
+
+    /**
+     * @return array{
+     *     manage: array{allowed: bool, reason_code: string|null},
+     *     self_assign: array{allowed: bool, reason_code: string|null}
+     * }
+     */
+    private function assignmentCapabilities(CaseRecord $case, User $actor): array
+    {
+        $terminal = $case->isOperationallyTerminal();
+        $assignmentReadOnly = $this->isAssignmentLifecycleReadOnly($case);
+        $paused = $case->relationLoaded('pendingFormalWithdrawal')
+            ? $case->pendingFormalWithdrawal !== null
+            : $case->pendingFormalWithdrawal()->exists();
+        $sameCampus = $actor->hasRole('satgas_ppks')
+            ? $this->campusScope->sameOperationalCampus($actor, $case)
+            : $this->campusScope->sameCampus($actor, $case);
+        $hasAssignments = $case->relationLoaded('activeAssignments')
+            ? $case->activeAssignments->isNotEmpty()
+            : $case->activeAssignments()->exists();
+
+        $manageAllowed = $actor->is_active
+            && $actor->hasRole('admin')
+            && $actor->hasPermission('cases.assign_satgas')
+            && $sameCampus
+            && ! $terminal
+            && ! $assignmentReadOnly
+            && ! $paused;
+        $selfAssignAllowed = $actor->is_active
+            && $actor->hasRole('satgas_ppks')
+            && $actor->hasPermission('cases.read.assigned')
+            && $sameCampus
+            && ! $terminal
+            && ! $assignmentReadOnly
+            && ! $paused
+            && ! $hasAssignments;
+
+        return [
+            'manage' => [
+                'allowed' => $manageAllowed,
+                'reason_code' => $manageAllowed
+                    ? null
+                    : $this->assignmentReason($terminal, $assignmentReadOnly, $paused, false),
+            ],
+            'self_assign' => [
+                'allowed' => $selfAssignAllowed,
+                'reason_code' => $selfAssignAllowed
+                    ? null
+                    : $this->assignmentReason($terminal, $assignmentReadOnly, $paused, $hasAssignments),
+            ],
+        ];
+    }
+
+    private function assignmentReason(
+        bool $terminal,
+        bool $assignmentReadOnly,
+        bool $paused,
+        bool $hasAssignments,
+    ): string {
+        return match (true) {
+            $terminal => ApiErrorCode::CaseOperationallyTerminal,
+            $paused => ApiErrorCode::WithdrawalPendingReview,
+            $assignmentReadOnly => ApiErrorCode::CaseAssignmentReadOnly,
+            $hasAssignments => ApiErrorCode::CaseAssignmentUnavailable,
+            default => 'permission_missing',
+        };
+    }
+
+    private function assertAssignmentLifecycleMutable(CaseRecord $case): void
+    {
+        if ($this->isAssignmentLifecycleReadOnly($case)) {
+            throw $this->conflict(ApiErrorCode::CaseAssignmentReadOnly);
+        }
+    }
+
+    private function isAssignmentLifecycleReadOnly(CaseRecord $case): bool
+    {
+        $case->loadMissing('status');
+
+        return in_array($case->status?->name, self::ASSIGNMENT_READ_ONLY_STATUSES, true);
+    }
+
+    private function assertAssignmentLockVersion(CaseRecord $case, string $expected): void
+    {
+        if (! hash_equals($case->assignmentLockVersion(), $expected)) {
+            throw $this->conflict(ApiErrorCode::CaseAssignmentStale);
+        }
     }
 
     private function canReadAssigned(User $user): bool
@@ -648,5 +856,18 @@ class CaseService
             'error_code' => $errorCode,
             'errors' => null,
         ], 422));
+    }
+
+    private function conflict(string $errorCode): HttpResponseException
+    {
+        return new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => __("api.errors.{$errorCode}"),
+            'error_code' => $errorCode,
+            'errors' => null,
+        ], 409)->withHeaders([
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'Pragma' => 'no-cache',
+        ]));
     }
 }

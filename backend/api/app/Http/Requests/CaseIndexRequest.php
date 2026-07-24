@@ -43,7 +43,8 @@ class CaseIndexRequest extends FormRequest
                 'sometimes',
                 'bail',
                 Rule::prohibitedIf(
-                    fn (): bool => ! $actor?->hasRole('admin') || $actor->university_id === null
+                    fn (): bool => ! ($actor?->hasRole('admin') || $actor?->hasRole('satgas_ppks'))
+                        || $actor->university_id === null
                 ),
                 Rule::prohibitedIf(fn (): bool => $this->filled('satgas_id')),
                 'string',

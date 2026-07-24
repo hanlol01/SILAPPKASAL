@@ -29,14 +29,14 @@ class DemoInvestigationSeeder extends Seeder
     {
         foreach ($this->statuses as $caseNumber => $statusName) {
             $case = CaseRecord::query()->where('case_number', $caseNumber)->firstOrFail();
-            $lead = $case->activeAssignments()->where('is_lead', true)->firstOrFail()->satgas;
+            $investigator = $case->activeAssignments()->oldest('id')->firstOrFail()->satgas;
             $status = DemoSeed::investigationStatus($statusName);
             $completed = $statusName === InvestigationStatusEnum::Completed->value;
 
             $investigation = Investigation::query()->updateOrCreate(
                 ['case_id' => $case->id],
                 [
-                    'lead_investigator_id' => $lead->id,
+                    'lead_investigator_id' => $investigator->id,
                     'status_code' => $status->code,
                     'plan_summary' => 'Rencana investigasi demo mencakup penelaahan kronologi, review dokumen pendukung, dan wawancara pihak terkait dengan pendekatan aman serta berperspektif korban.',
                     'findings' => $completed ? 'Temuan demo menunjukkan adanya konsistensi informasi awal dan kebutuhan tindak lanjut kelembagaan. Data ini fiktif untuk simulasi workflow.' : null,
@@ -46,12 +46,12 @@ class DemoInvestigationSeeder extends Seeder
                 ]
             );
 
-            $this->activity($investigation, $lead->id, InvestigationActivityType::CaseReview->value, 8, 'Review awal pengaduan dan metadata kasus.');
-            $this->activity($investigation, $lead->id, InvestigationActivityType::DocumentReview->value, 7, 'Penelaahan dokumen dan tangkapan layar yang dicatat sebagai metadata.');
+            $this->activity($investigation, $investigator->id, InvestigationActivityType::CaseReview->value, 8, 'Review awal pengaduan dan metadata kasus.');
+            $this->activity($investigation, $investigator->id, InvestigationActivityType::DocumentReview->value, 7, 'Penelaahan dokumen dan tangkapan layar yang dicatat sebagai metadata.');
 
             if ($completed) {
-                $this->activity($investigation, $lead->id, InvestigationActivityType::VictimInterview->value, 6, 'Wawancara demo dilakukan dengan catatan ringkas yang tidak memuat identitas nyata.');
-                $this->activity($investigation, $lead->id, InvestigationActivityType::TimelineReview->value, 5, 'Penyusunan timeline demo untuk validasi tampilan workflow.');
+                $this->activity($investigation, $investigator->id, InvestigationActivityType::VictimInterview->value, 6, 'Wawancara demo dilakukan dengan catatan ringkas yang tidak memuat identitas nyata.');
+                $this->activity($investigation, $investigator->id, InvestigationActivityType::TimelineReview->value, 5, 'Penyusunan timeline demo untuk validasi tampilan workflow.');
             }
         }
     }

@@ -59,10 +59,10 @@ function ReportDetailPage() {
   const isAnonymousReport = Boolean(report.is_anonymous || report.report_type === "anonymous");
   const reportCase = report.case ?? null;
   const activeAssignments = reportCase?.active_assignments ?? [];
-  const assignmentMode = reportCase ? "assign-case" : "forward-report";
-  const canManageAssignment = reportCase
-    ? roleCode === "admin" && Boolean(user?.permissions?.includes("cases.assign_satgas"))
-    : roleCode === "admin" && Boolean(user?.permissions?.includes("reports.forward"));
+  const canManageAssignment =
+    reportCase === null
+    && roleCode === "admin"
+    && Boolean(user?.permissions?.includes("reports.forward"));
   const sensitiveOversightEnabled =
     roleCode === "super_admin" && report.submitted_details !== undefined;
   const canViewSubmittedDetails = report.submitted_details !== undefined;
@@ -179,9 +179,7 @@ function ReportDetailPage() {
                           {assignment.satgas_name ?? t("dashboard:common.metadataUnavailable")}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {assignment.is_lead
-                            ? t("dashboard:cases.leadSatgas")
-                            : t("dashboard:cases.assignedSatgas")}
+                          {t("dashboard:cases.assignedSatgas")}
                         </p>
                       </div>
                     ))
@@ -196,13 +194,9 @@ function ReportDetailPage() {
               {canManageAssignment && (
                 <>
                   <SatgasAssignmentAction
-                    mode={assignmentMode}
-                    targetId={reportCase?.id ?? report.id}
+                    mode="forward-report"
+                    targetId={report.id}
                     reportId={report.id}
-                    currentSatgasIds={activeAssignments.map((assignment) => assignment.satgas_id)}
-                    currentLeadSatgasId={
-                      activeAssignments.find((assignment) => assignment.is_lead)?.satgas_id ?? null
-                    }
                   />
                   <p className="text-xs text-muted-foreground">{t("dashboard:reports.satgasHint")}</p>
                 </>

@@ -285,13 +285,15 @@ Alur status:
 | `id` | `bigint` | PK, auto-increment | — |
 | `case_id` | `bigint` | FK → `cases.id`, NOT NULL | — |
 | `satgas_id` | `bigint` | FK → `users.id`, NOT NULL | Satgas yang ditugaskan |
-| `assigned_by` | `bigint` | FK → `users.id`, NOT NULL | Admin/Super Admin yang menugaskan |
-| `is_lead` | `boolean` | NOT NULL, DEFAULT `false` | Satgas utama kasus |
-| `is_active` | `boolean` | NOT NULL, DEFAULT `true` | — |
+| `assigned_by` | `bigint` | FK → `users.id`, NOT NULL | Actor penugasan; sama dengan `satgas_id` untuk self-assignment |
+| `is_lead` | `boolean` | NOT NULL, DEFAULT `false` | Kolom kompatibilitas legacy; tidak memberi kewenangan operasional dan selalu `false` untuk assignment baru |
+| `is_active` | `boolean` | NOT NULL, DEFAULT `true` | Hanya baris aktif yang menjadi penugasan saat ini |
 | `assigned_at` | `timestamp` | NOT NULL | — |
 | `unassigned_at` | `timestamp` | NULLABLE | — |
 | `created_at` | `timestamp` | — | — |
 | `updated_at` | `timestamp` | — | — |
+
+Baris lama tidak dihapus saat reassign. Assignment yang berakhir diubah menjadi `is_active=false` dengan `unassigned_at`, sedangkan assignment baru memakai baris baru. Tidak ada schema baru untuk optimistic locking: API memproyeksikan token `lock_version` opaque dari state Case dan assignment aktif; semua keputusan mutation tetap dilakukan setelah row lock Report → Case → pending Withdrawal.
 
 ### 3.9 `evidences`
 

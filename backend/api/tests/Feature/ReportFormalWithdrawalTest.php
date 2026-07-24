@@ -835,7 +835,7 @@ class ReportFormalWithdrawalTest extends TestCase
         foreach ([
             'assignment' => fn () => app(CaseService::class)->assignSatgas($case, $admin, [
                 'satgas_ids' => [$otherSatgas->id],
-                'lead_satgas_id' => $otherSatgas->id,
+                'lock_version' => $case->assignmentLockVersion(),
             ]),
             'assessment' => fn () => app(CaseService::class)->recordAssessment($case, $satgas, [
                 'risk_level_code' => 'RISK-02',

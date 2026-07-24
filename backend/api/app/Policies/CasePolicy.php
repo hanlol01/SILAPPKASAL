@@ -35,7 +35,15 @@ class CasePolicy extends BasePolicy
         return ! $case->isClosed()
             && $this->allowPermission($user, 'cases.assign_satgas')
             && $this->allowRole($user, 'admin')
-            && $this->campusScope->sameCampus($user, $case);
+            && $this->campusScope->sameOperationalCampus($user, $case);
+    }
+
+    public function selfAssign(User $user, CaseRecord $case): bool
+    {
+        return $user->is_active
+            && $this->allowPermission($user, 'cases.read.assigned')
+            && $this->allowRole($user, 'satgas_ppks')
+            && $this->campusScope->sameOperationalCampus($user, $case);
     }
 
     public function updateStatus(User $user, CaseRecord $case): bool

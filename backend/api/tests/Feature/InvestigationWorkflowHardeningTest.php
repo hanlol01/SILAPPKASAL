@@ -108,9 +108,9 @@ class InvestigationWorkflowHardeningTest extends TestCase
         $this->assertSame('lifecycle_controlled', $context['actions']['update_case_status']['reason_code']);
     }
 
-    public function test_only_active_assigned_lead_can_create_and_server_derives_lead(): void
+    public function test_any_active_assigned_satgas_can_create_and_server_derives_investigator(): void
     {
-        [, $lead, $case] = $this->caseWithLead(CaseStatusEnum::Investigation);
+        [, , $case] = $this->caseWithLead(CaseStatusEnum::Investigation);
         $member = $this->makeUser('satgas_ppks', 'member@example.test');
         CaseAssignment::query()->create([
             'case_id' => $case->id,
@@ -132,13 +132,10 @@ class InvestigationWorkflowHardeningTest extends TestCase
         ]);
 
         $payload = ['plan_summary' => str_repeat('Rencana investigasi aman. ', 3)];
-        $this->actingAsApi($member);
-        $this->postJson("/api/v1/cases/{$case->id}/investigations", $payload)->assertForbidden();
-
         $this->actingAsApi($inactiveLead);
         $this->postJson("/api/v1/cases/{$case->id}/investigations", $payload)->assertForbidden();
 
-        $this->actingAsApi($lead);
+        $this->actingAsApi($member);
         $this->postJson("/api/v1/cases/{$case->id}/investigations", [
             ...$payload,
             'lead_investigator_id' => $member->id,
@@ -146,7 +143,7 @@ class InvestigationWorkflowHardeningTest extends TestCase
 
         $this->postJson("/api/v1/cases/{$case->id}/investigations", $payload)
             ->assertCreated()
-            ->assertJsonPath('data.lead_investigator.id', $lead->id);
+            ->assertJsonPath('data.lead_investigator.id', $member->id);
     }
 
     public function test_activity_uses_locked_server_stage_and_enforces_type_compatibility(): void

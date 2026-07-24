@@ -380,6 +380,13 @@ export function updateEvidenceStatus(id: string | number, payload: EvidenceStatu
   });
 }
 
+export function selfAssignCase(id: string | number, lockVersion: string) {
+  return apiRequest<CaseRecord>(`/cases/${id}/self-assign`, {
+    method: "POST",
+    body: JSON.stringify({ lock_version: lockVersion }),
+  });
+}
+
 export function createCaseFinalSummary(caseId: string | number, payload: CaseFinalSummaryPayload) {
   return apiRequest<CaseFinalSummary>(`/cases/${caseId}/final-summary`, {
     method: "POST",

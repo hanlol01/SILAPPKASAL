@@ -118,7 +118,7 @@ class CaseWithdrawnTerminalTest extends TestCase
         Sanctum::actingAs($this->admin, ['*']);
         $this->patchJson("/api/v1/cases/{$this->case->id}/assign", [
             'satgas_ids' => [$otherSatgas->id],
-            'lead_satgas_id' => $otherSatgas->id,
+            'lock_version' => $this->case->assignmentLockVersion(),
         ])
             ->assertConflict()
             ->assertJsonPath('error_code', 'case_operationally_terminal');

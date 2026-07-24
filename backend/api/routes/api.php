@@ -249,6 +249,8 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('/{case}/status', [CaseController::class, 'updateStatus']);
         Route::patch('/{case}/assessment', [CaseController::class, 'updateAssessment']);
         Route::patch('/{case}/assign', [CaseController::class, 'assign']);
+        Route::post('/{case}/self-assign', [CaseController::class, 'selfAssign'])
+            ->middleware('throttle:30,1');
     });
 
     Route::middleware('auth:sanctum')->prefix('investigations')->group(function (): void {

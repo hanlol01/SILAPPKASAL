@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\ReportWithdrawalRequestType;
 use App\Enums\ReportWithdrawalStatus;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -121,6 +122,40 @@ class CaseRecord extends Model
         return $this->activeAssignments()
             ->where('satgas_id', $user->id)
             ->exists();
+    }
+
+    /**
+     * Opaque optimistic-lock token for assignment mutations. It deliberately
+     * derives from existing Case and assignment state so no schema migration is
+     * required, while every assignment mutation remains serialized by the Case
+     * row lock.
+     */
+    public function assignmentLockVersion(): string
+    {
+        $this->loadMissing('activeAssignments');
+
+        $assignments = $this->activeAssignments
+            ->sortBy('id')
+            ->map(fn (CaseAssignment $assignment): array => [
+                'id' => (int) $assignment->id,
+                'satgas_id' => (int) $assignment->satgas_id,
+                'assigned_by' => (int) $assignment->assigned_by,
+                'assigned_at' => $this->assignmentTokenTimestamp($assignment->assigned_at),
+                'updated_at' => $this->assignmentTokenTimestamp($assignment->updated_at),
+            ])
+            ->values()
+            ->all();
+
+        return hash('sha256', json_encode([
+            'case_id' => (int) $this->id,
+            'status_code' => (string) $this->status_code,
+            'assignments' => $assignments,
+        ], JSON_THROW_ON_ERROR));
+    }
+
+    private function assignmentTokenTimestamp(?CarbonInterface $timestamp): ?string
+    {
+        return $timestamp?->copy()->utc()->format('Y-m-d\TH:i:s.u\Z');
     }
 
     public function isOperationallyTerminal(): bool

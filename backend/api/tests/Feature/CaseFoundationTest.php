@@ -62,7 +62,6 @@ class CaseFoundationTest extends TestCase
         $this->actingAsApi($admin);
         $response = $this->postJson("/api/v1/reports/{$report->id}/forward-to-case", [
             'satgas_ids' => [$satgas->id],
-            'lead_satgas_id' => $satgas->id,
         ]);
 
         $response->assertOk()
@@ -70,7 +69,7 @@ class CaseFoundationTest extends TestCase
             ->assertJsonPath('data.report.status', ReportStatus::Forwarded->value)
             ->assertJsonPath('data.case.status', CaseStatusEnum::Forwarded->value)
             ->assertJsonPath('data.case.assignments.0.satgas_id', $satgas->id)
-            ->assertJsonPath('data.case.assignments.0.is_lead', true);
+            ->assertJsonMissingPath('data.case.assignments.0.is_lead');
 
         $report->refresh();
         $case = CaseRecord::query()->where('report_id', $report->id)->firstOrFail();
@@ -97,7 +96,6 @@ class CaseFoundationTest extends TestCase
         $report = $this->makeReport();
         $payload = [
             'satgas_ids' => [$satgas->id],
-            'lead_satgas_id' => $satgas->id,
         ];
 
         foreach ([$otherAdmin, $adminWithoutCampus] as $deniedAdmin) {
@@ -113,12 +111,16 @@ class CaseFoundationTest extends TestCase
         $caseId = $this->postJson("/api/v1/reports/{$report->id}/forward-to-case", $payload)
             ->assertOk()
             ->json('data.case.id');
+        $assignmentPayload = [
+            ...$payload,
+            'lock_version' => CaseRecord::query()->findOrFail($caseId)->assignmentLockVersion(),
+        ];
 
         foreach ([$otherAdmin, $adminWithoutCampus] as $deniedAdmin) {
             $this->actingAsApi($deniedAdmin);
             $this->getJson('/api/v1/cases')->assertOk()->assertJsonPath('meta.total', 0);
             $this->getJson("/api/v1/cases/{$caseId}")->assertForbidden();
-            $this->patchJson("/api/v1/cases/{$caseId}/assign", $payload)->assertForbidden();
+            $this->patchJson("/api/v1/cases/{$caseId}/assign", $assignmentPayload)->assertForbidden();
         }
 
         config()->set('oversight.cross_campus_sensitive_read', false);
@@ -132,7 +134,7 @@ class CaseFoundationTest extends TestCase
         $unforwardedReport = $this->makeReport();
         $this->postJson("/api/v1/reports/{$unforwardedReport->id}/forward-to-case", $payload)
             ->assertForbidden();
-        $this->patchJson("/api/v1/cases/{$caseId}/assign", $payload)->assertForbidden();
+        $this->patchJson("/api/v1/cases/{$caseId}/assign", $assignmentPayload)->assertForbidden();
         $this->patchJson("/api/v1/cases/{$caseId}/status", [
             'status' => CaseStatusEnum::Assessment->value,
         ])->assertForbidden();
@@ -162,7 +164,6 @@ class CaseFoundationTest extends TestCase
         $this->actingAsApi($otherAdmin);
         $this->postJson("/api/v1/reports/{$otherReport->id}/forward-to-case", [
             'satgas_ids' => [$otherSatgas->id],
-            'lead_satgas_id' => $otherSatgas->id,
         ])->assertOk();
 
         $this->actingAsApi($admin);
@@ -271,7 +272,7 @@ class CaseFoundationTest extends TestCase
 
         $this->actingAsApi($satgas);
         $this->getJson('/api/v1/reports?assignment_status=unassigned')->assertUnprocessable();
-        $this->getJson('/api/v1/cases?assignment_status=unassigned')->assertUnprocessable();
+        $this->getJson('/api/v1/cases?assignment_status=unassigned')->assertOk();
 
         $adminWithoutCampus = $this->makeUser(
             'admin',
@@ -292,7 +293,6 @@ class CaseFoundationTest extends TestCase
         $this->actingAsApi($admin);
         $this->postJson("/api/v1/reports/{$report->id}/forward-to-case", [
             'satgas_ids' => [$reporter->id],
-            'lead_satgas_id' => $reporter->id,
         ])
             ->assertUnprocessable()
             ->assertJsonPath('success', false);
@@ -313,7 +313,6 @@ class CaseFoundationTest extends TestCase
         $this->actingAsApi($admin);
         $this->postJson("/api/v1/reports/{$report->id}/forward-to-case", [
             'satgas_ids' => [$satgas->id],
-            'lead_satgas_id' => $satgas->id,
         ])->assertServerError();
 
         $this->assertDatabaseCount('cases', 0);
@@ -327,7 +326,7 @@ class CaseFoundationTest extends TestCase
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
         $report = $this->makeReport();
 
-        $payload = ['satgas_ids' => [$satgas->id], 'lead_satgas_id' => $satgas->id];
+        $payload = ['satgas_ids' => [$satgas->id]];
 
         $this->actingAsApi($admin);
         $this->postJson("/api/v1/reports/{$report->id}/forward-to-case", $payload)
@@ -475,7 +474,7 @@ class CaseFoundationTest extends TestCase
         $this->actingAsApi($admin);
         $this->patchJson("/api/v1/cases/{$case->id}/assign", [
             'satgas_ids' => [$satgasB->id],
-            'lead_satgas_id' => $satgasB->id,
+            'lock_version' => $case->assignmentLockVersion(),
         ])
             ->assertOk()
             ->assertJsonPath('data.assignments.0.satgas_id', $satgasB->id);
@@ -489,7 +488,7 @@ class CaseFoundationTest extends TestCase
             'case_id' => $case->id,
             'satgas_id' => $satgasB->id,
             'is_active' => true,
-            'is_lead' => true,
+            'is_lead' => false,
         ]);
         $this->assertSame(2, CaseAssignment::query()->where('case_id', $case->id)->count());
     }
@@ -511,8 +510,8 @@ class CaseFoundationTest extends TestCase
             ->assertJsonPath('data.case.case_number', $case->case_number)
             ->assertJsonPath('data.case.active_assignments.0.satgas_id', $satgas->id)
             ->assertJsonPath('data.case.active_assignments.0.satgas_name', $satgas->name)
-            ->assertJsonPath('data.case.active_assignments.0.is_lead', true)
             ->assertJsonPath('data.case.active_assignments.0.is_active', true)
+            ->assertJsonMissingPath('data.case.active_assignments.0.is_lead')
             ->assertJsonMissingPath('data.case.report')
             ->assertJsonMissingPath('data.case.active_assignments.0.id')
             ->assertJsonMissingPath('data.case.active_assignments.0.assigned_at')
@@ -615,7 +614,7 @@ class CaseFoundationTest extends TestCase
         $this->actingAsApi($admin);
         $this->patchJson("/api/v1/cases/{$case->id}/assign", [
             'satgas_ids' => [$otherSatgas->id],
-            'lead_satgas_id' => $otherSatgas->id,
+            'lock_version' => $case->assignmentLockVersion(),
         ])
             ->assertForbidden();
     }
@@ -652,14 +651,13 @@ class CaseFoundationTest extends TestCase
     /**
      * @param  list<User>  $satgasUsers
      */
-    private function forwardedCase(User $admin, array $satgasUsers, User $lead): CaseRecord
+    private function forwardedCase(User $admin, array $satgasUsers, User $_legacyLead): CaseRecord
     {
         $report = $this->makeReport();
 
         $this->actingAsApi($admin);
         $response = $this->postJson("/api/v1/reports/{$report->id}/forward-to-case", [
             'satgas_ids' => collect($satgasUsers)->pluck('id')->all(),
-            'lead_satgas_id' => $lead->id,
         ]);
 
         $response->assertOk();

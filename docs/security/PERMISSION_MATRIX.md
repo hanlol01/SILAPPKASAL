@@ -38,7 +38,7 @@ Managed permission assignment:
 |---|---|---|
 | `super_admin` | Super Admin | Cross-campus read-only oversight and redacted Emergency Access audit oversight; no operational Emergency Access authority |
 | `admin` | Admin Kampus | Same-campus operations and Emergency Access review/approval/denial/revocation |
-| `satgas_ppks` | Satgas PPKS | Assigned-case investigation and requester-scoped Emergency Access |
+| `satgas_ppks` | Satgas PPKS | Assigned-case investigation, same-campus unassigned Case self-assignment, and requester-scoped Emergency Access |
 | `reporter` | Pelapor | Report submission, portal access |
 
 ---
@@ -148,6 +148,14 @@ dashboard.satgas, statistics.view,
 evidence.upload, evidence.view.case, evidence.download,
 privacy.request_break_glass, privacy.reveal_anonymous_identity
 ```
+
+`REV-ASSIGN-01` tidak menambah permission baru. Satgas aktif menggunakan
+`cases.read.assigned` untuk melihat antrean Case tanpa assignment pada kampusnya
+dan melakukan self-assignment hanya ketika Case belum memiliki assignment aktif.
+Identitas target selalu berasal dari authenticated actor. Admin Kampus tetap
+menggunakan `cases.assign_satgas` untuk assign/reassign pada kampus sendiri,
+sedangkan permission Super Admin tidak memberi authority mutation karena policy
+tetap role- dan scope-aware.
 
 ### Reporter (legacy general snapshot)
 
