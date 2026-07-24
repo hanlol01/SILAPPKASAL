@@ -15,6 +15,11 @@ class ReportMetadataResource extends JsonResource
     public function toArray(Request $request): array
     {
         $isAnonymous = $this->report_type === 'anonymous';
+        $actor = $request->user();
+        $maySeeWithdrawalWorkflow = ($actor?->hasRole('admin') === true
+            && $actor->hasPermission('reports.withdraw.review.own_campus'))
+            || ($actor?->hasRole('super_admin') === true
+                && $actor->hasPermission('reports.read.all'));
 
         $data = [
             'id' => $this->id,
@@ -53,6 +58,20 @@ class ReportMetadataResource extends JsonResource
             'reviewed_at' => $this->reviewed_at?->toJSON(),
             'forwarded_at' => $this->forwarded_at?->toJSON(),
             'created_at' => $this->created_at?->toJSON(),
+            'withdrawn_at' => $this->withdrawn_at?->toJSON(),
+            'withdrawal_workflow' => $this->when(
+                $maySeeWithdrawalWorkflow && $this->resource->relationLoaded('latestFormalWithdrawal'),
+                function () {
+                    $withdrawal = $this->latestFormalWithdrawal;
+
+                    return $withdrawal ? [
+                        'withdrawal_reference' => $withdrawal->public_id,
+                        'status' => $withdrawal->status?->value,
+                        'submitted_at' => $withdrawal->submitted_at?->toJSON(),
+                        'reviewed_at' => $withdrawal->reviewed_at?->toJSON(),
+                    ] : null;
+                },
+            ),
         ];
 
         if ($this->resource->getAttribute('sensitive_oversight') === true) {

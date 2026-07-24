@@ -250,3 +250,9 @@ origins may read API responses; it grants no identity, role, permission, campus,
 access. Sanctum bearer authentication, policy checks, scoped queries, and locked service
 reauthorization remain authoritative. Auth responses containing bearer tokens or permission
 projections are explicitly private/no-store.
+
+REV-WITHDRAW-01C reuses `reports.withdraw.review.own_campus` for active Campus Admin review and
+`reports.read.all` for Super Admin metadata monitoring. Reporter resubmission reuses
+`reports.withdraw.own`. Satgas and Reporter receive no review mutation permission; Super Admin is
+explicitly read-only and cannot retrieve signed documents or reasons. Campus authorization and
+capabilities are re-evaluated server-side under transaction locks.

@@ -146,6 +146,18 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('reporter.withdrawal.mutate', function (Request $request) {
             return Limit::perHour(10)->by($this->rateLimitKey($request));
         });
+
+        RateLimiter::for('withdrawal.review.read', function (Request $request) {
+            return Limit::perMinute(60)->by($this->rateLimitKey($request));
+        });
+
+        RateLimiter::for('withdrawal.review.document', function (Request $request) {
+            return Limit::perHour(30)->by($this->rateLimitKey($request));
+        });
+
+        RateLimiter::for('withdrawal.review.mutate', function (Request $request) {
+            return Limit::perHour(30)->by($this->rateLimitKey($request));
+        });
     }
 
     private function rateLimitKey(Request $request): string

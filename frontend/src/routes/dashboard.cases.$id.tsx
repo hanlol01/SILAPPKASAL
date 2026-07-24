@@ -427,6 +427,17 @@ function CaseDetail() {
           </div>
         </div>
       )}
+      {roleCode === "satgas_ppks" && workflowContext?.facts.operationally_paused === true && (
+        <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm" role="status">
+          {t("dashboard:withdrawals.satgasPendingBanner")}
+        </div>
+      )}
+      {roleCode === "satgas_ppks" && isOperationallyTerminalCase && ["withdrawn", "csts_16"].includes(caseStatusToken) && (
+        <div className="rounded-lg border border-muted-foreground/30 bg-muted p-4 text-sm" role="status">
+          <p className="font-medium">{t("dashboard:withdrawals.satgasWithdrawnBanner")}</p>
+          {c.withdrawn_at && <p className="mt-1 text-muted-foreground">{formatDateTime(c.withdrawn_at, i18n.language)}</p>}
+        </div>
+      )}
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <div className="min-w-0 space-y-4 lg:col-span-2">
@@ -463,6 +474,11 @@ function CaseDetail() {
             <Field label={t("dashboard:common.closed")}>
               {formatDateTime(c.closed_at, i18n.language)}
             </Field>
+            {c.withdrawn_at && (
+              <Field label={t("dashboard:withdrawals.withdrawnAt")}>
+                {formatDateTime(c.withdrawn_at, i18n.language)}
+              </Field>
+            )}
           </CollapsibleDataCard>
 
           <CollapsibleDataCard

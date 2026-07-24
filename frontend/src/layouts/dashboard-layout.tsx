@@ -17,6 +17,7 @@ import {
   LibraryBig,
   BookOpenCheck,
   Library,
+  FileCheck2,
 } from "lucide-react";
 import {
   Sidebar,
@@ -70,6 +71,20 @@ const nav: {
     url: "/dashboard/reports",
     icon: FileText,
     roles: ["super_admin", "admin"],
+  },
+  {
+    key: "reportWithdrawals",
+    url: "/dashboard/report-withdrawals",
+    icon: FileCheck2,
+    roles: ["admin"],
+    permission: "reports.withdraw.review.own_campus",
+  },
+  {
+    key: "reportWithdrawals",
+    url: "/dashboard/report-withdrawals",
+    icon: FileCheck2,
+    roles: ["super_admin"],
+    permission: "reports.read.all",
   },
   {
     key: "cases",

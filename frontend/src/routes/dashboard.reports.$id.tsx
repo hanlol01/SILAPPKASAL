@@ -215,6 +215,28 @@ function ReportDetailPage() {
       {sensitiveOversightEnabled && (
         <ReporterEvidenceFiles reportId={report.id} canDownload language={i18n.language} />
       )}
+
+      {report.withdrawal_workflow && (
+        <Card className="border-warning/30">
+          <CardHeader>
+            <CardTitle className="text-base">{t("dashboard:withdrawals.requestDetail")}</CardTitle>
+            <CardDescription>{t(`dashboard:withdrawals.status.${report.withdrawal_workflow.status}`)}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm text-muted-foreground">
+              {formatDateTime(report.withdrawal_workflow.submitted_at, i18n.language)}
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link
+                to="/dashboard/report-withdrawals/$publicId"
+                params={{ publicId: report.withdrawal_workflow.withdrawal_reference }}
+              >
+                {t("dashboard:common.review")}
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

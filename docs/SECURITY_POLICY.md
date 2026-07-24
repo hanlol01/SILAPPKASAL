@@ -1447,6 +1447,39 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
 - `NOTIF-26` and `NOTIF-27` are queued after commit only to active same-campus Admin users with
   `reports.withdraw.review.own_campus`. Satgas and other campuses are excluded; reason and
   attachment URL are absent.
-- Every formal endpoint is protected by Sanctum, `private.no-store`, owner policy, public
-  identifiers, and a named risk-adjusted rate limiter. Approval, rejection, resubmission, an Admin
-  review UI, official template, and final withdrawn lifecycle transitions remain out of scope.
+- Every Reporter formal endpoint is protected by Sanctum, `private.no-store`, owner policy, public
+  identifiers, and a named risk-adjusted rate limiter. The DRAFT remains provisional and is not an
+  official template.
+
+## 25. REV-WITHDRAW-01C Review, Decision, and Finalization Boundary
+
+- Only an active campus Admin with `reports.withdraw.review.own_campus` can decide an own-campus
+  `pending_review` request. Permission, campus, status, optimistic version, latest attachment
+  integrity, Report/Case lifecycle, soft-deletion, escalation, and finalized Decision are rechecked
+  under row locks. Lock order is Report, Case, then Withdrawal.
+- Approval is one transaction: related active break-glass grants are revoked without deleting
+  history; request, Report, and Case transitions and allowlisted audits are committed together;
+  Reporter notification is queued after commit. Report/Case become `withdrawn`, `withdrawn_at` is
+  populated, and `closed_at`, assignments, evidence, and history are preserved.
+- Rejection changes only the request. The normalized 20-2,000 character reason is encrypted and is
+  visible only to the exact Reporter owner and authorized own-campus Admin. It is excluded from
+  notification, audit metadata, logs, list responses, Satgas, and Super Admin projections.
+- Resubmission requires the exact owner, a rejected request with `resubmission_allowed=true`, the
+  enabled formal flag, a current eligible lifecycle, no finalized Decision, no active request, and
+  the expected lock version. It creates a new draft linked through a unique `supersedes_id`; a
+  rejected request cannot branch into multiple replacements, and no prior binary is copied or made
+  public.
+- Super Admin is monitoring-only (`reports.read.all`): metadata and timestamps are available, but
+  reasons, file metadata, document bytes, and mutation capabilities are withheld. Satgas sees only
+  a generic operational pause while pending and the terminal `withdrawn` state/date after approval.
+- Private document access reauthorizes exact campus ownership, revalidates the latest immutable
+  binary, returns no-store/nosniff/restrictive-CSP headers, and records an audit only after access is
+  authorized and a readable stream is prepared. Internal IDs, requester/reviewer IDs, disk, path,
+  checksum, and plaintext original filename are never projected.
+- New break-glass requests and reveals fail closed after withdrawal. Approval revokes only active
+  grants related to the exact Report; unrelated and historical grants remain unchanged.
+- Turning `REPORT_FORMAL_WITHDRAWAL_ENABLED` off blocks create/resubmit/upload/submit but does not
+  block authorized Admin resolution or private review of requests already pending. This prevents a
+  deployment flag change from stranding operational work.
+- Browser caches for operational review data are cleared across authentication boundaries, PDF Blob
+  previews use a sandboxed frame, and prior object URLs are revoked before replacement or error.

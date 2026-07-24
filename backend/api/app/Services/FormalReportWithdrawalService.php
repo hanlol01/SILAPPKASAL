@@ -150,7 +150,6 @@ class FormalReportWithdrawalService
             ->where('report_id', $report->id)
             ->where('requester_id', $actor->id)
             ->where('request_type', ReportWithdrawalRequestType::FormalWithdrawal->value)
-            ->whereIn('status', ReportWithdrawalStatus::activeValues())
             ->latest('id')
             ->first() ?? throw $this->notFound();
 
@@ -504,6 +503,85 @@ class FormalReportWithdrawalService
         });
     }
 
+    /**
+     * Create a fresh immutable draft that supersedes an eligible rejected request.
+     *
+     * @return array{withdrawal: ReportWithdrawal, capabilities: array<string, bool>}
+     */
+    public function resubmit(
+        User $actor,
+        string $publicId,
+        string $reason,
+        int $expectedLockVersion,
+    ): array {
+        $this->authorizeActor($actor);
+        $this->ensureFeatureEnabled();
+
+        try {
+            return DB::transaction(function () use ($actor, $publicId, $reason, $expectedLockVersion): array {
+                [$report, $case, $previous] = $this->lockOwnedContext($actor, $publicId);
+
+                $this->assertExpectedLockVersion($previous, $expectedLockVersion);
+
+                if ($previous->request_type !== ReportWithdrawalRequestType::FormalWithdrawal
+                    || $previous->status !== ReportWithdrawalStatus::Rejected
+                    || ! $previous->resubmission_allowed) {
+                    throw $this->formalConflict('resubmission_not_allowed');
+                }
+
+                if (ReportWithdrawal::query()
+                    ->where('supersedes_id', $previous->id)
+                    ->lockForUpdate()
+                    ->exists()) {
+                    throw $this->formalConflict('resubmission_not_allowed');
+                }
+
+                $active = $this->lockActiveWithdrawal($report);
+                $blockReason = $this->formalBlockReason($report, $actor, $case, $active);
+
+                if ($blockReason !== null) {
+                    throw $this->formalConflict($blockReason);
+                }
+
+                $withdrawal = ReportWithdrawal::query()->create([
+                    'report_id' => $report->id,
+                    'case_id' => $case?->id,
+                    'requester_id' => $actor->id,
+                    'registration_number_snapshot' => $report->registration_number,
+                    'requester_display_name_snapshot' => $report->report_type === 'anonymous'
+                        ? 'Pelapor Anonim'
+                        : $actor->name,
+                    'request_type' => ReportWithdrawalRequestType::FormalWithdrawal,
+                    'status' => ReportWithdrawalStatus::Draft,
+                    'reason' => $reason,
+                    'previous_report_status' => $report->status,
+                    'previous_case_status' => $case?->status?->name,
+                    'resubmission_allowed' => false,
+                    'supersedes_id' => $previous->id,
+                    'lock_version' => 0,
+                ]);
+
+                $withdrawal->setRelation('attachments', collect());
+                $this->recordAudit(
+                    AuditAction::ReportWithdrawalResubmitted,
+                    $actor,
+                    $report,
+                    $withdrawal,
+                    fromStatus: ReportWithdrawalStatus::Rejected->value,
+                    toStatus: ReportWithdrawalStatus::Draft->value,
+                );
+
+                return $this->resourcePayload($withdrawal, $actor);
+            });
+        } catch (QueryException $exception) {
+            if ($this->isUniqueViolation($exception)) {
+                throw $this->formalConflict('active_request');
+            }
+
+            throw $exception;
+        }
+    }
+
     public function formalBlockReason(
         Report $report,
         User $actor,
@@ -560,13 +638,35 @@ class FormalReportWithdrawalService
      */
     public function withdrawalCapabilities(ReportWithdrawal $withdrawal, User $actor): array
     {
-        $withdrawal->loadMissing('attachments');
+        $withdrawal->loadMissing([
+            'attachments',
+            'report.case.status',
+            'report.case.recommendation.decision.status',
+        ]);
         $isOwner = $actor->is_active
             && $actor->hasRole('reporter')
             && $actor->hasPermission('reports.withdraw.own')
             && $withdrawal->requester_id === $actor->id;
         $featureEnabled = (bool) config('withdrawal.formal_withdrawal_enabled', false);
         $attachment = $withdrawal->currentSignedAttachment();
+        $report = $withdrawal->report;
+        $activeRequestExists = $report instanceof Report
+            && ReportWithdrawal::query()
+                ->where('report_id', $report->id)
+                ->where('id', '<>', $withdrawal->id)
+                ->whereIn('status', ReportWithdrawalStatus::activeValues())
+                ->exists();
+        $alreadySuperseded = ReportWithdrawal::query()
+            ->where('supersedes_id', $withdrawal->id)
+            ->exists();
+        $resubmissionEligible = $isOwner
+            && $featureEnabled
+            && $withdrawal->status === ReportWithdrawalStatus::Rejected
+            && $withdrawal->resubmission_allowed
+            && $report instanceof Report
+            && ! $activeRequestExists
+            && ! $alreadySuperseded
+            && $this->formalBlockReason($report, $actor, $report->case, null) === null;
 
         return [
             'can_view_draft' => $isOwner
@@ -588,6 +688,7 @@ class FormalReportWithdrawalService
                 && $withdrawal->isWaitingDocument()
                 && $attachment !== null,
             'can_cancel_request' => $isOwner && $withdrawal->isCancellableByRequester(),
+            'can_resubmit' => $resubmissionEligible,
         ];
     }
 
@@ -823,7 +924,7 @@ class FormalReportWithdrawalService
         };
     }
 
-    private function attachmentStorageIsValid(
+    public function attachmentStorageIsValid(
         ReportWithdrawal $withdrawal,
         ReportWithdrawalAttachment $attachment,
     ): bool {
@@ -841,12 +942,19 @@ class FormalReportWithdrawalService
             || $attachment->size < 1
             || $attachment->size > self::MAX_FILE_SIZE
             || ! is_string($attachment->sha256)
-            || ! preg_match('/\A[a-f0-9]{64}\z/', $attachment->sha256)
-            || ! Storage::disk(self::FILE_DISK)->exists($attachment->path)) {
+            || ! preg_match('/\A[a-f0-9]{64}\z/', $attachment->sha256)) {
             return false;
         }
 
-        $stream = Storage::disk(self::FILE_DISK)->readStream($attachment->path);
+        try {
+            if (! Storage::disk(self::FILE_DISK)->exists($attachment->path)) {
+                return false;
+            }
+
+            $stream = Storage::disk(self::FILE_DISK)->readStream($attachment->path);
+        } catch (Throwable) {
+            return false;
+        }
 
         if ($stream === false) {
             return false;

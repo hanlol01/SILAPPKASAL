@@ -4,7 +4,8 @@ export function isPrivateContentQueryKey(queryKey: QueryKey): boolean {
   return (
     queryKey[0] === "content-management" ||
     queryKey[0] === "content-governance" ||
-    queryKey[0] === "published-content"
+    queryKey[0] === "published-content" ||
+    queryKey[0] === "operations"
   );
 }
 

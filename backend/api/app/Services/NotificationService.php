@@ -55,6 +55,10 @@ class NotificationService
 
     public const TYPE_REPORT_FORMAL_WITHDRAWAL_CANCELLED = 'NOTIF-27';
 
+    public const TYPE_REPORT_FORMAL_WITHDRAWAL_APPROVED = 'NOTIF-28';
+
+    public const TYPE_REPORT_FORMAL_WITHDRAWAL_REJECTED = 'NOTIF-29';
+
     public function __construct(private readonly CaseCampusScope $campusScope) {}
 
     public function caseAssessmentRecorded(CaseRecord $case): void
@@ -118,6 +122,42 @@ class NotificationService
             'body' => "Permohonan pencabutan Pengaduan {$report->registration_number} telah dibatalkan oleh Pelapor.",
             'subject_type' => 'report',
             'subject_id' => $report->id,
+            'registration_number' => $report->registration_number,
+            'withdrawal_public_id' => $withdrawal->public_id,
+            'status_code' => $withdrawal->status->value,
+        ]);
+    }
+
+    public function formalReportWithdrawalApproved(
+        Report $report,
+        ReportWithdrawal $withdrawal,
+    ): void {
+        $recipient = $this->activeReporterOwner($report, $withdrawal);
+
+        $this->send($recipient ? collect([$recipient]) : collect(), [
+            'notification_type_code' => self::TYPE_REPORT_FORMAL_WITHDRAWAL_APPROVED,
+            'event' => 'report_formal_withdrawal_approved',
+            'title' => 'Permohonan pencabutan disetujui',
+            'body' => "Permohonan pencabutan Pengaduan {$report->registration_number} telah disetujui.",
+            'subject_type' => 'report',
+            'registration_number' => $report->registration_number,
+            'withdrawal_public_id' => $withdrawal->public_id,
+            'status_code' => $withdrawal->status->value,
+        ]);
+    }
+
+    public function formalReportWithdrawalRejected(
+        Report $report,
+        ReportWithdrawal $withdrawal,
+    ): void {
+        $recipient = $this->activeReporterOwner($report, $withdrawal);
+
+        $this->send($recipient ? collect([$recipient]) : collect(), [
+            'notification_type_code' => self::TYPE_REPORT_FORMAL_WITHDRAWAL_REJECTED,
+            'event' => 'report_formal_withdrawal_rejected',
+            'title' => 'Permohonan pencabutan memerlukan perhatian',
+            'body' => "Permohonan pencabutan Pengaduan {$report->registration_number} memerlukan perhatian. Silakan buka detail Pengaduan.",
+            'subject_type' => 'report',
             'registration_number' => $report->registration_number,
             'withdrawal_public_id' => $withdrawal->public_id,
             'status_code' => $withdrawal->status->value,
@@ -487,6 +527,19 @@ class NotificationService
             ->get()
             ->filter(fn (User $user): bool => $user->hasPermission('reports.withdraw.review.own_campus'))
             ->values();
+    }
+
+    private function activeReporterOwner(Report $report, ReportWithdrawal $withdrawal): ?User
+    {
+        if ($report->reporter_id === null || (int) $report->reporter_id !== (int) $withdrawal->requester_id) {
+            return null;
+        }
+
+        return User::query()
+            ->whereKey($report->reporter_id)
+            ->where('is_active', true)
+            ->whereHas('role', fn (Builder $query): Builder => $query->where('code', 'reporter'))
+            ->first();
     }
 
     /**

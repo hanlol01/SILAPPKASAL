@@ -195,11 +195,15 @@ function ReportDetail({ report }: ReportDetailProps) {
           <CancelComplaintDialog registrationNumber={report.registration_number} />
         ) : (
           (report.withdrawal_capabilities.can_request_withdrawal ||
-            report.withdrawal_capabilities.active_withdrawal) && (
+            report.withdrawal_capabilities.active_withdrawal ||
+            report.withdrawal_capabilities.latest_withdrawal) && (
             <FormalWithdrawalWizard
               registrationNumber={report.registration_number}
               canRequestWithdrawal={report.withdrawal_capabilities.can_request_withdrawal}
-              activeWithdrawal={report.withdrawal_capabilities.active_withdrawal}
+              activeWithdrawal={
+                report.withdrawal_capabilities.latest_withdrawal ??
+                report.withdrawal_capabilities.active_withdrawal
+              }
             />
           )
         )}

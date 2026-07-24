@@ -40,7 +40,63 @@ export interface ReportSummary {
   reviewed_at: string | null;
   forwarded_at: string | null;
   created_at: string | null;
+  withdrawn_at?: string | null;
+  withdrawal_workflow?: ReportWithdrawalWorkflow | null;
   submitted_details?: ReportInputDetails;
+}
+
+export interface ReportWithdrawalWorkflow {
+  withdrawal_reference: string;
+  status: ReportWithdrawalStatus;
+  submitted_at: string | null;
+  reviewed_at: string | null;
+}
+
+export type ReportWithdrawalStatus =
+  | "pending_review"
+  | "approved"
+  | "rejected"
+  | "cancelled";
+
+export interface ReportWithdrawalReviewListItem {
+  withdrawal_reference: string;
+  registration_number: string;
+  status: ReportWithdrawalStatus;
+  submitted_at: string | null;
+  reviewed_at: string | null;
+  elapsed_waiting_seconds: number | null;
+  campus: MasterRef | null;
+  reporter_display_name?: string | null;
+}
+
+export interface ReportWithdrawalReviewAttachment {
+  attachment_reference: string;
+  document_type: "signed_withdrawal_statement";
+  version: number;
+  mime_type: "application/pdf" | "image/jpeg" | "image/png";
+  size: number;
+  uploaded_at: string | null;
+}
+
+export interface ReportWithdrawalReviewDetail extends ReportWithdrawalReviewListItem {
+  created_at?: string | null;
+  approved_at: string | null;
+  rejected_at: string | null;
+  cancelled_at: string | null;
+  lock_version?: number;
+  report_status?: string;
+  case_status?: string | null;
+  reason?: string;
+  rejection_reason?: string | null;
+  resubmission_allowed?: boolean;
+  attachments?: ReportWithdrawalReviewAttachment[];
+  capabilities: {
+    can_review: boolean;
+    can_approve: boolean;
+    can_reject: boolean;
+    can_view_signed_document: boolean;
+  };
+  history: Array<{ status: string; occurred_at: string }>;
 }
 
 export interface ReportPriorityProjection {
@@ -80,6 +136,7 @@ export interface CaseRecord {
   recommendation_at?: string | null;
   decision_at?: string | null;
   closed_at?: string | null;
+  withdrawn_at?: string | null;
   escalated_at?: string | null;
   assignments?: CaseAssignment[];
   report?: ReportInputDetails;
@@ -115,6 +172,7 @@ export interface WorkflowContext {
     final_outcome_code: string | null;
     final_outcome_compatible: boolean;
     finalization_path: "completed" | "discontinued" | "legacy_completion" | null;
+    operationally_paused?: boolean;
   };
   actions: {
     update_case_status: WorkflowActionCapability;

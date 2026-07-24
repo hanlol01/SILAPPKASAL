@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { AccessDenied } from "@/components/access-denied";
 import { QueryErrorState } from "@/components/query-state";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -47,7 +48,7 @@ export const Route = createFileRoute("/dashboard/reports/")({
   head: () => ({ meta: [{ title: "Complaints - SILAPPKASAL Admin" }] }),
 });
 
-const REPORT_STATUSES = ["submitted", "under_review", "need_info", "rejected", "forwarded"] as const;
+const REPORT_STATUSES = ["submitted", "under_review", "need_info", "rejected", "forwarded", "cancelled", "withdrawn"] as const;
 const REPORT_TYPES = ["open", "confidential", "anonymous"] as const;
 type ReportStatusFilter = (typeof REPORT_STATUSES)[number];
 type ReportTypeFilter = (typeof REPORT_TYPES)[number];
@@ -241,6 +242,9 @@ function ReportsPage() {
                         <div className="truncate font-mono text-xs font-medium">{report.registration_number}</div>
                         <div className="mt-1 flex flex-wrap items-center gap-2">
                           <ReportStatusBadge status={report.status} />
+                          {report.withdrawal_workflow?.status === "pending_review" && (
+                            <Badge variant="outline">{t("dashboard:withdrawals.pendingBadge")}</Badge>
+                          )}
                           {(report.is_anonymous || report.report_type === "anonymous") && (
                             <ReportTypeChip>
                               <Lock className="h-3 w-3" />
@@ -307,7 +311,14 @@ function ReportsPage() {
                         <td className="px-3 py-2">{reporterDisplay(report.reporter, t)}</td>
                         <td className="px-3 py-2">{report.category?.name ?? t("dashboard:common.metadataUnavailable")}</td>
                         <td className="px-3 py-2">{reportPriorityLabel(t, report.priority)}</td>
-                        <td className="px-3 py-2"><ReportStatusBadge status={report.status} /></td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-wrap gap-2">
+                            <ReportStatusBadge status={report.status} />
+                            {report.withdrawal_workflow?.status === "pending_review" && (
+                              <Badge variant="outline">{t("dashboard:withdrawals.pendingBadge")}</Badge>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-3 py-2 text-muted-foreground">{formatDateTime(report.submitted_at, i18n.language)}</td>
                         <td className="px-3 py-2 text-right">
                           <Button asChild size="sm" variant="ghost">

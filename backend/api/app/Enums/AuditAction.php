@@ -45,6 +45,12 @@ enum AuditAction: string
     case ReportWithdrawalSignedDocumentDownloaded = 'report.withdrawal.signed_document.downloaded';
     case ReportWithdrawalSubmitted = 'report.withdrawal.submitted';
     case ReportWithdrawalCancelled = 'report.withdrawal.cancelled';
+    case ReportWithdrawalReviewViewed = 'report.withdrawal.review.viewed';
+    case ReportWithdrawalSignedDocumentReviewed = 'report.withdrawal.signed_document.reviewed';
+    case ReportWithdrawalApproved = 'report.withdrawal.approved';
+    case ReportWithdrawalRejected = 'report.withdrawal.rejected';
+    case ReportWithdrawalResubmitted = 'report.withdrawal.resubmitted';
+    case ReportMarkedWithdrawn = 'report.marked_withdrawn';
 
     case CaseCreated = 'case.created';
     case CaseAssigned = 'case.assigned';
@@ -54,6 +60,7 @@ enum AuditAction: string
     case CaseFinalSummaryUpdated = 'case.final_summary_updated';
     case CaseFinalSummaryPublished = 'case.final_summary_published';
     case CaseClosed = 'case.closed';
+    case CaseMarkedWithdrawn = 'case.marked_withdrawn';
 
     case InvestigationCreated = 'investigation.created';
     case InvestigationActivityCreated = 'investigation.activity_created';

@@ -61,6 +61,12 @@ export interface ActiveWithdrawalSummary {
   has_signed_document: boolean;
   latest_attachment: WithdrawalAttachment | null;
   capabilities: FormalWithdrawalCapabilities;
+  reviewed_at?: string | null;
+  approved_at?: string | null;
+  rejected_at?: string | null;
+  cancelled_at?: string | null;
+  rejection_reason?: string | null;
+  resubmission_allowed?: boolean;
 }
 
 export interface WithdrawalAttachment {
@@ -77,18 +83,25 @@ export interface FormalWithdrawalCapabilities {
   can_upload_document: boolean;
   can_submit: boolean;
   can_cancel_request: boolean;
+  can_resubmit: boolean;
 }
 
 export interface FormalWithdrawalDetail {
   withdrawal_reference: string;
   request_type: "formal_withdrawal";
-  status: "draft" | "waiting_document" | "pending_review" | "cancelled";
+  status: "draft" | "waiting_document" | "pending_review" | "approved" | "rejected" | "cancelled";
   lock_version: number;
   reason: string;
   created_at: string | null;
   draft_document_viewed_at: string | null;
   submitted_at: string | null;
   cancelled_at: string | null;
+  reviewed_at: string | null;
+  approved_at: string | null;
+  rejected_at: string | null;
+  rejection_reason: string | null;
+  resubmission_allowed: boolean;
+  supersedes_reference: string | null;
   has_signed_document: boolean;
   latest_attachment: WithdrawalAttachment | null;
   capabilities: FormalWithdrawalCapabilities;
@@ -114,6 +127,14 @@ export interface WithdrawalCapabilities {
     | "decision_finalized"
     | null;
   active_withdrawal: ActiveWithdrawalSummary | null;
+  latest_withdrawal: (ActiveWithdrawalSummary & {
+    reviewed_at?: string | null;
+    approved_at?: string | null;
+    rejected_at?: string | null;
+    cancelled_at?: string | null;
+    rejection_reason?: string | null;
+    resubmission_allowed?: boolean;
+  }) | null;
 }
 
 export interface DirectCancellationResult {

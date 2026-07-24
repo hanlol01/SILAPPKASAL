@@ -178,6 +178,21 @@ export function cancelPortalFormalWithdrawal(publicId: string, lockVersion: numb
   );
 }
 
+/** POST /api/v1/portal/withdrawals/{publicId}/resubmit */
+export function resubmitPortalFormalWithdrawal(
+  publicId: string,
+  reason: string,
+  lockVersion: number,
+) {
+  return apiRequest<FormalWithdrawalDetail>(
+    `/portal/withdrawals/${encodeURIComponent(publicId)}/resubmit`,
+    {
+      method: "POST",
+      body: JSON.stringify({ reason, lock_version: lockVersion }),
+    },
+  );
+}
+
 /** GET /api/v1/portal/reports/{registrationNumber}/handling-progress */
 export function getPortalReportHandlingProgress(registrationNumber: string) {
   return apiRequest<PortalReportHandlingProgress>(

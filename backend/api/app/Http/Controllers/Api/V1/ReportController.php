@@ -65,6 +65,7 @@ class ReportController extends Controller
             'category',
             'case.priorityLevel',
             'case.activeAssignments.satgas',
+            'latestFormalWithdrawal',
         ];
 
         if ($canReadSubmittedDetails) {

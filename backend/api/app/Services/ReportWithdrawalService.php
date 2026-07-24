@@ -133,6 +133,7 @@ class ReportWithdrawalService
      *     cancellation_block_reason_code: string|null,
      *     withdrawal_block_reason_code: string|null,
      *     active_withdrawal: array<string, mixed>|null
+     *     latest_withdrawal: array<string, mixed>|null
      * }
      */
     public function capabilities(Report $report, User $actor): array
@@ -146,6 +147,12 @@ class ReportWithdrawalService
             $report->load('activeWithdrawal.attachments');
         } elseif ($report->activeWithdrawal !== null) {
             $report->activeWithdrawal->loadMissing('attachments');
+        }
+
+        if (! $report->relationLoaded('latestFormalWithdrawal')) {
+            $report->load('latestFormalWithdrawal.attachments');
+        } elseif ($report->latestFormalWithdrawal !== null) {
+            $report->latestFormalWithdrawal->loadMissing('attachments');
         }
 
         $activeWithdrawal = $report->activeWithdrawal;
@@ -163,6 +170,8 @@ class ReportWithdrawalService
             $activeWithdrawal,
         );
         $activeAttachment = $activeWithdrawal?->currentSignedAttachment();
+        $latestWithdrawal = $report->latestFormalWithdrawal;
+        $latestAttachment = $latestWithdrawal?->currentSignedAttachment();
 
         return [
             'can_cancel' => $blockReason === null,
@@ -188,6 +197,32 @@ class ReportWithdrawalService
                 ] : null,
                 'capabilities' => $this->formalWithdrawalService
                     ->withdrawalCapabilities($activeWithdrawal, $actor),
+            ] : null,
+            'latest_withdrawal' => $latestWithdrawal ? [
+                'withdrawal_reference' => $latestWithdrawal->public_id,
+                'request_type' => $latestWithdrawal->request_type->value,
+                'status' => $latestWithdrawal->status->value,
+                'lock_version' => $latestWithdrawal->lock_version,
+                'created_at' => $latestWithdrawal->created_at?->toJSON(),
+                'draft_document_viewed_at' => $latestWithdrawal->draft_document_viewed_at?->toJSON(),
+                'submitted_at' => $latestWithdrawal->submitted_at?->toJSON(),
+                'reviewed_at' => $latestWithdrawal->reviewed_at?->toJSON(),
+                'approved_at' => $latestWithdrawal->approved_at?->toJSON(),
+                'rejected_at' => $latestWithdrawal->rejected_at?->toJSON(),
+                'cancelled_at' => $latestWithdrawal->cancelled_at?->toJSON(),
+                'rejection_reason' => $latestWithdrawal->rejection_reason,
+                'resubmission_allowed' => $latestWithdrawal->resubmission_allowed,
+                'has_signed_document' => $latestAttachment !== null,
+                'latest_attachment' => $latestAttachment ? [
+                    'attachment_reference' => $latestAttachment->public_id,
+                    'document_type' => $latestAttachment->document_type->value,
+                    'version' => $latestAttachment->version,
+                    'mime_type' => $latestAttachment->server_mime,
+                    'size' => $latestAttachment->size,
+                    'uploaded_at' => $latestAttachment->created_at?->toJSON(),
+                ] : null,
+                'capabilities' => $this->formalWithdrawalService
+                    ->withdrawalCapabilities($latestWithdrawal, $actor),
             ] : null,
         ];
     }

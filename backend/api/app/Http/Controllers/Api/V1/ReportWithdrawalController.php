@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CancelReportRequest;
 use App\Http\Requests\MutateFormalReportWithdrawalRequest;
+use App\Http\Requests\ResubmitFormalReportWithdrawalRequest;
 use App\Http\Requests\StoreFormalReportWithdrawalRequest;
 use App\Http\Requests\UploadReportWithdrawalDocumentRequest;
 use App\Http\Resources\DirectReportCancellationResource;
@@ -129,5 +130,21 @@ class ReportWithdrawalController extends Controller
                 ),
             ),
         ]);
+    }
+
+    public function resubmit(ResubmitFormalReportWithdrawalRequest $request, string $publicId): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'message' => __('api.messages.report_withdrawal_created'),
+            'data' => new FormalReportWithdrawalResource(
+                $this->formalWithdrawalService->resubmit(
+                    $request->user(),
+                    $publicId,
+                    (string) $request->validated('reason'),
+                    (int) $request->validated('lock_version'),
+                ),
+            ),
+        ], 201);
     }
 }

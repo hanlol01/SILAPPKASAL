@@ -26,6 +26,7 @@ import { Route as PortalAccountRouteImport } from './routes/portal.account'
 import { Route as DashboardWorkflowRouteImport } from './routes/dashboard.workflow'
 import { Route as DashboardUsersRouteImport } from './routes/dashboard.users'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard.settings'
+import { Route as DashboardReportWithdrawalsRouteImport } from './routes/dashboard.report-withdrawals'
 import { Route as DashboardRegistrationsRouteImport } from './routes/dashboard.registrations'
 import { Route as DashboardNotificationsRouteImport } from './routes/dashboard.notifications'
 import { Route as DashboardMasterDataRouteImport } from './routes/dashboard.master-data'
@@ -48,6 +49,7 @@ import { Route as PortalInformationCenterFaqRouteImport } from './routes/portal.
 import { Route as PortalInformationCenterEducationRouteImport } from './routes/portal.information-center.education'
 import { Route as PortalInformationCenterConsultationRouteImport } from './routes/portal.information-center.consultation'
 import { Route as DashboardReportsIdRouteImport } from './routes/dashboard.reports.$id'
+import { Route as DashboardReportWithdrawalsPublicIdRouteImport } from './routes/dashboard.report-withdrawals.$publicId'
 import { Route as DashboardRegistrationsIdRouteImport } from './routes/dashboard.registrations.$id'
 import { Route as DashboardMasterDataUniversitiesRouteImport } from './routes/dashboard.master-data.universities'
 import { Route as DashboardMasterDataStudyProgramsRouteImport } from './routes/dashboard.master-data.study-programs'
@@ -147,6 +149,12 @@ const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardReportWithdrawalsRoute =
+  DashboardReportWithdrawalsRouteImport.update({
+    id: '/report-withdrawals',
+    path: '/report-withdrawals',
+    getParentRoute: () => DashboardRoute,
+  } as any)
 const DashboardRegistrationsRoute = DashboardRegistrationsRouteImport.update({
   id: '/registrations',
   path: '/registrations',
@@ -266,6 +274,12 @@ const DashboardReportsIdRoute = DashboardReportsIdRouteImport.update({
   path: '/reports/$id',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardReportWithdrawalsPublicIdRoute =
+  DashboardReportWithdrawalsPublicIdRouteImport.update({
+    id: '/$publicId',
+    path: '/$publicId',
+    getParentRoute: () => DashboardReportWithdrawalsRoute,
+  } as any)
 const DashboardRegistrationsIdRoute =
   DashboardRegistrationsIdRouteImport.update({
     id: '/$id',
@@ -361,6 +375,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/master-data': typeof DashboardMasterDataRouteWithChildren
   '/dashboard/notifications': typeof DashboardNotificationsRoute
   '/dashboard/registrations': typeof DashboardRegistrationsRouteWithChildren
+  '/dashboard/report-withdrawals': typeof DashboardReportWithdrawalsRouteWithChildren
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/workflow': typeof DashboardWorkflowRoute
@@ -380,6 +395,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/master-data/study-programs': typeof DashboardMasterDataStudyProgramsRoute
   '/dashboard/master-data/universities': typeof DashboardMasterDataUniversitiesRoute
   '/dashboard/registrations/$id': typeof DashboardRegistrationsIdRoute
+  '/dashboard/report-withdrawals/$publicId': typeof DashboardReportWithdrawalsPublicIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
   '/portal/information-center/consultation': typeof PortalInformationCenterConsultationRoute
   '/portal/information-center/education': typeof PortalInformationCenterEducationRouteWithChildren
@@ -412,6 +428,7 @@ export interface FileRoutesByTo {
   '/dashboard/master-data': typeof DashboardMasterDataRouteWithChildren
   '/dashboard/notifications': typeof DashboardNotificationsRoute
   '/dashboard/registrations': typeof DashboardRegistrationsRouteWithChildren
+  '/dashboard/report-withdrawals': typeof DashboardReportWithdrawalsRouteWithChildren
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/workflow': typeof DashboardWorkflowRoute
@@ -430,6 +447,7 @@ export interface FileRoutesByTo {
   '/dashboard/master-data/study-programs': typeof DashboardMasterDataStudyProgramsRoute
   '/dashboard/master-data/universities': typeof DashboardMasterDataUniversitiesRoute
   '/dashboard/registrations/$id': typeof DashboardRegistrationsIdRoute
+  '/dashboard/report-withdrawals/$publicId': typeof DashboardReportWithdrawalsPublicIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
   '/portal/information-center/consultation': typeof PortalInformationCenterConsultationRoute
   '/portal/information-center/education': typeof PortalInformationCenterEducationRouteWithChildren
@@ -466,6 +484,7 @@ export interface FileRoutesById {
   '/dashboard/master-data': typeof DashboardMasterDataRouteWithChildren
   '/dashboard/notifications': typeof DashboardNotificationsRoute
   '/dashboard/registrations': typeof DashboardRegistrationsRouteWithChildren
+  '/dashboard/report-withdrawals': typeof DashboardReportWithdrawalsRouteWithChildren
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/workflow': typeof DashboardWorkflowRoute
@@ -485,6 +504,7 @@ export interface FileRoutesById {
   '/dashboard/master-data/study-programs': typeof DashboardMasterDataStudyProgramsRoute
   '/dashboard/master-data/universities': typeof DashboardMasterDataUniversitiesRoute
   '/dashboard/registrations/$id': typeof DashboardRegistrationsIdRoute
+  '/dashboard/report-withdrawals/$publicId': typeof DashboardReportWithdrawalsPublicIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
   '/portal/information-center/consultation': typeof PortalInformationCenterConsultationRoute
   '/portal/information-center/education': typeof PortalInformationCenterEducationRouteWithChildren
@@ -522,6 +542,7 @@ export interface FileRouteTypes {
     | '/dashboard/master-data'
     | '/dashboard/notifications'
     | '/dashboard/registrations'
+    | '/dashboard/report-withdrawals'
     | '/dashboard/settings'
     | '/dashboard/users'
     | '/dashboard/workflow'
@@ -541,6 +562,7 @@ export interface FileRouteTypes {
     | '/dashboard/master-data/study-programs'
     | '/dashboard/master-data/universities'
     | '/dashboard/registrations/$id'
+    | '/dashboard/report-withdrawals/$publicId'
     | '/dashboard/reports/$id'
     | '/portal/information-center/consultation'
     | '/portal/information-center/education'
@@ -573,6 +595,7 @@ export interface FileRouteTypes {
     | '/dashboard/master-data'
     | '/dashboard/notifications'
     | '/dashboard/registrations'
+    | '/dashboard/report-withdrawals'
     | '/dashboard/settings'
     | '/dashboard/users'
     | '/dashboard/workflow'
@@ -591,6 +614,7 @@ export interface FileRouteTypes {
     | '/dashboard/master-data/study-programs'
     | '/dashboard/master-data/universities'
     | '/dashboard/registrations/$id'
+    | '/dashboard/report-withdrawals/$publicId'
     | '/dashboard/reports/$id'
     | '/portal/information-center/consultation'
     | '/portal/information-center/education'
@@ -626,6 +650,7 @@ export interface FileRouteTypes {
     | '/dashboard/master-data'
     | '/dashboard/notifications'
     | '/dashboard/registrations'
+    | '/dashboard/report-withdrawals'
     | '/dashboard/settings'
     | '/dashboard/users'
     | '/dashboard/workflow'
@@ -645,6 +670,7 @@ export interface FileRouteTypes {
     | '/dashboard/master-data/study-programs'
     | '/dashboard/master-data/universities'
     | '/dashboard/registrations/$id'
+    | '/dashboard/report-withdrawals/$publicId'
     | '/dashboard/reports/$id'
     | '/portal/information-center/consultation'
     | '/portal/information-center/education'
@@ -795,6 +821,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/dashboard/settings'
       preLoaderRoute: typeof DashboardSettingsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/report-withdrawals': {
+      id: '/dashboard/report-withdrawals'
+      path: '/report-withdrawals'
+      fullPath: '/dashboard/report-withdrawals'
+      preLoaderRoute: typeof DashboardReportWithdrawalsRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/registrations': {
@@ -950,6 +983,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard/reports/$id'
       preLoaderRoute: typeof DashboardReportsIdRouteImport
       parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/report-withdrawals/$publicId': {
+      id: '/dashboard/report-withdrawals/$publicId'
+      path: '/$publicId'
+      fullPath: '/dashboard/report-withdrawals/$publicId'
+      preLoaderRoute: typeof DashboardReportWithdrawalsPublicIdRouteImport
+      parentRoute: typeof DashboardReportWithdrawalsRoute
     }
     '/dashboard/registrations/$id': {
       id: '/dashboard/registrations/$id'
@@ -1129,6 +1169,21 @@ const DashboardRegistrationsRouteWithChildren =
     DashboardRegistrationsRouteChildren,
   )
 
+interface DashboardReportWithdrawalsRouteChildren {
+  DashboardReportWithdrawalsPublicIdRoute: typeof DashboardReportWithdrawalsPublicIdRoute
+}
+
+const DashboardReportWithdrawalsRouteChildren: DashboardReportWithdrawalsRouteChildren =
+  {
+    DashboardReportWithdrawalsPublicIdRoute:
+      DashboardReportWithdrawalsPublicIdRoute,
+  }
+
+const DashboardReportWithdrawalsRouteWithChildren =
+  DashboardReportWithdrawalsRoute._addFileChildren(
+    DashboardReportWithdrawalsRouteChildren,
+  )
+
 interface DashboardRouteChildren {
   DashboardActivityLogRoute: typeof DashboardActivityLogRoute
   DashboardAnalyticsRoute: typeof DashboardAnalyticsRoute
@@ -1139,6 +1194,7 @@ interface DashboardRouteChildren {
   DashboardMasterDataRoute: typeof DashboardMasterDataRouteWithChildren
   DashboardNotificationsRoute: typeof DashboardNotificationsRoute
   DashboardRegistrationsRoute: typeof DashboardRegistrationsRouteWithChildren
+  DashboardReportWithdrawalsRoute: typeof DashboardReportWithdrawalsRouteWithChildren
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardUsersRoute: typeof DashboardUsersRoute
   DashboardWorkflowRoute: typeof DashboardWorkflowRoute
@@ -1159,6 +1215,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardMasterDataRoute: DashboardMasterDataRouteWithChildren,
   DashboardNotificationsRoute: DashboardNotificationsRoute,
   DashboardRegistrationsRoute: DashboardRegistrationsRouteWithChildren,
+  DashboardReportWithdrawalsRoute: DashboardReportWithdrawalsRouteWithChildren,
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardUsersRoute: DashboardUsersRoute,
   DashboardWorkflowRoute: DashboardWorkflowRoute,

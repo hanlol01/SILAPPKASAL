@@ -36,6 +36,8 @@ import type {
   RecoveryStatusOptions,
   RecoveryStatusPayload,
   ReporterEvidenceFile,
+  ReportWithdrawalReviewDetail,
+  ReportWithdrawalReviewListItem,
   ReportSummary,
   SatgasAssignmentPayload,
   UserLookupItem,
@@ -51,6 +53,11 @@ export const operationsQueryKeys = {
   reportsRoot: () => ["operations", "reports"] as const,
   reports: (query?: Record<string, QueryValue>) => ["operations", "reports", query] as const,
   report: (id: string | number) => ["operations", "report", normalizeOperationId(id)] as const,
+  withdrawalReviewsRoot: () => ["operations", "withdrawal-reviews"] as const,
+  withdrawalReviews: (query?: Record<string, QueryValue>) =>
+    ["operations", "withdrawal-reviews", query] as const,
+  withdrawalReview: (publicId: string) =>
+    ["operations", "withdrawal-review", publicId] as const,
   casesRoot: () => ["operations", "cases"] as const,
   cases: (query?: Record<string, QueryValue>) => ["operations", "cases", query] as const,
   case: (id: string | number) => ["operations", "case", normalizeOperationId(id)] as const,
@@ -111,6 +118,53 @@ export async function getCases(query?: Record<string, QueryValue>): Promise<Pagi
 
 export function getCase(id: string | number) {
   return apiRequest<CaseRecord>(`/cases/${id}`);
+}
+
+export async function getReportWithdrawalReviews(
+  query?: Record<string, QueryValue>,
+): Promise<PaginatedData<ReportWithdrawalReviewListItem>> {
+  const envelope = await apiRequestEnvelope<ReportWithdrawalReviewListItem[]>(
+    "/report-withdrawals",
+    { query },
+  );
+  return { data: envelope.data, meta: envelope.meta ?? emptyMeta(envelope.data.length) };
+}
+
+export function getReportWithdrawalReview(publicId: string) {
+  return apiRequest<ReportWithdrawalReviewDetail>(
+    `/report-withdrawals/${encodeURIComponent(publicId)}`,
+  );
+}
+
+export function previewReportWithdrawalDocument(
+  publicId: string,
+  attachmentPublicId: string,
+  signal?: AbortSignal,
+) {
+  return apiFetchBlob(
+    `/report-withdrawals/${encodeURIComponent(publicId)}/signed-document/${encodeURIComponent(attachmentPublicId)}`,
+    { signal },
+  );
+}
+
+export function approveReportWithdrawal(publicId: string, lockVersion: number) {
+  return apiRequest<ReportWithdrawalReviewDetail>(
+    `/report-withdrawals/${encodeURIComponent(publicId)}/approve`,
+    {
+      method: "POST",
+      body: JSON.stringify({ lock_version: lockVersion, confirmed: true }),
+    },
+  );
+}
+
+export function rejectReportWithdrawal(
+  publicId: string,
+  payload: { lock_version: number; rejection_reason: string; resubmission_allowed: boolean },
+) {
+  return apiRequest<ReportWithdrawalReviewDetail>(
+    `/report-withdrawals/${encodeURIComponent(publicId)}/reject`,
+    { method: "POST", body: JSON.stringify(payload) },
+  );
 }
 
 export function getCaseFinalSummary(id: string | number) {

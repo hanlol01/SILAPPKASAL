@@ -82,7 +82,7 @@ class ReportService
         }
 
         $query = Report::query()
-            ->with(['category', 'case.priorityLevel'])
+            ->with(['category', 'case.priorityLevel', 'latestFormalWithdrawal'])
             ->latest('submitted_at')
             ->latest('id');
 

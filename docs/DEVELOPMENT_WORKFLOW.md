@@ -1085,3 +1085,18 @@ Before enabling in a target environment:
 
 Database notifications are written, but this revision does not activate or redesign the Dashboard
 notification inbox or provide Admin approve/reject actions.
+
+### REV-WITHDRAW-01C deployment note
+
+Apply `2026_07_24_030000_add_report_withdrawal_review_support.php` through the normal additive
+migration workflow after the 01A and 01B migrations. Never use `migrate:fresh`. Verify the private
+`withdrawal` disk, queue worker, `reports.withdraw.review.own_campus`, `reports.read.all`, named
+review throttles, Case terminal guards, and break-glass revocation before enabling the formal flag.
+The migration also creates the nullable unique `report_withdrawals_supersedes_unique` index; verify
+both named 01C indexes during SQLite roundtrip and PostgreSQL preflight.
+
+The flag controls new Reporter create/resubmit/upload/submit operations. It intentionally does not
+disable Admin list/detail/document/approve/reject for a request already in `pending_review`; turning
+it off must not strand the queue. The review queue's elapsed duration is an informational clock, not
+an SLA or overdue indicator. The browser-print DRAFT is still not an official campus form; the final
+official template, Putusan code, and Berita Acara remain leadership/product decisions.

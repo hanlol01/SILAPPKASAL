@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\AuditAction;
 use App\Enums\AuditCategory;
 use App\Enums\AuditSeverity;
+use App\Enums\ReportStatus;
 use App\Models\BreakGlassRequest;
 use App\Models\CaseAssignment;
 use App\Models\CaseRecord;
@@ -49,6 +50,7 @@ class BreakGlassService
 
                 $this->assertSatgasRequester($requestor);
                 $report = $this->validAnonymousReportForCase($case);
+                $this->assertNotWithdrawn($report, $case);
                 $this->assertSatgasCampus($requestor, $report);
                 $this->activeAssignmentOrFail($case, $requestor, lock: true);
                 $this->normalizeExpiredPair($report->id, $requestor->id);
@@ -165,6 +167,7 @@ class BreakGlassService
             }
 
             $case = $this->validCaseForRequest($breakGlassRequest);
+            $this->assertNotWithdrawn($breakGlassRequest->report, $case);
             $requestor = User::query()
                 ->with('role.permissions')
                 ->whereKey($breakGlassRequest->requestor_id)
@@ -288,6 +291,49 @@ class BreakGlassService
         }
 
         return $result;
+    }
+
+    /**
+     * Revoke grants for the exact Report while the caller owns the surrounding
+     * withdrawal transaction. History remains immutable and unrelated grants
+     * are never selected.
+     */
+    public function revokeActiveForReportWithdrawal(Report $report, User $actor): int
+    {
+        $requests = BreakGlassRequest::query()
+            ->with(self::RELATIONS)
+            ->where('report_id', $report->id)
+            ->whereNull('revoked_at')
+            ->whereNotNull('grant_starts_at')
+            ->whereNotNull('expires_at')
+            ->where('expires_at', '>', now())
+            ->whereIn('status', [
+                BreakGlassRequest::STATUS_APPROVED,
+                BreakGlassRequest::STATUS_VIEWED,
+            ])
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($requests as $request) {
+            $previousStatus = $request->status;
+            $request->forceFill([
+                'status' => BreakGlassRequest::STATUS_REVOKED,
+                'revoked_at' => now(),
+                'revoked_by' => $actor->id,
+                'revocation_reason' => 'complaint_withdrawn',
+            ])->save();
+            $request->refresh()->load(self::RELATIONS);
+            $this->recordAudit(
+                AuditAction::BreakGlassRevoked,
+                $actor,
+                $request,
+                beforeChanges: ['status' => $previousStatus],
+                afterChanges: ['status' => BreakGlassRequest::STATUS_REVOKED, 'revoked' => true],
+            );
+            $this->notifyRequestorResolved($request, 'revoked');
+        }
+
+        return $requests->count();
     }
 
     /** @return array<string, mixed> */
@@ -424,8 +470,21 @@ class BreakGlassService
         }
 
         $this->validAnonymousReportForCase($case);
+        $this->assertNotWithdrawn($report, $case);
 
         return $case;
+    }
+
+    private function assertNotWithdrawn(Report $report, CaseRecord $case): void
+    {
+        $case->loadMissing('status');
+
+        if ($report->status === ReportStatus::Withdrawn->value
+            || $report->withdrawn_at !== null
+            || $case->isWithdrawn()
+            || $case->withdrawn_at !== null) {
+            throw $this->unprocessable('Emergency access is unavailable for a withdrawn complaint');
+        }
     }
 
     private function assertSatgasRequester(User $actor, bool $requireRevealPermission = false): void

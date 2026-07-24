@@ -1186,3 +1186,18 @@ REV-WITHDRAW-01B actively uses `report_withdrawal_attachments` with
 withdrawal row is locked. `disk`, UUID `path`, encrypted `original_name`, detected MIME, byte size,
 SHA-256, uploader, and timestamps remain internal. Binary data is stored on the separate private
 `withdrawal` disk; replacing a document creates a new row/file and never overwrites history.
+
+### REV-WITHDRAW-01C review queue index and master data
+
+Migration `2026_07_24_030000_add_report_withdrawal_review_support.php` is additive. It adds the
+named index `report_withdrawals_review_queue_idx` on `(status, submitted_at, id)` for stable
+oldest-first review pagination, the nullable unique index
+`report_withdrawals_supersedes_unique` on `supersedes_id` to prevent history branching, and
+notification types `NOTIF-28` (approved) and `NOTIF-29` (rejected). Existing nullable reviewer,
+decision timestamp, encrypted rejection, `resubmission_allowed`, `supersedes_id`, and Report/Case
+`withdrawn_at` columns from the 01A/01B foundation are reused; no lifecycle row is rewritten or
+backfilled.
+
+Rollback removes only `NOTIF-28`, `NOTIF-29`, and the two named 01C indexes. Laravel's schema
+operation is valid for PostgreSQL and SQLite. The migration must be applied through the normal
+additive deployment path and must not be run with `migrate:fresh`.

@@ -85,7 +85,12 @@ final class AuditEventCatalog
             AuditAction::ReportWithdrawalSignedDocumentUploaded,
             AuditAction::ReportWithdrawalSignedDocumentDownloaded,
             AuditAction::ReportWithdrawalSubmitted,
-            AuditAction::ReportWithdrawalCancelled => $this->fields(
+            AuditAction::ReportWithdrawalCancelled,
+            AuditAction::ReportWithdrawalReviewViewed,
+            AuditAction::ReportWithdrawalSignedDocumentReviewed,
+            AuditAction::ReportWithdrawalApproved,
+            AuditAction::ReportWithdrawalRejected,
+            AuditAction::ReportWithdrawalResubmitted => $this->fields(
                 [
                     'registration_number',
                     'withdrawal_public_id',
@@ -98,7 +103,12 @@ final class AuditEventCatalog
                     'file_size',
                     'server_mime',
                     'result',
+                    'resubmission_allowed',
                 ],
+                ['status'],
+            ),
+            AuditAction::ReportMarkedWithdrawn => $this->fields(
+                ['registration_number', 'withdrawal_public_id', 'from_status', 'to_status', 'result'],
                 ['status'],
             ),
 
@@ -115,6 +125,10 @@ final class AuditEventCatalog
             AuditAction::CaseClosed => $this->fields(
                 ['case_number', 'outcome_code', 'published', 'recovery_terminal_type', 'result'],
                 ['status_code', 'outcome_code', 'published'],
+            ),
+            AuditAction::CaseMarkedWithdrawn => $this->fields(
+                ['case_number', 'registration_number', 'withdrawal_public_id', 'from_status', 'to_status', 'result'],
+                ['status_code'],
             ),
 
             AuditAction::InvestigationCreated,

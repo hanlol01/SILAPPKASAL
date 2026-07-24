@@ -2348,3 +2348,51 @@ Submission sends `NOTIF-26` after commit only to active same-campus Admin users 
 `reports.withdraw.review.own_campus`. Cancelling a request that had reached `pending_review` sends
 `NOTIF-27` to the same recipient scope. Neither notification contains the reason or an attachment
 URL.
+
+### REV-WITHDRAW-01C Admin review and resubmission
+
+The formal state machine is extended without changing the Report/Case state before a decision:
+
+```text
+pending_review -> approved
+pending_review -> rejected
+rejected -> new draft (only when resubmission_allowed=true)
+```
+
+Campus Admin review endpoints use `private.no-store`, Sanctum, named throttles, the active
+`reports.withdraw.review.own_campus` permission, and exact campus authorization:
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/report-withdrawals` | Oldest-first paginated queue; default `status=pending_review`; optional `status`, `search`, `page`, and `per_page` |
+| `GET` | `/api/v1/report-withdrawals/{publicId}` | Role-filtered detail and server-authoritative review capabilities |
+| `GET` | `/api/v1/report-withdrawals/{publicId}/signed-document/{attachmentPublicId}` | Private latest signed-document preview/download for an authorized campus Admin |
+| `POST` | `/api/v1/report-withdrawals/{publicId}/approve` | Approve with `{ "lock_version": n, "confirmed": true }` |
+| `POST` | `/api/v1/report-withdrawals/{publicId}/reject` | Reject with `lock_version`, normalized 20-2,000 character `rejection_reason`, and boolean `resubmission_allowed` |
+| `POST` | `/api/v1/portal/withdrawals/{publicId}/resubmit` | Owner-only creation of a fresh draft with new `reason` and the rejected request's `lock_version` |
+
+Approval locks Report, Case when present, and Withdrawal, then revalidates reviewer, campus,
+optimistic version, current Report/Case/Decision state, and latest document integrity. It revokes
+related active break-glass grants, marks the request `approved`, and changes Report and Case to
+`withdrawn` with `withdrawn_at`. It does not set `closed_at`, delete assignments, evidence,
+documents, or history, or create a Case. A stale or changed state returns HTTP 409 without partial
+finalization. `withdrawn` is permanently read-only and remains historical rather than closed or
+decided workload.
+
+Rejection changes only the request, records encrypted rejection text and the resubmission choice,
+and releases the operational pause. A permitted resubmission creates an independent `draft` whose
+`supersedes_id` points to the rejected request; attachments are not copied, and one rejected request
+can be superseded only once. New request creation and resubmission require
+`REPORT_FORMAL_WITHDRAWAL_ENABLED=true`. Admin review of an already submitted request remains
+available while the flag is off so pending work is not stranded.
+
+Admin list responses omit reasons and attachment metadata. Admin detail may include the Reporter
+reason, rejection reason, safe version/MIME/size metadata, and capabilities, but never internal IDs,
+disk/path, checksums, raw original filenames, or document URLs. Super Admin receives cross-campus
+monitoring metadata only and no reason, document, or mutation capability. Satgas does not use these
+endpoints and receives only generic pause/withdrawn state through existing Case reads. Elapsed
+waiting time is informational and is not an SLA.
+
+Search treats `%`, `_`, and the escape marker as literal characters rather than caller-controlled
+wildcards. Approval/rejection notifications contain public references and status only; they omit
+reasons, document links, and internal subject IDs.

@@ -76,6 +76,7 @@ class ReporterPortalService
                 'case.status',
                 'case.finalSummary',
                 'activeWithdrawal.attachments',
+                'latestFormalWithdrawal.attachments',
             ])
             ->where('registration_number', $registrationNumber)
             ->first();
@@ -233,6 +234,27 @@ class ReporterPortalService
                     'occurred_at' => $withdrawal->cancelled_at,
                 ];
             }
+
+            if ($withdrawal->rejected_at) {
+                $events[] = [
+                    'stage' => 'pencabutan_ditolak',
+                    'occurred_at' => $withdrawal->rejected_at,
+                ];
+            }
+
+            if ($withdrawal->approved_at) {
+                $events[] = [
+                    'stage' => 'pencabutan_disetujui',
+                    'occurred_at' => $withdrawal->approved_at,
+                ];
+            }
+
+            if ($withdrawal->supersedes_id !== null) {
+                $events[] = [
+                    'stage' => 'pencabutan_diajukan_ulang',
+                    'occurred_at' => $withdrawal->created_at,
+                ];
+            }
         }
 
         if ($isCompleted && $case?->closed_at) {
@@ -250,6 +272,9 @@ class ReporterPortalService
             'surat_pencabutan_diunggah',
             'pencabutan_dikirim_untuk_verifikasi',
             'permohonan_pencabutan_dibatalkan',
+            'pencabutan_ditolak',
+            'pencabutan_disetujui',
+            'pencabutan_diajukan_ulang',
             'selesai',
         ]);
         usort($events, static function (array $a, array $b) use ($stageOrder): int {

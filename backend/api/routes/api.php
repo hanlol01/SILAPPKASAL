@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\ReporterRegistrationController;
 use App\Http\Controllers\Api\V1\ReportEvidenceSubmissionController;
 use App\Http\Controllers\Api\V1\ReportWithdrawalController;
+use App\Http\Controllers\Api\V1\ReportWithdrawalReviewController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -193,6 +194,31 @@ Route::prefix('v1')->group(function (): void {
         });
     });
 
+    Route::middleware(['private.no-store', 'auth:sanctum'])
+        ->prefix('report-withdrawals')
+        ->group(function (): void {
+            Route::get('/', [ReportWithdrawalReviewController::class, 'index'])
+                ->middleware('throttle:withdrawal.review.read')
+                ->name('report-withdrawals.index');
+            Route::get('/{publicId}', [ReportWithdrawalReviewController::class, 'show'])
+                ->whereUuid('publicId')
+                ->middleware('throttle:withdrawal.review.read')
+                ->name('report-withdrawals.show');
+            Route::get('/{publicId}/signed-document/{attachmentPublicId}', [ReportWithdrawalReviewController::class, 'signedDocument'])
+                ->whereUuid('publicId')
+                ->whereUuid('attachmentPublicId')
+                ->middleware('throttle:withdrawal.review.document')
+                ->name('report-withdrawals.signed-document');
+            Route::post('/{publicId}/approve', [ReportWithdrawalReviewController::class, 'approve'])
+                ->whereUuid('publicId')
+                ->middleware('throttle:withdrawal.review.mutate')
+                ->name('report-withdrawals.approve');
+            Route::post('/{publicId}/reject', [ReportWithdrawalReviewController::class, 'reject'])
+                ->whereUuid('publicId')
+                ->middleware('throttle:withdrawal.review.mutate')
+                ->name('report-withdrawals.reject');
+        });
+
     Route::prefix('reporter-registrations')->group(function (): void {
         Route::post('/', [ReporterRegistrationController::class, 'store'])
             ->middleware('throttle:reporter.registration');
@@ -352,6 +378,10 @@ Route::prefix('v1')->group(function (): void {
                 ->whereUuid('publicId')
                 ->middleware('throttle:reporter.withdrawal.mutate')
                 ->name('portal.withdrawals.cancel');
+            Route::post('/withdrawals/{publicId}/resubmit', [ReportWithdrawalController::class, 'resubmit'])
+                ->whereUuid('publicId')
+                ->middleware('throttle:reporter.withdrawal.create')
+                ->name('portal.withdrawals.resubmit');
         });
         Route::get('/reports/{registrationNumber}', [PortalController::class, 'report']);
         Route::get('/notifications', [PortalController::class, 'notifications']);

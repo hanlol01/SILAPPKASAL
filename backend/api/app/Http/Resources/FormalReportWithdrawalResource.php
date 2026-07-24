@@ -27,6 +27,14 @@ class FormalReportWithdrawalResource extends JsonResource
             'draft_document_viewed_at' => $withdrawal->draft_document_viewed_at?->toJSON(),
             'submitted_at' => $withdrawal->submitted_at?->toJSON(),
             'cancelled_at' => $withdrawal->cancelled_at?->toJSON(),
+            'reviewed_at' => $withdrawal->reviewed_at?->toJSON(),
+            'approved_at' => $withdrawal->approved_at?->toJSON(),
+            'rejected_at' => $withdrawal->rejected_at?->toJSON(),
+            'rejection_reason' => $withdrawal->rejection_reason,
+            'resubmission_allowed' => $withdrawal->resubmission_allowed,
+            'supersedes_reference' => $withdrawal->relationLoaded('supersedes')
+                ? $withdrawal->supersedes?->public_id
+                : null,
             'has_signed_document' => $attachment !== null,
             'latest_attachment' => $attachment
                 ? new ReportWithdrawalAttachmentResource($attachment)

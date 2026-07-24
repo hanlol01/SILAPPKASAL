@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ReportStatus;
+use App\Enums\ReportWithdrawalRequestType;
 use App\Enums\ReportWithdrawalStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -110,6 +111,13 @@ class Report extends Model
     {
         return $this->hasOne(ReportWithdrawal::class)
             ->whereIn('status', ReportWithdrawalStatus::activeValues())
+            ->latestOfMany();
+    }
+
+    public function latestFormalWithdrawal(): HasOne
+    {
+        return $this->hasOne(ReportWithdrawal::class)
+            ->where('request_type', ReportWithdrawalRequestType::FormalWithdrawal->value)
             ->latestOfMany();
     }
 

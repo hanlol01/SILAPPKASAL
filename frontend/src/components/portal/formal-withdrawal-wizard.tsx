@@ -56,6 +56,7 @@ import {
   getPortalFormalWithdrawal,
   getPortalWithdrawalDraftDocument,
   portalQueryKeys,
+  resubmitPortalFormalWithdrawal,
   submitPortalFormalWithdrawal,
   uploadPortalWithdrawalSignedDocument,
 } from "@/lib/portal-api";
@@ -107,6 +108,7 @@ export function FormalWithdrawalWizard({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [resubmitReason, setResubmitReason] = useState("");
   const schema = useMemo(
     () =>
       withdrawalReasonSchema({
@@ -216,6 +218,19 @@ export function FormalWithdrawalWizard({
     },
     onError: (error) => toast.error(apiErrorMessage(error, t("withdrawal.cancelError"))),
   });
+  const resubmitMutation = useMutation({
+    mutationFn: ({ publicId, lockVersion }: { publicId: string; lockVersion: number }) =>
+      resubmitPortalFormalWithdrawal(publicId, resubmitReason.trim(), lockVersion),
+    onSuccess: async (data) => {
+      cacheWithdrawal(data);
+      setResubmitReason("");
+      setDocumentHtml(null);
+      clearSelectedFile();
+      await invalidateWithdrawalState();
+      toast.success(t("withdrawal.resubmitSuccess"));
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, t("withdrawal.resubmitError"))),
+  });
 
   const withdrawal = withdrawalQuery.data ?? createMutation.data ?? null;
   const effectiveStatus = withdrawal?.status ?? activeWithdrawal?.status ?? null;
@@ -231,17 +246,20 @@ export function FormalWithdrawalWizard({
     documentMutation.isPending ||
     uploadMutation.isPending ||
     submitMutation.isPending ||
-    cancelMutation.isPending;
+    cancelMutation.isPending ||
+    resubmitMutation.isPending;
 
   function resetLocalState() {
     form.reset();
     setDocumentHtml(null);
+    setResubmitReason("");
     clearSelectedFile();
     createMutation.reset();
     documentMutation.reset();
     uploadMutation.reset();
     submitMutation.reset();
     cancelMutation.reset();
+    resubmitMutation.reset();
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -405,6 +423,43 @@ export function FormalWithdrawalWizard({
               status={effectiveStatus}
               submittedAt={withdrawal?.submitted_at ?? activeWithdrawal?.submitted_at ?? null}
             />
+
+            {effectiveStatus === "rejected" && (
+              <section className="space-y-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4" aria-labelledby="withdrawal-rejected-title">
+                <div>
+                  <h3 id="withdrawal-rejected-title" className="font-medium">{t("withdrawal.rejectedTitle")}</h3>
+                  <p className="mt-2 whitespace-pre-wrap text-sm">
+                    {withdrawal?.rejection_reason ?? activeWithdrawal?.rejection_reason ?? t("withdrawal.rejectedReasonUnavailable")}
+                  </p>
+                </div>
+                {effectiveCapabilities.can_resubmit && (
+                  <div className="space-y-3">
+                    <label htmlFor={`withdrawal-resubmit-${registrationNumber}`} className="text-sm font-medium">{t("withdrawal.resubmitReasonLabel")}</label>
+                    <Textarea
+                      id={`withdrawal-resubmit-${registrationNumber}`}
+                      rows={6}
+                      maxLength={2000}
+                      value={resubmitReason}
+                      onChange={(event) => setResubmitReason(event.target.value)}
+                      placeholder={t("withdrawal.reasonPlaceholder")}
+                      disabled={resubmitMutation.isPending}
+                    />
+                    <p className="text-xs text-muted-foreground">{t("withdrawal.reasonHelp", { count: resubmitReason.trim().length })}</p>
+                    <Button
+                      type="button"
+                      disabled={resubmitReason.trim().length < 20 || resubmitReason.trim().length > 2000 || effectiveLockVersion === null || resubmitMutation.isPending}
+                      onClick={() => effectiveLockVersion !== null && resubmitMutation.mutate({ publicId: effectiveReference, lockVersion: effectiveLockVersion })}
+                    >
+                      {resubmitMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+                      {t("withdrawal.resubmitAction")}
+                    </Button>
+                  </div>
+                )}
+                {!effectiveCapabilities.can_resubmit && (
+                  <p className="text-sm text-muted-foreground">{t("withdrawal.resubmitUnavailable")}</p>
+                )}
+              </section>
+            )}
 
             {effectiveCapabilities.can_view_draft && (
               <section className="space-y-3 rounded-lg border p-4" aria-labelledby="withdrawal-draft-title">
@@ -719,7 +774,7 @@ function StatusPanel({
 }
 
 function withdrawalStep(status: string | null, hasAttachment: boolean) {
-  if (status === "pending_review") return 5;
+  if (["pending_review", "approved", "rejected"].includes(status ?? "")) return 5;
   if (status === "waiting_document" && hasAttachment) return 4;
   if (status === "waiting_document") return 3;
   if (status === "draft") return 2;

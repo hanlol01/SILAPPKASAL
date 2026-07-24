@@ -32,6 +32,7 @@ class CaseResource extends JsonResource
             'recommendation_at' => $this->recommendation_at?->toJSON(),
             'decision_at' => $this->decision_at?->toJSON(),
             'closed_at' => $this->closed_at?->toJSON(),
+            'withdrawn_at' => $this->withdrawn_at?->toJSON(),
             'escalated_at' => $this->escalated_at?->toJSON(),
             'assignments' => CaseAssignmentResource::collection($this->whenLoaded('activeAssignments')),
             'workflow_context' => $this->when(

@@ -80,7 +80,7 @@ test("cancelled status is localized and rendered with a terminal visual", async 
   assert.equal(portalEn.cancellation.trigger, "Cancel Complaint");
 });
 
-test("REV-WITHDRAW-01B wizard restores state from backend and has no Admin decision UI", async () => {
+test("Reporter wizard restores state from backend without Admin decision mutations", async () => {
   const wizard = await source("src/components/portal/formal-withdrawal-wizard.tsx");
 
   assert.match(wizard, /queryKey:\s*portalQueryKeys\.reportWithdrawal\(registrationNumber\)/);
@@ -91,8 +91,74 @@ test("REV-WITHDRAW-01B wizard restores state from backend and has no Admin decis
   assert.match(wizard, /effectiveCapabilities\.can_upload_document/);
   assert.match(wizard, /effectiveCapabilities\.can_submit/);
   assert.match(wizard, /effectiveCapabilities\.can_cancel_request/);
-  assert.doesNotMatch(wizard, /approve|reject|reviewer/i);
+  assert.doesNotMatch(wizard, /approveReportWithdrawal|rejectReportWithdrawal|reviewed_by/);
   assert.doesNotMatch(wizard, /localStorage|sessionStorage|console\./);
+});
+
+test("Admin withdrawal queue is URL-synchronized, permission-aware, and explicitly non-SLA", async () => {
+  const queue = await source("src/routes/dashboard.report-withdrawals.tsx");
+
+  assert.match(queue, /validateSearch:/);
+  assert.match(queue, /Route\.useSearch\(\)/);
+  assert.match(queue, /Route\.useNavigate\(\)/);
+  assert.match(queue, /operationsQueryKeys\.withdrawalReviews\(query\)/);
+  assert.match(queue, /reports\.withdraw\.review\.own_campus/);
+  assert.match(queue, /status\s*!==\s*"pending_review"\s*\|\|\s*Boolean\(search\.q\)/);
+  assert.match(queue, /waitingDays/);
+  assert.doesNotMatch(queue, /overdue|terlambat|SLA/);
+  assert.doesNotMatch(queue, /placeholderData|keepPreviousData/);
+});
+
+test("Admin review detail is capability-gated and protects private document access", async () => {
+  const detail = await source("src/routes/dashboard.report-withdrawals.$publicId.tsx");
+
+  assert.match(detail, /item\.capabilities\.can_view_signed_document/);
+  assert.match(detail, /item\.capabilities\.can_approve/);
+  assert.match(detail, /item\.capabilities\.can_reject/);
+  assert.match(detail, /rejectionReason\.trim\(\)\.length\s*>=\s*20/);
+  assert.match(detail, /rejectionReason\.trim\(\)\.length\s*<=\s*2000/);
+  assert.match(detail, /resubmission_allowed:\s*resubmissionAllowed/);
+  assert.match(detail, /roleCode\s*===\s*"super_admin"/);
+  assert.match(detail, /roleCode\s*===\s*"admin"\s*&&\s*item\.capabilities\.can_review/);
+  assert.match(detail, /URL\.revokeObjectURL/);
+  assert.match(detail, /URL\.revokeObjectURL\(preview\.url\)[\s\S]*setPreview\(null\)/);
+  assert.match(detail, /previewRequestRef\.current\?\.abort\(\)/);
+  assert.match(detail, /controller\.signal/);
+  assert.match(detail, /controller\.signal\.aborted[\s\S]*URL\.revokeObjectURL\(url\)/);
+  assert.match(detail, /<iframe[\s\S]*sandbox=""/);
+  assert.match(detail, /roleCode\s*===\s*"admin"[\s\S]*item\.report_status/);
+  assert.match(detail, /error\.status\s*===\s*409/);
+});
+
+test("withdrawal review navigation and cache isolation cover both authorized monitoring roles", async () => {
+  const [layout, privateCache] = await Promise.all([
+    source("src/layouts/dashboard-layout.tsx"),
+    source("src/lib/private-query-cache.ts"),
+  ]);
+
+  assert.match(
+    layout,
+    /key:\s*"reportWithdrawals"[\s\S]*roles:\s*\["admin"\][\s\S]*permission:\s*"reports\.withdraw\.review\.own_campus"/,
+  );
+  assert.match(
+    layout,
+    /key:\s*"reportWithdrawals"[\s\S]*roles:\s*\["super_admin"\][\s\S]*permission:\s*"reports\.read\.all"/,
+  );
+  assert.match(privateCache, /queryKey\[0\]\s*===\s*"operations"/);
+});
+
+test("Reporter rejected request uses backend capability to create a fresh resubmission", async () => {
+  const [wizard, api] = await Promise.all([
+    source("src/components/portal/formal-withdrawal-wizard.tsx"),
+    source("src/lib/portal-api.ts"),
+  ]);
+
+  assert.match(wizard, /effectiveStatus\s*===\s*"rejected"/);
+  assert.match(wizard, /effectiveCapabilities\.can_resubmit/);
+  assert.match(wizard, /resubmitReason\.trim\(\)\.length\s*<\s*20/);
+  assert.match(wizard, /resubmitReason\.trim\(\)\.length\s*>\s*2000/);
+  assert.match(api, /\/portal\/withdrawals\/\$\{encodeURIComponent\(publicId\)\}\/resubmit/);
+  assert.match(api, /reason,\s*lock_version:\s*lockVersion/);
 });
 
 test("formal withdrawal API uses authenticated text, upload, submit, cancel, and download routes", async () => {

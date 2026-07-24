@@ -44,6 +44,8 @@ final class ApiErrorCode
 
     public const ReportWithdrawalStorageFailed = 'report_withdrawal_storage_failed';
 
+    public const ReportWithdrawalNotFound = 'report_withdrawal_not_found';
+
     public const AuditExportTooManyRows = 'audit_export.too_many_rows';
 
     public const CaseAssessmentRequired = 'case_assessment_required';
