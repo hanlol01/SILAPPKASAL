@@ -2,12 +2,12 @@
 
 namespace App\Services;
 
+use App\Enums\CaseFinalOutcome;
 use App\Enums\CaseStatus as CaseStatusEnum;
-use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Enums\DecisionStatus as DecisionStatusEnum;
+use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Enums\RecommendationStatus as RecommendationStatusEnum;
 use App\Enums\RecoveryStatus as RecoveryStatusEnum;
-use App\Enums\CaseFinalOutcome;
 use App\Models\CaseRecord;
 use App\Models\User;
 use App\Support\ApiErrorCode;
@@ -15,9 +15,7 @@ use App\Support\CaseCampusScope;
 
 class CaseWorkflowContextService
 {
-    public function __construct(private readonly CaseCampusScope $campusScope)
-    {
-    }
+    public function __construct(private readonly CaseCampusScope $campusScope) {}
 
     /**
      * @return array<string, mixed>
@@ -54,7 +52,7 @@ class CaseWorkflowContextService
             && $recoveryStatusEnum instanceof RecoveryStatusEnum
             && $finalOutcome->isCompatibleWithRecovery($recoveryStatusEnum);
         $assessmentComplete = filled($case->risk_level_code) && filled($case->priority_code);
-        $isClosed = $case->closed_at !== null || $caseStatus === CaseStatusEnum::Closed->value;
+        $isOperationallyTerminal = $case->isOperationallyTerminal();
         $activeAssignment = $case->activeAssignments->firstWhere('satgas_id', $actor->id);
         $isAssigned = $actor->is_active && $actor->hasRole('satgas_ppks') && $activeAssignment !== null;
         $isLead = $isAssigned && (bool) $activeAssignment?->is_lead;
@@ -74,11 +72,11 @@ class CaseWorkflowContextService
             : 0;
 
         $updateCaseStatus = $this->action(
-            $canUpdateCaseStatus && ! $isClosed && ! $isLifecycleControlled,
+            $canUpdateCaseStatus && ! $isOperationallyTerminal && ! $isLifecycleControlled,
             match (true) {
                 ! $isAssigned => 'read_only_no_assignment',
                 ! $canUpdateCaseStatus => 'permission_missing',
-                $isClosed => 'case_closed',
+                $isOperationallyTerminal => 'case_terminal',
                 $isLifecycleControlled => 'lifecycle_controlled',
                 default => 'action_unavailable',
             },
@@ -106,7 +104,7 @@ class CaseWorkflowContextService
 
         $createInvestigation = $this->action(
             $canInvestigate
-                && ! $isClosed
+                && ! $isOperationallyTerminal
                 && $caseStatus === CaseStatusEnum::Investigation->value
                 && $investigation === null
                 && $isLead,
@@ -121,11 +119,11 @@ class CaseWorkflowContextService
 
         $addActivity = $this->action(
             $canInvestigate
-                && ! $isClosed
+                && ! $isOperationallyTerminal
                 && $caseStatus === CaseStatusEnum::Investigation->value
                 && $investigation !== null
                 && $investigationStatus !== InvestigationStatusEnum::Completed->value,
-            $this->investigationUnavailableReason($isAssigned, $canInvestigate, $isClosed, $caseStatus, $investigation !== null, $investigationStatus),
+            $this->investigationUnavailableReason($isAssigned, $canInvestigate, $isOperationallyTerminal, $caseStatus, $investigation !== null, $investigationStatus),
         );
 
         $updateInvestigationStatus = $addActivity;
@@ -136,18 +134,18 @@ class CaseWorkflowContextService
         $canAddEvidence = $isAssigned
             && $actor->hasPermission('evidence.view.case')
             && $actor->hasPermission('evidence.upload')
-            && ! $isClosed
+            && ! $isOperationallyTerminal
             && $caseStatus === CaseStatusEnum::Investigation->value
             && $investigation !== null
             && $investigationStatus !== InvestigationStatusEnum::Completed->value;
         $addEvidence = $this->action(
             $canAddEvidence,
-            $this->evidenceUnavailableReason($actor, $isAssigned, $isClosed, $caseStatus, $investigation !== null, $investigationStatus),
+            $this->evidenceUnavailableReason($actor, $isAssigned, $isOperationallyTerminal, $caseStatus, $investigation !== null, $investigationStatus),
         );
 
         $createRecommendation = $this->action(
             $canRecommend
-                && ! $isClosed
+                && ! $isOperationallyTerminal
                 && $caseStatus === CaseStatusEnum::Recommendation->value
                 && $investigationStatus === InvestigationStatusEnum::Completed->value
                 && ! $recommendationExists,
@@ -165,12 +163,14 @@ class CaseWorkflowContextService
         $reviewRecommendation = $this->action(
             $isSameCampusAdmin
                 && $actor->hasPermission('cases.review_recommendation')
+                && ! $isOperationallyTerminal
                 && in_array($recommendationStatus, RecommendationStatusEnum::submittedReviewValues(), true),
             $isOversight ? 'oversight_read_only' : (! $isSameCampusAdmin ? 'campus_access_denied' : 'action_unavailable'),
         );
         $createDecision = $this->action(
             $isSameCampusAdmin
                 && $actor->hasPermission('cases.record_decision')
+                && ! $isOperationallyTerminal
                 && $caseStatus === CaseStatusEnum::Decision->value
                 && $recommendationStatus === RecommendationStatusEnum::Accepted->value
                 && $decision === null,
@@ -179,7 +179,7 @@ class CaseWorkflowContextService
         $manageRecovery = $this->action(
             $isSameCampusAdmin
                 && $actor->hasPermission('cases.monitor')
-                && ! $isClosed
+                && ! $isOperationallyTerminal
                 && $caseStatus === CaseStatusEnum::Recovery->value
                 && $decisionStatus === DecisionStatusEnum::Finalized->value,
             $isOversight ? 'oversight_read_only' : (! $isSameCampusAdmin ? 'campus_access_denied' : 'action_unavailable'),
@@ -187,13 +187,14 @@ class CaseWorkflowContextService
         $addMonitoring = $this->action(
             $isAssigned
                 && $actor->hasPermission('cases.monitor')
+                && ! $isOperationallyTerminal
                 && $recoveryStatus === RecoveryStatusEnum::Ongoing->value,
             ! $isAssigned ? 'read_only_no_assignment' : 'recovery_not_ongoing',
         );
 
         $canManageFinalSummary = $isSameCampusAdmin
             && $actor->hasPermission('cases.monitor')
-            && ! $isClosed
+            && ! $isOperationallyTerminal
             && in_array($caseStatus, [CaseStatusEnum::Recovery->value, CaseStatusEnum::Monitoring->value], true);
         $createFinalSummary = $this->action(
             $canManageFinalSummary && ! $finalSummaryExists,
@@ -235,6 +236,7 @@ class CaseWorkflowContextService
         $completeRecovery = $this->action(
             $isSameCampusAdmin
                 && $actor->hasPermission('cases.monitor')
+                && ! $isOperationallyTerminal
                 && $recoveryStatus === RecoveryStatusEnum::Ongoing->value
                 && $monitoringCount > 0,
             $isOversight
@@ -246,6 +248,7 @@ class CaseWorkflowContextService
         $discontinueRecovery = $this->action(
             $isSameCampusAdmin
                 && $actor->hasPermission('cases.monitor')
+                && ! $isOperationallyTerminal
                 && in_array($recoveryStatus, [RecoveryStatusEnum::Planned->value, RecoveryStatusEnum::Ongoing->value], true),
             $isOversight ? 'oversight_read_only' : (! $isSameCampusAdmin ? 'campus_access_denied' : 'recovery_terminal'),
         );
@@ -262,7 +265,8 @@ class CaseWorkflowContextService
             default => 'action_unavailable',
         };
         $finalizeClosure = $this->action(
-            $isAssigned
+            ! $isOperationallyTerminal
+                && $isAssigned
                 && $actor->hasPermission('cases.close')
                 && $finalSummaryPublished
                 && $finalOutcomeCompatible
@@ -296,6 +300,7 @@ class CaseWorkflowContextService
         );
 
         $primaryTip = match (true) {
+            $caseStatus === CaseStatusEnum::Withdrawn->value => 'case_withdrawn',
             $caseStatus === CaseStatusEnum::Closed->value && ! $finalSummaryExists => 'legacy_completion',
             $caseStatus === CaseStatusEnum::Closed->value => 'case_closed',
             $recoveryStatus === RecoveryStatusEnum::Discontinued->value && ! $finalSummaryExists && $isSameCampusAdmin => 'create_final_summary',
@@ -332,7 +337,7 @@ class CaseWorkflowContextService
                 'final_summary_published' => $finalSummaryPublished,
                 'final_outcome_code' => $finalOutcome?->value,
                 'final_outcome_compatible' => $finalOutcomeCompatible,
-                'finalization_path' => $isClosed && ! $finalSummaryExists
+                'finalization_path' => $isOperationallyTerminal && ! $finalSummaryExists
                     ? 'legacy_completion'
                     : ($recoveryStatusEnum && in_array($recoveryStatusEnum, [RecoveryStatusEnum::Completed, RecoveryStatusEnum::Discontinued], true)
                         ? $recoveryStatusEnum->value
@@ -421,7 +426,7 @@ class CaseWorkflowContextService
     private function investigationUnavailableReason(
         bool $isAssigned,
         bool $canInvestigate,
-        bool $isClosed,
+        bool $isOperationallyTerminal,
         ?string $caseStatus,
         bool $investigationExists,
         ?string $investigationStatus,
@@ -429,7 +434,7 @@ class CaseWorkflowContextService
         return match (true) {
             ! $isAssigned => 'read_only_no_assignment',
             ! $canInvestigate => 'permission_missing',
-            $isClosed => 'case_closed',
+            $isOperationallyTerminal => 'case_terminal',
             $caseStatus !== CaseStatusEnum::Investigation->value => 'case_not_investigation',
             ! $investigationExists => 'investigation_missing',
             $investigationStatus === InvestigationStatusEnum::Completed->value => 'investigation_completed',
@@ -440,7 +445,7 @@ class CaseWorkflowContextService
     private function evidenceUnavailableReason(
         User $actor,
         bool $isAssigned,
-        bool $isClosed,
+        bool $isOperationallyTerminal,
         ?string $caseStatus,
         bool $investigationExists,
         ?string $investigationStatus,
@@ -449,7 +454,7 @@ class CaseWorkflowContextService
             ! $actor->hasRole('satgas_ppks') => 'not_satgas',
             ! $isAssigned => 'read_only_no_assignment',
             ! $actor->hasPermission('evidence.view.case') || ! $actor->hasPermission('evidence.upload') => 'permission_missing',
-            $isClosed => 'case_closed',
+            $isOperationallyTerminal => 'case_terminal',
             ! $investigationExists => 'investigation_missing',
             $caseStatus !== CaseStatusEnum::Investigation->value => 'case_not_investigation',
             $investigationStatus === InvestigationStatusEnum::Completed->value => 'investigation_completed',

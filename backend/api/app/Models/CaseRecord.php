@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\CaseStatus as CaseStatusEnum;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,6 +31,7 @@ class CaseRecord extends Model
         'recommendation_at',
         'decision_at',
         'closed_at',
+        'withdrawn_at',
         'escalated_at',
         'escalation_type',
     ];
@@ -43,6 +46,7 @@ class CaseRecord extends Model
             'recommendation_at' => 'datetime',
             'decision_at' => 'datetime',
             'closed_at' => 'datetime',
+            'withdrawn_at' => 'datetime',
             'escalated_at' => 'datetime',
         ];
     }
@@ -97,10 +101,56 @@ class CaseRecord extends Model
         return $this->hasOne(CaseFinalSummary::class, 'case_id');
     }
 
+    public function withdrawals(): HasMany
+    {
+        return $this->hasMany(ReportWithdrawal::class, 'case_id');
+    }
+
     public function isAssignedTo(User $user): bool
     {
         return $this->activeAssignments()
             ->where('satgas_id', $user->id)
             ->exists();
+    }
+
+    public function isOperationallyTerminal(): bool
+    {
+        $this->loadMissing('status');
+
+        return $this->closed_at !== null || in_array(
+            $this->status?->name,
+            CaseStatusEnum::operationallyTerminalValues(),
+            true,
+        );
+    }
+
+    public function isClosed(): bool
+    {
+        $this->loadMissing('status');
+
+        return $this->closed_at !== null
+            || $this->status?->name === CaseStatusEnum::Closed->value;
+    }
+
+    public function isWithdrawn(): bool
+    {
+        $this->loadMissing('status');
+
+        return $this->status?->name === CaseStatusEnum::Withdrawn->value;
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeOperationallyActive(Builder $query): Builder
+    {
+        return $query
+            ->whereNull('closed_at')
+            ->whereHas(
+                'status',
+                fn (Builder $status): Builder => $status
+                    ->whereNotIn('name', CaseStatusEnum::operationallyTerminalValues()),
+            );
     }
 }

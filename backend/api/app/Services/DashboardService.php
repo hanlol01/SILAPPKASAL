@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Models\User;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -27,11 +28,17 @@ class DashboardService
                 'evidences' => $this->count($this->evidencesQuery($user, $filters)),
             ],
             'active_workflow' => [
-                'cases_open' => $this->count($this->casesQuery($user, $filters)->whereNull('cases.closed_at')),
-                'investigations_open' => $this->count($this->investigationsQuery($user, $filters)->whereNull('investigations.completed_at')),
-                'decisions_not_finalized' => $this->count($this->decisionsQuery($user, $filters)->whereNull('decisions.finalized_at')),
+                'cases_open' => $this->count($this->operationalCases($this->casesQuery($user, $filters))),
+                'investigations_open' => $this->count(
+                    $this->operationalCases($this->investigationsQuery($user, $filters))
+                        ->whereNull('investigations.completed_at')
+                ),
+                'decisions_not_finalized' => $this->count(
+                    $this->operationalCases($this->decisionsQuery($user, $filters))
+                        ->whereNull('decisions.finalized_at')
+                ),
                 'recoveries_open' => $this->count(
-                    $this->recoveriesQuery($user, $filters)
+                    $this->operationalCases($this->recoveriesQuery($user, $filters))
                         ->whereNull('recoveries.completed_at')
                         ->whereNull('recoveries.discontinued_at')
                 ),
@@ -426,7 +433,7 @@ class DashboardService
 
     private function assignedCaseCount(User $user, array $filters): int
     {
-        $query = $this->casesQuery($user, $filters);
+        $query = $this->operationalCases($this->casesQuery($user, $filters));
 
         if (! ($user->hasRole('admin') || $this->isGlobalScope($user))) {
             return $this->count($query);
@@ -449,7 +456,7 @@ class DashboardService
         }
 
         return $this->count(
-            $this->casesQuery($user, $filters)
+            $this->operationalCases($this->casesQuery($user, $filters))
                 ->whereNotExists(function (Builder $query): void {
                     $query->selectRaw('1')
                         ->from('case_assignments')
@@ -466,6 +473,7 @@ class DashboardService
             ->whereNull('cases.deleted_at')
             ->where('case_assignments.is_active', true)
             ->whereBetween('cases.forwarded_at', [$filters['date_from'], $filters['date_to']]);
+        $this->operationalCases($query);
 
         if ($user->hasRole('admin')) {
             if ($user->university_id === null) {
@@ -492,6 +500,18 @@ class DashboardService
         }
 
         return $this->count($query);
+    }
+
+    private function operationalCases(Builder $query): Builder
+    {
+        return $query
+            ->whereNull('cases.closed_at')
+            ->whereNotExists(function (Builder $status): void {
+                $status->selectRaw('1')
+                    ->from('case_statuses as operational_case_statuses')
+                    ->whereColumn('operational_case_statuses.code', 'cases.status_code')
+                    ->whereIn('operational_case_statuses.name', CaseStatusEnum::operationallyTerminalValues());
+            });
     }
 
     /**

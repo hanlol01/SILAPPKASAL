@@ -32,6 +32,8 @@ const LABEL_ALIASES: Partial<Record<LabelNamespace, Record<string, string>>> = {
     "CSTS-03": "need_info",
     "CSTS-04": "rejected",
     "CSTS-05": "forwarded",
+    cancelled: "cancelled",
+    withdrawn: "withdrawn",
   },
   caseStatus: {
     "CSTS-01": "submitted",
@@ -49,6 +51,7 @@ const LABEL_ALIASES: Partial<Record<LabelNamespace, Record<string, string>>> = {
     "CSTS-13": "monitoring",
     "CSTS-14": "closed",
     "CSTS-15": "escalated",
+    "CSTS-16": "withdrawn",
   },
   investigationStatus: {
     "INVS-01": "planning",

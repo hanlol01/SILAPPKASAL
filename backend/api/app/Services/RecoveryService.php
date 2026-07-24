@@ -9,7 +9,6 @@ use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\DecisionStatus as DecisionStatusEnum;
 use App\Enums\RecoveryStatus as RecoveryStatusEnum;
 use App\Models\CaseAssignment;
-use App\Models\CaseRecord;
 use App\Models\Decision;
 use App\Models\Recovery;
 use App\Models\RecoveryMonitoring;
@@ -29,15 +28,17 @@ class RecoveryService
         private readonly NotificationService $notificationService,
         private readonly AuditLogService $auditLogService,
         private readonly CaseCampusScope $campusScope,
-    ) {
-    }
+        private readonly CaseMutationGuard $caseMutationGuard,
+    ) {}
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function createForDecision(Decision $decision, User $actor, array $data): Recovery
     {
+        $decision->loadMissing('recommendation.case.status');
         $this->authorizeRecoveryManager($actor, $decision);
+        $this->caseMutationGuard->assertMutable($decision->recommendation->case);
         $this->ensureDecisionCanReceiveRecovery($decision);
 
         return DB::transaction(function () use ($decision, $actor, $data): Recovery {
@@ -47,11 +48,9 @@ class RecoveryService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $case = CaseRecord::query()
-                ->with(['status', 'finalSummary', 'report.reporter:id,university_id'])
-                ->whereKey($decision->recommendation?->case_id)
-                ->lockForUpdate()
-                ->firstOrFail();
+            $case = $this->caseMutationGuard
+                ->lockAndAssertMutable($decision->recommendation?->case_id)
+                ->load(['finalSummary', 'report.reporter:id,university_id']);
             $decision->recommendation?->setRelation('case', $case);
 
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
@@ -130,12 +129,14 @@ class RecoveryService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function update(Recovery $recovery, User $actor, array $data): Recovery
     {
         return DB::transaction(function () use ($recovery, $actor, $data): Recovery {
             $recovery = Recovery::query()->with(['status', 'decision.recommendation.case.report.reporter:id,university_id'])->whereKey($recovery->id)->lockForUpdate()->firstOrFail();
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($recovery->decision->recommendation->case);
+            $recovery->decision->recommendation->setRelation('case', $lockedCase);
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
             $this->authorizeRecoveryManager($actor, $recovery);
             $this->ensureRecoveryOpen($recovery);
@@ -185,6 +186,8 @@ class RecoveryService
     {
         return DB::transaction(function () use ($recovery, $actor, $data): Recovery {
             $recovery = Recovery::query()->with(['status', 'decision.recommendation.case.report.reporter:id,university_id'])->whereKey($recovery->id)->lockForUpdate()->firstOrFail();
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($recovery->decision->recommendation->case);
+            $recovery->decision->recommendation->setRelation('case', $lockedCase);
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
             $this->authorizeRecoveryManager($actor, $recovery);
             $this->ensureRecoveryOpen($recovery);
@@ -274,11 +277,18 @@ class RecoveryService
      */
     public function statusOptions(Recovery $recovery, User $user): array
     {
-        $recovery->loadMissing(['status', 'decision.recommendation.case.report.reporter:id,university_id']);
+        $recovery->loadMissing([
+            'status',
+            'decision.recommendation.case.status',
+            'decision.recommendation.case.report.reporter:id,university_id',
+        ]);
 
         $statuses = [];
 
-        if ($this->canManageRecovery($user, $recovery)) {
+        if (
+            $this->canManageRecovery($user, $recovery)
+            && ! $recovery->decision->recommendation->case->isOperationallyTerminal()
+        ) {
             $transitionNames = $recovery->status?->valid_transitions ?? [];
 
             $statuses = RecoveryStatus::query()
@@ -311,12 +321,14 @@ class RecoveryService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function createMonitoring(Recovery $recovery, User $actor, array $data): RecoveryMonitoring
     {
         return DB::transaction(function () use ($recovery, $actor, $data): RecoveryMonitoring {
             $recovery = Recovery::query()->with(['status', 'decision.recommendation.case'])->whereKey($recovery->id)->lockForUpdate()->firstOrFail();
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($recovery->decision->recommendation->case);
+            $recovery->decision->recommendation->setRelation('case', $lockedCase);
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
 
             if (! $this->isAssignedToDecisionCase($recovery->decision, $actor)) {
@@ -449,9 +461,9 @@ class RecoveryService
     }
 
     /**
-     * @param array<string, mixed> $metadata
-     * @param array<string, mixed> $beforeChanges
-     * @param array<string, mixed> $afterChanges
+     * @param  array<string, mixed>  $metadata
+     * @param  array<string, mixed>  $beforeChanges
+     * @param  array<string, mixed>  $afterChanges
      */
     private function recordAudit(
         AuditAction $action,

@@ -170,6 +170,20 @@ evidence.upload, evidence.view.case      ← future capability
 
 ---
 
+## REV-WITHDRAW-01A Permission Addendum
+
+| Permission | Reporter | Satgas PPKS | Same-campus Admin | Super Admin | Active in 01A |
+|---|---|---|---|---|---|
+| `reports.cancel.own` | Own Report only | No | No | No | Yes |
+| `reports.withdraw.own` | Own Report only | No | No | No | Foundation only |
+| `reports.withdraw.review.own_campus` | No | No | Own campus only | No | Notification targeting only |
+
+Direct cancellation also requires an active Reporter, exact non-null `reporter_id` ownership,
+`submitted` status, no Case, null `forwarded_at`, no active withdrawal, and the enabled server-side
+feature flag. No role receives a bypass.
+
+---
+
 ## 6. REV-WF-03 R3 Finalization Authorization
 
 | Action | Reporter | Satgas PPKS | Same-campus Admin | Super Admin |

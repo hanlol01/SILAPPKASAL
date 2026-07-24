@@ -273,6 +273,10 @@ function CaseDetail() {
 
   const c = caseQuery.data;
   const workflowContext = c.workflow_context;
+  const caseStatusToken = normalizeWorkflowToken(c.status ?? c.status_code);
+  const isOperationallyTerminalCase = ["closed", "csts_14", "withdrawn", "csts_16"].includes(
+    caseStatusToken,
+  );
   const workflowTabContext = `${c.id}:${normalizeWorkflowToken(c.status ?? c.status_code)}`;
   const activeWorkflowTab =
     workflowTabSelection?.context === workflowTabContext
@@ -286,8 +290,9 @@ function CaseDetail() {
   const canManageAssignments =
     roleCode === "admin" &&
     workflowContext?.facts.same_campus_admin === true &&
-    Boolean(user?.permissions?.includes("cases.assign_satgas"));
-  const canUseSatgasActions = isAssignedSatgas && !c.closed_at;
+    Boolean(user?.permissions?.includes("cases.assign_satgas")) &&
+    !isOperationallyTerminalCase;
+  const canUseSatgasActions = isAssignedSatgas && !isOperationallyTerminalCase;
   const canRecommend =
     canUseSatgasActions && Boolean(user?.permissions?.includes("cases.recommend"));
   const canReviewRecommendation =
@@ -312,7 +317,7 @@ function CaseDetail() {
   const canUpdateEvidence =
     isAssignedSatgas &&
     Boolean(user?.permissions?.includes("evidence.upload")) &&
-    !c.closed_at;
+    !isOperationallyTerminalCase;
   const canDownloadEvidence =
     isSensitiveOversight ||
     (isAssignedSatgas && Boolean(user?.permissions?.includes("evidence.download")));
@@ -347,8 +352,7 @@ function CaseDetail() {
     decisionsLoaded &&
     finalizedDecisionForRecovery !== null &&
     recoveries.length === 0 &&
-    !c.closed_at;
-  const caseStatusToken = normalizeWorkflowToken(c.status ?? c.status_code);
+    !isOperationallyTerminalCase;
   const isLifecycleControlledCase = ["recommendation", "csts_09", "decision", "csts_10"].includes(
     caseStatusToken,
   );
@@ -625,7 +629,7 @@ function CaseDetail() {
                   </div>
                 </div>
               ))}
-              {canManageAssignments && !c.closed_at && (
+              {canManageAssignments && (
                 <>
                   <SatgasAssignmentAction
                     mode="assign-case"

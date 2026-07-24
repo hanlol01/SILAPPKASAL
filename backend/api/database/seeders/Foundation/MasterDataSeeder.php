@@ -157,6 +157,7 @@ class MasterDataSeeder extends Seeder
             ['CSTS-13', 'monitoring', 'Monitoring pasca kasus.', 7, 'Monitoring', false, 'satgas_ppks', ['closed']],
             ['CSTS-14', 'closed', 'Kasus selesai.', 7, 'Monitoring', true, 'satgas_ppks', []],
             ['CSTS-15', 'escalated', 'Kasus dieskalasi ke pihak luar.', 0, 'Eskalasi', false, 'satgas_ppks', []],
+            ['CSTS-16', 'withdrawn', 'Kasus dihentikan setelah pencabutan pengaduan disetujui.', 0, 'Dihentikan', true, 'system', []],
         ];
 
         foreach ($rows as $index => [$code, $name, $description, $stage, $stageName, $terminal, $role, $transitions]) {
@@ -350,6 +351,7 @@ class MasterDataSeeder extends Seeder
             ['NOTIF-22', 'Asesmen risiko dan prioritas dicatat untuk Satgas', 'Satgas', 'in_app', 'case.assessment_recorded.internal', 'mvp_extended'],
             ['NOTIF-23', 'Rekomendasi dikembalikan untuk revisi', 'Satgas', 'in_app', 'recommendation.returned_for_revision', 'mvp_extended'],
             ['NOTIF-24', 'Rekomendasi disetujui untuk putusan', 'Admin', 'in_app', 'recommendation.approved', 'mvp_extended'],
+            ['NOTIF-25', 'Pembatalan langsung pengaduan', 'Admin', 'in_app', 'report.direct_cancellation', 'mvp_extended'],
         ];
 
         foreach ($rows as $index => [$code, $name, $recipient, $channel, $template, $classification]) {

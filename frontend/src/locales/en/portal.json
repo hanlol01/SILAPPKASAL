@@ -109,6 +109,8 @@
     "under_review": "Under review",
     "in_process": "In process",
     "completed": "Completed",
+    "cancelled_by_reporter": "Cancelled by Reporter",
+    "withdrawn": "Withdrawn",
     "unknown": "Complaint status"
   },
   "myReports": "My Complaints",
@@ -135,6 +137,26 @@
   "submittedDate": "Submitted {{date}}",
   "anonymousReport": "Anonymous Complaint",
   "reporterIdentityHidden": "Reporter identity hidden",
+  "cancellation": {
+    "trigger": "Cancel Complaint",
+    "title": "Cancel Complaint",
+    "description": "This cancellation does not require approval because handling has not started.",
+    "historyNotice": "The complaint data will not be deleted and remains available as history.",
+    "reasonLabel": "Cancellation reason",
+    "reasonPlaceholder": "Explain why you are cancelling this complaint...",
+    "reasonHelp": "{{count}}/2,000 characters. Minimum 20 characters.",
+    "confirmationLabel": "I understand that the complaint will be cancelled and its data will remain stored.",
+    "confirmAction": "Yes, Cancel Complaint",
+    "submitting": "Cancelling...",
+    "success": "The complaint was cancelled successfully.",
+    "error": "The complaint could not be cancelled. Refresh the page and try again.",
+    "validation": {
+      "reasonRequired": "The cancellation reason is required.",
+      "reasonMin": "The cancellation reason must be at least 20 characters.",
+      "reasonMax": "The cancellation reason may not exceed 2,000 characters.",
+      "confirmationRequired": "Confirm this action to continue."
+    }
+  },
   "collapsible": {
     "expand": "Expand section",
     "collapse": "Collapse section"
@@ -314,6 +336,14 @@
       "proses_penanganan": {
         "title": "Being handled",
         "desc": "Your complaint is being handled according to the applicable procedure."
+      },
+      "pengaduan_dibatalkan": {
+        "title": "Cancelled by Reporter",
+        "desc": "You cancelled the complaint before handling started."
+      },
+      "pengaduan_dicabut": {
+        "title": "Complaint withdrawn",
+        "desc": "The complaint withdrawal has been completed."
       },
       "selesai": {
         "title": "Completed",

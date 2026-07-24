@@ -9,6 +9,8 @@ enum ReportStatus: string
     case NeedInfo = 'need_info';
     case Rejected = 'rejected';
     case Forwarded = 'forwarded';
+    case Cancelled = 'cancelled';
+    case Withdrawn = 'withdrawn';
 
     /**
      * @return list<string>

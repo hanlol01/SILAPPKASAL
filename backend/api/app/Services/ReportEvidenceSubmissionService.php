@@ -5,10 +5,8 @@ namespace App\Services;
 use App\Enums\AuditAction;
 use App\Enums\AuditCategory;
 use App\Enums\AuditSeverity;
-use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\ReportStatus;
 use App\Models\CaseRecord;
-use App\Models\CaseStatus as CaseStatusModel;
 use App\Models\Report;
 use App\Models\ReportEvidenceSubmission;
 use App\Models\User;
@@ -55,6 +53,7 @@ class ReportEvidenceSubmissionService
     public function __construct(
         private readonly AuditLogService $auditLogService,
         private readonly CaseCampusScope $campusScope,
+        private readonly CaseMutationGuard $caseMutationGuard,
     ) {}
 
     /**
@@ -99,6 +98,10 @@ class ReportEvidenceSubmissionService
                     ->first() ?? throw $this->notFound();
 
                 $this->authorizeReporter($actor, 'reporter_evidence.upload.own');
+                if ($lockedReport->case !== null) {
+                    $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($lockedReport->case);
+                    $lockedReport->setRelation('case', $lockedCase);
+                }
                 $this->ensureUploadEligible($lockedReport);
 
                 if ($lockedReport->evidenceSubmissions()->count() >= self::MAX_FILES_PER_REPORT) {
@@ -522,18 +525,7 @@ class ReportEvidenceSubmissionService
             return true;
         }
 
-        if ($case->closed_at !== null || $case->status?->name === CaseStatusEnum::Closed->value) {
-            return false;
-        }
-
-        if ($case->status === null && $case->status_code !== null) {
-            return ! CaseStatusModel::query()
-                ->where('code', $case->status_code)
-                ->where('name', CaseStatusEnum::Closed->value)
-                ->exists();
-        }
-
-        return true;
+        return ! $case->isOperationallyTerminal();
     }
 
     /**

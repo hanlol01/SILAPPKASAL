@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\V1\RecoveryController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\ReporterRegistrationController;
 use App\Http\Controllers\Api\V1\ReportEvidenceSubmissionController;
+use App\Http\Controllers\Api\V1\ReportWithdrawalController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -320,6 +321,9 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/evidence-files/{uuid}/preview', [ReportEvidenceSubmissionController::class, 'previewForReporter']);
         Route::get('/reports/{registrationNumber}/timeline', [PortalController::class, 'reportTimeline']);
         Route::get('/reports/{registrationNumber}/handling-progress', [PortalController::class, 'reportHandlingProgress']);
+        Route::post('/reports/{registrationNumber}/cancel', [ReportWithdrawalController::class, 'cancel'])
+            ->middleware(['private.no-store', 'throttle:reporter.cancellation'])
+            ->name('portal.reports.cancel');
         Route::get('/reports/{registrationNumber}', [PortalController::class, 'report']);
         Route::get('/notifications', [PortalController::class, 'notifications']);
     });

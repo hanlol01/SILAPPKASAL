@@ -8,17 +8,22 @@ use App\Enums\InvestigationStatus;
 use App\Enums\RecommendationStatus;
 use App\Enums\RecoveryStatus;
 use App\Enums\ReporterSafeStatus;
+use App\Enums\ReportStatus;
+use App\Models\CaseFinalSummary;
 use App\Models\Decision;
 use App\Models\Investigation;
 use App\Models\Recommendation;
-use App\Models\Report;
 use App\Models\Recovery;
+use App\Models\Report;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class ReporterPortalService
 {
+    public function __construct(private readonly ReportWithdrawalService $withdrawalService) {}
+
     /**
      * @return array{total_reports: int, active_reports: int, completed_reports: int, unread_notifications: int}
      */
@@ -28,11 +33,17 @@ class ReporterPortalService
         $completed = (clone $base)
             ->whereHas('case.status', fn ($query) => $query->where('name', CaseStatusEnum::Closed->value))
             ->count();
+        $inactive = (clone $base)
+            ->whereIn('status', [
+                ReportStatus::Cancelled->value,
+                ReportStatus::Withdrawn->value,
+            ])
+            ->count();
         $total = (clone $base)->count();
 
         return [
             'total_reports' => $total,
-            'active_reports' => $total - $completed,
+            'active_reports' => max(0, $total - $completed - $inactive),
             'completed_reports' => $completed,
             'unread_notifications' => $user->unreadNotifications()->count(),
         ];
@@ -63,11 +74,22 @@ class ReporterPortalService
                 'reporter.studyProgram',
                 'case.status',
                 'case.finalSummary',
+                'activeWithdrawal',
             ])
             ->where('registration_number', $registrationNumber)
             ->first();
 
-        return $report ? $this->withPortalStatus($report) : null;
+        if (! $report) {
+            return null;
+        }
+
+        $report = $this->withPortalStatus($report);
+        $report->setAttribute(
+            'withdrawal_capabilities',
+            $this->withdrawalService->capabilities($report, $user)
+        );
+
+        return $report;
     }
 
     /**
@@ -101,7 +123,7 @@ class ReporterPortalService
         $investigation = $case?->investigation;
         $recommendation = $case?->recommendation;
         $decision = $recommendation?->decision;
-        $recoveries = $decision?->recoveries ?? new Collection();
+        $recoveries = $decision?->recoveries ?? new Collection;
         $caseCompleted = $case?->status?->name === CaseStatusEnum::Closed->value;
 
         return [
@@ -164,11 +186,26 @@ class ReporterPortalService
             $events[] = ['stage' => 'proses_penanganan', 'occurred_at' => $report->forwarded_at];
         }
 
+        if ($report->cancelled_at) {
+            $events[] = ['stage' => 'pengaduan_dibatalkan', 'occurred_at' => $report->cancelled_at];
+        }
+
+        if ($report->withdrawn_at) {
+            $events[] = ['stage' => 'pengaduan_dicabut', 'occurred_at' => $report->withdrawn_at];
+        }
+
         if ($isCompleted && $case?->closed_at) {
             $events[] = ['stage' => 'selesai', 'occurred_at' => $case->closed_at];
         }
 
-        $stageOrder = array_flip(['laporan_dikirim', 'laporan_ditinjau', 'proses_penanganan', 'selesai']);
+        $stageOrder = array_flip([
+            'laporan_dikirim',
+            'laporan_ditinjau',
+            'proses_penanganan',
+            'pengaduan_dibatalkan',
+            'pengaduan_dicabut',
+            'selesai',
+        ]);
         usort($events, static function (array $a, array $b) use ($stageOrder): int {
             $timeComparison = $a['occurred_at'] <=> $b['occurred_at'];
 
@@ -189,7 +226,7 @@ class ReporterPortalService
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Builder<Report>
+     * @return Builder<Report>
      */
     private function ownedReportsQuery(User $user)
     {
@@ -285,7 +322,7 @@ class ReporterPortalService
     }
 
     /**
-     * @param Collection<int, Recovery> $recoveries
+     * @param  Collection<int, Recovery>  $recoveries
      * @return array<string, mixed>
      */
     private function recoveryProgress(bool $caseAvailable, Collection $recoveries): array
@@ -316,7 +353,7 @@ class ReporterPortalService
     }
 
     /** @return array<string, mixed>|null */
-    private function finalSummaryProjection(bool $caseCompleted, ?\App\Models\CaseFinalSummary $summary): ?array
+    private function finalSummaryProjection(bool $caseCompleted, ?CaseFinalSummary $summary): ?array
     {
         if ($summary?->isPublished()) {
             return [

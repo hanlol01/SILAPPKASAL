@@ -6,17 +6,17 @@ use App\Enums\AuditAction;
 use App\Enums\AuditCategory;
 use App\Enums\AuditSeverity;
 use App\Enums\CaseStatus as CaseStatusEnum;
-use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Enums\InvestigationActivityType;
+use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Models\CaseAssignment;
 use App\Models\CaseRecord;
 use App\Models\Investigation;
 use App\Models\InvestigationActivity;
 use App\Models\InvestigationStatus;
 use App\Models\User;
+use App\Notifications\WorkflowDatabaseNotification;
 use App\Support\ApiErrorCode;
 use App\Support\CaseCampusScope;
-use App\Notifications\WorkflowDatabaseNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -28,19 +28,21 @@ class InvestigationService
     public function __construct(
         private readonly AuditLogService $auditLogService,
         private readonly CaseCampusScope $campusScope,
-    ) {
-    }
+        private readonly CaseMutationGuard $caseMutationGuard,
+    ) {}
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function createForCase(CaseRecord $case, User $actor, array $data): Investigation
     {
         $this->authorizeAssignedInvestigator($case, $actor);
-        $this->ensureCaseCanStartInvestigation($case);
+        $this->caseMutationGuard->assertMutable($case);
 
         return DB::transaction(function () use ($case, $actor, $data): Investigation {
-            $case = CaseRecord::query()->with(['status', 'investigation', 'activeAssignments.satgas'])->whereKey($case->id)->lockForUpdate()->firstOrFail();
+            $case = $this->caseMutationGuard
+                ->lockAndAssertMutable($case)
+                ->load(['investigation', 'activeAssignments.satgas']);
 
             $this->authorizeAssignedLead($case, $actor);
             $this->ensureCaseCanStartInvestigation($case);
@@ -110,12 +112,14 @@ class InvestigationService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function addActivity(Investigation $investigation, User $actor, array $data): InvestigationActivity
     {
         return DB::transaction(function () use ($investigation, $actor, $data): InvestigationActivity {
             $investigation = Investigation::query()->with(['case.status', 'status'])->whereKey($investigation->id)->lockForUpdate()->firstOrFail();
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($investigation->case);
+            $investigation->setRelation('case', $lockedCase);
 
             $this->authorizeAssignedInvestigator($investigation->case, $actor);
             $this->ensureCaseStillInInvestigation($investigation->case);
@@ -169,6 +173,8 @@ class InvestigationService
     {
         return DB::transaction(function () use ($investigation, $actor, $requestedStatus): Investigation {
             $investigation = Investigation::query()->with(['case.status', 'case.activeAssignments.satgas', 'status'])->whereKey($investigation->id)->lockForUpdate()->firstOrFail();
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($investigation->case);
+            $investigation->setRelation('case', $lockedCase);
 
             $this->authorizeAssignedInvestigator($investigation->case, $actor);
             $this->ensureCaseStillInInvestigation($investigation->case);
@@ -232,12 +238,13 @@ class InvestigationService
      */
     public function statusOptions(Investigation $investigation): array
     {
-        $investigation->loadMissing('status');
+        $investigation->loadMissing(['status', 'case.status']);
         $currentStageActivityCount = $investigation->activities()
             ->where('investigation_stage_code', $investigation->status_code)
             ->count();
 
-        $transitionNames = $investigation->status?->valid_transitions ?? [];
+        $caseTerminal = $investigation->case?->isOperationallyTerminal() ?? true;
+        $transitionNames = $caseTerminal ? [] : ($investigation->status?->valid_transitions ?? []);
         $statuses = InvestigationStatus::query()
             ->where('is_active', true)
             ->whereIn('name', $transitionNames)
@@ -259,10 +266,12 @@ class InvestigationService
             ],
             'valid_transitions' => $statuses,
             'current_stage_activity_count' => $currentStageActivityCount,
-            'can_transition' => $currentStageActivityCount > 0,
-            'reason_code' => $currentStageActivityCount > 0
-                ? null
-                : ApiErrorCode::InvestigationStageActivityRequired,
+            'can_transition' => ! $caseTerminal && $currentStageActivityCount > 0,
+            'reason_code' => $caseTerminal
+                ? ApiErrorCode::CaseOperationallyTerminal
+                : ($currentStageActivityCount > 0
+                    ? null
+                    : ApiErrorCode::InvestigationStageActivityRequired),
         ];
     }
 
@@ -288,8 +297,8 @@ class InvestigationService
     {
         $case->loadMissing(['status', 'investigation']);
 
-        if ($case->status?->name === CaseStatusEnum::Closed->value) {
-            throw $this->unprocessable('Closed cases cannot start investigations');
+        if ($case->isOperationallyTerminal()) {
+            throw $this->unprocessable('Terminal cases cannot start investigations');
         }
 
         if ($case->status?->name !== CaseStatusEnum::Investigation->value) {
@@ -305,8 +314,8 @@ class InvestigationService
     {
         $case->loadMissing('status');
 
-        if ($case->status?->name === CaseStatusEnum::Closed->value) {
-            throw $this->unprocessable('Closed cases cannot be investigated');
+        if ($case->isOperationallyTerminal()) {
+            throw $this->unprocessable('Terminal cases cannot be investigated');
         }
 
         if ($case->status?->name !== CaseStatusEnum::Investigation->value) {
@@ -354,9 +363,9 @@ class InvestigationService
     }
 
     /**
-     * @param array<string, mixed> $metadata
-     * @param array<string, mixed> $beforeChanges
-     * @param array<string, mixed> $afterChanges
+     * @param  array<string, mixed>  $metadata
+     * @param  array<string, mixed>  $beforeChanges
+     * @param  array<string, mixed>  $afterChanges
      */
     private function recordAudit(
         AuditAction $action,
@@ -438,7 +447,7 @@ class InvestigationService
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     private function notifyAdmins(?CaseRecord $case, array $payload): void
     {
@@ -497,7 +506,7 @@ class InvestigationService
     }
 
     /**
-     * @param array<string, string> $replace
+     * @param  array<string, string>  $replace
      */
     private function unprocessableCode(string $errorCode, array $replace = []): HttpResponseException
     {

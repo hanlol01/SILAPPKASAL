@@ -15,6 +15,7 @@ class PortalReportDetailResource extends PortalReportResource
         return [
             ...parent::toArray($request),
             'submitted_details' => ReportInputProjection::make($this->resource, true),
+            'withdrawal_capabilities' => $this->withdrawal_capabilities,
         ];
     }
 }

@@ -1055,3 +1055,20 @@ php artisan tinker
 ---
 
 > **Catatan**: Dokumen ini adalah Tier 2 (GOVERNED). Perubahan memerlukan persetujuan Project Owner. Workflow ini menjadi referensi wajib bagi semua agent sebelum dan selama coding.
+
+## REV-WITHDRAW-01A deployment note
+
+The withdrawal foundation migrations are normal additive migrations. Do not use `migrate:fresh` on
+development or production data. Before enabling direct cancellation, deploy the code and migrations,
+reconcile RBAC, then explicitly set:
+
+```dotenv
+REPORT_EARLY_CANCELLATION_ENABLED=false
+REPORT_FORMAL_WITHDRAWAL_ENABLED=false
+```
+
+Both flags default to false. Enable `REPORT_EARLY_CANCELLATION_ENABLED` only after product approval
+and operational communication. Keep `REPORT_FORMAL_WITHDRAWAL_ENABLED=false` until the later formal
+withdrawal submilestone supplies its mutation, private document flow, and Admin review workflow.
+Database notifications are written, but this revision does not activate or redesign the Dashboard
+notification inbox.

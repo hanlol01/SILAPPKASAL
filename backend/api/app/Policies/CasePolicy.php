@@ -10,9 +10,7 @@ use App\Support\CaseCampusScope;
 
 class CasePolicy extends BasePolicy
 {
-    public function __construct(private readonly CaseCampusScope $campusScope)
-    {
-    }
+    public function __construct(private readonly CaseCampusScope $campusScope) {}
 
     public function viewAny(User $user): bool
     {
@@ -34,7 +32,7 @@ class CasePolicy extends BasePolicy
 
     public function assign(User $user, CaseRecord $case): bool
     {
-        return ! $this->isClosed($case)
+        return ! $case->isClosed()
             && $this->allowPermission($user, 'cases.assign_satgas')
             && $this->allowRole($user, 'admin')
             && $this->campusScope->sameCampus($user, $case);
@@ -42,7 +40,7 @@ class CasePolicy extends BasePolicy
 
     public function updateStatus(User $user, CaseRecord $case): bool
     {
-        return ! $this->isClosed($case)
+        return ! $case->isClosed()
             && ! $this->isLifecycleControlled($case)
             && $this->canReadAssigned($user)
             && $this->isAssignedTo($case, $user);
@@ -50,14 +48,14 @@ class CasePolicy extends BasePolicy
 
     public function recordAssessment(User $user, CaseRecord $case): bool
     {
-        return ! $this->isClosed($case)
+        return ! $case->isClosed()
             && $this->canReadAssigned($user)
             && $this->isAssignedTo($case, $user);
     }
 
     public function finalizeClosure(User $user, CaseRecord $case): bool
     {
-        return ! $this->isClosed($case)
+        return ! $case->isClosed()
             && $this->allowPermission($user, 'cases.close')
             && $this->allowRole($user, 'satgas_ppks')
             && $this->isAssignedTo($case, $user);
@@ -73,11 +71,6 @@ class CasePolicy extends BasePolicy
     {
         return $this->allowPermission($user, 'cases.read.assigned')
             && $this->allowRole($user, 'satgas_ppks');
-    }
-
-    private function isClosed(CaseRecord $case): bool
-    {
-        return $case->status?->name === CaseStatusEnum::Closed->value;
     }
 
     private function isLifecycleControlled(CaseRecord $case): bool

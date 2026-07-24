@@ -17,8 +17,11 @@ return [
         'registration_number_unavailable' => 'A reporter registration number could not be generated.',
         'tracking_not_found' => 'The complaint tracking code was not found.',
         'portal_report_not_found' => 'The complaint was not found.',
+        'report_cancellation_feature_disabled' => 'Direct cancellation is not enabled.',
+        'report_cancellation_conflict' => 'The complaint is no longer eligible for direct cancellation.',
         'audit_export.too_many_rows' => 'The audit export exceeds the 10,000-row limit. Narrow the date range or filters.',
         'case_assessment_required' => 'Record the risk level and priority before advancing the case to investigation.',
+        'case_operationally_terminal' => 'A withdrawn or closed Case is read-only and cannot accept operational changes.',
         'case_investigation_completion_required' => 'Complete the investigation before advancing the case to mediation or recommendation.',
         'investigation_stage_activity_required' => 'Add at least one activity in the :stage stage before continuing.',
         'investigation_activity_stage_incompatible' => 'That activity type cannot be recorded in the :stage stage.',
@@ -34,6 +37,16 @@ return [
         'final_summary_publication_required' => 'Complete and publish the final summary before continuing.',
         'final_outcome_incompatible' => 'The final outcome is incompatible with the terminal Recovery status.',
         'final_summary_anonymous_identity_detected' => 'An anonymous final summary must not contain Reporter identity.',
+    ],
+    'messages' => [
+        'report_cancelled' => 'The complaint was cancelled successfully.',
+    ],
+    'validation' => [
+        'cancellation_reason_attribute' => 'cancellation reason',
+        'cancellation_reason_required' => 'The cancellation reason is required.',
+        'cancellation_reason_string' => 'The cancellation reason must be text.',
+        'cancellation_reason_min' => 'The cancellation reason must be at least 20 characters.',
+        'cancellation_reason_max' => 'The cancellation reason may not exceed 2,000 characters.',
     ],
     'investigation_stages' => [
         'planning' => 'Planning',

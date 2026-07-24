@@ -15,6 +15,7 @@ enum CaseStatus: string
     case Monitoring = 'monitoring';
     case Closed = 'closed';
     case Escalated = 'escalated';
+    case Withdrawn = 'withdrawn';
 
     /**
      * @return list<string>
@@ -25,5 +26,21 @@ enum CaseStatus: string
             static fn (self $status): string => $status->value,
             self::cases()
         );
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function operationallyTerminalValues(): array
+    {
+        return [
+            self::Closed->value,
+            self::Withdrawn->value,
+        ];
+    }
+
+    public function isOperationallyTerminal(): bool
+    {
+        return in_array($this->value, self::operationallyTerminalValues(), true);
     }
 }

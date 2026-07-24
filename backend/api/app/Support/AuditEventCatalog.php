@@ -68,6 +68,17 @@ final class AuditEventCatalog
                 ['registration_number', 'report_type', 'category_code', 'status'],
                 ['status'],
             ),
+            AuditAction::ReportDirectCancellationCompleted => $this->fields(
+                [
+                    'registration_number',
+                    'withdrawal_public_id',
+                    'request_type',
+                    'from_status',
+                    'to_status',
+                    'result',
+                ],
+                ['status'],
+            ),
 
             AuditAction::CaseCreated,
             AuditAction::CaseAssigned,

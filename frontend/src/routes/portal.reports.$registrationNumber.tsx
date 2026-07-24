@@ -9,6 +9,7 @@ import {
   HelpCircle,
   HeartHandshake,
   Paperclip,
+  OctagonX,
   SearchCheck,
   Send,
   ShieldCheck,
@@ -45,6 +46,7 @@ import { QueryErrorState } from "@/components/query-state";
 import { PortalStatusBadge } from "@/components/portal/portal-status-badge";
 import { PortalReportTypeBadge } from "@/components/portal/portal-report-type-badge";
 import { ReporterEvidenceSubmissions } from "@/components/portal/reporter-evidence-submissions";
+import { CancelComplaintDialog } from "@/components/portal/cancel-complaint-dialog";
 import {
   ProgressTimeline,
   ProgressTimelineSkeleton,
@@ -188,6 +190,9 @@ function ReportDetail({ report }: ReportDetailProps) {
           portalStatus={report.portal_status}
         />
         <PortalReportTypeBadge reportType={report.report_type} />
+        {report.withdrawal_capabilities.can_cancel && (
+          <CancelComplaintDialog registrationNumber={report.registration_number} />
+        )}
       </div>
 
       {/* Safe final completion message — shown only for the reporter-safe Completed status */}
@@ -300,6 +305,8 @@ const TIMELINE_STAGE_ICONS: Record<string, LucideIcon> = {
   laporan_dikirim: Send,
   laporan_ditinjau: Eye,
   proses_penanganan: ShieldCheck,
+  pengaduan_dibatalkan: OctagonX,
+  pengaduan_dicabut: OctagonX,
   selesai: CheckCircle2,
 };
 

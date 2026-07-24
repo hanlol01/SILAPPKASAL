@@ -27,20 +27,23 @@ class RecommendationService
         private readonly NotificationService $notificationService,
         private readonly AuditLogService $auditLogService,
         private readonly CaseCampusScope $campusScope,
-    ) {
-    }
+        private readonly CaseMutationGuard $caseMutationGuard,
+    ) {}
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function createForCase(CaseRecord $case, User $actor, array $data): Recommendation
     {
         $this->authorizeAssignedRecommender($case, $actor);
+        $this->caseMutationGuard->assertMutable($case);
         $this->ensureCaseCanReceiveRecommendation($case);
         $investigation = $this->validatedCompletedInvestigation($case, (int) $data['investigation_id']);
 
         return DB::transaction(function () use ($case, $actor, $data, $investigation): Recommendation {
-            $case = CaseRecord::query()->with(['status', 'recommendation'])->whereKey($case->id)->lockForUpdate()->firstOrFail();
+            $case = $this->caseMutationGuard
+                ->lockAndAssertMutable($case)
+                ->load('recommendation');
             $this->ensureCaseCanReceiveRecommendation($case);
             $this->validatedCompletedInvestigation($case, $investigation->id);
             $status = $this->statusByName(RecommendationStatusEnum::Drafting);
@@ -112,12 +115,14 @@ class RecommendationService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function update(Recommendation $recommendation, User $actor, array $data): Recommendation
     {
         return DB::transaction(function () use ($recommendation, $actor, $data): Recommendation {
             $recommendation = Recommendation::query()->with(['case.status', 'status'])->whereKey($recommendation->id)->lockForUpdate()->firstOrFail();
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($recommendation->case);
+            $recommendation->setRelation('case', $lockedCase);
 
             $this->authorizeAssignedRecommender($recommendation->case, $actor);
             $this->ensureRecommendationEditable($recommendation);
@@ -166,6 +171,8 @@ class RecommendationService
                 ->whereKey($recommendation->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($recommendation->case);
+            $recommendation->setRelation('case', $lockedCase);
 
             $this->authorizeAssignedRecommender($recommendation->case, $actor);
             $this->ensureRecommendationEditableForSubmission($recommendation);
@@ -212,7 +219,7 @@ class RecommendationService
     }
 
     /**
-     * @param array{action: string, revision_note?: string|null} $data
+     * @param  array{action: string, revision_note?: string|null}  $data
      */
     public function review(Recommendation $recommendation, User $actor, array $data): Recommendation
     {
@@ -222,11 +229,9 @@ class RecommendationService
                 ->whereKey($recommendation->id)
                 ->lockForUpdate()
                 ->firstOrFail();
-            $case = CaseRecord::query()
-                ->with(['status', 'report.reporter:id,university_id'])
-                ->whereKey($recommendation->case_id)
-                ->lockForUpdate()
-                ->firstOrFail();
+            $case = $this->caseMutationGuard
+                ->lockAndAssertMutable($recommendation->case_id)
+                ->load('report.reporter:id,university_id');
 
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
             $this->authorizeRecommendationReviewer($case, $actor);
@@ -304,6 +309,8 @@ class RecommendationService
     {
         return DB::transaction(function () use ($recommendation, $actor, $requestedStatus): Recommendation {
             $recommendation = Recommendation::query()->with(['case.status', 'status'])->whereKey($recommendation->id)->lockForUpdate()->firstOrFail();
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($recommendation->case);
+            $recommendation->setRelation('case', $lockedCase);
 
             $this->authorizeAssignedRecommender($recommendation->case, $actor);
             $this->ensureRecommendationOpen($recommendation);
@@ -352,7 +359,7 @@ class RecommendationService
      */
     public function statusOptions(Recommendation $recommendation, User $user): array
     {
-        $recommendation->loadMissing(['status', 'case']);
+        $recommendation->loadMissing(['status', 'case.status']);
 
         $statuses = [];
 
@@ -361,6 +368,7 @@ class RecommendationService
             && $user->hasRole('satgas_ppks')
             && $user->hasPermission('cases.recommend')
             && $recommendation->case !== null
+            && ! $recommendation->case->isOperationallyTerminal()
             && $this->isAssignedToCase($recommendation->case, $user)
         ) {
             $transitionNames = collect($recommendation->status?->valid_transitions ?? [])
@@ -550,9 +558,9 @@ class RecommendationService
     }
 
     /**
-     * @param array<string, mixed> $metadata
-     * @param array<string, mixed> $beforeChanges
-     * @param array<string, mixed> $afterChanges
+     * @param  array<string, mixed>  $metadata
+     * @param  array<string, mixed>  $beforeChanges
+     * @param  array<string, mixed>  $afterChanges
      */
     private function recordAudit(
         AuditAction $action,

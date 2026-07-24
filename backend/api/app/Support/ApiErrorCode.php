@@ -34,9 +34,15 @@ final class ApiErrorCode
 
     public const PortalReportNotFound = 'portal_report_not_found';
 
+    public const ReportCancellationFeatureDisabled = 'report_cancellation_feature_disabled';
+
+    public const ReportCancellationConflict = 'report_cancellation_conflict';
+
     public const AuditExportTooManyRows = 'audit_export.too_many_rows';
 
     public const CaseAssessmentRequired = 'case_assessment_required';
+
+    public const CaseOperationallyTerminal = 'case_operationally_terminal';
 
     public const CaseInvestigationCompletionRequired = 'case_investigation_completion_required';
 

@@ -37,6 +37,7 @@ enum AuditAction: string
 
     case ReportCreated = 'report.created';
     case ReportForwarded = 'report.forwarded';
+    case ReportDirectCancellationCompleted = 'report.direct_cancellation.completed';
 
     case CaseCreated = 'case.created';
     case CaseAssigned = 'case.assigned';

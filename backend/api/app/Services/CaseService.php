@@ -30,6 +30,7 @@ class CaseService
         private readonly AuditLogService $auditLogService,
         private readonly CaseWorkflowContextService $workflowContextService,
         private readonly CaseCampusScope $campusScope,
+        private readonly CaseMutationGuard $caseMutationGuard,
     ) {}
 
     /**
@@ -42,11 +43,7 @@ class CaseService
     public function recordAssessment(CaseRecord $case, User $actor, array $data): CaseRecord
     {
         return DB::transaction(function () use ($case, $actor, $data): CaseRecord {
-            $case = CaseRecord::query()->with('status')->whereKey($case->id)->lockForUpdate()->firstOrFail();
-
-            if ($case->status?->name === CaseStatusEnum::Closed->value) {
-                throw $this->unprocessable('Closed cases cannot receive an assessment');
-            }
+            $case = $this->caseMutationGuard->lockAndAssertMutable($case);
 
             if ($case->status?->name !== CaseStatusEnum::Assessment->value) {
                 throw $this->unprocessable('Case must be in assessment status to record an assessment');
@@ -203,7 +200,7 @@ class CaseService
 
         if (! empty($filters['quick_filter'])) {
             match ($filters['quick_filter']) {
-                'active' => $query->whereNull('cases.closed_at'),
+                'active' => $query->operationallyActive(),
                 'pending_decision' => $query->whereExists(function ($query): void {
                     $query->selectRaw('1')
                         ->from('recommendations')
@@ -285,7 +282,9 @@ class CaseService
         );
 
         return DB::transaction(function () use ($case, $actor, $satgasIds, $data): CaseRecord {
-            $case = CaseRecord::query()->with(['status', 'report.reporter:id,university_id'])->whereKey($case->id)->lockForUpdate()->firstOrFail();
+            $case = $this->caseMutationGuard
+                ->lockAndAssertMutable($case)
+                ->load('report.reporter:id,university_id');
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
 
             if (
@@ -305,10 +304,6 @@ class CaseService
                 ->pluck('satgas_id')
                 ->map(fn ($id): int => (int) $id)
                 ->all();
-
-            if ($case->status?->name === CaseStatusEnum::Closed->value) {
-                throw $this->unprocessable('Closed cases cannot be reassigned');
-            }
 
             $case->activeAssignments()
                 ->whereNotIn('satgas_id', $satgasIds)
@@ -357,11 +352,7 @@ class CaseService
     public function updateStatus(CaseRecord $case, User $actor, string $requestedStatus): CaseRecord
     {
         return DB::transaction(function () use ($case, $actor, $requestedStatus): CaseRecord {
-            $case = CaseRecord::query()->with('status')->whereKey($case->id)->lockForUpdate()->firstOrFail();
-
-            if ($case->status?->name === CaseStatusEnum::Closed->value) {
-                throw $this->unprocessable('Closed cases cannot transition to another status');
-            }
+            $case = $this->caseMutationGuard->lockAndAssertMutable($case);
 
             $nextStatus = $this->resolveStatus($requestedStatus);
 

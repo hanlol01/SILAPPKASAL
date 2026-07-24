@@ -1394,3 +1394,22 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
 ---
 
 > **Catatan**: Dokumen ini adalah Tier 2 (GOVERNED). Perubahan memerlukan persetujuan Project Owner. Dokumen ini menjadi referensi wajib bagi semua agent, terutama Backend Agent dan Reviewer Agent.
+
+## 23. REV-WITHDRAW-01A Security Boundary
+
+- Direct cancellation requires an active Reporter, `reports.cancel.own`, exact non-null
+  `reports.reporter_id` ownership, an undeleted `submitted` Report, null `forwarded_at`, no Case, no
+  active withdrawal, and the server-side feature flag. A registration number is never ownership
+  proof.
+- The transaction locks Report, then Case, then any active withdrawal and re-evaluates every
+  condition. A discovered Case or concurrent state change returns 409 without partial mutation.
+- The reason is encrypted at rest. It is omitted from API resources, capability projections, audit
+  metadata, notifications, and Reporter-safe timeline data.
+- `report.direct_cancellation.completed` audit data is limited to safe public references, status
+  transition, request type, result, actor, and request ID.
+- `WorkflowDatabaseNotification` is queued after commit only to active same-campus Admin users with
+  `reports.withdraw.review.own_campus`; Satgas receives no notification because no Case exists.
+- The mutation response is `private, no-store`, authenticated with Sanctum, and protected by the
+  explicit `reporter.cancellation` limiter.
+- Formal withdrawal flags, fields, and storage metadata are foundation only. No formal mutation,
+  review, document upload, generator, or Admin queue is exposed in REV-WITHDRAW-01A.

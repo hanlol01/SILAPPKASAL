@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ReportStatus;
+use App\Enums\ReportWithdrawalStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -38,6 +39,8 @@ class Report extends Model
         'submitted_at',
         'reviewed_at',
         'forwarded_at',
+        'cancelled_at',
+        'withdrawn_at',
     ];
 
     protected function casts(): array
@@ -53,6 +56,8 @@ class Report extends Model
             'submitted_at' => 'datetime',
             'reviewed_at' => 'datetime',
             'forwarded_at' => 'datetime',
+            'cancelled_at' => 'datetime',
+            'withdrawn_at' => 'datetime',
         ];
     }
 
@@ -94,6 +99,18 @@ class Report extends Model
     public function evidenceSubmissions(): HasMany
     {
         return $this->hasMany(ReportEvidenceSubmission::class);
+    }
+
+    public function withdrawals(): HasMany
+    {
+        return $this->hasMany(ReportWithdrawal::class);
+    }
+
+    public function activeWithdrawal(): HasOne
+    {
+        return $this->hasOne(ReportWithdrawal::class)
+            ->whereIn('status', ReportWithdrawalStatus::activeValues())
+            ->latestOfMany();
     }
 
     public function isSubmitted(): bool

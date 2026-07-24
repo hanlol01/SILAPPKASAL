@@ -1553,7 +1553,9 @@
       "under_review": "Under review",
       "need_info": "Need info",
       "rejected": "Rejected",
-      "forwarded": "Forwarded"
+      "forwarded": "Forwarded",
+      "cancelled": "Cancelled by Reporter",
+      "withdrawn": "Withdrawn"
     },
     "reportType": {
       "open": "Open",
@@ -1571,7 +1573,8 @@
       "recovery": "Recovery",
       "monitoring": "Monitoring",
       "closed": "Closed",
-      "escalated": "Escalated"
+      "escalated": "Escalated",
+      "withdrawn": "Withdrawn"
     },
     "investigationStatus": {
       "planning": "Planning",

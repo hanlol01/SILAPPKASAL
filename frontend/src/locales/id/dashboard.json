@@ -1554,7 +1554,9 @@
       "under_review": "Ditinjau",
       "need_info": "Butuh informasi",
       "rejected": "Ditolak",
-      "forwarded": "Diteruskan"
+      "forwarded": "Diteruskan",
+      "cancelled": "Dibatalkan oleh Pelapor",
+      "withdrawn": "Dicabut"
     },
     "reportType": {
       "open": "Terbuka",
@@ -1572,7 +1574,8 @@
       "recovery": "Pemulihan",
       "monitoring": "Monitoring",
       "closed": "Ditutup",
-      "escalated": "Dieskalasi"
+      "escalated": "Dieskalasi",
+      "withdrawn": "Dicabut"
     },
     "investigationStatus": {
       "planning": "Perencanaan",

@@ -109,6 +109,8 @@
     "under_review": "Dalam peninjauan",
     "in_process": "Sedang diproses",
     "completed": "Selesai",
+    "cancelled_by_reporter": "Dibatalkan oleh Pelapor",
+    "withdrawn": "Dicabut",
     "unknown": "Status pengaduan"
   },
   "myReports": "Pengaduan Saya",
@@ -135,6 +137,26 @@
   "submittedDate": "Dikirim pada {{date}}",
   "anonymousReport": "Pengaduan Anonim",
   "reporterIdentityHidden": "Identitas pelapor disembunyikan",
+  "cancellation": {
+    "trigger": "Batalkan Pengaduan",
+    "title": "Batalkan Pengaduan",
+    "description": "Pembatalan ini tidak memerlukan persetujuan karena penanganan belum dimulai.",
+    "historyNotice": "Data pengaduan tidak akan dihapus dan tetap tersimpan sebagai histori.",
+    "reasonLabel": "Alasan pembatalan",
+    "reasonPlaceholder": "Jelaskan alasan pembatalan pengaduan...",
+    "reasonHelp": "{{count}}/2.000 karakter. Minimum 20 karakter.",
+    "confirmationLabel": "Saya memahami bahwa pengaduan akan dibatalkan dan datanya tetap tersimpan.",
+    "confirmAction": "Ya, Batalkan Pengaduan",
+    "submitting": "Membatalkan...",
+    "success": "Pengaduan berhasil dibatalkan.",
+    "error": "Pengaduan tidak dapat dibatalkan. Muat ulang halaman dan coba lagi.",
+    "validation": {
+      "reasonRequired": "Alasan pembatalan wajib diisi.",
+      "reasonMin": "Alasan pembatalan minimal 20 karakter.",
+      "reasonMax": "Alasan pembatalan maksimal 2.000 karakter.",
+      "confirmationRequired": "Konfirmasi tindakan ini untuk melanjutkan."
+    }
+  },
   "collapsible": {
     "expand": "Buka bagian",
     "collapse": "Tutup bagian"
@@ -314,6 +336,14 @@
       "proses_penanganan": {
         "title": "Proses penanganan",
         "desc": "Pengaduan Anda sedang ditangani sesuai prosedur yang berlaku."
+      },
+      "pengaduan_dibatalkan": {
+        "title": "Dibatalkan oleh Pelapor",
+        "desc": "Anda membatalkan pengaduan sebelum proses penanganan dimulai."
+      },
+      "pengaduan_dicabut": {
+        "title": "Pengaduan dicabut",
+        "desc": "Pencabutan pengaduan telah diselesaikan."
       },
       "selesai": {
         "title": "Selesai",

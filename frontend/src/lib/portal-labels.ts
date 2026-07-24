@@ -12,7 +12,13 @@ function normalized(value: string): string {
   return value.trim().toLowerCase().replace(/[-\s]+/g, "_");
 }
 
-export type ReporterSafeStatusCode = "submitted" | "under_review" | "in_process" | "completed";
+export type ReporterSafeStatusCode =
+  | "submitted"
+  | "under_review"
+  | "in_process"
+  | "completed"
+  | "cancelled_by_reporter"
+  | "withdrawn";
 
 export function portalStatusCode(value: string): ReporterSafeStatusCode | null {
   const token = normalized(value);
@@ -21,6 +27,8 @@ export function portalStatusCode(value: string): ReporterSafeStatusCode | null {
   if (token === "under_review") return "under_review";
   if (token === "in_process") return "in_process";
   if (token === "completed") return "completed";
+  if (token === "cancelled_by_reporter") return "cancelled_by_reporter";
+  if (token === "withdrawn") return "withdrawn";
 
   return null;
 }

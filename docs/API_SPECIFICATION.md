@@ -2232,3 +2232,58 @@ with the Bearer session; tokens never enter the URL. The API separately projects
 `inline_images`, and general PDF `attachments` from the exact published version. The client uses
 temporary object URLs and revokes them on replacement, error, or unmount. Consultation actions do not place Report, registration, identity, or
 incident data into an outbound URL.
+
+## REV-WITHDRAW-01A Direct Reporter Cancellation
+
+```text
+POST /api/v1/portal/reports/{registrationNumber}/cancel
+Auth: Sanctum
+Role: active Reporter
+Permission: reports.cancel.own
+Middleware: private.no-store, throttle:reporter.cancellation
+```
+
+Request:
+
+```json
+{
+  "reason": "Alasan pembatalan dengan panjang 20 sampai 2.000 karakter."
+}
+```
+
+The endpoint is available only when `REPORT_EARLY_CANCELLATION_ENABLED=true`. The registration
+number is not ownership proof: the locked Report must have a non-null `reporter_id` equal to the
+authenticated actor. Eligibility is exact: Report status `submitted`, no Case, `forwarded_at` null,
+no active withdrawal, active Reporter, and the required permission. An authenticated owner of an
+anonymous Report remains eligible; a legacy anonymous row with null `reporter_id` remains hidden.
+The server trims leading and trailing Unicode whitespace before applying the required 20–2,000
+Unicode-character limits. Internal whitespace and newlines are preserved, and only the normalized
+value is encrypted and stored.
+
+Success returns only the public withdrawal reference, Report status `cancelled`, Reporter-safe
+status `cancelled_by_reporter`, completion timestamp, and the latest capabilities. It never returns
+the withdrawal reason, internal IDs, campus metadata, or audit metadata. Validation failures use
+422, hidden ownership uses 404, authorization uses 403, state/concurrency conflicts use 409, and
+the disabled flag uses 409 with `report_cancellation_feature_disabled`.
+
+`GET /api/v1/portal/reports/{registrationNumber}` additionally projects:
+
+```json
+{
+  "withdrawal_capabilities": {
+    "can_cancel": false,
+    "can_request_withdrawal": false,
+    "cancellation_block_reason_code": "feature_disabled",
+    "active_withdrawal": null
+  }
+}
+```
+
+The capability is backend-authoritative. Formal withdrawal fields are reserved for a later
+submilestone and no formal mutation or document endpoint exists in REV-WITHDRAW-01A.
+
+Case status `withdrawn` is operationally terminal. Existing Case detail/read endpoints remain
+available to authorized assigned Satgas for historical visibility, but active/workload projections
+exclude it. Every Case or child-workflow mutation rechecks the locked Case and returns `409` with
+`case_operationally_terminal`; active assignment rows are retained and are not mutation authority
+for a terminal Case.

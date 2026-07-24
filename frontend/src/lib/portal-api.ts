@@ -26,6 +26,7 @@ import type {
   ReportSubmissionPayload,
   ReportSubmissionResult,
   TrackingLookupResult,
+  DirectCancellationResult,
 } from "@/lib/portal-types";
 import type { PaginationMeta } from "@/lib/api-types";
 
@@ -38,6 +39,7 @@ type QueryValue = string | number | boolean | undefined;
 export const portalQueryKeys = {
   summary:       ()                          => ["portal", "summary"] as const,
   reports:       (q?: Record<string, QueryValue>) => ["portal", "reports", q] as const,
+  reportsRoot:   ()                          => ["portal", "reports"] as const,
   report:        (regNum: string)            => ["portal", "report", regNum] as const,
   reportTimeline: (regNum: string)           => ["portal", "report", regNum, "timeline"] as const,
   reportHandlingProgress: (regNum: string)   => ["portal", "report", regNum, "handling-progress"] as const,
@@ -82,6 +84,17 @@ export function getPortalReport(registrationNumber: string) {
 export function getPortalReportTimeline(registrationNumber: string) {
   return apiRequest<PortalReportTimeline>(
     `/portal/reports/${encodeURIComponent(registrationNumber)}/timeline`,
+  );
+}
+
+/** POST /api/v1/portal/reports/{registrationNumber}/cancel */
+export function cancelPortalReport(registrationNumber: string, data: { reason: string }) {
+  return apiRequest<DirectCancellationResult>(
+    `/portal/reports/${encodeURIComponent(registrationNumber)}/cancel`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
   );
 }
 

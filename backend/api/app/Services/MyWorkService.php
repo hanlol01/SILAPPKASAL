@@ -7,7 +7,6 @@ use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Enums\RecommendationStatus as RecommendationStatusEnum;
 use App\Models\CaseRecord;
 use App\Models\Investigation;
-use App\Models\Recommendation;
 use App\Models\User;
 use App\Support\CaseCampusScope;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -16,9 +15,7 @@ use Illuminate\Support\Collection;
 
 class MyWorkService
 {
-    public function __construct(private readonly CaseCampusScope $campusScope)
-    {
-    }
+    public function __construct(private readonly CaseCampusScope $campusScope) {}
 
     /**
      * @return array<string, mixed>
@@ -27,7 +24,7 @@ class MyWorkService
     {
         return [
             'scope' => $this->scopeName($user),
-            'assigned_active_cases' => $this->casesQuery($user)->whereNull('closed_at')->count(),
+            'assigned_active_cases' => $this->casesQuery($user)->operationallyActive()->count(),
             'pending_investigations' => $this->pendingInvestigationsQuery($user)->count(),
             'pending_recommendations' => $this->pendingRecommendationsCount($user),
             'pending_decisions' => $this->pendingDecisionCount($user),
@@ -37,13 +34,14 @@ class MyWorkService
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return LengthAwarePaginator<int, array<string, mixed>>
      */
     public function cases(User $user, array $filters = []): LengthAwarePaginator
     {
         $cases = $this->casesQuery($user)
             ->with(['status', 'activeAssignments.satgas'])
+            ->when(empty($filters['status']), fn (Builder $query): Builder => $query->operationallyActive())
             ->when(! empty($filters['status']), fn (Builder $query): Builder => $this->filterCaseStatus($query, (string) $filters['status']))
             ->latest('forwarded_at')
             ->paginate((int) ($filters['per_page'] ?? 15));
@@ -52,7 +50,7 @@ class MyWorkService
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return LengthAwarePaginator<int, array<string, mixed>>
      */
     public function investigations(User $user, array $filters = []): LengthAwarePaginator
@@ -81,7 +79,7 @@ class MyWorkService
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return LengthAwarePaginator<int, array<string, mixed>>
      */
     public function recommendations(User $user, array $filters = []): LengthAwarePaginator
@@ -122,7 +120,7 @@ class MyWorkService
             ->whereNull('completed_at')
             ->whereHas('status', fn (Builder $query): Builder => $query->where('name', '!=', InvestigationStatusEnum::Completed->value))
             ->whereHas('case', function (Builder $query) use ($user): void {
-                $query->whereNull('closed_at');
+                $query->operationallyActive();
 
                 if ($user->hasRole('super_admin')) {
                     $query->whereRaw('1 = 0');
@@ -139,7 +137,7 @@ class MyWorkService
         $query = CaseRecord::query()
             ->with(['status', 'recommendation.status', 'activeAssignments.satgas'])
             ->whereHas('status', fn (Builder $query): Builder => $query->where('name', CaseStatusEnum::Recommendation->value))
-            ->whereNull('closed_at')
+            ->operationallyActive()
             ->latest('recommendation_at');
 
         if ($user->hasRole('super_admin')) {
@@ -176,6 +174,7 @@ class MyWorkService
 
         $query = CaseRecord::query()
             ->whereHas('status', fn (Builder $status): Builder => $status->where('name', CaseStatusEnum::Decision->value))
+            ->operationallyActive()
             ->whereHas('recommendation.status', fn (Builder $status): Builder => $status->where('name', RecommendationStatusEnum::Accepted->value));
         $this->campusScope->scopeCases($query, $user);
 
@@ -188,8 +187,10 @@ class MyWorkService
             return 0;
         }
 
-        $query = CaseRecord::query()->whereHas('status', fn (Builder $status): Builder => $status
-            ->whereIn('name', [CaseStatusEnum::Decided->value, CaseStatusEnum::Recovery->value]));
+        $query = CaseRecord::query()
+            ->operationallyActive()
+            ->whereHas('status', fn (Builder $status): Builder => $status
+                ->whereIn('name', [CaseStatusEnum::Decided->value, CaseStatusEnum::Recovery->value]));
         $this->campusScope->scopeCases($query, $user);
 
         return $query->count();
@@ -295,8 +296,8 @@ class MyWorkService
      * @template TKey of array-key
      * @template TValue
      *
-     * @param LengthAwarePaginator<TKey, TValue> $paginator
-     * @param callable(TValue): array<string, mixed> $callback
+     * @param  LengthAwarePaginator<TKey, TValue>  $paginator
+     * @param  callable(TValue): array<string, mixed>  $callback
      * @return LengthAwarePaginator<TKey, array<string, mixed>>
      */
     private function throughPaginator(LengthAwarePaginator $paginator, callable $callback): LengthAwarePaginator

@@ -27,15 +27,17 @@ class DecisionService
         private readonly NotificationService $notificationService,
         private readonly AuditLogService $auditLogService,
         private readonly CaseCampusScope $campusScope,
-    ) {
-    }
+        private readonly CaseMutationGuard $caseMutationGuard,
+    ) {}
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function createForRecommendation(Recommendation $recommendation, User $actor, array $data): Decision
     {
+        $recommendation->loadMissing('case.status');
         $this->authorizeDecisionRecorder($actor, $recommendation);
+        $this->caseMutationGuard->assertMutable($recommendation->case);
         $this->ensureRecommendationCanReceiveDecision($recommendation);
 
         return DB::transaction(function () use ($recommendation, $actor, $data): Decision {
@@ -44,6 +46,8 @@ class DecisionService
                 ->whereKey($recommendation->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($recommendation->case);
+            $recommendation->setRelation('case', $lockedCase);
 
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
             $this->authorizeDecisionRecorder($actor, $recommendation);
@@ -121,12 +125,14 @@ class DecisionService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function update(Decision $decision, User $actor, array $data): Decision
     {
         return DB::transaction(function () use ($decision, $actor, $data): Decision {
             $decision = Decision::query()->with(['status', 'recommendation.case.report.reporter:id,university_id'])->whereKey($decision->id)->lockForUpdate()->firstOrFail();
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($decision->recommendation->case);
+            $decision->recommendation->setRelation('case', $lockedCase);
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
             $this->authorizeDecisionRecorder($actor, $decision->recommendation);
 
@@ -173,6 +179,8 @@ class DecisionService
     {
         return DB::transaction(function () use ($decision, $actor, $requestedStatus): Decision {
             $decision = Decision::query()->with(['status', 'recommendation.case.report.reporter:id,university_id'])->whereKey($decision->id)->lockForUpdate()->firstOrFail();
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($decision->recommendation->case);
+            $decision->recommendation->setRelation('case', $lockedCase);
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
             $this->authorizeDecisionRecorder($actor, $decision->recommendation);
 
@@ -192,11 +200,7 @@ class DecisionService
                     ->whereKey($decision->recommendation_id)
                     ->lockForUpdate()
                     ->firstOrFail();
-                $case = CaseRecord::query()
-                    ->with('status')
-                    ->whereKey($recommendation->case_id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
+                $case = $lockedCase;
 
                 if ($case->status?->name !== CaseStatusEnum::Decision->value) {
                     throw $this->unprocessable('Case must be in decision status before finalization');
@@ -248,11 +252,14 @@ class DecisionService
      */
     public function statusOptions(Decision $decision, User $user): array
     {
-        $decision->loadMissing(['status', 'recommendation.case.report.reporter:id,university_id']);
+        $decision->loadMissing(['status', 'recommendation.case.status', 'recommendation.case.report.reporter:id,university_id']);
 
         $statuses = [];
 
-        if ($this->canManageDecision($user, $decision->recommendation)) {
+        if (
+            $this->canManageDecision($user, $decision->recommendation)
+            && ! $decision->recommendation->case->isOperationallyTerminal()
+        ) {
             $transitionNames = $decision->status?->valid_transitions ?? [];
 
             $statuses = DecisionStatus::query()
@@ -417,9 +424,9 @@ class DecisionService
     }
 
     /**
-     * @param array<string, mixed> $metadata
-     * @param array<string, mixed> $beforeChanges
-     * @param array<string, mixed> $afterChanges
+     * @param  array<string, mixed>  $metadata
+     * @param  array<string, mixed>  $beforeChanges
+     * @param  array<string, mixed>  $afterChanges
      */
     private function recordAudit(
         AuditAction $action,

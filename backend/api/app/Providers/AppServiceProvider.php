@@ -118,5 +118,13 @@ class AppServiceProvider extends ServiceProvider
                 $userId ? 'user:'.$userId : 'ip:'.$request->ip()
             );
         });
+
+        RateLimiter::for('reporter.cancellation', function (Request $request) {
+            $userId = $request->user()?->getAuthIdentifier();
+
+            return Limit::perHour(5)->by(
+                $userId ? 'user:'.$userId : 'ip:'.$request->ip()
+            );
+        });
     }
 }

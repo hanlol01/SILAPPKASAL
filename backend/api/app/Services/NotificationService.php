@@ -9,6 +9,8 @@ use App\Models\CaseRecord;
 use App\Models\Decision;
 use App\Models\Recommendation;
 use App\Models\Recovery;
+use App\Models\Report;
+use App\Models\ReportWithdrawal;
 use App\Models\User;
 use App\Notifications\WorkflowDatabaseNotification;
 use App\Support\CaseCampusScope;
@@ -47,6 +49,8 @@ class NotificationService
 
     public const TYPE_RECOMMENDATION_APPROVED = 'NOTIF-24';
 
+    public const TYPE_REPORT_DIRECT_CANCELLATION = 'NOTIF-25';
+
     public function __construct(private readonly CaseCampusScope $campusScope) {}
 
     public function caseAssessmentRecorded(CaseRecord $case): void
@@ -62,6 +66,36 @@ class NotificationService
             'subject_id' => $case->id,
             'case_id' => $case->id,
             'status_code' => $case->status_code,
+        ]);
+    }
+
+    public function reportDirectCancellationCompleted(
+        Report $report,
+        ReportWithdrawal $withdrawal,
+    ): void {
+        $report->loadMissing('reporter:id,university_id');
+        $universityId = $report->reporter?->university_id;
+
+        $recipients = $universityId === null
+            ? collect()
+            : User::query()
+                ->where('is_active', true)
+                ->where('university_id', $universityId)
+                ->whereHas('role', fn (Builder $query): Builder => $query->where('code', 'admin'))
+                ->get()
+                ->filter(fn (User $user): bool => $user->hasPermission('reports.withdraw.review.own_campus'))
+                ->values();
+
+        $this->send($recipients, [
+            'notification_type_code' => self::TYPE_REPORT_DIRECT_CANCELLATION,
+            'event' => 'report_direct_cancellation_completed',
+            'title' => 'Pengaduan dibatalkan oleh Pelapor',
+            'body' => "Pengaduan {$report->registration_number} telah dibatalkan oleh Pelapor sebelum proses penanganan dimulai.",
+            'subject_type' => 'report',
+            'subject_id' => $report->id,
+            'registration_number' => $report->registration_number,
+            'withdrawal_public_id' => $withdrawal->public_id,
+            'status_code' => $report->status,
         ]);
     }
 
@@ -429,6 +463,8 @@ class NotificationService
             'status_code',
             'outcome_code',
             'recovery_type_code',
+            'registration_number',
+            'withdrawal_public_id',
         ];
 
         return collect($payload)

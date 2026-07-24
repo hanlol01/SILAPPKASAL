@@ -29,6 +29,7 @@ import {
   HeartHandshake,
   Inbox,
   Lock,
+  OctagonX,
   PauseCircle,
   Scale,
   Search,
@@ -95,6 +96,7 @@ const caseStatusVisuals: Record<string, StatusVisual> = {
   monitoring: { tone: "accent", icon: HeartHandshake },
   closed: { tone: "muted", icon: Lock },
   escalated: { tone: "destructive", icon: ArrowUpRight },
+  withdrawn: { tone: "destructive", icon: OctagonX },
 };
 
 const defaultCaseVisual: StatusVisual = { tone: "muted", icon: FileText };
@@ -115,6 +117,7 @@ const caseStatusAliases: Record<string, string> = {
   "CSTS-13": "monitoring",
   "CSTS-14": "closed",
   "CSTS-15": "escalated",
+  "CSTS-16": "withdrawn",
 };
 
 function resolveCaseVisual(status: string | null | undefined): StatusVisual {
@@ -156,6 +159,8 @@ const reportStatusVisuals: Record<string, StatusVisual> = {
   need_info: { tone: "warning", icon: AlertTriangle },
   rejected: { tone: "destructive", icon: AlertTriangle },
   forwarded: { tone: "success", icon: ArrowUpRight },
+  cancelled: { tone: "destructive", icon: OctagonX },
+  withdrawn: { tone: "destructive", icon: OctagonX },
 };
 
 export function ReportStatusBadge({

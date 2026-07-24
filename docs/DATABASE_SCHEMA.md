@@ -1135,3 +1135,29 @@ Migration `2026_07_20_020000_add_final_case_closure.php` adds:
 - creator/updater/publisher references and publication timestamp.
 
 The migration uses Laravel schema operations compatible with PostgreSQL and the SQLite test database. It does not backfill historical closed Cases and does not create business data. Apply through the normal deployment migration step; this document does not claim that any environment has been migrated.
+
+## REV-WITHDRAW-01A Withdrawal Aggregate Addendum
+
+Migration `2026_07_24_000000_create_report_withdrawal_foundation.php` is additive:
+
+- `reports.cancelled_at` and `reports.withdrawn_at` are nullable lifecycle timestamps;
+- `cases.withdrawn_at` is a nullable future formal-withdrawal timestamp;
+- `report_withdrawals` owns a public UUID, Report/optional Case/requester references, request type,
+  lifecycle status, encrypted reason and rejection reason, prior status snapshots, review fields,
+  supersession, lifecycle timestamps, resubmission flag, and optimistic `lock_version`;
+- `report_withdrawal_attachments` reserves versioned private-document metadata. Binary data remains
+  on a storage disk and original names use the model's encrypted cast.
+
+`request_type` supports `early_cancellation` and `formal_withdrawal`. The status foundation supports
+`completed`, `draft`, `waiting_document`, `pending_review`, `approved`, `rejected`, and `cancelled`.
+REV-WITHDRAW-01A writes only `early_cancellation` + `completed`.
+
+PostgreSQL and SQLite receive the same partial unique index on `report_withdrawals(report_id)` for
+`draft`, `waiting_document`, and `pending_review`, preventing more than one active formal request per
+Report. Existing Report/Case rows are not backfilled or rewritten. Rollback removes the two new
+tables and the three nullable timestamps only.
+
+Migration `2026_07_24_010000_reconcile_report_withdrawal_foundation.php` additively registers the
+three withdrawal permissions, future terminal Case status `withdrawn`, and notification type
+`NOTIF-25`. Its role assignments are Reporter for own cancellation/withdrawal and campus Admin for
+withdrawal review.

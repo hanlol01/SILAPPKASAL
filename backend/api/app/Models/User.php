@@ -151,6 +151,21 @@ class User extends Authenticatable
         return $this->hasMany(ReportEvidenceSubmission::class, 'uploaded_by');
     }
 
+    public function requestedReportWithdrawals(): HasMany
+    {
+        return $this->hasMany(ReportWithdrawal::class, 'requester_id');
+    }
+
+    public function reviewedReportWithdrawals(): HasMany
+    {
+        return $this->hasMany(ReportWithdrawal::class, 'reviewed_by');
+    }
+
+    public function reportWithdrawalAttachments(): HasMany
+    {
+        return $this->hasMany(ReportWithdrawalAttachment::class, 'uploaded_by');
+    }
+
     public function evidenceStatusChanges(): HasMany
     {
         return $this->hasMany(EvidenceStatusHistory::class, 'changed_by');
@@ -187,6 +202,6 @@ class User extends Authenticatable
             $this->role->load('permissions');
         }
 
-        return $this->role?->permissions ?? new EloquentCollection();
+        return $this->role?->permissions ?? new EloquentCollection;
     }
 }

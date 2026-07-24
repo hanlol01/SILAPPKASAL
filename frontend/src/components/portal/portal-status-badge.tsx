@@ -7,6 +7,7 @@ import {
   LoaderCircle,
   CheckCircle2,
   HelpCircle,
+  OctagonX,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { portalStatusCode, portalStatusLabel } from "@/lib/portal-labels";
@@ -34,6 +35,9 @@ function statusTone(portalStatus: string): string {
       return "bg-primary/15 text-primary border-primary/30";
     case "completed":
       return "bg-success/15 text-success border-success/30";
+    case "cancelled_by_reporter":
+    case "withdrawn":
+      return "bg-destructive/15 text-destructive border-destructive/30";
     default:
       return "bg-muted text-muted-foreground border-border";
   }
@@ -53,6 +57,9 @@ function statusIcon(portalStatus: string): LucideIcon {
       return LoaderCircle;
     case "completed":
       return CheckCircle2;
+    case "cancelled_by_reporter":
+    case "withdrawn":
+      return OctagonX;
     default:
       return HelpCircle;
   }

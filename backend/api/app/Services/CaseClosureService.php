@@ -25,21 +25,15 @@ class CaseClosureService
         private readonly CaseWorkflowContextService $workflowContextService,
         private readonly NotificationService $notificationService,
         private readonly AuditLogService $auditLogService,
-    ) {
-    }
+        private readonly CaseMutationGuard $caseMutationGuard,
+    ) {}
 
     public function close(CaseRecord $case, User $actor): CaseRecord
     {
         return DB::transaction(function () use ($case, $actor): CaseRecord {
-            $case = CaseRecord::query()
-                ->with(['status', 'report.reporter'])
-                ->whereKey($case->id)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            if ($case->closed_at !== null || $case->status?->name === CaseStatusEnum::Closed->value) {
-                throw $this->unprocessable('The Case is already closed');
-            }
+            $case = $this->caseMutationGuard
+                ->lockAndAssertMutable($case)
+                ->load('report.reporter');
 
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
             $assignment = CaseAssignment::query()

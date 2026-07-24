@@ -36,8 +36,8 @@ class CaseFinalSummaryService
     public function __construct(
         private readonly AuditLogService $auditLogService,
         private readonly CaseCampusScope $campusScope,
-    ) {
-    }
+        private readonly CaseMutationGuard $caseMutationGuard,
+    ) {}
 
     public function findForCase(CaseRecord $case): ?CaseFinalSummary
     {
@@ -67,11 +67,9 @@ class CaseFinalSummaryService
     public function create(CaseRecord $case, User $actor, array $data): CaseFinalSummary
     {
         return DB::transaction(function () use ($case, $actor, $data): CaseFinalSummary {
-            $case = CaseRecord::query()
-                ->with(['status', 'report.reporter'])
-                ->whereKey($case->id)
-                ->lockForUpdate()
-                ->firstOrFail();
+            $case = $this->caseMutationGuard
+                ->lockAndAssertMutable($case)
+                ->load('report.reporter');
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
             $this->authorizeManager($actor, $case);
             $this->ensureCaseAcceptsDraft($case);
@@ -98,11 +96,9 @@ class CaseFinalSummaryService
     public function update(CaseFinalSummary $summary, User $actor, array $data): CaseFinalSummary
     {
         return DB::transaction(function () use ($summary, $actor, $data): CaseFinalSummary {
-            $case = CaseRecord::query()
-                ->with(['status', 'report.reporter'])
-                ->whereKey($summary->case_id)
-                ->lockForUpdate()
-                ->firstOrFail();
+            $case = $this->caseMutationGuard
+                ->lockAndAssertMutable($summary->case_id)
+                ->load('report.reporter');
             $summary = CaseFinalSummary::query()->whereKey($summary->id)->lockForUpdate()->firstOrFail();
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
             $this->authorizeManager($actor, $case);
@@ -130,11 +126,9 @@ class CaseFinalSummaryService
     public function publish(CaseFinalSummary $summary, User $actor): CaseFinalSummary
     {
         return DB::transaction(function () use ($summary, $actor): CaseFinalSummary {
-            $case = CaseRecord::query()
-                ->with(['status', 'report.reporter'])
-                ->whereKey($summary->case_id)
-                ->lockForUpdate()
-                ->firstOrFail();
+            $case = $this->caseMutationGuard
+                ->lockAndAssertMutable($summary->case_id)
+                ->load('report.reporter');
             $recovery = $this->latestRecovery($case, true);
             $summary = CaseFinalSummary::query()->whereKey($summary->id)->lockForUpdate()->firstOrFail();
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
@@ -183,7 +177,7 @@ class CaseFinalSummaryService
 
     private function ensureCaseAcceptsDraft(CaseRecord $case): void
     {
-        if ($case->closed_at !== null || $case->status?->name === CaseStatusEnum::Closed->value) {
+        if ($case->isOperationallyTerminal()) {
             throw $this->unprocessableCode(ApiErrorCode::FinalSummaryImmutable);
         }
 

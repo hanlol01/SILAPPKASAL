@@ -2,15 +2,17 @@
 
 namespace App\Services;
 
-use App\Enums\CaseStatus as CaseStatusEnum;
-use App\Enums\InvestigationStatus as InvestigationStatusEnum;
 use App\Enums\AuditAction;
 use App\Enums\AuditCategory;
 use App\Enums\AuditSeverity;
+use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\EvidenceClassification;
 use App\Enums\EvidenceCustodyEventType;
 use App\Enums\EvidenceStatus;
+use App\Enums\InvestigationStatus as InvestigationStatusEnum;
+use App\Models\CaseAssignment;
 use App\Models\Evidence;
+use App\Models\EvidenceCustodyEvent;
 use App\Models\EvidenceType;
 use App\Models\Investigation;
 use App\Models\User;
@@ -38,19 +40,22 @@ class EvidenceService
     public function __construct(
         private readonly AuditLogService $auditLogService,
         private readonly CaseCampusScope $campusScope,
-    ) {
-    }
+        private readonly CaseMutationGuard $caseMutationGuard,
+    ) {}
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function createForInvestigation(Investigation $investigation, User $actor, array $data): Evidence
     {
         $this->authorizeAssignedSatgas($investigation, $actor);
+        $this->caseMutationGuard->assertMutable($investigation->case);
         $this->ensureInvestigationCanAcceptEvidence($investigation);
 
         return DB::transaction(function () use ($investigation, $actor, $data): Evidence {
             $investigation = Investigation::query()->with(['case.status', 'status'])->whereKey($investigation->id)->lockForUpdate()->firstOrFail();
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($investigation->case);
+            $investigation->setRelation('case', $lockedCase);
             $actor = User::query()->with('role.permissions')->whereKey($actor->id)->firstOrFail();
 
             $this->authorizeAssignedSatgas($investigation, $actor, lockAssignment: true);
@@ -113,7 +118,7 @@ class EvidenceService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function update(Evidence $evidence, User $actor, array $data): Evidence
     {
@@ -123,6 +128,8 @@ class EvidenceService
 
         return DB::transaction(function () use ($evidence, $actor, $data): Evidence {
             $evidence = Evidence::query()->with('investigation.case.status')->whereKey($evidence->id)->lockForUpdate()->firstOrFail();
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($evidence->investigation->case);
+            $evidence->investigation->setRelation('case', $lockedCase);
 
             $this->ensureEvidenceOpen($evidence);
 
@@ -149,6 +156,8 @@ class EvidenceService
 
         return DB::transaction(function () use ($evidence, $actor, $nextStatus): Evidence {
             $evidence = Evidence::query()->with('investigation.case.status')->whereKey($evidence->id)->lockForUpdate()->firstOrFail();
+            $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($evidence->investigation->case);
+            $evidence->investigation->setRelation('case', $lockedCase);
 
             $this->ensureEvidenceOpen($evidence);
 
@@ -184,7 +193,7 @@ class EvidenceService
     }
 
     /**
-     * @return Collection<int, \App\Models\EvidenceCustodyEvent>
+     * @return Collection<int, EvidenceCustodyEvent>
      */
     public function listCustodyEvents(Evidence $evidence, User $user): Collection
     {
@@ -202,6 +211,7 @@ class EvidenceService
     {
         $evidence->loadMissing('investigation.case.status');
         $this->authorizeAssignedSatgas($evidence->investigation, $actor, 'evidence.upload');
+        $this->caseMutationGuard->assertMutable($evidence->investigation->case);
         $this->ensureEvidenceOpen($evidence);
         $this->ensureInvestigationCanAcceptEvidence($evidence->investigation);
 
@@ -240,6 +250,8 @@ class EvidenceService
                     ->whereKey($evidence->id)
                     ->lockForUpdate()
                     ->firstOrFail();
+                $lockedCase = $this->caseMutationGuard->lockAndAssertMutable($lockedEvidence->investigation->case);
+                $lockedEvidence->investigation->setRelation('case', $lockedCase);
 
                 $this->authorizeAssignedSatgas($lockedEvidence->investigation, $actor, 'evidence.upload');
                 $this->ensureEvidenceOpen($lockedEvidence);
@@ -352,6 +364,7 @@ class EvidenceService
 
         $file = $this->openEvidenceFile($evidence, preview: true);
         $file['filename'] = $this->filenameForReader($evidence, $actor, $file['filename']);
+
         return $this->streamEvidenceFile(
             $file['stream'],
             $file['filename'],
@@ -476,8 +489,7 @@ class EvidenceService
         $investigation->loadMissing(['case.status', 'status']);
 
         if (
-            $investigation->case?->closed_at !== null
-            || $investigation->case?->status?->name === CaseStatusEnum::Closed->value
+            $investigation->case?->isOperationallyTerminal()
         ) {
             throw $this->unprocessable('Evidence cannot be added to a closed case');
         }
@@ -511,13 +523,12 @@ class EvidenceService
         User $actor,
         string $capability = 'evidence.upload',
         bool $lockAssignment = false,
-    ): void
-    {
+    ): void {
         if (! $actor->is_active || ! $actor->hasPermission($capability) || ! $actor->hasPermission('evidence.view.case') || ! $actor->hasRole('satgas_ppks')) {
             throw $this->forbidden();
         }
 
-        $assignmentQuery = \App\Models\CaseAssignment::query()
+        $assignmentQuery = CaseAssignment::query()
             ->where('case_id', $investigation->case_id)
             ->where('satgas_id', $actor->id)
             ->where('is_active', true);
@@ -579,7 +590,7 @@ class EvidenceService
     }
 
     /**
-     * @param array<string, mixed> $details
+     * @param  array<string, mixed>  $details
      */
     private function recordCustodyEvent(Evidence $evidence, EvidenceCustodyEventType $eventType, User $actor, array $details = []): void
     {

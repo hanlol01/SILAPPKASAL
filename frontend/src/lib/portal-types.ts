@@ -47,6 +47,35 @@ export interface PortalReportDetail {
   portal_status: string;
   submitted_at: string | null;
   submitted_details: ReportInputDetails;
+  withdrawal_capabilities: WithdrawalCapabilities;
+}
+
+export interface ActiveWithdrawalSummary {
+  withdrawal_reference: string;
+  request_type: "early_cancellation" | "formal_withdrawal";
+  status: string;
+  submitted_at: string | null;
+}
+
+export interface WithdrawalCapabilities {
+  can_cancel: boolean;
+  can_request_withdrawal: boolean;
+  cancellation_block_reason_code:
+    | "already_processed"
+    | "terminal_state"
+    | "ownership_unavailable"
+    | "active_request"
+    | "feature_disabled"
+    | null;
+  active_withdrawal: ActiveWithdrawalSummary | null;
+}
+
+export interface DirectCancellationResult {
+  withdrawal_reference: string;
+  report_status: "cancelled";
+  portal_status: "cancelled_by_reporter";
+  completed_at: string | null;
+  capabilities: WithdrawalCapabilities;
 }
 
 export type PortalHandlingState =

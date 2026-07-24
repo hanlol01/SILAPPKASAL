@@ -17,8 +17,11 @@ return [
         'registration_number_unavailable' => 'Nomor pendaftaran pelapor tidak dapat dibuat.',
         'tracking_not_found' => 'Kode pelacakan pengaduan tidak ditemukan.',
         'portal_report_not_found' => 'Pengaduan tidak ditemukan.',
+        'report_cancellation_feature_disabled' => 'Fitur pembatalan langsung belum diaktifkan.',
+        'report_cancellation_conflict' => 'Pengaduan tidak lagi memenuhi syarat untuk dibatalkan langsung.',
         'audit_export.too_many_rows' => 'Hasil ekspor audit melebihi batas 10.000 baris. Persempit rentang tanggal atau filter.',
         'case_assessment_required' => 'Catat tingkat risiko dan prioritas sebelum melanjutkan kasus ke tahap investigasi.',
+        'case_operationally_terminal' => 'Kasus yang telah dicabut atau ditutup bersifat hanya-baca dan tidak dapat menerima perubahan operasional.',
         'case_investigation_completion_required' => 'Selesaikan investigasi sebelum melanjutkan kasus ke mediasi atau rekomendasi.',
         'investigation_stage_activity_required' => 'Tambahkan minimal satu aktivitas pada tahap :stage sebelum melanjutkan.',
         'investigation_activity_stage_incompatible' => 'Jenis aktivitas tersebut tidak dapat dicatat pada tahap :stage.',
@@ -34,6 +37,16 @@ return [
         'final_summary_publication_required' => 'Lengkapi dan terbitkan rangkuman akhir sebelum melanjutkan.',
         'final_outcome_incompatible' => 'Hasil akhir tidak sesuai dengan status terminal Pemulihan.',
         'final_summary_anonymous_identity_detected' => 'Rangkuman akhir anonim tidak boleh memuat identitas Pelapor.',
+    ],
+    'messages' => [
+        'report_cancelled' => 'Pengaduan berhasil dibatalkan.',
+    ],
+    'validation' => [
+        'cancellation_reason_attribute' => 'alasan pembatalan',
+        'cancellation_reason_required' => 'Alasan pembatalan wajib diisi.',
+        'cancellation_reason_string' => 'Alasan pembatalan harus berupa teks.',
+        'cancellation_reason_min' => 'Alasan pembatalan minimal 20 karakter.',
+        'cancellation_reason_max' => 'Alasan pembatalan maksimal 2.000 karakter.',
     ],
     'investigation_stages' => [
         'planning' => 'Perencanaan',
