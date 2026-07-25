@@ -1119,6 +1119,32 @@ snapshot, table mutation, dependent restoration, pointer restoration, partial-in
 lifecycle-trigger recreation run in one database transaction so restoration failure cannot commit a
 partially rebuilt graph.
 
+## REV-CASE-BA-01 Case Minutes Addendum
+
+Migration `2026_07_24_050000_create_case_minutes_table.php` is the sole additive migration for
+REV-CASE-BA-01. It creates `case_minutes` and does not alter `cases`, `reports`,
+`case_final_summaries`, lifecycle pointers, attachments, or historic data.
+
+| Column | Type | Constraint / purpose |
+|---|---|---|
+| `id` | bigint | Primary key |
+| `public_id` | UUID | Unique random server-generated API reference; no BA numbering |
+| `case_id` | bigint | FK → `cases.id`, restrict delete |
+| `version` | unsigned integer | Monotonic within Case; unique with `case_id` |
+| `status` | varchar(20) | `draft`, `finalized`, or `superseded` |
+| `occurred_at` | timestamp | Required operational timestamp |
+| `internal_summary` | text nullable | Laravel encrypted cast; internal projection only |
+| `anonymized_summary` | text nullable | Laravel encrypted cast; separately authored safe projection |
+| `outcome`, `follow_up` | text nullable | Laravel encrypted casts |
+| `supersedes_id` | bigint nullable | Self FK; revision source only, restrict delete |
+| `created_by`, `updated_by`, `finalized_by` | bigint / nullable bigint | User FKs; no cascade history deletion |
+| `finalized_at` | timestamp nullable | Finalization attribution |
+| timestamps | timestamps | Used by the opaque lock token and audit context |
+
+Indexes are unique `public_id`, unique `(case_id, version)`, `(case_id, status)`, and
+`supersedes_id`. There is intentionally no file path, binary, signer, public URL, document number,
+or Reporter projection column. Rollback drops only `case_minutes` and its constraints.
+
 ## REV-ED-01 Controlled Article Document Addendum
 
 REV-ED-01 introduces no migration or parallel rich-text column. Each Article body remains owned by

@@ -1483,3 +1483,33 @@ The detailed lifecycle, legacy compatibility, and deployment order are defined i
   deployment flag change from stranding operational work.
 - Browser caches for operational review data are cleared across authentication boundaries, PDF Blob
   previews use a sandboxed frame, and prior object URLs are revoked before replacement or error.
+
+## 26. REV-CASE-BA-01 Case Minutes / Berita Acara Boundary
+
+- `case_minutes` is a separate encrypted Case-owned record, not a final-summary, attachment, or
+  Reporter resource. No BA PDF, upload, signature, institutional number, public URL, download, or
+  binary/storage field is present in this milestone.
+- A locked mutation first applies the shared guard in the established order Report → Case → pending
+  Withdrawal, then locks Case Minute rows in ascending ID. It allows only Case status
+  `investigation` or `recommendation`; terminal, paused-withdrawal, and all other statuses fail
+  closed without changing lifecycle pointers.
+- Admin requires active same-campus role plus the exact `case_minutes.*` permission. Satgas requires
+  active same-campus exact assignment plus `case_minutes.read/write`; `is_lead` is not authority.
+  Super Admin has strict `cases.read.all` metadata-only access and no narrative or mutation path.
+  Reporter and cross-campus actors have no BA projection.
+- Versioned rows use server-generated UUID public references and an opaque SHA-256 lock token over
+  safe version/status/timestamp/supersession metadata. Client actor/status/version/supersession
+  values are prohibited. One active draft and one active finalized version are serialized by the
+  Case lock; finalization supersedes the prior finalized row atomically and history is never deleted
+  or overwritten.
+- Internal summary, anonymized summary, outcome, and follow-up use encrypted casts. The API uses
+  separate allowlisted internal and metadata resources; neither projects full Case/User models,
+  storage/evidence data, or raw audit records. All BA endpoints are authenticated, private/no-store,
+  and explicitly throttled.
+- `anonymized_summary` remains a human-authored reviewed field. Before finalization, a limited
+  direct-identifier safeguard rejects available Reporter name/email/NIM/NIP/phone/registration
+  values without echoing them. It is not claimed as automatic redaction or an NER substitute.
+- Audits contain only Case number, BA UUID, version, status, supersession reference, timestamp, and
+  result; all narratives and identifiers are omitted. `NOTIF-30` is queued only after successful
+  finalization to the active draft creator and active assigned Satgas, deduplicated with the actor
+  suppressed; its payload has only safe Case/BA/status/time references.

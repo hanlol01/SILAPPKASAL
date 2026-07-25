@@ -404,6 +404,69 @@ export type CaseFinalSummaryPayload = Omit<
   "id" | "case_id" | "outcome_label" | "is_published" | "published_at" | "created_at" | "updated_at"
 >;
 
+export type CaseMinuteStatus = "draft" | "finalized" | "superseded";
+
+export interface CaseMinuteCapabilities {
+  update: boolean;
+  finalize: boolean;
+  create_revision: boolean;
+}
+
+export interface CaseMinuteCaseReference {
+  case_number: string | null;
+}
+
+export interface CaseMinuteInternal {
+  projection: "internal";
+  public_id: string;
+  version: number;
+  status: CaseMinuteStatus;
+  occurred_at: string;
+  internal_summary: string | null;
+  anonymized_summary: string | null;
+  outcome: string | null;
+  follow_up: string | null;
+  finalized_at: string | null;
+  case: CaseMinuteCaseReference;
+  supersedes: { public_id: string; version: number } | null;
+  creator: { id: number } | null;
+  updater: { id: number } | null;
+  finalizer: { id: number } | null;
+  created_at: string | null;
+  updated_at: string | null;
+  lock_version: string;
+  capabilities: CaseMinuteCapabilities;
+}
+
+export interface CaseMinuteMetadata {
+  projection: "metadata";
+  public_id: string;
+  version: number;
+  status: CaseMinuteStatus;
+  occurred_at: string;
+  finalized_at: string | null;
+  case: CaseMinuteCaseReference;
+  campus: { code: string | null };
+}
+
+export type CaseMinute = CaseMinuteInternal | CaseMinuteMetadata;
+
+export interface CaseMinutesEnvelope {
+  projection: "internal" | "metadata";
+  items: CaseMinute[];
+  capabilities: { create: boolean };
+}
+
+export interface CaseMinuteDraftPayload {
+  occurred_at: string;
+  internal_summary?: string | null;
+  anonymized_summary?: string | null;
+  outcome?: string | null;
+  follow_up?: string | null;
+}
+
+export type CaseMinuteUpdatePayload = CaseMinuteDraftPayload & { lock_version: string };
+
 export interface RecoveryStatusOptions {
   current_status: RecoveryStatusOption;
   valid_transitions: RecoveryStatusOption[];

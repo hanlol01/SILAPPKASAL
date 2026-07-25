@@ -181,6 +181,21 @@ class User extends Authenticatable
         return $this->hasMany(AuditLog::class, 'actor_id');
     }
 
+    public function createdCaseMinutes(): HasMany
+    {
+        return $this->hasMany(CaseMinute::class, 'created_by');
+    }
+
+    public function updatedCaseMinutes(): HasMany
+    {
+        return $this->hasMany(CaseMinute::class, 'updated_by');
+    }
+
+    public function finalizedCaseMinutes(): HasMany
+    {
+        return $this->hasMany(CaseMinute::class, 'finalized_by');
+    }
+
     public function hasRole(string $role): bool
     {
         return $this->role?->code === $role;

@@ -61,6 +61,11 @@ enum AuditAction: string
     case CaseFinalSummaryCreated = 'case.final_summary_created';
     case CaseFinalSummaryUpdated = 'case.final_summary_updated';
     case CaseFinalSummaryPublished = 'case.final_summary_published';
+    case CaseMinuteCreated = 'case_minutes.created';
+    case CaseMinuteUpdated = 'case_minutes.updated';
+    case CaseMinuteFinalized = 'case_minutes.finalized';
+    case CaseMinuteRevisionCreated = 'case_minutes.revision_created';
+    case CaseMinuteSuperseded = 'case_minutes.superseded';
     case CaseClosed = 'case.closed';
     case CaseMarkedWithdrawn = 'case.marked_withdrawn';
 

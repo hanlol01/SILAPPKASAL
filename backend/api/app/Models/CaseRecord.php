@@ -104,6 +104,11 @@ class CaseRecord extends Model
         return $this->hasOne(CaseFinalSummary::class, 'case_id');
     }
 
+    public function minutes(): HasMany
+    {
+        return $this->hasMany(CaseMinute::class, 'case_id');
+    }
+
     public function withdrawals(): HasMany
     {
         return $this->hasMany(ReportWithdrawal::class, 'case_id');

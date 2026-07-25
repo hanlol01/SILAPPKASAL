@@ -356,6 +356,7 @@ class MasterDataSeeder extends Seeder
             ['NOTIF-27', 'Permohonan pencabutan dibatalkan Pelapor', 'Admin', 'in_app', 'report.formal_withdrawal.cancelled', 'mvp_extended'],
             ['NOTIF-28', 'Permohonan pencabutan disetujui', 'Reporter', 'in_app', 'report.formal_withdrawal.approved', 'mvp_extended'],
             ['NOTIF-29', 'Permohonan pencabutan ditolak', 'Reporter', 'in_app', 'report.formal_withdrawal.rejected', 'mvp_extended'],
+            ['NOTIF-30', 'Berita Acara difinalkan', 'Pembuat draf dan Satgas aktif', 'in_app', 'case.minutes.finalized', 'mvp_extended'],
         ];
 
         foreach ($rows as $index => [$code, $name, $recipient, $channel, $template, $classification]) {

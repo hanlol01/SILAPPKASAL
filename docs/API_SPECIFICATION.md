@@ -1240,6 +1240,51 @@ Audit Event: AUD-CASE-08
 
 ---
 
+### 7.9 Case Minutes / Berita Acara (REV-CASE-BA-01)
+
+```
+GET    /api/v1/cases/{case}/minutes
+POST   /api/v1/cases/{case}/minutes
+GET    /api/v1/case-minutes/{public_id}
+PATCH  /api/v1/case-minutes/{public_id}
+POST   /api/v1/case-minutes/{public_id}/revisions
+POST   /api/v1/case-minutes/{public_id}/finalize
+Auth: Bearer Token + private.no-store
+Rate limits: read 60/minute; mutation 30/minute
+```
+
+Case Minutes are a separate, Case-owned version series; they are not `case_final_summaries`, are
+not Report-visible, and have no PDF, upload, public URL, signature, institutional document number,
+or download endpoint. The server generates the UUID `public_id`; clients must not send IDs, status,
+version, supersession, actor/finalizer fields, or any storage/binary field.
+
+`POST /cases/{case}/minutes` creates the only active `draft`. Draft writes accept `occurred_at` plus
+nullable encrypted `internal_summary`, `anonymized_summary`, `outcome`, and `follow_up`. `PATCH`
+requires the opaque `lock_version`; stale values return `409 case_minute_stale`. Finalization requires
+all five values, including the internal summary, and atomically changes the prior active finalized
+version to `superseded`. A retry against an already finalized version is idempotent and does not
+create a new audit or notification. A revision can be created only from the sole active finalized
+version and creates a new immutable-history `draft` with the next monotonic version number.
+
+The Case must be at `investigation` or `recommendation`, must not be terminal, and must not have a
+pending formal withdrawal. Mutation locking remains Report → Case → pending Withdrawal → Case Minute.
+All mutations audit allowlisted Case/BA identifiers, version/status/timestamp only; narratives are
+never written to audit metadata.
+
+Projection and authorization are server-side and fail closed:
+
+| Actor | Projection | Authority |
+|---|---|---|
+| active Campus Admin with `case_minutes.read/write/finalize` | internal + anonymized narratives, same campus | create/update/revise/finalize |
+| active assigned Satgas with `case_minutes.read/write` | internal + anonymized narratives, exact active assignment and same campus | create/update/revise; never finalize |
+| active Super Admin with `cases.read.all` | `public_id`, safe campus/case references, version, status, timestamps only | metadata read only; no BA permission or mutation |
+| Reporter / non-assigned Satgas / other campus | none | denied |
+
+The `anonymized_summary` is a separately authored human-reviewed field. On finalization the server
+rejects direct Reporter name, email, NIM/NIP, phone, or registration identifiers when available; it
+does not claim automatic redaction or NER. The resource never projects a full Case/User model,
+evidence/storage data, or another role's narrative scope.
+
 ## 8. Evidence Endpoints
 
 ### 8.1 Upload Evidence (Report Context)

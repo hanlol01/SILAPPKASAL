@@ -138,6 +138,21 @@ final class AuditEventCatalog
                 ['case_number', 'outcome_code', 'published', 'recovery_terminal_type', 'result'],
                 ['status_code', 'outcome_code', 'published'],
             ),
+            AuditAction::CaseMinuteCreated,
+            AuditAction::CaseMinuteUpdated,
+            AuditAction::CaseMinuteFinalized,
+            AuditAction::CaseMinuteRevisionCreated,
+            AuditAction::CaseMinuteSuperseded => $this->fields(
+                [
+                    'case_number',
+                    'case_minute_public_id',
+                    'version',
+                    'status',
+                    'supersedes_public_id',
+                    'result',
+                ],
+                ['status', 'version', 'finalized_at'],
+            ),
             AuditAction::CaseMarkedWithdrawn => $this->fields(
                 ['case_number', 'registration_number', 'withdrawal_public_id', 'from_status', 'to_status', 'result'],
                 ['status_code'],

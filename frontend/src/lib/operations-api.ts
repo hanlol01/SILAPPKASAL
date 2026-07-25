@@ -4,6 +4,10 @@ import type {
   CaseFinalSummary,
   CaseFinalSummaryEnvelope,
   CaseFinalSummaryPayload,
+  CaseMinute,
+  CaseMinuteDraftPayload,
+  CaseMinutesEnvelope,
+  CaseMinuteUpdatePayload,
   CaseStatusPayload,
   Decision,
   DecisionCreatePayload,
@@ -63,6 +67,9 @@ export const operationsQueryKeys = {
   case: (id: string | number) => ["operations", "case", normalizeOperationId(id)] as const,
   caseFinalSummary: (id: string | number) =>
     ["operations", "case", normalizeOperationId(id), "final-summary"] as const,
+  caseMinutes: (id: string | number) =>
+    ["operations", "case", normalizeOperationId(id), "minutes"] as const,
+  caseMinute: (publicId: string) => ["operations", "case-minute", publicId] as const,
   investigations: (caseId: string | number) =>
     ["operations", "case", normalizeOperationId(caseId), "investigations"] as const,
   investigation: (id: string | number) =>
@@ -169,6 +176,41 @@ export function rejectReportWithdrawal(
 
 export function getCaseFinalSummary(id: string | number) {
   return apiRequest<CaseFinalSummaryEnvelope>(`/cases/${id}/final-summary`);
+}
+
+export function getCaseMinutes(caseId: string | number) {
+  return apiRequest<CaseMinutesEnvelope>(`/cases/${caseId}/minutes`);
+}
+
+export function getCaseMinute(publicId: string) {
+  return apiRequest<CaseMinute>(`/case-minutes/${encodeURIComponent(publicId)}`);
+}
+
+export function createCaseMinute(caseId: string | number, payload: CaseMinuteDraftPayload) {
+  return apiRequest<CaseMinute>(`/cases/${caseId}/minutes`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateCaseMinute(publicId: string, payload: CaseMinuteUpdatePayload) {
+  return apiRequest<CaseMinute>(`/case-minutes/${encodeURIComponent(publicId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createCaseMinuteRevision(publicId: string) {
+  return apiRequest<CaseMinute>(`/case-minutes/${encodeURIComponent(publicId)}/revisions`, {
+    method: "POST",
+  });
+}
+
+export function finalizeCaseMinute(publicId: string, lockVersion: string) {
+  return apiRequest<CaseMinute>(`/case-minutes/${encodeURIComponent(publicId)}/finalize`, {
+    method: "POST",
+    body: JSON.stringify({ lock_version: lockVersion }),
+  });
 }
 
 export function getCaseInvestigations(caseId: string | number) {

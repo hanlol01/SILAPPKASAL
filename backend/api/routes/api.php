@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\BreakGlassController;
 use App\Http\Controllers\Api\V1\CampusMasterDataController;
 use App\Http\Controllers\Api\V1\CaseController;
 use App\Http\Controllers\Api\V1\CaseFinalSummaryController;
+use App\Http\Controllers\Api\V1\CaseMinuteController;
 use App\Http\Controllers\Api\V1\ContentAttachmentController;
 use App\Http\Controllers\Api\V1\ContentController;
 use App\Http\Controllers\Api\V1\ContentGovernanceController;
@@ -244,12 +245,31 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/{case}/final-summary', [CaseFinalSummaryController::class, 'store']);
         Route::patch('/{case}/final-summary', [CaseFinalSummaryController::class, 'update']);
         Route::post('/{case}/final-summary/publish', [CaseFinalSummaryController::class, 'publish']);
+        Route::get('/{case}/minutes', [CaseMinuteController::class, 'index'])
+            ->middleware(['private.no-store', 'throttle:60,1']);
+        Route::post('/{case}/minutes', [CaseMinuteController::class, 'store'])
+            ->middleware(['private.no-store', 'throttle:30,1']);
         Route::post('/{case}/close', [CaseController::class, 'close']);
         Route::get('/{case}', [CaseController::class, 'show']);
         Route::patch('/{case}/status', [CaseController::class, 'updateStatus']);
         Route::patch('/{case}/assessment', [CaseController::class, 'updateAssessment']);
         Route::patch('/{case}/assign', [CaseController::class, 'assign']);
         Route::post('/{case}/self-assign', [CaseController::class, 'selfAssign'])
+            ->middleware('throttle:30,1');
+    });
+
+    Route::middleware(['private.no-store', 'auth:sanctum'])->prefix('case-minutes')->group(function (): void {
+        Route::get('/{caseMinute}', [CaseMinuteController::class, 'show'])
+            ->whereUuid('caseMinute')
+            ->middleware('throttle:60,1');
+        Route::patch('/{caseMinute}', [CaseMinuteController::class, 'update'])
+            ->whereUuid('caseMinute')
+            ->middleware('throttle:30,1');
+        Route::post('/{caseMinute}/revisions', [CaseMinuteController::class, 'createRevision'])
+            ->whereUuid('caseMinute')
+            ->middleware('throttle:30,1');
+        Route::post('/{caseMinute}/finalize', [CaseMinuteController::class, 'finalize'])
+            ->whereUuid('caseMinute')
             ->middleware('throttle:30,1');
     });
 

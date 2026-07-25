@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\CaseStatus as CaseStatusEnum;
 use App\Enums\DecisionStatus as DecisionStatusEnum;
 use App\Enums\RecommendationStatus as RecommendationStatusEnum;
+use App\Models\CaseMinute;
 use App\Models\CaseRecord;
 use App\Models\Decision;
 use App\Models\Recommendation;
@@ -59,6 +60,8 @@ class NotificationService
 
     public const TYPE_REPORT_FORMAL_WITHDRAWAL_REJECTED = 'NOTIF-29';
 
+    public const TYPE_CASE_MINUTE_FINALIZED = 'NOTIF-30';
+
     public function __construct(private readonly CaseCampusScope $campusScope) {}
 
     public function caseAssessmentRecorded(CaseRecord $case): void
@@ -74,6 +77,38 @@ class NotificationService
             'subject_id' => $case->id,
             'case_id' => $case->id,
             'status_code' => $case->status_code,
+        ]);
+    }
+
+    public function caseMinuteFinalized(CaseMinute $minute, User $actor): void
+    {
+        $minute->loadMissing(['case.activeAssignments.satgas', 'creator']);
+        $case = $minute->case;
+
+        if ($case === null) {
+            return;
+        }
+
+        $creator = User::query()
+            ->whereKey($minute->created_by)
+            ->where('is_active', true)
+            ->first();
+        $recipients = collect([$creator])
+            ->merge($this->activeAssignedSatgas($case))
+            ->reject(fn (User $recipient): bool => (int) $recipient->id === (int) $actor->id);
+
+        $this->send($recipients, [
+            'notification_type_code' => self::TYPE_CASE_MINUTE_FINALIZED,
+            'event' => 'case_minute_finalized',
+            'title' => 'Berita Acara telah difinalkan',
+            'body' => 'Berita Acara untuk Kasus yang Anda tangani telah difinalkan.',
+            'subject_type' => 'case_minute',
+            'subject_id' => $minute->id,
+            'case_id' => $case->id,
+            'case_minute_public_id' => $minute->public_id,
+            'case_minute_version' => $minute->version,
+            'status_code' => $minute->status?->value,
+            'finalized_at' => $minute->finalized_at?->toJSON(),
         ]);
     }
 
@@ -566,6 +601,9 @@ class NotificationService
             'recovery_type_code',
             'registration_number',
             'withdrawal_public_id',
+            'case_minute_public_id',
+            'case_minute_version',
+            'finalized_at',
         ];
 
         return collect($payload)

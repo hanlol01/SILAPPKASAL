@@ -274,3 +274,18 @@ REV-WITHDRAW-01C reuses `reports.withdraw.review.own_campus` for active Campus A
 `reports.withdraw.own`. Satgas and Reporter receive no review mutation permission; Super Admin is
 explicitly read-only and cannot retrieve signed documents or reasons. Campus authorization and
 capabilities are re-evaluated server-side under transaction locks.
+
+## 8. REV-CASE-BA-01 Case Minutes / Berita Acara
+
+| Capability | Reporter | Satgas PPKS | Same-campus Admin | Super Admin |
+|---|---:|---:|---:|---:|
+| Read BA internal + anonymized narratives | No | Active exact assignment + `case_minutes.read` | `case_minutes.read` | No |
+| Create/update/revise BA draft | No | Active exact assignment + `case_minutes.write` | `case_minutes.write` | No |
+| Finalize BA | No | No | `case_minutes.finalize` | No |
+| Read BA metadata only | No | No additional scope | No additional scope | `cases.read.all` only |
+
+The executable seeder assigns all three `case_minutes.*` permissions only to `admin`, and
+`case_minutes.read` plus `case_minutes.write` only to `satgas_ppks`. `super_admin` receives none of
+these permissions: its BA policy is an explicit metadata-only exception gated by `cases.read.all`.
+Every policy repeats active-role, exact Case campus, and (for Satgas) active assignment checks; the
+legacy `is_lead` flag conveys no BA authority.

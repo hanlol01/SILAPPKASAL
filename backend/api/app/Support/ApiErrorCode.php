@@ -114,5 +114,23 @@ final class ApiErrorCode
 
     public const FinalSummaryAnonymousIdentityDetected = 'final_summary_anonymous_identity_detected';
 
+    public const CaseMinuteDraftExists = 'case_minute_draft_exists';
+
+    public const CaseMinuteConflict = 'case_minute_conflict';
+
+    public const CaseMinuteImmutable = 'case_minute_immutable';
+
+    public const CaseMinuteStale = 'case_minute_stale';
+
+    public const CaseMinuteStageUnavailable = 'case_minute_stage_unavailable';
+
+    public const CaseMinuteFinalizationRequired = 'case_minute_finalization_required';
+
+    public const CaseMinuteAnonymizedIdentityDetected = 'case_minute_anonymized_identity_detected';
+
+    public const CaseMinuteRevisionSourceInvalid = 'case_minute_revision_source_invalid';
+
+    public const CaseMinuteUpdateRequired = 'case_minute_update_required';
+
     private function __construct() {}
 }

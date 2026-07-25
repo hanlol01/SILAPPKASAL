@@ -72,6 +72,7 @@ import {
   CaseFinalSummaryActions,
   CaseFinalSummaryCard,
 } from "@/components/workflow-actions/case-final-summary";
+import { CaseMinuteCard } from "@/components/workflow-actions/case-minute";
 import { SatgasAssignmentAction } from "@/components/workflow-actions/satgas-assignment-action";
 import {
   CaseStatusAction,
@@ -509,6 +510,7 @@ function CaseDetail() {
             />
           )}
           <CaseFinalSummaryCard caseId={c.id} language={i18n.language} />
+          <CaseMinuteCard caseId={c.id} language={i18n.language} />
           <Tabs
             value={activeWorkflowTab}
             onValueChange={handleWorkflowTabChange}
