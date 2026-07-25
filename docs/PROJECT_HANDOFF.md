@@ -772,3 +772,19 @@ Milestone 22 Additional QA:
 - Image upload, notification delivery, public unauthenticated content, offline authenticated-content
   caching, Flutter, and Graphify remain deferred. No production push or deployment occurred.
 - Demo-readiness verdict: `DEMO_READY_WITH_NOTES`.
+
+## REV-FINAL-INTEGRATION-01 Current Release Handoff — 2026-07-25
+
+- Current integration checkpoint is branch `feature/rev-final-integration-01-release-readiness`,
+  based at `a5e3f4bebff1342d73e9a818b9c9630ce6132227`. It contains the ordered withdrawal,
+  assignment, decision-number, and Case Berita Acara milestones. The current worktree also contains
+  one narrow source hardening patch pending release-commit selection: formal Decision endpoints now
+  apply `private.no-store`; RBAC, payloads, and lifecycle behavior are unchanged.
+- The release evidence, static PostgreSQL gate, backup-first rollback plan, and role UAT matrix are
+  maintained in `docs/workflows/REV_FINAL_INTEGRATION_01.md`,
+  `docs/deployment/REV_FINAL_*.md`, and `docs/workflows/REV_FINAL_UAT_CHECKLIST.md`.
+- The release status is `READY WITH CONDITIONS`, not deployed. It requires a reviewed PostgreSQL
+  preflight/backup on the target environment, migration execution through the normal additive path,
+  an authenticated browser UAT, and approval of the documented rollback plan.
+- The working tree intentionally keeps `artifacts/` untracked. No push, deployment, PostgreSQL
+  migration, or destructive migration command was performed during this integration checkpoint.

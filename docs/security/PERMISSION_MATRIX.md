@@ -289,3 +289,18 @@ The executable seeder assigns all three `case_minutes.*` permissions only to `ad
 these permissions: its BA policy is an explicit metadata-only exception gated by `cases.read.all`.
 Every policy repeats active-role, exact Case campus, and (for Satgas) active assignment checks; the
 legacy `is_lead` flag conveys no BA authority.
+
+## 9. REV-FINAL-INTEGRATION-01 consolidated release boundary
+
+The final integration checkpoint does not grant a new permission or widen a role. The effective
+cross-workflow boundary is as follows:
+
+| Role | Integrated authority | Explicit boundary |
+|---|---|---|
+| Reporter | Own withdrawal request, document, resubmission, and reporter-safe status projection | Cannot review a withdrawal, read/create a decision or BA, or receive internal reviewer/assignee metadata |
+| Satgas PPKS | Exact active Case assignment operations and BA read/write where permissioned | Cannot finalize BA, review withdrawal, or bypass Case/campus scope |
+| Campus Admin | Same-campus withdrawal review and BA permissions assigned by RBAC | Cannot operate another campus or bypass server-side capability/policy checks |
+| Super Admin | Cross-campus monitoring/metadata where documented, global oversight permissions | BA is metadata-only; signed withdrawal documents, reasons, and withdrawal mutation remain unavailable |
+
+Every mutation remains server-authorized inside its transaction and is recorded through the existing
+audit/notification flows. UI capability flags are advisory and never replace these checks.

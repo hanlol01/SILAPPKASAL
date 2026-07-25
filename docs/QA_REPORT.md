@@ -1524,3 +1524,25 @@ Product Owner should execute the `REV03-ST-*` cases added to `docs/SMOKE_TEST.md
 
 - QA did not perform an authenticated browser walkthrough, so visual/mobile behavior is static-review only.
 - The assessment write path is covered by feature tests, but Product Owner should still confirm real seeded master-data options and field-level 422 behavior manually in the browser.
+
+## REV-FINAL-INTEGRATION-01 Integration Evidence — 2026-07-25
+
+| Check | Result |
+|---|---|
+| Historical critical workflow checkpoint | PASS — 83 tests, 1,042 assertions; retained as prior recorded evidence |
+| Current worktree independent focused re-run: formal withdrawal/review, assignment, Decision plus migration, Case BA plus migration, reporter transparency, and break-glass | PASS — 109 tests, 1,469 assertions |
+| Broader workflow regression groups (investigation, recommendation, recovery, notifications, My Work, audit, evidence, content) | PASS in previously recorded evidence; content has 7 environment skips requiring GD |
+| Full PHPUnit at 512 MiB | 575 tests, 6,152 assertions; one known baseline `RbacSeederTest` duplicate category error |
+| Default `php artisan test` whole-suite runner | Not a release pass: reaches the runner's 128 MiB limit late in the run; isolated `EvidenceFileTest` passes |
+| Targeted frontend content/global-term/withdrawal/assignment/decision/case-minute suites | PASS |
+| TypeScript, ESLint, production build | PASS; ESLint retains six existing Fast Refresh warnings and build retains third-party module-directive warnings |
+| Route and static migration review | PASS; no PostgreSQL migration was run |
+| Relevant PHP syntax checks | PASS |
+| Scoped Pint `--test` | PASS — all 66 PHP files in the integration source chain; no formatter was run |
+| Whole-tree Pint | Not a release result: pre-existing style debt exists outside the 66-file scope; no formatter was run |
+| Composer validation | `composer validate --strict` reports valid metadata; Git safe-directory ownership notices are non-fatal environment noise |
+| `git diff --check` | PASS; only Git CRLF conversion notices were emitted |
+
+No authenticated browser UAT, PostgreSQL preflight/runtime migration, target-environment backup
+restore rehearsal, or deployment was performed. The evidence supports `READY WITH CONDITIONS`, not
+an unconditional production-ready claim.

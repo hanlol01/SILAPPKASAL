@@ -298,3 +298,12 @@ Kasus smoke test manual untuk dieksekusi oleh Product Owner. Test ini hanya dibu
 | REV03-ST-012 | Semua role terkait | `/dashboard/cases/:id` | Mobile layout assessment | Viewport 360x740 | Buka detail kasus assessment pada mobile; buka dialog; pilih risk/priority; simpan. | Dialog tetap usable, select tidak overflow horizontal, tombol jelas, helper text terbaca, dan halaman tidak memiliki horizontal overflow. | Tinggi |
 | REV03-ST-013 | Semua role terkait | Dashboard dan Portal | Regression REV-01/REV-02/RC-03/RC-04/RC-05 | Dataset normal | Spot check case detail action rail, timeline internal, portal timeline, badge portal, pagination list, dan visual card/dialog. | Tidak ada regresi pada workflow detail polish, timeline aman, badge system, pagination, dan visual consistency. | Tinggi |
 | REV03-ST-014 | Admin atau Super Admin | `/dashboard/cases` | Daftar kasus risk/priority | Kasus dengan assessment tersimpan | Buka daftar kasus; periksa kolom/kartu risiko dan prioritas. | Nilai risk/priority tampil sebagai label terbaca dan tetap mengikuti locale aktif; tidak ada raw code membingungkan. | Sedang |
+
+## REV-FINAL-INTEGRATION-01
+
+Kasus smoke historis di atas tetap berlaku. Untuk rilis integrasi saat ini, Product Owner wajib
+menjalankan matriks lintas peran yang lebih lengkap di
+`docs/workflows/REV_FINAL_UAT_CHECKLIST.md` sebelum deployment. Matriks tersebut mencakup pelapor,
+Satgas tepat-penugasan, Admin kampus, Super Admin metadata-only, formal withdrawal, assignment,
+decision number, Case Berita Acara, privacy, stale-write, dan regresi workflow. Checklist tersebut
+belum dieksekusi oleh automation atau browser pada checkpoint ini.

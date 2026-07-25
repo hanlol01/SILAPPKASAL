@@ -1261,3 +1261,17 @@ backfilled.
 Rollback removes only `NOTIF-28`, `NOTIF-29`, and the two named 01C indexes. Laravel's schema
 operation is valid for PostgreSQL and SQLite. The migration must be applied through the normal
 additive deployment path and must not be run with `migrate:fresh`.
+
+### REV-FINAL-INTEGRATION-01 PostgreSQL release preflight — 2026-07-25
+
+The static release review covers the additive migrations
+`2026_07_24_040000_add_formal_decision_number_sequence.php` and
+`2026_07_24_050000_create_case_minutes_table.php`. The former preflights duplicate non-null
+`decisions.decision_number` values before schema mutation, then adds its nullable unique constraint
+and yearly sequence table. The latter creates the versioned `case_minutes` table with UUID public ID,
+Case/actor foreign keys, `(case_id, version)` uniqueness, status index, and supersession link.
+
+No PostgreSQL migration was executed for this review. Operators must follow the explicit duplicate
+query, backup, schema verification, and disposable-environment rollback rules in
+`docs/deployment/REV_FINAL_POSTGRESQL_PREFLIGHT.md` and
+`docs/deployment/REV_FINAL_ROLLBACK_PLAN.md`; never use `migrate:fresh` for this release.

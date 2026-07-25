@@ -295,8 +295,10 @@ Route::prefix('v1')->group(function (): void {
     });
 
     Route::middleware('auth:sanctum')->prefix('recommendations')->group(function (): void {
-        Route::post('/{recommendation}/decisions', [DecisionController::class, 'storeForRecommendation']);
-        Route::get('/{recommendation}/decisions', [DecisionController::class, 'indexForRecommendation']);
+        Route::post('/{recommendation}/decisions', [DecisionController::class, 'storeForRecommendation'])
+            ->middleware('private.no-store');
+        Route::get('/{recommendation}/decisions', [DecisionController::class, 'indexForRecommendation'])
+            ->middleware('private.no-store');
         Route::get('/{recommendation}/status-options', [RecommendationController::class, 'statusOptions']);
         Route::get('/{recommendation}', [RecommendationController::class, 'show']);
         Route::patch('/{recommendation}', [RecommendationController::class, 'update']);
@@ -305,7 +307,7 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('/{recommendation}/status', [RecommendationController::class, 'updateStatus']);
     });
 
-    Route::middleware('auth:sanctum')->prefix('decisions')->group(function (): void {
+    Route::middleware(['private.no-store', 'auth:sanctum'])->prefix('decisions')->group(function (): void {
         Route::post('/{decision}/recoveries', [RecoveryController::class, 'storeForDecision']);
         Route::get('/{decision}/recoveries', [RecoveryController::class, 'indexForDecision']);
         Route::get('/{decision}/status-options', [DecisionController::class, 'statusOptions']);

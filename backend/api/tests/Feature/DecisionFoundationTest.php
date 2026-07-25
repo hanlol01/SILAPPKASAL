@@ -93,7 +93,8 @@ class DecisionFoundationTest extends TestCase
             ->assertJsonPath('data.outcome_code', DecisionOutcome::Accepted->value)
             ->assertJsonPath('data.decision_number', null)
             ->assertJsonPath('data.decision_summary', 'Ringkasan keputusan institusi.')
-            ->assertJsonMissingPath('data.recommendation.conclusion');
+            ->assertJsonMissingPath('data.recommendation.conclusion')
+            ->assertHeader('Cache-Control', 'max-age=0, no-store, private');
 
         $this->assertDatabaseHas('decisions', [
             'recommendation_id' => $recommendation->id,
@@ -236,7 +237,8 @@ class DecisionFoundationTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.current_status.name', DecisionStatusEnum::Draft->value)
             ->assertJsonCount(1, 'data.valid_transitions')
-            ->assertJsonPath('data.valid_transitions.0.name', DecisionStatusEnum::Recorded->value);
+            ->assertJsonPath('data.valid_transitions.0.name', DecisionStatusEnum::Recorded->value)
+            ->assertHeader('Cache-Control', 'max-age=0, no-store, private');
 
         $this->actingAsApi($satgas);
         $this->getJson("/api/v1/decisions/{$decision->id}/status-options")
@@ -294,7 +296,8 @@ class DecisionFoundationTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('data.status', DecisionStatusEnum::Finalized->value)
-            ->assertJsonPath('data.decision_number', 'SK/PPKS/'.now()->format('Y').'/001');
+            ->assertJsonPath('data.decision_number', 'SK/PPKS/'.now()->format('Y').'/001')
+            ->assertHeader('Cache-Control', 'max-age=0, no-store, private');
 
         $decision->refresh();
         $this->assertNotNull($decision->finalized_at);
@@ -834,7 +837,8 @@ class DecisionFoundationTest extends TestCase
         $this->getJson("/api/v1/decisions/{$decision->id}")
             ->assertOk()
             ->assertJsonPath('data.decision_number', $number)
-            ->assertJsonPath('data.decision_summary', 'Ringkasan keputusan institusi.');
+            ->assertJsonPath('data.decision_summary', 'Ringkasan keputusan institusi.')
+            ->assertHeader('Cache-Control', 'max-age=0, no-store, private');
         $this->actingAsApi($satgas);
         $this->getJson("/api/v1/decisions/{$decision->id}")
             ->assertOk()

@@ -1153,6 +1153,7 @@ Audit Event: decision.created
 PATCH /api/v1/decisions/{decision}/status
 Authorization: Bearer <token>
 Content-Type: application/json
+Cache-Control: private, no-store, max-age=0
 
 {"status":"finalized"}
 ```
@@ -1177,7 +1178,8 @@ transactional failures with no partial finalization.
 Read projection is role-aware: same-campus Admin and assigned Satgas retain their authorized
 Decision view; Super Admin receives metadata only (including `decision_number`); Reporter and
 cross-campus/unauthorized actors receive no Decision projection. GET/resource serialization
-never generates or changes a number.
+never generates or changes a number. All formal Decision create/list/read/status endpoints use
+`private.no-store`; the middleware changes cache headers only, not authorization or response shape.
 
 ### 7.10 Add Recovery Monitoring
 
@@ -2505,3 +2507,12 @@ a final outcome.
 Search treats `%`, `_`, and the escape marker as literal characters rather than caller-controlled
 wildcards. Approval/rejection notifications contain public references and status only; they omit
 reasons, document links, and internal subject IDs.
+
+## REV-FINAL-INTEGRATION-01 operational contract note — 2026-07-25
+
+The final integration checkpoint adds no API endpoint or payload contract. Route inspection confirms
+that the documented withdrawal review, formal decision, and Case Berita Acara endpoints remain under
+Sanctum, policy/permission checks, named throttles where defined, and `private.no-store` for sensitive
+responses. Reporter has no Case Berita Acara or formal decision endpoint; signed withdrawal documents
+remain private and authorized per request. Deployment verification must repeat route inspection on the
+target build and is not implied by this static review.

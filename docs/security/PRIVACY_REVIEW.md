@@ -106,3 +106,20 @@ For non-anonymous reports:
 | Reporter notification | **On approval only**, generic and without requester/reviewer/reason data |
 | Audit visibility | **Super Admin only** — break-glass audit entries restricted |
 | Audit entries | Immutable, severity: critical, retained indefinitely |
+
+---
+
+## 6. REV-FINAL-INTEGRATION-01 integrated workflow boundary — 2026-07-25
+
+- Reporter projections remain limited to reporter-safe status and ownership data. They exclude
+  withdrawal review reasons, signed-document storage details, internal assignees/reviewers, decision
+  records/numbers, and Case Berita Acara narrative.
+- Signed withdrawal documents are served only through authorized private routes; resources omit disk,
+  path, checksum, raw filename, and storage URL. Super Admin monitoring is metadata-only.
+- Case Berita Acara narrative is internal: assigned active Satgas and authorized same-campus Admin
+  receive the anonymized internal projection, while Super Admin receives metadata only and Reporter
+  has no BA route or resource projection.
+- Common Case mutability checks run before integrated Case mutations, and stale-write/withdrawn
+  guards prevent later workflow transitions from exposing or altering terminal records.
+- The integration review was static plus automated test evidence. Browser UAT and target PostgreSQL
+  runtime validation remain required before deployment; neither is claimed completed here.

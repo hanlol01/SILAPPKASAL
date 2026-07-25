@@ -110,3 +110,21 @@
 ## Next Steps
  - Resolve remaining global frontend TypeScript errors in workflow/dashboard files if strict type-check is required as a release gate.
  - Continue with the next approved milestone after M31-B2 handoff.
+
+## REV-FINAL-INTEGRATION-01 Release Integration Snapshot — 2026-07-25
+
+Earlier entries in this report are historical milestone records. This snapshot is the current
+cross-workflow release assessment for withdrawal, Satgas assignment, formal decision code, and
+Case Berita Acara.
+
+- Static integration review found the common Case mutability guard, transaction/lock ordering,
+  role-scoped projections, workflow-cache synchronization, and after-commit notification behavior
+  intact across the integrated workflows.
+- Focused backend workflow suites and all targeted frontend workflow suites passed. TypeScript,
+  ESLint (six pre-existing Fast Refresh warnings only), and the production frontend build passed.
+- The full PHP suite has one known baseline `RbacSeederTest` duplicate content-category failure and
+  the default Artisan runner reaches its 128 MiB limit late in the suite. A direct 512 MiB PHPUnit
+  run completed 575 tests with that single known baseline error; seven GD-dependent image tests were
+  skipped because GD is unavailable in this environment.
+- PostgreSQL migration execution, target-environment preflight, browser UAT, deployment, and backup
+  restore rehearsal remain external gates. The release verdict is therefore `READY WITH CONDITIONS`.
