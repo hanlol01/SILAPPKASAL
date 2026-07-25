@@ -3,14 +3,21 @@
 //   - tanstackStart, viteReact, tailwindcss, tsConfigPaths,
 //     componentTagger (dev-only), VITE_* env injection, @ path alias, React/TanStack dedupe,
 //     error logger plugins, and sandbox detection (port/host/strictPort).
-// Its supported self-hosted Cloudflare path is the explicit Nitro deploy plugin below.
-// You can pass additional config via defineConfig({ vite: { ... } }) if needed.
+// The VPS production target is the explicit Nitro Node server configuration below.
+// Additional Vite configuration can be passed through defineConfig when needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-// Nitro consumes this entry and emits the Cloudflare Worker plus generated Wrangler config.
+// The VPS runs the official Nitro Node server bundle directly; no Worker runtime is involved.
 export default defineConfig({
-  nitro: true,
+  nitro: {
+    preset: "node-server",
+    output: {
+      dir: "dist",
+      serverDir: "dist/server",
+      publicDir: "dist/client",
+    },
+  },
   tanstackStart: {
     server: { entry: "server" },
   },

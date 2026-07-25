@@ -388,22 +388,24 @@ VITE_API_BASE_URL=http://<SERVER_IP>/api/v1
 Install and build:
 
 ```bash
-npm install
+npm ci
 npm run build
 ```
 
-The build output is:
+The production Node build output is:
 
 ```text
 dist/client
-dist/server
+dist/server/index.mjs
 ```
 
-This project does not currently produce a root `index.html`, so use `vite preview` behind Nginx for demo deployment.
+`dist/client` contains browser assets. `dist/server/index.mjs` is the Nitro `node-server`
+entrypoint that serves SSR routes and those assets. Do not use `vite preview` as the
+production service command, and do not require Wrangler or Miniflare on the VPS.
 
 ---
 
-## 13. Frontend Preview Service
+## 13. Frontend Node Service
 
 Create systemd service:
 
@@ -415,20 +417,28 @@ Content:
 
 ```ini
 [Unit]
-Description=SILAPPKASAL Frontend Preview
+Description=SILAPPKASAL Frontend Node Server
 After=network.target
 
 [Service]
 Type=simple
+User=ubuntu
+Group=ubuntu
 WorkingDirectory=/var/www/silappkasal/frontend
-ExecStart=/usr/bin/npm run preview -- --host 127.0.0.1 --port 3000
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=3000
+ExecStart=/usr/bin/npm run start
 Restart=always
 RestartSec=5
-Environment=NODE_ENV=production
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+Nitro's Node preset reads `HOST` and `PORT` (or the equivalent `NITRO_HOST` and
+`NITRO_PORT`) at runtime. Keep this service bound to `127.0.0.1:3000`; Nginx remains
+the public reverse proxy.
 
 Enable service:
 
@@ -543,7 +553,7 @@ Frontend update:
 
 ```bash
 cd /var/www/silappkasal/frontend
-npm install
+npm ci
 npm run build
 systemctl restart silappkasal-frontend
 systemctl reload nginx

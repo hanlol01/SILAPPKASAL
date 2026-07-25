@@ -8,6 +8,7 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
+    "start": "node dist/server/index.mjs",
     "test:content": "node --experimental-strip-types --test tests/content-repair.test.ts tests/information-center.test.ts",
     "test:global-term": "node --experimental-strip-types --test tests/global-term-complaint-filters.test.ts",
     "test:withdrawal": "node --experimental-strip-types --test tests/withdrawal-cancellation.test.ts",
@@ -15,6 +16,7 @@
     "test:decision": "node --experimental-strip-types --test tests/decision-formal-code.test.ts",
     "test:case-minute": "node --experimental-strip-types --test tests/case-minute.test.ts",
     "test:branding": "node --experimental-strip-types --test tests/institutional-support-branding.test.ts",
+    "test:vps-runtime": "node --experimental-strip-types --test tests/vps-node-runtime.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

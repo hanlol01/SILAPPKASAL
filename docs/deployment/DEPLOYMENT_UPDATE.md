@@ -81,7 +81,7 @@ systemctl restart php8.3-fpm
 
 cd /var/www/silappkasal/frontend
 
-npm install
+npm ci
 
 npm run build
 
@@ -321,20 +321,19 @@ an advisory audit, and the final networked audit reports no known advisories.
 Before production deployment, close every blocked item in
 `REV_CONTENT_01_C5_RELEASE_CHECKLIST.md`. In particular:
 
-1. restart the built preview and complete the remaining remeasurement, keyboard, and authenticated
+1. restart the built Node service and complete the remaining remeasurement, keyboard, and authenticated
    PDF scenarios in `REV_CONTENT_01_C5_BROWSER_QA.md`;
-2. use the verified `npm run build` output and generated redirected Wrangler configuration; repeat
-   `npx wrangler deploy --dry-run` from the reviewed release commit before any authorized deployment;
+2. use the verified `npm run build` output and start `dist/server/index.mjs` through `npm run start`;
 3. capture and verify both PostgreSQL and `storage/app/private/content` backups;
 4. verify the production environment uses `APP_ENV=production`, `APP_DEBUG=false`, HTTPS URLs, exact
    CORS origins, `CONTENT_IMAGE_UPLOADS_ENABLED=false`, private storage, database-backed cache/session/
    queue where planned, healthy workers, and protected secrets.
 
-C5-RUNTIME-01 enables the wrapper's supported self-hosted Nitro path with `nitro: true`. The default
-`cloudflare-module` preset now emits `dist/server/index.mjs`, `dist/server/wrangler.json`,
-`.wrangler/deploy/config.json`, and a `dist/client` assets binding. Wrangler 4.98.0 follows that
-redirected configuration and completes `npx wrangler deploy --dry-run` without credentials or a
-deployment. Generated artifacts remain ignored build output; `vite preview` remains a QA command.
+REV-VPS-RUNTIME-01 supersedes the prior Cloudflare deployment shape for the Ubuntu VPS. The wrapper
+now explicitly uses Nitro's `node-server` preset, emitting `dist/server/index.mjs` and `dist/client`.
+Production runs `npm run start` with `NODE_ENV=production`, `HOST=127.0.0.1`, and `PORT=3000` behind
+Nginx. Generated artifacts remain ignored build output; `vite preview`, Wrangler, and Miniflare are
+not production runtime requirements for this VPS contract.
 
 Deploy backend code and matching client/SSR artifacts from the same reviewed commit. Enter maintenance
 mode, capture backups, install locked dependencies, migrate, rebuild caches/artifacts, restart
