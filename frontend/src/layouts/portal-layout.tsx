@@ -27,6 +27,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { InstitutionalSupport } from "@/components/ui/institutional-support";
 import { canReadPublishedContent } from "@/lib/published-content-access";
 import type { ReactNode } from "react";
 
@@ -213,6 +214,9 @@ export function PortalLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen w-full flex-col bg-muted/30">
       <PortalTopbar />
       <main className="flex-1 p-4 md:p-6">{children}</main>
+      <footer className="border-t bg-background/80 px-4 py-4 md:px-6">
+        <InstitutionalSupport variant="compact" tone="auto" />
+      </footer>
     </div>
   );
 }

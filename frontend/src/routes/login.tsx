@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
+import { InstitutionalSupport } from "@/components/ui/institutional-support";
 import { useAuth } from "@/hooks/use-auth";
 import { hasDashboardAccess, hasPortalAccess } from "@/lib/auth-roles";
 import type { RoleCode } from "@/lib/api-types";
@@ -111,80 +112,88 @@ function LoginPage() {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      <div className="relative hidden flex-col justify-between bg-sidebar p-10 text-sidebar-foreground lg:flex">
+      <div className="relative hidden flex-col bg-sidebar p-8 text-sidebar-foreground lg:flex xl:p-10">
         <div className="flex items-center gap-2">
           <img src="/Logo.ico" alt="Logo" className="h-10 w-10 object-contain" />
           <span className="font-semibold">SILAPPKASAL</span>
         </div>
-        <div className="space-y-4">
-          <h1 className="text-3xl font-semibold leading-tight">
-            {t("heroTitle")}
-          </h1>
-          <p className="text-sm text-sidebar-foreground/70">
-            {t("heroSubtitle")}
-          </p>
+        <div className="my-auto w-full max-w-xl space-y-6 py-8">
+          <div className="space-y-4">
+            <h1 className="text-3xl font-semibold leading-tight">
+              {t("heroTitle")}
+            </h1>
+            <p className="text-sm text-sidebar-foreground/70">
+              {t("heroSubtitle")}
+            </p>
+          </div>
+          <InstitutionalSupport variant="featured" tone="dark" />
         </div>
         <div className="text-xs text-sidebar-foreground/60">
           {t("common:copyright", { defaultValue: "2026 SILAPPKASAL. Hak akses terbatas untuk Satgas PPKS." })}
         </div>
       </div>
-      <div className="flex items-center justify-center p-6">
-        <Card className="w-full max-w-md border-border/60 shadow-sm">
-          <CardContent className="p-8">
-            <div className="mb-6 lg:hidden">
-              <div className="flex items-center gap-2">
-                <img src="/Logo.ico" alt="Logo" className="h-10 w-10 object-contain" />
-                <span className="font-semibold">SILAPPKASAL</span>
+      <div className="flex min-h-screen items-center justify-center p-4 sm:p-6">
+        <div className="w-full max-w-md">
+          <Card className="w-full border-border/60 shadow-sm">
+            <CardContent className="p-8">
+              <div className="mb-6 lg:hidden">
+                <div className="flex items-center gap-2">
+                  <img src="/Logo.ico" alt="Logo" className="h-10 w-10 object-contain" />
+                  <span className="font-semibold">SILAPPKASAL</span>
+                </div>
               </div>
-            </div>
-            <h2 className="text-2xl font-semibold tracking-tight">{t("signIn")}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {t("signInDescription")}
-            </p>
-            <form onSubmit={onSubmit} className="mt-6 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="identifier">{t("email")}</Label>
-                <Input
-                  id="identifier"
-                  type="text"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  required
-                />
-                <p className="text-xs text-muted-foreground">{t("registrationLoginHint")}</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">{t("password")}</Label>
-                <PasswordInput
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="flex items-center">
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={remember}
-                    onCheckedChange={(v) => setRemember(v === true)}
+              <h2 className="text-2xl font-semibold tracking-tight">{t("signIn")}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("signInDescription")}
+              </p>
+              <form onSubmit={onSubmit} className="mt-6 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="identifier">{t("email")}</Label>
+                  <Input
+                    id="identifier"
+                    type="text"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    required
                   />
-                  {t("rememberMe")}
-                </label>
+                  <p className="text-xs text-muted-foreground">{t("registrationLoginHint")}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">{t("password")}</Label>
+                  <PasswordInput
+                    id="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="flex items-center">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={remember}
+                      onCheckedChange={(v) => setRemember(v === true)}
+                    />
+                    {t("rememberMe")}
+                  </label>
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? t("signingIn") : t("signIn")}
+                </Button>
+              </form>
+              <div className="mt-6 flex flex-col gap-2 text-sm">
+                <Link to="/register" className="text-primary hover:underline">
+                  {t("registerLink")}
+                </Link>
+                <Link to="/track" className="text-primary hover:underline">
+                  {t("trackLink")}
+                </Link>
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? t("signingIn") : t("signIn")}
-              </Button>
-            </form>
-            <div className="mt-6 flex flex-col gap-2 text-sm">
-              <Link to="/register" className="text-primary hover:underline">
-                {t("registerLink")}
-              </Link>
-              <Link to="/track" className="text-primary hover:underline">
-                {t("trackLink")}
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+          <div className="mt-6 lg:hidden">
+            <InstitutionalSupport variant="featured" tone="light" />
+          </div>
+        </div>
       </div>
     </div>
   );

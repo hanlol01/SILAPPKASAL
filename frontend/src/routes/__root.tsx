@@ -4,12 +4,14 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
 import { Toaster } from "sonner";
 import { useTranslation } from "react-i18next";
 import { AuthProvider } from "@/components/auth-provider";
+import { InstitutionalSupport } from "@/components/ui/institutional-support";
 
 import "@/i18n";
 
@@ -125,11 +127,22 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const shouldRenderPublicFooter =
+    pathname === "/information-center" ||
+    pathname.startsWith("/information-center/") ||
+    pathname === "/register" ||
+    pathname === "/track";
 
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Outlet />
+        {shouldRenderPublicFooter ? (
+          <footer className="border-t bg-background/80 px-4 py-4 md:px-6">
+            <InstitutionalSupport variant="compact" tone="auto" />
+          </footer>
+        ) : null}
         <Toaster richColors position="top-center" />
       </AuthProvider>
     </QueryClientProvider>

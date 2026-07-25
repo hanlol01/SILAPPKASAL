@@ -44,6 +44,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { InstitutionalSupport } from "@/components/ui/institutional-support";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
@@ -345,6 +346,9 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar />
           <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
+          <footer className="border-t bg-background/80 px-4 py-4 md:px-6">
+            <InstitutionalSupport variant="compact" tone="auto" />
+          </footer>
         </div>
       </div>
     </SidebarProvider>

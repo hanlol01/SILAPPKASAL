@@ -33,6 +33,12 @@
   "home": "Home",
   "reset": "Reset",
   "copyright": "2026 SILAPPKASAL. Authorized for Satgas PPKS use only.",
+  "institutionalSupport": {
+    "sectionLabel": "Institutional Support",
+    "badge": "Institutional Support",
+    "featuredHeading": "SILAPPKASAL is developed with support from",
+    "compactHeading": "With support from"
+  },
   "validation": {
     "required": "This field is required.",
     "email": "Enter a valid email address.",

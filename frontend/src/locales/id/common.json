@@ -33,6 +33,12 @@
   "home": "Beranda",
   "reset": "Atur ulang",
   "copyright": "2026 SILAPPKASAL. Hak akses terbatas untuk Satgas PPKS.",
+  "institutionalSupport": {
+    "sectionLabel": "Dukungan Institusi",
+    "badge": "Dukungan Institusi",
+    "featuredHeading": "SILAPPKASAL dikembangkan dengan dukungan dari",
+    "compactHeading": "Dengan dukungan dari"
+  },
   "validation": {
     "required": "Wajib diisi.",
     "email": "Masukkan alamat email yang valid.",
