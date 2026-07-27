@@ -51,6 +51,7 @@ export const Route = createFileRoute("/dashboard/report-withdrawals/$publicId")(
 
 function ReportWithdrawalDetailPage() {
   const { publicId } = Route.useParams();
+  const queueSearch = Route.useSearch();
   const { roleCode, user } = useAuth();
   const { t, i18n } = useTranslation(["dashboard"]);
   const queryClient = useQueryClient();
@@ -175,7 +176,12 @@ function ReportWithdrawalDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Button variant="ghost" asChild><Link to="/dashboard/report-withdrawals"><ArrowLeft className="h-4 w-4" />{t("dashboard:withdrawals.backToQueue")}</Link></Button>
+      <Button variant="ghost" asChild>
+        <Link to="/dashboard/report-withdrawals" search={queueSearch}>
+          <ArrowLeft className="h-4 w-4" />
+          {t("dashboard:withdrawals.backToQueue")}
+        </Link>
+      </Button>
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="break-all font-mono text-xl font-semibold">{item.registration_number}</h1>
         <WithdrawalBadge status={item.status} />

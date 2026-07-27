@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { Clock3, Eye, Inbox, Loader2, Search, SearchX } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AccessDenied } from "@/components/access-denied";
@@ -41,8 +41,12 @@ function positiveInteger(value: unknown) {
 function ReportWithdrawalsPage() {
   const { roleCode, user } = useAuth();
   const { t, i18n } = useTranslation(["dashboard"]);
+  const matchRoute = useMatchRoute();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const isIndexRoute = Boolean(
+    matchRoute({ to: "/dashboard/report-withdrawals", fuzzy: false }),
+  );
   const status = search.status ?? "pending_review";
   const page = search.page ?? 1;
   const pageSize = search.per_page ?? DEFAULT_PAGE_SIZE;
@@ -53,10 +57,11 @@ function ReportWithdrawalsPage() {
   const withdrawalsQuery = useQuery({
     queryKey: operationsQueryKeys.withdrawalReviews(query),
     queryFn: () => getReportWithdrawalReviews(query),
-    enabled: Boolean(canAccess),
+    enabled: Boolean(canAccess && isIndexRoute),
   });
 
   if (!canAccess) return <AccessDenied />;
+  if (!isIndexRoute) return <Outlet />;
 
   const filtered = status !== "pending_review" || Boolean(search.q);
 
