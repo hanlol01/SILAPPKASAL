@@ -61,6 +61,7 @@ use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use RuntimeException;
 use Tests\TestCase;
+use ZipArchive;
 
 class ReportFormalWithdrawalTest extends TestCase
 {
@@ -202,7 +203,7 @@ class ReportFormalWithdrawalTest extends TestCase
         )->assertNotFound();
     }
 
-    public function test_authenticated_anonymous_owner_is_allowed_but_draft_document_masks_identity(): void
+    public function test_authenticated_anonymous_owner_can_view_blank_draft_template_without_identity(): void
     {
         $reporter = $this->makeUser('reporter', 'anonymous@example.test');
         $report = $this->makeReport(
@@ -220,9 +221,8 @@ class ReportFormalWithdrawalTest extends TestCase
         $response
             ->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff')
-            ->assertSee('DRAFT')
-            ->assertSee('BELUM MERUPAKAN FORMAT RESMI KAMPUS')
-            ->assertSee('Pelapor Anonim')
+            ->assertSee('SURAT PERNYATAAN')
+            ->assertSee('DRAFT/SLP-20260724-1010')
             ->assertDontSee($reporter->name)
             ->assertDontSee('report_id')
             ->assertDontSee('case_id')
@@ -264,7 +264,7 @@ class ReportFormalWithdrawalTest extends TestCase
         }
     }
 
-    public function test_draft_document_get_is_read_only_and_print_safe(): void
+    public function test_draft_document_get_is_read_only_and_matches_the_manual_template(): void
     {
         $reporter = $this->makeUser('reporter', 'draft@example.test');
         $report = $this->makeReport($reporter);
@@ -277,10 +277,11 @@ class ReportFormalWithdrawalTest extends TestCase
         $first = $this->get("/api/v1/portal/withdrawals/{$publicId}/draft-document");
         $first
             ->assertOk()
-            ->assertSee('Surat Pernyataan Pencabutan Pengaduan')
-            ->assertSee('@media print', false)
-            ->assertSee('Area Meterai')
-            ->assertSee($report->registration_number);
+            ->assertSee('SURAT PERNYATAAN')
+            ->assertSee('PERMOHONAN PENGHENTIAN PENANGANAN LAPORAN')
+            ->assertSee('Nomor: DRAFT/SLP-20260724-1001')
+            ->assertSee('Materai Rp10.000')
+            ->assertDontSee('Alasan pencabutan:', false);
 
         $unchanged = ReportWithdrawal::query()->where('public_id', $publicId)->firstOrFail();
         $this->assertSame(ReportWithdrawalStatus::Draft, $unchanged->status);
@@ -323,12 +324,63 @@ class ReportFormalWithdrawalTest extends TestCase
             ->assertDontSee('<script>alert(1)</script>', false)
             ->assertDontSee('<svg onload=', false)
             ->assertDontSee('<img src=x onerror=', false)
-            ->assertSee('&lt;script&gt;alert(1)&lt;/script&gt;', false)
-            ->assertSee('&amp;#x3C;img', false);
+            ->assertDontSee('&lt;script&gt;alert(1)&lt;/script&gt;', false)
+            ->assertDontSee('&amp;#x3C;img', false);
         $csp = (string) $response->headers->get('Content-Security-Policy');
         $this->assertStringContainsString("default-src 'none'", $csp);
         $this->assertStringContainsString("object-src 'none'", $csp);
         $this->assertStringContainsString("frame-ancestors 'none'", $csp);
+    }
+
+    public function test_owner_can_download_numbered_docx_draft_and_open_private_example(): void
+    {
+        $reporter = $this->makeUser('reporter', 'draft-download@example.test');
+        $report = $this->makeReport($reporter);
+        $report->forceFill(['registration_number' => 'SLP-DEMO-2026-0810-0001'])->save();
+        $this->makeCase($report, CaseStatusEnum::Assessment);
+        Sanctum::actingAs($reporter, ['*']);
+        $publicId = $this->createFormal($report);
+
+        $download = $this->get("/api/v1/portal/withdrawals/{$publicId}/draft-document/download");
+        $download
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
+        $this->assertStringContainsString('attachment;', (string) $download->headers->get('Content-Disposition'));
+        $this->assertStringContainsString('no-store', (string) $download->headers->get('Cache-Control'));
+
+        $temporaryPath = tempnam(sys_get_temp_dir(), 'withdrawal-docx-test-');
+        $this->assertNotFalse($temporaryPath);
+        file_put_contents($temporaryPath, $download->streamedContent());
+
+        $archive = new ZipArchive();
+        $this->assertTrue($archive->open($temporaryPath) === true);
+        $documentXml = $archive->getFromName('word/document.xml');
+        $coreProperties = $archive->getFromName('docProps/core.xml');
+        $archive->close();
+        @unlink($temporaryPath);
+
+        $this->assertIsString($documentXml);
+        $this->assertIsString($coreProperties);
+        $this->assertStringContainsString('DRAFT/SLP-2026-0810-0001', $documentXml);
+        $this->assertStringNotContainsString('DRAFT/SLP-DEMO-', $documentXml);
+        $this->assertStringNotContainsString('{{generate_system}}', $documentXml);
+        $this->assertStringNotContainsString('richard mills', $coreProperties);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::ReportWithdrawalDraftDocumentDownloaded->value,
+        ]);
+
+        $example = $this->get("/api/v1/portal/withdrawals/{$publicId}/draft-document/example");
+        $example
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('Content-Disposition', 'inline; filename="contoh-pengisian-surat-pencabutan.pdf"');
+        $this->assertStringContainsString('no-store', (string) $example->headers->get('Cache-Control'));
+
+        $otherReporter = $this->makeUser('reporter', 'other-draft-download@example.test');
+        Sanctum::actingAs($otherReporter, ['*']);
+        $this->get("/api/v1/portal/withdrawals/{$publicId}/draft-document/download")->assertNotFound();
+        $this->get("/api/v1/portal/withdrawals/{$publicId}/draft-document/example")->assertNotFound();
     }
 
     public function test_formal_mutations_reject_stale_lock_versions_without_partial_changes(): void
@@ -1187,6 +1239,8 @@ class ReportFormalWithdrawalTest extends TestCase
             'portal.reports.withdrawal.current' => 'throttle:reporter.withdrawal.read',
             'portal.reports.withdrawals.store' => 'throttle:reporter.withdrawal.create',
             'portal.withdrawals.draft-document' => 'throttle:reporter.withdrawal.document',
+            'portal.withdrawals.draft-document.download' => 'throttle:reporter.withdrawal.document',
+            'portal.withdrawals.draft-document.example' => 'throttle:reporter.withdrawal.document',
             'portal.withdrawals.signed-document.store' => 'throttle:reporter.withdrawal.upload',
             'portal.withdrawals.signed-document.download' => 'throttle:reporter.withdrawal.document',
             'portal.withdrawals.submit' => 'throttle:reporter.withdrawal.mutate',

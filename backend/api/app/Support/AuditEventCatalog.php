@@ -84,6 +84,7 @@ final class AuditEventCatalog
             AuditAction::ReportWithdrawalCreated,
             AuditAction::ReportWithdrawalDraftDocumentPrepared,
             AuditAction::ReportWithdrawalDraftDocumentViewed,
+            AuditAction::ReportWithdrawalDraftDocumentDownloaded,
             AuditAction::ReportWithdrawalSignedDocumentUploaded,
             AuditAction::ReportWithdrawalSignedDocumentDownloaded,
             AuditAction::ReportWithdrawalSubmitted,

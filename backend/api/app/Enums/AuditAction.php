@@ -43,6 +43,7 @@ enum AuditAction: string
     case ReportWithdrawalCreated = 'report.withdrawal.created';
     case ReportWithdrawalDraftDocumentPrepared = 'report.withdrawal.draft_document.prepared';
     case ReportWithdrawalDraftDocumentViewed = 'report.withdrawal.draft_document.viewed';
+    case ReportWithdrawalDraftDocumentDownloaded = 'report.withdrawal.draft_document.downloaded';
     case ReportWithdrawalSignedDocumentUploaded = 'report.withdrawal.signed_document.uploaded';
     case ReportWithdrawalSignedDocumentDownloaded = 'report.withdrawal.signed_document.downloaded';
     case ReportWithdrawalSubmitted = 'report.withdrawal.submitted';

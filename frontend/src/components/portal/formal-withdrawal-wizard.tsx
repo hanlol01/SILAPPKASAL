@@ -2,10 +2,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Download,
+  ExternalLink,
   FileCheck2,
   FileText,
   Loader2,
-  Printer,
   RotateCcw,
   Send,
   Upload,
@@ -53,9 +53,11 @@ import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import {
   cancelPortalFormalWithdrawal,
   createPortalFormalWithdrawal,
+  downloadPortalWithdrawalDraftDocument,
   downloadPortalWithdrawalSignedDocument,
   getPortalFormalWithdrawal,
   getPortalWithdrawalDraftDocument,
+  getPortalWithdrawalDraftDocumentExample,
   portalQueryKeys,
   resubmitPortalFormalWithdrawal,
   submitPortalFormalWithdrawal,
@@ -103,13 +105,13 @@ export function FormalWithdrawalWizard({
   const { t, i18n } = useTranslation(["portal", "common"]);
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
-  const documentFrameRef = useRef<HTMLIFrameElement>(null);
   const [open, setOpen] = useState(false);
   const [documentHtml, setDocumentHtml] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [resubmitReason, setResubmitReason] = useState("");
+  const [isOpeningExample, setIsOpeningExample] = useState(false);
   const schema = useMemo(
     () =>
       withdrawalReasonSchema({
@@ -192,6 +194,11 @@ export function FormalWithdrawalWizard({
       toast.success(t("withdrawal.documentLoaded"));
     },
     onError: (error) => handleMutationError(error, t("withdrawal.documentError")),
+  });
+  const draftDownloadMutation = useMutation({
+    mutationFn: (publicId: string) => downloadPortalWithdrawalDraftDocument(publicId),
+    onSuccess: () => toast.success(t("withdrawal.downloadSuccess")),
+    onError: (error) => handleMutationError(error, t("withdrawal.downloadError")),
   });
   const uploadMutation = useMutation({
     mutationFn: ({
@@ -314,18 +321,40 @@ export function FormalWithdrawalWizard({
     setFileError(null);
   }
 
-  function openPrintableDocument() {
-    const printWindow = documentFrameRef.current?.contentWindow;
-    if (!documentHtml || !printWindow) {
-      toast.error(t("withdrawal.documentError"));
+  async function openDraftDocumentExample() {
+    if (!effectiveReference) {
+      toast.error(t("withdrawal.exampleError"));
       return;
     }
 
+    const exampleWindow = window.open("", "_blank");
+
+    if (!exampleWindow) {
+      toast.error(t("withdrawal.exampleBlocked"));
+      return;
+    }
+
+    setIsOpeningExample(true);
+    exampleWindow.document.title = t("withdrawal.exampleDocumentTitle");
+    exampleWindow.document.body.textContent = t("withdrawal.exampleLoading");
+
     try {
-      printWindow.focus();
-      printWindow.print();
-    } catch {
-      toast.error(t("withdrawal.documentError"));
+      const { blob, contentType } = await getPortalWithdrawalDraftDocumentExample(effectiveReference);
+
+      if (contentType !== "application/pdf") {
+        throw new Error("Unexpected example document content type.");
+      }
+
+      const objectUrl = URL.createObjectURL(blob);
+      const revokeObjectUrl = () => URL.revokeObjectURL(objectUrl);
+      exampleWindow.addEventListener("beforeunload", revokeObjectUrl, { once: true });
+      window.setTimeout(revokeObjectUrl, 5 * 60 * 1000);
+      exampleWindow.location.replace(objectUrl);
+    } catch (error) {
+      exampleWindow.close();
+      handleMutationError(error, t("withdrawal.exampleError"));
+    } finally {
+      setIsOpeningExample(false);
     }
   }
 
@@ -513,16 +542,32 @@ export function FormalWithdrawalWizard({
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={!documentHtml}
-                    onClick={openPrintableDocument}
+                    disabled={draftDownloadMutation.isPending}
+                    onClick={() => draftDownloadMutation.mutate(effectiveReference)}
                   >
-                    <Printer className="h-4 w-4" aria-hidden="true" />
-                    {t("withdrawal.printDraft")}
+                    {draftDownloadMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Download className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    {t("withdrawal.downloadDraft")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isOpeningExample}
+                    onClick={() => void openDraftDocumentExample()}
+                  >
+                    {isOpeningExample ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    {t("withdrawal.exampleAction")}
                   </Button>
                 </div>
                 {documentHtml && (
                   <iframe
-                    ref={documentFrameRef}
                     title={t("withdrawal.documentFrameTitle")}
                     srcDoc={documentHtml}
                     sandbox="allow-modals allow-same-origin"

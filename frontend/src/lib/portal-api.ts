@@ -133,6 +133,22 @@ export function getPortalWithdrawalDraftDocument(publicId: string, signal?: Abor
   );
 }
 
+/** GET /api/v1/portal/withdrawals/{publicId}/draft-document/download */
+export function downloadPortalWithdrawalDraftDocument(publicId: string) {
+  return apiDownload(
+    `/portal/withdrawals/${encodeURIComponent(publicId)}/draft-document/download`,
+    "Surat Pernyataan Permohonan Penghentian Penanganan Laporan.docx",
+  );
+}
+
+/** GET /api/v1/portal/withdrawals/{publicId}/draft-document/example */
+export function getPortalWithdrawalDraftDocumentExample(publicId: string, signal?: AbortSignal) {
+  return apiFetchBlob(
+    `/portal/withdrawals/${encodeURIComponent(publicId)}/draft-document/example`,
+    { signal },
+  );
+}
+
 /** POST /api/v1/portal/withdrawals/{publicId}/signed-document */
 export function uploadPortalWithdrawalSignedDocument(
   publicId: string,

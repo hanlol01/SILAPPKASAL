@@ -177,7 +177,11 @@ test("formal withdrawal API uses authenticated text, upload, submit, cancel, and
   assert.match(api, /\/portal\/reports\/\$\{encodeURIComponent\(registrationNumber\)\}\/withdrawal/);
   assert.match(api, /\/portal\/reports\/\$\{encodeURIComponent\(registrationNumber\)\}\/withdrawals/);
   assert.match(api, /\/portal\/withdrawals\/\$\{encodeURIComponent\(publicId\)\}\/draft-document/);
+  assert.match(api, /draft-document\/download/);
+  assert.match(api, /draft-document\/example/);
   assert.match(api, /apiFetchText\(/);
+  assert.match(api, /apiFetchBlob\(/);
+  assert.match(api, /apiDownload\(/);
   assert.match(api, /apiUpload<FormalWithdrawalDetail>/);
   assert.match(api, /body\.append\("lock_version", String\(lockVersion\)\)/);
   assert.match(api, /JSON\.stringify\(\{ lock_version: lockVersion \}\)/);
@@ -203,9 +207,12 @@ test("formal withdrawal reason, upload, and submit controls are fail-closed", as
   assert.match(wizard, /uploadProgress/);
   assert.match(wizard, /sandbox="allow-modals allow-same-origin"/);
   assert.doesNotMatch(wizard, /sandbox="[^"]*allow-scripts/);
-  assert.match(wizard, /documentFrameRef\.current\?\.contentWindow/);
-  assert.match(wizard, /printWindow\.print\(\)/);
-  assert.doesNotMatch(wizard, /window\.open|URL\.createObjectURL/);
+  assert.match(wizard, /downloadPortalWithdrawalDraftDocument/);
+  assert.match(wizard, /getPortalWithdrawalDraftDocumentExample/);
+  assert.match(wizard, /window\.open\("", "_blank"\)/);
+  assert.match(wizard, /URL\.createObjectURL\(blob\)/);
+  assert.match(wizard, /URL\.revokeObjectURL/);
+  assert.doesNotMatch(wizard, /printWindow\.print\(\)/);
   assert.match(wizard, /htmlFor=\{`withdrawal-document-/);
 });
 

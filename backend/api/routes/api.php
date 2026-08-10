@@ -390,6 +390,14 @@ Route::prefix('v1')->group(function (): void {
                 ->whereUuid('publicId')
                 ->middleware('throttle:reporter.withdrawal.document')
                 ->name('portal.withdrawals.draft-document');
+            Route::get('/withdrawals/{publicId}/draft-document/download', [ReportWithdrawalController::class, 'downloadDraftDocument'])
+                ->whereUuid('publicId')
+                ->middleware('throttle:reporter.withdrawal.document')
+                ->name('portal.withdrawals.draft-document.download');
+            Route::get('/withdrawals/{publicId}/draft-document/example', [ReportWithdrawalController::class, 'draftDocumentExample'])
+                ->whereUuid('publicId')
+                ->middleware('throttle:reporter.withdrawal.document')
+                ->name('portal.withdrawals.draft-document.example');
             Route::post('/withdrawals/{publicId}/signed-document', [ReportWithdrawalController::class, 'uploadSignedDocument'])
                 ->whereUuid('publicId')
                 ->middleware('throttle:reporter.withdrawal.upload')

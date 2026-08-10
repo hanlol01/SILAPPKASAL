@@ -26,12 +26,20 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
+use ZipArchive;
 
 class FormalReportWithdrawalService
 {
     private const FILE_DISK = 'withdrawal';
+
+    private const DRAFT_TEMPLATE_PATH = 'templates/withdrawals/DRAFT.docx';
+
+    private const DRAFT_EXAMPLE_TEMPLATE_PATH = 'templates/withdrawals/contoh_draft.pdf';
+
+    private const DRAFT_DOCUMENT_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
     private const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -159,32 +167,7 @@ class FormalReportWithdrawalService
     public function draftDocument(User $actor, string $publicId): Response
     {
         $this->authorizeActor($actor);
-
-        $withdrawal = ReportWithdrawal::query()
-            ->with('report')
-            ->where('public_id', $publicId)
-            ->where('requester_id', $actor->id)
-            ->where('request_type', ReportWithdrawalRequestType::FormalWithdrawal->value)
-            ->first() ?? throw $this->notFound();
-        $report = $withdrawal->report;
-
-        if (! $report instanceof Report || ! $this->reportPolicy->withdraw($actor, $report)) {
-            throw $this->notFound();
-        }
-
-        if (! in_array($withdrawal->status, [
-            ReportWithdrawalStatus::Draft,
-            ReportWithdrawalStatus::WaitingDocument,
-            ReportWithdrawalStatus::PendingReview,
-            ReportWithdrawalStatus::Cancelled,
-        ], true)) {
-            throw $this->formalConflict('document_unavailable');
-        }
-
-        if (blank($withdrawal->registration_number_snapshot)
-            || blank($withdrawal->requester_display_name_snapshot)) {
-            throw $this->formalConflict('document_snapshot_unavailable');
-        }
+        [$report, $withdrawal] = $this->resolveOwnedDraftDocumentContext($actor, $publicId);
 
         $this->recordAudit(
             AuditAction::ReportWithdrawalDraftDocumentViewed,
@@ -194,14 +177,10 @@ class FormalReportWithdrawalService
             fromStatus: $withdrawal->status->value,
             toStatus: $withdrawal->status->value,
         );
-        $documentReference = 'DRAFT-'.strtoupper(substr(str_replace('-', '', $withdrawal->public_id), 0, 12)).'-V1';
+        $documentNumber = $this->draftDocumentNumber($withdrawal);
 
         return response()->view('withdrawals.draft-document', [
-            'documentReference' => $documentReference,
-            'registrationNumber' => $withdrawal->registration_number_snapshot,
-            'createdAt' => $withdrawal->created_at,
-            'reporterDisplayName' => $withdrawal->requester_display_name_snapshot,
-            'reason' => $withdrawal->reason,
+            'documentNumber' => $documentNumber,
         ])->withHeaders([
             'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
             'Pragma' => 'no-cache',
@@ -210,6 +189,80 @@ class FormalReportWithdrawalService
             'X-Frame-Options' => 'DENY',
             'Content-Security-Policy' => "default-src 'none'; script-src 'none'; object-src 'none'; img-src 'none'; font-src 'none'; connect-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
             'Referrer-Policy' => 'no-referrer',
+        ]);
+    }
+
+    public function downloadDraftDocument(User $actor, string $publicId): StreamedResponse
+    {
+        $this->authorizeActor($actor);
+        [$report, $withdrawal] = $this->resolveOwnedDraftDocumentContext($actor, $publicId);
+        $documentNumber = $this->draftDocumentNumber($withdrawal);
+        $temporaryPath = $this->createDraftDocument($documentNumber);
+        $fileSize = filesize($temporaryPath);
+
+        if ($fileSize === false) {
+            @unlink($temporaryPath);
+            throw $this->serverError();
+        }
+
+        return response()->streamDownload(function () use ($temporaryPath, $actor, $report, $withdrawal): void {
+            try {
+                $stream = fopen($temporaryPath, 'rb');
+
+                if ($stream === false) {
+                    throw new \RuntimeException('Draft document stream failed');
+                }
+
+                try {
+                    if (fpassthru($stream) === false) {
+                        throw new \RuntimeException('Draft document stream failed');
+                    }
+                } finally {
+                    fclose($stream);
+                }
+
+                DB::transaction(fn () => $this->recordAudit(
+                    AuditAction::ReportWithdrawalDraftDocumentDownloaded,
+                    $actor,
+                    $report,
+                    $withdrawal,
+                    fromStatus: $withdrawal->status->value,
+                    toStatus: $withdrawal->status->value,
+                ));
+            } finally {
+                @unlink($temporaryPath);
+            }
+        }, $this->draftDocumentFilename($documentNumber), [
+            'Content-Type' => self::DRAFT_DOCUMENT_MIME,
+            'Content-Length' => (string) $fileSize,
+            'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Security-Policy' => "default-src 'none'; sandbox",
+            'Access-Control-Expose-Headers' => 'Content-Disposition',
+        ]);
+    }
+
+    public function draftDocumentExample(User $actor, string $publicId): BinaryFileResponse
+    {
+        $this->authorizeActor($actor);
+        $this->resolveOwnedDraftDocumentContext($actor, $publicId);
+        $path = resource_path(self::DRAFT_EXAMPLE_TEMPLATE_PATH);
+
+        if (! is_file($path)) {
+            throw $this->notFound();
+        }
+
+        return response()->file($path, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="contoh-pengisian-surat-pencabutan.pdf"',
+            'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Security-Policy' => "default-src 'none'; sandbox",
+            'Cross-Origin-Resource-Policy' => 'same-origin',
         ]);
     }
 
@@ -690,6 +743,207 @@ class FormalReportWithdrawalService
             'can_cancel_request' => $isOwner && $withdrawal->isCancellableByRequester(),
             'can_resubmit' => $resubmissionEligible,
         ];
+    }
+
+    /**
+     * @return array{0: Report, 1: ReportWithdrawal}
+     */
+    private function resolveOwnedDraftDocumentContext(User $actor, string $publicId): array
+    {
+        $withdrawal = ReportWithdrawal::query()
+            ->with('report')
+            ->where('public_id', $publicId)
+            ->where('requester_id', $actor->id)
+            ->where('request_type', ReportWithdrawalRequestType::FormalWithdrawal->value)
+            ->first() ?? throw $this->notFound();
+        $report = $withdrawal->report;
+
+        if (! $report instanceof Report || ! $this->reportPolicy->withdraw($actor, $report)) {
+            throw $this->notFound();
+        }
+
+        if (! in_array($withdrawal->status, [
+            ReportWithdrawalStatus::Draft,
+            ReportWithdrawalStatus::WaitingDocument,
+            ReportWithdrawalStatus::PendingReview,
+            ReportWithdrawalStatus::Cancelled,
+        ], true)) {
+            throw $this->formalConflict('document_unavailable');
+        }
+
+        if (blank($withdrawal->registration_number_snapshot)) {
+            throw $this->formalConflict('document_snapshot_unavailable');
+        }
+
+        return [$report, $withdrawal];
+    }
+
+    private function draftDocumentNumber(ReportWithdrawal $withdrawal): string
+    {
+        $registrationNumber = Str::upper((string) $withdrawal->registration_number_snapshot);
+        $registrationNumber = preg_replace('/^SLP-DEMO-/', 'SLP-', $registrationNumber) ?? $registrationNumber;
+
+        return 'DRAFT/'.$registrationNumber;
+    }
+
+    private function draftDocumentFilename(string $documentNumber): string
+    {
+        return 'Surat Pernyataan Permohonan Penghentian Penanganan Laporan - '
+            .str_replace('/', '-', $documentNumber).'.docx';
+    }
+
+    private function createDraftDocument(string $documentNumber): string
+    {
+        $templatePath = resource_path(self::DRAFT_TEMPLATE_PATH);
+
+        if (! is_file($templatePath)) {
+            throw $this->serverError();
+        }
+
+        $temporaryPath = tempnam(sys_get_temp_dir(), 'silappkasal-withdrawal-draft-');
+
+        if ($temporaryPath === false || ! copy($templatePath, $temporaryPath)) {
+            throw $this->serverError();
+        }
+
+        $archive = new ZipArchive();
+
+        try {
+            if ($archive->open($temporaryPath) !== true) {
+                throw new \RuntimeException('Unable to open draft document template.');
+            }
+
+            $documentXml = $archive->getFromName('word/document.xml');
+
+            if (! is_string($documentXml)) {
+                throw new \RuntimeException('Draft document body is missing.');
+            }
+
+            $updatedDocumentXml = $this->replaceDraftDocumentNumber($documentXml, $documentNumber);
+
+            if ($updatedDocumentXml === null) {
+                throw new \RuntimeException('Draft document number placeholder is missing.');
+            }
+
+            if (! $archive->addFromString('word/document.xml', $updatedDocumentXml)) {
+                throw new \RuntimeException('Unable to update draft document number.');
+            }
+
+            $coreProperties = $archive->getFromName('docProps/core.xml');
+
+            if (is_string($coreProperties)
+                && ! $archive->addFromString('docProps/core.xml', $this->sanitizeDraftDocumentMetadata($coreProperties))) {
+                throw new \RuntimeException('Unable to sanitize draft document metadata.');
+            }
+
+            if (! $archive->close()) {
+                throw new \RuntimeException('Unable to finalize draft document.');
+            }
+        } catch (Throwable $exception) {
+            $archive->close();
+            @unlink($temporaryPath);
+            throw $this->serverError();
+        }
+
+        return $temporaryPath;
+    }
+
+    private function replaceDraftDocumentNumber(string $documentXml, string $documentNumber): ?string
+    {
+        $replacementCount = 0;
+        $updatedDocumentXml = preg_replace(
+            '/DRAFT\/SLP-(?:DEMO-)?\d{4}-\d{4}-\d{4}/',
+            htmlspecialchars($documentNumber, ENT_XML1 | ENT_QUOTES, 'UTF-8'),
+            $documentXml,
+            -1,
+            $replacementCount,
+        );
+
+        if (is_string($updatedDocumentXml) && $replacementCount > 0) {
+            return $updatedDocumentXml;
+        }
+
+        $document = new \DOMDocument();
+        $previousLibxmlState = libxml_use_internal_errors(true);
+
+        try {
+            if (! $document->loadXML($documentXml, LIBXML_NONET | LIBXML_COMPACT)) {
+                return null;
+            }
+
+            $xpath = new \DOMXPath($document);
+            $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+            $textNodes = $xpath->query('//w:t');
+
+            if ($textNodes === false) {
+                return null;
+            }
+
+            $segments = [];
+            $combinedText = '';
+
+            foreach ($textNodes as $node) {
+                $text = $node->textContent ?? '';
+                $segments[] = [$node, strlen($combinedText), $text];
+                $combinedText .= $text;
+            }
+
+            $placeholder = '{{generate_system}}';
+            $placeholderStart = strpos($combinedText, $placeholder);
+
+            if ($placeholderStart === false) {
+                return null;
+            }
+
+            $placeholderEnd = $placeholderStart + strlen($placeholder);
+            $replaced = false;
+
+            foreach ($segments as [$node, $segmentStart, $text]) {
+                $segmentEnd = $segmentStart + strlen($text);
+
+                if ($segmentEnd <= $placeholderStart || $segmentStart >= $placeholderEnd) {
+                    continue;
+                }
+
+                $overlapStart = max($placeholderStart, $segmentStart) - $segmentStart;
+                $overlapEnd = min($placeholderEnd, $segmentEnd) - $segmentStart;
+                $prefix = substr($text, 0, $overlapStart);
+                $suffix = $segmentEnd === $placeholderEnd ? substr($text, $overlapEnd) : '';
+
+                $node->nodeValue = $replaced ? $suffix : $prefix.$documentNumber.$suffix;
+                $replaced = true;
+            }
+
+            return $replaced ? $document->saveXML() : null;
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previousLibxmlState);
+        }
+    }
+
+    private function sanitizeDraftDocumentMetadata(string $coreProperties): string
+    {
+        $generatedAt = now()->utc()->format('Y-m-d\\TH:i:s\\Z');
+        $sanitized = preg_replace(
+            '/<dc:creator>.*?<\\/dc:creator>/s',
+            '<dc:creator>SILAPPKASAL</dc:creator>',
+            $coreProperties,
+        );
+        $sanitized = is_string($sanitized) ? $sanitized : $coreProperties;
+        $sanitized = preg_replace(
+            '/<cp:lastModifiedBy>.*?<\\/cp:lastModifiedBy>/s',
+            '<cp:lastModifiedBy>SILAPPKASAL</cp:lastModifiedBy>',
+            $sanitized,
+        );
+        $sanitized = is_string($sanitized) ? $sanitized : $coreProperties;
+        $sanitized = preg_replace('/<cp:revision>.*?<\\/cp:revision>/s', '<cp:revision>1</cp:revision>', $sanitized);
+        $sanitized = is_string($sanitized) ? $sanitized : $coreProperties;
+
+        return preg_replace(
+            '/<dcterms:modified[^>]*>.*?<\\/dcterms:modified>/s',
+            '<dcterms:modified xsi:type="dcterms:W3CDTF">'.$generatedAt.'</dcterms:modified>',
+            $sanitized,
+        ) ?: $sanitized;
     }
 
     /**

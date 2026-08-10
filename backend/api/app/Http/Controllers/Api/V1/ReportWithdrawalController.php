@@ -15,6 +15,7 @@ use App\Services\ReportWithdrawalService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportWithdrawalController extends Controller
@@ -70,6 +71,16 @@ class ReportWithdrawalController extends Controller
     public function draftDocument(Request $request, string $publicId): Response
     {
         return $this->formalWithdrawalService->draftDocument($request->user(), $publicId);
+    }
+
+    public function downloadDraftDocument(Request $request, string $publicId): StreamedResponse
+    {
+        return $this->formalWithdrawalService->downloadDraftDocument($request->user(), $publicId);
+    }
+
+    public function draftDocumentExample(Request $request, string $publicId): BinaryFileResponse
+    {
+        return $this->formalWithdrawalService->draftDocumentExample($request->user(), $publicId);
     }
 
     public function uploadSignedDocument(
