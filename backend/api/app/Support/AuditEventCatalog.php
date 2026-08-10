@@ -44,8 +44,10 @@ final class AuditEventCatalog
             AuditAction::UserActivated,
             AuditAction::UserDeactivated => $this->fields([], ['is_active']),
             AuditAction::UserRoleChanged => $this->fields([], ['role_code']),
-            AuditAction::UserReporterCreated => $this->fields(['role_code']),
-            AuditAction::UserPasswordReset => $this->fields(['temporary_password_generated']),
+            AuditAction::UserReporterCreated,
+            AuditAction::UserStaffCreated => $this->fields(['role_code']),
+            AuditAction::UserStaffUpdated => $this->fields([], ['name_changed', 'email_changed', 'nip_changed', 'phone_changed']),
+            AuditAction::UserPasswordReset => $this->fields(['temporary_password_generated', 'password_set_by_admin']),
 
             AuditAction::CampusUniversityCreated,
             AuditAction::CampusUniversityUpdated,
@@ -137,6 +139,12 @@ final class AuditEventCatalog
             AuditAction::CaseClosed => $this->fields(
                 ['case_number', 'outcome_code', 'published', 'recovery_terminal_type', 'result'],
                 ['status_code', 'outcome_code', 'published'],
+            ),
+            AuditAction::CaseClosureDocumentIssued,
+            AuditAction::CaseClosureDocumentDownloaded,
+            AuditAction::CaseClosureDocumentPreviewed => $this->fields(
+                ['case_number', 'document_public_id', 'document_number', 'access_scope', 'result'],
+                [],
             ),
             AuditAction::CaseMinuteCreated,
             AuditAction::CaseMinuteUpdated,

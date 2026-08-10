@@ -56,6 +56,8 @@ return [
         'case_minute_anonymized_identity_detected' => 'Ringkasan anonim Berita Acara tidak boleh memuat identitas langsung Pelapor.',
         'case_minute_revision_source_invalid' => 'Revisi hanya dapat dibuat dari Berita Acara final aktif.',
         'case_minute_update_required' => 'Sertakan setidaknya satu perubahan untuk draf Berita Acara.',
+        'case_closure_document_prerequisites_missing' => 'Berita Acara Hasil Pelaporan hanya dapat diterbitkan setelah Kasus ditutup, rangkuman akhir diterbitkan, dan data penandatangan lengkap.',
+        'case_closure_document_signer_missing' => 'Ketua Satgas aktif dengan NIP/NIK wajib tersedia sebelum Berita Acara Hasil Pelaporan diterbitkan.',
     ],
     'messages' => [
         'report_cancelled' => 'Pengaduan berhasil dibatalkan.',

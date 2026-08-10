@@ -9,6 +9,7 @@ use App\Models\User;
 use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\PersonalAccessToken;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -237,6 +238,110 @@ class UserManagementFoundationTest extends TestCase
             $this->assertStringNotContainsString('permissions', $content);
             $this->assertStringNotContainsString('reporter_registrations', $content);
         }
+    }
+
+    public function test_super_admin_can_create_manage_and_reset_staff_password_without_the_old_password(): void
+    {
+        $superAdmin = $this->makeUser('super_admin', 'super@example.test');
+        $university = University::query()->where('code', 'DEMO-UNIV')->firstOrFail();
+
+        Sanctum::actingAs($superAdmin, ['*']);
+
+        $created = $this->postJson('/api/v1/users/staff', [
+            'name' => 'Satgas Baru',
+            'email' => 'satgas-baru@example.test',
+            'nip' => '19870001',
+            'phone_number' => '081234567890',
+            'university_id' => $university->id,
+            'role_code' => 'satgas_ppks',
+            'password' => 'InitialPass123',
+            'password_confirmation' => 'InitialPass123',
+        ])->assertCreated()
+            ->assertJsonPath('data.role.code', 'satgas_ppks')
+            ->assertJsonPath('data.nip', '19870001')
+            ->assertJsonMissingPath('data.password');
+
+        $staffId = $created->json('data.id');
+
+        $this->putJson("/api/v1/users/{$staffId}/staff", [
+            'name' => 'Satgas Diperbarui',
+            'email' => 'satgas-baru@example.test',
+            'nip' => '19870001',
+            'phone_number' => '081234567891',
+        ])->assertOk()
+            ->assertJsonPath('data.name', 'Satgas Diperbarui');
+
+        $this->patchJson("/api/v1/users/{$staffId}/staff/reset-password", [
+            'password' => 'ResetPass123',
+            'password_confirmation' => 'ResetPass123',
+        ])->assertOk()
+            ->assertJsonMissingPath('data.password');
+
+        $staff = User::query()->findOrFail($staffId);
+        $this->assertTrue(Hash::check('ResetPass123', $staff->password));
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::UserStaffCreated->value,
+            'actor_id' => $superAdmin->id,
+            'subject_id' => $staffId,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => AuditAction::UserPasswordReset->value,
+            'actor_id' => $superAdmin->id,
+            'subject_id' => $staffId,
+        ]);
+    }
+
+    public function test_admin_can_only_manage_satgas_for_own_campus(): void
+    {
+        $admin = $this->makeUser('admin', 'admin@example.test');
+        $university = University::query()->where('code', 'DEMO-UNIV')->firstOrFail();
+        $otherUniversity = University::query()->create([
+            'code' => 'OTHER-UNIV',
+            'name' => 'Other University',
+            'type' => 'universitas',
+            'has_faculties' => false,
+            'address' => 'Other address',
+            'is_active' => true,
+        ]);
+        $campusAdmin = $this->makeUser('admin', 'campus-admin@example.test');
+        $satgas = $this->makeUser('satgas_ppks', 'satgas@example.test');
+
+        Sanctum::actingAs($admin, ['*']);
+
+        $this->getJson('/api/v1/users/staff')
+            ->assertOk()
+            ->assertJsonMissing(['email' => $campusAdmin->email])
+            ->assertJsonFragment(['email' => $satgas->email]);
+
+        $this->postJson('/api/v1/users/staff', [
+            'name' => 'Another Admin',
+            'email' => 'another-admin@example.test',
+            'nip' => '19870002',
+            'university_id' => $university->id,
+            'role_code' => 'admin',
+            'password' => 'InitialPass123',
+            'password_confirmation' => 'InitialPass123',
+        ])->assertUnprocessable();
+
+        $this->postJson('/api/v1/users/staff', [
+            'name' => 'Cross Campus Satgas',
+            'email' => 'cross-campus@example.test',
+            'nip' => '19870003',
+            'university_id' => $otherUniversity->id,
+            'role_code' => 'satgas_ppks',
+            'password' => 'InitialPass123',
+            'password_confirmation' => 'InitialPass123',
+        ])->assertUnprocessable();
+
+        $this->putJson("/api/v1/users/{$campusAdmin->id}/staff", [
+            'name' => 'Blocked',
+            'email' => $campusAdmin->email,
+            'nip' => '19870004',
+        ])->assertForbidden();
+
+        $this->patchJson("/api/v1/users/{$satgas->id}/staff/deactivate")
+            ->assertOk()
+            ->assertJsonPath('data.is_active', false);
     }
 
     private function makeUser(string $roleCode, string $email, ?string $nim = null, bool $isActive = true): User

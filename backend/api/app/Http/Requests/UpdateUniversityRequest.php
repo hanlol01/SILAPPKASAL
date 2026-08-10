@@ -35,7 +35,7 @@ class UpdateUniversityRequest extends FormRequest
             'code' => ['required', 'string', 'max:20', Rule::unique('universities', 'code')->ignore($university?->id)],
             'name' => ['required', 'string', 'max:255'],
             'abbreviation' => ['nullable', 'string', 'max:30'],
-            'address' => ['nullable', 'string'],
+            'address' => ['required', 'string', 'max:2000'],
             'website' => ['nullable', 'url', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'hotline' => ['nullable', 'string', 'max:30'],

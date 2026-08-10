@@ -132,5 +132,9 @@ final class ApiErrorCode
 
     public const CaseMinuteUpdateRequired = 'case_minute_update_required';
 
+    public const CaseClosureDocumentPrerequisitesMissing = 'case_closure_document_prerequisites_missing';
+
+    public const CaseClosureDocumentSignerMissing = 'case_closure_document_signer_missing';
+
     private function __construct() {}
 }

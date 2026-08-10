@@ -50,6 +50,31 @@ class UserPolicy extends BasePolicy
         return $this->canManageActivation($user) && $this->sameCampusOrSuperAdmin($user, $target);
     }
 
+    public function manageStaff(User $user, ?User $target = null): bool
+    {
+        if (! $user->is_active || ! $this->allowPermission($user, 'users.update') || ! $this->allowRole($user, 'admin', 'super_admin')) {
+            return false;
+        }
+
+        if (! $target) {
+            return true;
+        }
+
+        $target->loadMissing('role');
+
+        if (! in_array($target->role?->code, ['admin', 'satgas_ppks'], true)) {
+            return false;
+        }
+
+        if ($this->allowRole($user, 'super_admin')) {
+            return true;
+        }
+
+        return $target->role?->code === 'satgas_ppks'
+            && $user->university_id !== null
+            && (int) $user->university_id === (int) $target->university_id;
+    }
+
     private function canReadUsers(User $user): bool
     {
         return $user->is_active

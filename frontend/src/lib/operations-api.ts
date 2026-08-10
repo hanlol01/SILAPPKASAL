@@ -4,6 +4,8 @@ import type {
   CaseFinalSummary,
   CaseFinalSummaryEnvelope,
   CaseFinalSummaryPayload,
+  CaseClosureDocument,
+  CaseClosureDocumentEnvelope,
   CaseMinute,
   CaseMinuteDraftPayload,
   CaseMinutesEnvelope,
@@ -67,6 +69,8 @@ export const operationsQueryKeys = {
   case: (id: string | number) => ["operations", "case", normalizeOperationId(id)] as const,
   caseFinalSummary: (id: string | number) =>
     ["operations", "case", normalizeOperationId(id), "final-summary"] as const,
+  caseClosureDocument: (id: string | number) =>
+    ["operations", "case", normalizeOperationId(id), "closure-document"] as const,
   caseMinutes: (id: string | number) =>
     ["operations", "case", normalizeOperationId(id), "minutes"] as const,
   caseMinute: (publicId: string) => ["operations", "case-minute", publicId] as const,
@@ -125,6 +129,25 @@ export async function getCases(query?: Record<string, QueryValue>): Promise<Pagi
 
 export function getCase(id: string | number) {
   return apiRequest<CaseRecord>(`/cases/${id}`);
+}
+
+export function getCaseClosureDocument(caseId: string | number) {
+  return apiRequest<CaseClosureDocumentEnvelope>(`/cases/${caseId}/closure-document`);
+}
+
+export function issueCaseClosureDocument(caseId: string | number) {
+  return apiRequest<CaseClosureDocument>(`/cases/${caseId}/closure-document`, { method: "POST" });
+}
+
+export function downloadCaseClosureDocument(publicId: string) {
+  return apiDownload(
+    `/case-closure-documents/${encodeURIComponent(publicId)}/download`,
+    "Berita Acara Hasil Pelaporan Kekerasan Seksual.pdf",
+  );
+}
+
+export function previewCaseClosureDocument(publicId: string, signal?: AbortSignal) {
+  return apiFetchBlob(`/case-closure-documents/${encodeURIComponent(publicId)}/preview`, { signal });
 }
 
 export async function getReportWithdrawalReviews(

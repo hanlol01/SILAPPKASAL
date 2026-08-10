@@ -399,6 +399,22 @@ export interface CaseFinalSummaryEnvelope {
   outcome_options: CaseFinalOutcomeOption[];
 }
 
+export interface CaseClosureDocument {
+  public_id: string;
+  document_number: string;
+  issued_at: string | null;
+}
+
+export interface CaseClosureDocumentEnvelope {
+  document: CaseClosureDocument | null;
+  capabilities: {
+    manage: boolean;
+    issue: boolean;
+    preview: boolean;
+    download: boolean;
+  };
+}
+
 export type CaseFinalSummaryPayload = Omit<
   CaseFinalSummary,
   "id" | "case_id" | "outcome_label" | "is_published" | "published_at" | "created_at" | "updated_at"

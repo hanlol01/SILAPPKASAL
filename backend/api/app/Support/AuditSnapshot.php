@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Enums\AuditActorKind;
 use App\Models\BreakGlassRequest;
 use App\Models\CaseRecord;
+use App\Models\CaseClosureDocument;
 use App\Models\Decision;
 use App\Models\Evidence;
 use App\Models\Faculty;
@@ -64,6 +65,7 @@ final class AuditSnapshot
         $kind = match (true) {
             $subject instanceof Report => 'report',
             $subject instanceof CaseRecord => 'case',
+            $subject instanceof CaseClosureDocument => 'case_closure_document',
             $subject instanceof Investigation => 'investigation',
             $subject instanceof Recommendation => 'recommendation',
             $subject instanceof Decision => 'decision',
@@ -81,6 +83,7 @@ final class AuditSnapshot
         $reference = match (true) {
             $subject instanceof Report => $subject->registration_number,
             $subject instanceof CaseRecord => $subject->case_number,
+            $subject instanceof CaseClosureDocument => $metadata['document_number'] ?? null,
             $subject instanceof Decision => $subject->decision_number,
             $subject instanceof ReporterRegistration => $subject->registration_number,
             $subject instanceof University,

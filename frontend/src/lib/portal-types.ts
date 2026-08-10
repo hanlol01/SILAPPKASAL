@@ -193,6 +193,11 @@ export interface PortalReportHandlingProgress {
     internal_evidence_count: number;
   };
   final_summary: PortalFinalSummary | null;
+  closure_document: {
+    available: boolean;
+    document_number?: string | null;
+    issued_at?: string | null;
+  };
 }
 
 export type PortalFinalSummary =

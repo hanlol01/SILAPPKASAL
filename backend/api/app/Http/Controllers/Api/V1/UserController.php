@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ManualReporterStoreRequest;
+use App\Http\Requests\StaffPasswordResetRequest;
+use App\Http\Requests\StaffUserStoreRequest;
+use App\Http\Requests\StaffUserUpdateRequest;
 use App\Http\Requests\UserIndexRequest;
 use App\Http\Requests\UserLookupRequest;
 use App\Http\Requests\UserRoleUpdateRequest;
@@ -76,6 +79,80 @@ class UserController extends Controller
                 'temporary_password' => $result['temporary_password'],
             ],
         ], 201);
+    }
+
+    public function staffIndex(UserIndexRequest $request): JsonResponse
+    {
+        Gate::authorize('manageStaff', User::class);
+
+        $users = $this->userManagementService->listStaff($request->validated(), $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Staff users retrieved successfully',
+            'data' => UserManagementResource::collection($users->items()),
+            'meta' => [
+                'current_page' => $users->currentPage(),
+                'per_page' => $users->perPage(),
+                'total' => $users->total(),
+                'last_page' => $users->lastPage(),
+            ],
+        ]);
+    }
+
+    public function storeStaff(StaffUserStoreRequest $request): JsonResponse
+    {
+        Gate::authorize('manageStaff', User::class);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Staff user created successfully',
+            'data' => new UserManagementResource($this->userManagementService->createStaff($request->validated(), $request->user())),
+        ], 201);
+    }
+
+    public function updateStaff(StaffUserUpdateRequest $request, User $user): JsonResponse
+    {
+        Gate::authorize('manageStaff', $user);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Staff user updated successfully',
+            'data' => new UserManagementResource($this->userManagementService->updateStaff($user, $request->validated(), $request->user())),
+        ]);
+    }
+
+    public function resetStaffPassword(StaffPasswordResetRequest $request, User $user): JsonResponse
+    {
+        Gate::authorize('manageStaff', $user);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Staff user password reset successfully',
+            'data' => new UserManagementResource($this->userManagementService->resetStaffPassword($user, $request->validated(), $request->user())),
+        ]);
+    }
+
+    public function activateStaff(Request $request, User $user): JsonResponse
+    {
+        Gate::authorize('manageStaff', $user);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Staff user activated successfully',
+            'data' => new UserManagementResource($this->userManagementService->activateStaff($user, $request->user())),
+        ]);
+    }
+
+    public function deactivateStaff(Request $request, User $user): JsonResponse
+    {
+        Gate::authorize('manageStaff', $user);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Staff user deactivated successfully',
+            'data' => new UserManagementResource($this->userManagementService->deactivateStaff($user, $request->user())),
+        ]);
     }
 
     public function activate(Request $request, User $user): JsonResponse

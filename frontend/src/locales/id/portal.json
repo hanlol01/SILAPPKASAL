@@ -342,6 +342,20 @@
       "closingExplanation": "Penjelasan penutupan"
     }
   },
+  "closureDocument": {
+    "title": "Berita Acara Hasil Pelaporan",
+    "description": "Dokumen resmi yang menyatakan bahwa penanganan laporan Anda telah selesai.",
+    "issuedAt": "Diterbitkan {{date}}",
+    "preview": "Pratinjau",
+    "download": "Unduh PDF",
+    "downloadError": "Dokumen belum dapat dimuat. Silakan coba lagi.",
+    "pdfFallback": "Jika PDF tidak terbuka, gunakan tombol unduh.",
+    "zoomIn": "Perbesar",
+    "zoomOut": "Perkecil",
+    "reset": "Atur ulang",
+    "fit": "Sesuaikan",
+    "controls": "Kontrol pratinjau"
+  },
   "evidenceFiles": {
     "title": "Bukti pendukung",
     "description": "Lampirkan file pendukung secara opsional untuk membantu penanganan pengaduan Anda.",

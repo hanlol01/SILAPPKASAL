@@ -28,6 +28,10 @@ function MasterDataLayout() {
     return <Navigate to="/dashboard/master-data/universities" replace />;
   }
 
+  if (path.startsWith("/dashboard/master-data/universities/")) {
+    return <Outlet />;
+  }
+
   return (
     <div className="space-y-6">
       <PageBreadcrumb crumbs={[{ label: t("dashboard:masterData.title") }]} />

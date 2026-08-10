@@ -342,6 +342,20 @@
       "closingExplanation": "Closure explanation"
     }
   },
+  "closureDocument": {
+    "title": "Reporting Outcome Record",
+    "description": "The official document confirming that the handling of your report has been completed.",
+    "issuedAt": "Issued {{date}}",
+    "preview": "Preview",
+    "download": "Download PDF",
+    "downloadError": "The document could not be loaded. Please try again.",
+    "pdfFallback": "Use the download button if the PDF does not open.",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "reset": "Reset",
+    "fit": "Fit to view",
+    "controls": "Preview controls"
+  },
   "evidenceFiles": {
     "title": "Supporting evidence",
     "description": "Optionally attach supporting files to help with the handling of your complaint.",

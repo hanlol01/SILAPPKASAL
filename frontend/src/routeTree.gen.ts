@@ -25,6 +25,7 @@ import { Route as PortalInformationCenterRouteImport } from './routes/portal.inf
 import { Route as PortalAccountRouteImport } from './routes/portal.account'
 import { Route as DashboardWorkflowRouteImport } from './routes/dashboard.workflow'
 import { Route as DashboardUsersRouteImport } from './routes/dashboard.users'
+import { Route as DashboardStaffRouteImport } from './routes/dashboard.staff'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard.settings'
 import { Route as DashboardReportWithdrawalsRouteImport } from './routes/dashboard.report-withdrawals'
 import { Route as DashboardRegistrationsRouteImport } from './routes/dashboard.registrations'
@@ -61,6 +62,7 @@ import { Route as DashboardInformationCenterConsultationRouteImport } from './ro
 import { Route as DashboardCasesIdRouteImport } from './routes/dashboard.cases.$id'
 import { Route as PortalInformationCenterPoliciesSlugRouteImport } from './routes/portal.information-center.policies.$slug'
 import { Route as PortalInformationCenterEducationSlugRouteImport } from './routes/portal.information-center.education.$slug'
+import { Route as DashboardMasterDataUniversitiesIdRouteImport } from './routes/dashboard.master-data.universities.$id'
 import { Route as DashboardInformationCenterPoliciesSlugRouteImport } from './routes/dashboard.information-center.policies.$slug'
 import { Route as DashboardInformationCenterEducationSlugRouteImport } from './routes/dashboard.information-center.education.$slug'
 
@@ -142,6 +144,11 @@ const DashboardWorkflowRoute = DashboardWorkflowRouteImport.update({
 const DashboardUsersRoute = DashboardUsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardStaffRoute = DashboardStaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
@@ -345,6 +352,12 @@ const PortalInformationCenterEducationSlugRoute =
     path: '/$slug',
     getParentRoute: () => PortalInformationCenterEducationRoute,
   } as any)
+const DashboardMasterDataUniversitiesIdRoute =
+  DashboardMasterDataUniversitiesIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => DashboardMasterDataUniversitiesRoute,
+  } as any)
 const DashboardInformationCenterPoliciesSlugRoute =
   DashboardInformationCenterPoliciesSlugRouteImport.update({
     id: '/$slug',
@@ -377,6 +390,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/registrations': typeof DashboardRegistrationsRouteWithChildren
   '/dashboard/report-withdrawals': typeof DashboardReportWithdrawalsRouteWithChildren
   '/dashboard/settings': typeof DashboardSettingsRoute
+  '/dashboard/staff': typeof DashboardStaffRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/workflow': typeof DashboardWorkflowRoute
   '/portal/account': typeof PortalAccountRoute
@@ -393,7 +407,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/information-center/policies': typeof DashboardInformationCenterPoliciesRouteWithChildren
   '/dashboard/master-data/faculties': typeof DashboardMasterDataFacultiesRoute
   '/dashboard/master-data/study-programs': typeof DashboardMasterDataStudyProgramsRoute
-  '/dashboard/master-data/universities': typeof DashboardMasterDataUniversitiesRoute
+  '/dashboard/master-data/universities': typeof DashboardMasterDataUniversitiesRouteWithChildren
   '/dashboard/registrations/$id': typeof DashboardRegistrationsIdRoute
   '/dashboard/report-withdrawals/$publicId': typeof DashboardReportWithdrawalsPublicIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
@@ -411,6 +425,7 @@ export interface FileRoutesByFullPath {
   '/portal/reports/': typeof PortalReportsIndexRoute
   '/dashboard/information-center/education/$slug': typeof DashboardInformationCenterEducationSlugRoute
   '/dashboard/information-center/policies/$slug': typeof DashboardInformationCenterPoliciesSlugRoute
+  '/dashboard/master-data/universities/$id': typeof DashboardMasterDataUniversitiesIdRoute
   '/portal/information-center/education/$slug': typeof PortalInformationCenterEducationSlugRoute
   '/portal/information-center/policies/$slug': typeof PortalInformationCenterPoliciesSlugRoute
 }
@@ -430,6 +445,7 @@ export interface FileRoutesByTo {
   '/dashboard/registrations': typeof DashboardRegistrationsRouteWithChildren
   '/dashboard/report-withdrawals': typeof DashboardReportWithdrawalsRouteWithChildren
   '/dashboard/settings': typeof DashboardSettingsRoute
+  '/dashboard/staff': typeof DashboardStaffRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/workflow': typeof DashboardWorkflowRoute
   '/portal/account': typeof PortalAccountRoute
@@ -445,7 +461,7 @@ export interface FileRoutesByTo {
   '/dashboard/information-center/policies': typeof DashboardInformationCenterPoliciesRouteWithChildren
   '/dashboard/master-data/faculties': typeof DashboardMasterDataFacultiesRoute
   '/dashboard/master-data/study-programs': typeof DashboardMasterDataStudyProgramsRoute
-  '/dashboard/master-data/universities': typeof DashboardMasterDataUniversitiesRoute
+  '/dashboard/master-data/universities': typeof DashboardMasterDataUniversitiesRouteWithChildren
   '/dashboard/registrations/$id': typeof DashboardRegistrationsIdRoute
   '/dashboard/report-withdrawals/$publicId': typeof DashboardReportWithdrawalsPublicIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
@@ -463,6 +479,7 @@ export interface FileRoutesByTo {
   '/portal/reports': typeof PortalReportsIndexRoute
   '/dashboard/information-center/education/$slug': typeof DashboardInformationCenterEducationSlugRoute
   '/dashboard/information-center/policies/$slug': typeof DashboardInformationCenterPoliciesSlugRoute
+  '/dashboard/master-data/universities/$id': typeof DashboardMasterDataUniversitiesIdRoute
   '/portal/information-center/education/$slug': typeof PortalInformationCenterEducationSlugRoute
   '/portal/information-center/policies/$slug': typeof PortalInformationCenterPoliciesSlugRoute
 }
@@ -486,6 +503,7 @@ export interface FileRoutesById {
   '/dashboard/registrations': typeof DashboardRegistrationsRouteWithChildren
   '/dashboard/report-withdrawals': typeof DashboardReportWithdrawalsRouteWithChildren
   '/dashboard/settings': typeof DashboardSettingsRoute
+  '/dashboard/staff': typeof DashboardStaffRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/workflow': typeof DashboardWorkflowRoute
   '/portal/account': typeof PortalAccountRoute
@@ -502,7 +520,7 @@ export interface FileRoutesById {
   '/dashboard/information-center/policies': typeof DashboardInformationCenterPoliciesRouteWithChildren
   '/dashboard/master-data/faculties': typeof DashboardMasterDataFacultiesRoute
   '/dashboard/master-data/study-programs': typeof DashboardMasterDataStudyProgramsRoute
-  '/dashboard/master-data/universities': typeof DashboardMasterDataUniversitiesRoute
+  '/dashboard/master-data/universities': typeof DashboardMasterDataUniversitiesRouteWithChildren
   '/dashboard/registrations/$id': typeof DashboardRegistrationsIdRoute
   '/dashboard/report-withdrawals/$publicId': typeof DashboardReportWithdrawalsPublicIdRoute
   '/dashboard/reports/$id': typeof DashboardReportsIdRoute
@@ -520,6 +538,7 @@ export interface FileRoutesById {
   '/portal/reports/': typeof PortalReportsIndexRoute
   '/dashboard/information-center/education/$slug': typeof DashboardInformationCenterEducationSlugRoute
   '/dashboard/information-center/policies/$slug': typeof DashboardInformationCenterPoliciesSlugRoute
+  '/dashboard/master-data/universities/$id': typeof DashboardMasterDataUniversitiesIdRoute
   '/portal/information-center/education/$slug': typeof PortalInformationCenterEducationSlugRoute
   '/portal/information-center/policies/$slug': typeof PortalInformationCenterPoliciesSlugRoute
 }
@@ -544,6 +563,7 @@ export interface FileRouteTypes {
     | '/dashboard/registrations'
     | '/dashboard/report-withdrawals'
     | '/dashboard/settings'
+    | '/dashboard/staff'
     | '/dashboard/users'
     | '/dashboard/workflow'
     | '/portal/account'
@@ -578,6 +598,7 @@ export interface FileRouteTypes {
     | '/portal/reports/'
     | '/dashboard/information-center/education/$slug'
     | '/dashboard/information-center/policies/$slug'
+    | '/dashboard/master-data/universities/$id'
     | '/portal/information-center/education/$slug'
     | '/portal/information-center/policies/$slug'
   fileRoutesByTo: FileRoutesByTo
@@ -597,6 +618,7 @@ export interface FileRouteTypes {
     | '/dashboard/registrations'
     | '/dashboard/report-withdrawals'
     | '/dashboard/settings'
+    | '/dashboard/staff'
     | '/dashboard/users'
     | '/dashboard/workflow'
     | '/portal/account'
@@ -630,6 +652,7 @@ export interface FileRouteTypes {
     | '/portal/reports'
     | '/dashboard/information-center/education/$slug'
     | '/dashboard/information-center/policies/$slug'
+    | '/dashboard/master-data/universities/$id'
     | '/portal/information-center/education/$slug'
     | '/portal/information-center/policies/$slug'
   id:
@@ -652,6 +675,7 @@ export interface FileRouteTypes {
     | '/dashboard/registrations'
     | '/dashboard/report-withdrawals'
     | '/dashboard/settings'
+    | '/dashboard/staff'
     | '/dashboard/users'
     | '/dashboard/workflow'
     | '/portal/account'
@@ -686,6 +710,7 @@ export interface FileRouteTypes {
     | '/portal/reports/'
     | '/dashboard/information-center/education/$slug'
     | '/dashboard/information-center/policies/$slug'
+    | '/dashboard/master-data/universities/$id'
     | '/portal/information-center/education/$slug'
     | '/portal/information-center/policies/$slug'
   fileRoutesById: FileRoutesById
@@ -814,6 +839,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/dashboard/users'
       preLoaderRoute: typeof DashboardUsersRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/staff': {
+      id: '/dashboard/staff'
+      path: '/staff'
+      fullPath: '/dashboard/staff'
+      preLoaderRoute: typeof DashboardStaffRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/settings': {
@@ -1068,6 +1100,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalInformationCenterEducationSlugRouteImport
       parentRoute: typeof PortalInformationCenterEducationRoute
     }
+    '/dashboard/master-data/universities/$id': {
+      id: '/dashboard/master-data/universities/$id'
+      path: '/$id'
+      fullPath: '/dashboard/master-data/universities/$id'
+      preLoaderRoute: typeof DashboardMasterDataUniversitiesIdRouteImport
+      parentRoute: typeof DashboardMasterDataUniversitiesRoute
+    }
     '/dashboard/information-center/policies/$slug': {
       id: '/dashboard/information-center/policies/$slug'
       path: '/$slug'
@@ -1140,16 +1179,32 @@ const DashboardInformationCenterRouteWithChildren =
     DashboardInformationCenterRouteChildren,
   )
 
+interface DashboardMasterDataUniversitiesRouteChildren {
+  DashboardMasterDataUniversitiesIdRoute: typeof DashboardMasterDataUniversitiesIdRoute
+}
+
+const DashboardMasterDataUniversitiesRouteChildren: DashboardMasterDataUniversitiesRouteChildren =
+  {
+    DashboardMasterDataUniversitiesIdRoute:
+      DashboardMasterDataUniversitiesIdRoute,
+  }
+
+const DashboardMasterDataUniversitiesRouteWithChildren =
+  DashboardMasterDataUniversitiesRoute._addFileChildren(
+    DashboardMasterDataUniversitiesRouteChildren,
+  )
+
 interface DashboardMasterDataRouteChildren {
   DashboardMasterDataFacultiesRoute: typeof DashboardMasterDataFacultiesRoute
   DashboardMasterDataStudyProgramsRoute: typeof DashboardMasterDataStudyProgramsRoute
-  DashboardMasterDataUniversitiesRoute: typeof DashboardMasterDataUniversitiesRoute
+  DashboardMasterDataUniversitiesRoute: typeof DashboardMasterDataUniversitiesRouteWithChildren
 }
 
 const DashboardMasterDataRouteChildren: DashboardMasterDataRouteChildren = {
   DashboardMasterDataFacultiesRoute: DashboardMasterDataFacultiesRoute,
   DashboardMasterDataStudyProgramsRoute: DashboardMasterDataStudyProgramsRoute,
-  DashboardMasterDataUniversitiesRoute: DashboardMasterDataUniversitiesRoute,
+  DashboardMasterDataUniversitiesRoute:
+    DashboardMasterDataUniversitiesRouteWithChildren,
 }
 
 const DashboardMasterDataRouteWithChildren =
@@ -1196,6 +1251,7 @@ interface DashboardRouteChildren {
   DashboardRegistrationsRoute: typeof DashboardRegistrationsRouteWithChildren
   DashboardReportWithdrawalsRoute: typeof DashboardReportWithdrawalsRouteWithChildren
   DashboardSettingsRoute: typeof DashboardSettingsRoute
+  DashboardStaffRoute: typeof DashboardStaffRoute
   DashboardUsersRoute: typeof DashboardUsersRoute
   DashboardWorkflowRoute: typeof DashboardWorkflowRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
@@ -1217,6 +1273,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardRegistrationsRoute: DashboardRegistrationsRouteWithChildren,
   DashboardReportWithdrawalsRoute: DashboardReportWithdrawalsRouteWithChildren,
   DashboardSettingsRoute: DashboardSettingsRoute,
+  DashboardStaffRoute: DashboardStaffRoute,
   DashboardUsersRoute: DashboardUsersRoute,
   DashboardWorkflowRoute: DashboardWorkflowRoute,
   DashboardIndexRoute: DashboardIndexRoute,

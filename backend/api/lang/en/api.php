@@ -56,6 +56,8 @@ return [
         'case_minute_anonymized_identity_detected' => 'An anonymized Case Minute summary must not contain direct Reporter identity.',
         'case_minute_revision_source_invalid' => 'A revision can only be created from the active finalized Case Minute.',
         'case_minute_update_required' => 'Provide at least one change for the Case Minute draft.',
+        'case_closure_document_prerequisites_missing' => 'The Case Closure Document can only be issued after the Case is closed, its final summary is published, and the signer data is complete.',
+        'case_closure_document_signer_missing' => 'An active lead Satgas with an employee or identity number is required before issuing the Case Closure Document.',
     ],
     'messages' => [
         'report_cancelled' => 'The complaint was cancelled successfully.',

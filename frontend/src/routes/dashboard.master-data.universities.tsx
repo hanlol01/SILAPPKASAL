@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { SelectInput } from "@/components/form-fields";
 import { formatCampusType } from "@/lib/format-labels";
@@ -42,10 +43,20 @@ import { DEFAULT_PAGE_SIZE } from "@/lib/list-controls";
 import { ActiveStateBadge } from "@/components/status-badge";
 
 export const Route = createFileRoute("/dashboard/master-data/universities")({
-  component: UniversitiesPage,
+  component: UniversitiesRoute,
 });
 
 const universityTypes = ["universitas", "institut", "sekolah_tinggi", "politeknik", "akademi"];
+
+function UniversitiesRoute() {
+  const path = useRouterState({ select: (state) => state.location.pathname });
+
+  if (path.startsWith("/dashboard/master-data/universities/")) {
+    return <Outlet />;
+  }
+
+  return <UniversitiesPage />;
+}
 
 function UniversitiesPage() {
   const { t } = useTranslation(["dashboard"]);
@@ -53,7 +64,6 @@ function UniversitiesPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
-  const [editing, setEditing] = useState<CampusUniversity | null>(null);
   const [creating, setCreating] = useState(false);
   const filtersActive = search !== "";
 
@@ -127,7 +137,11 @@ function UniversitiesPage() {
                     </td>
                     <td className="p-3 text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setEditing(item)}>{t("dashboard:common.edit")}</Button>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to="/dashboard/master-data/universities/$id" params={{ id: String(item.id) }}>
+                            {t("dashboard:common.detail")}
+                          </Link>
+                        </Button>
                         {item.is_active ? (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -202,17 +216,15 @@ function UniversitiesPage() {
         </CardContent>
       </Card>
       <UniversityDialog
-        open={creating || Boolean(editing)}
-        university={editing}
+        open={creating}
+        university={null}
         onOpenChange={(open) => {
           if (!open) {
             setCreating(false);
-            setEditing(null);
           }
         }}
         onSaved={() => {
           setCreating(false);
-          setEditing(null);
           invalidate();
         }}
       />
@@ -273,7 +285,7 @@ function UniversityDialog({
             />
           </Field>
           <Field label={t("dashboard:masterData.website")} error={errors.website?.[0]}><Input value={form.website ?? ""} onChange={(event) => update("website", event.target.value || null)} /></Field>
-          <Field label={t("dashboard:masterData.email")} error={errors.email?.[0]}><Input value={form.email ?? ""} onChange={(event) => update("email", event.target.value || null)} /></Field>
+          <Field label={`${t("dashboard:masterData.email")} (${t("dashboard:masterData.optional")})`} error={errors.email?.[0]}><Input type="email" value={form.email ?? ""} onChange={(event) => update("email", event.target.value || null)} /></Field>
           <Field label={t("dashboard:masterData.hotline")} error={errors.hotline?.[0]}><Input value={form.hotline ?? ""} onChange={(event) => update("hotline", event.target.value || null)} /></Field>
           <Field label={t("dashboard:masterData.sortOrder")}><Input type="number" value={form.sort_order ?? 0} onChange={(event) => update("sort_order", Number(event.target.value))} /></Field>
           <Field label={t("dashboard:masterData.hasFaculties")}>
@@ -287,7 +299,11 @@ function UniversityDialog({
               ]}
             />
           </Field>
-          <Field label={t("dashboard:masterData.address")}><Input value={form.address ?? ""} onChange={(event) => update("address", event.target.value || null)} /></Field>
+          <div className="md:col-span-2">
+            <Field label={t("dashboard:masterData.address")} error={errors.address?.[0]}>
+              <Textarea value={form.address ?? ""} onChange={(event) => update("address", event.target.value)} required />
+            </Field>
+          </div>
           <div className="md:col-span-2"><Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? t("dashboard:common.saving") : t("dashboard:common.save")}</Button></div>
         </form>
       </DialogContent>

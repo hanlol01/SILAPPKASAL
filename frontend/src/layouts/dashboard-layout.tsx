@@ -118,6 +118,13 @@ const nav: {
     roles: ["super_admin", "admin"],
   },
   {
+    key: "staff",
+    url: "/dashboard/staff",
+    icon: Users,
+    roles: ["admin"],
+    permission: "users.update",
+  },
+  {
     key: "masterData",
     url: "/dashboard/master-data",
     icon: Database,

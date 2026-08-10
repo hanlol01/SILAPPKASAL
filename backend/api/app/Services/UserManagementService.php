@@ -54,6 +54,24 @@ class UserManagementService
             ->get();
     }
 
+    /**
+     * @param array<string, mixed> $filters
+     * @return LengthAwarePaginator<int, User>
+     */
+    public function listStaff(array $filters, User $actor): LengthAwarePaginator
+    {
+        return $this->applyCampusScope(User::query(), $actor)
+            ->with(['role', 'university'])
+            ->whereHas('role', fn (Builder $query): Builder => $query->whereIn('code', ['admin', 'satgas_ppks']))
+            ->when($actor->hasRole('admin'), fn (Builder $query): Builder => $query->whereHas('role', fn (Builder $roleQuery): Builder => $roleQuery->where('code', 'satgas_ppks')))
+            ->when(! empty($filters['search']), fn (Builder $query): Builder => $this->applySearch($query, (string) $filters['search']))
+            ->when(array_key_exists('is_active', $filters), fn (Builder $query): Builder => $query->where('is_active', filter_var($filters['is_active'], FILTER_VALIDATE_BOOLEAN)))
+            ->when(! empty($filters['university_id']), fn (Builder $query): Builder => $query->where('university_id', $filters['university_id']))
+            ->orderBy('name')
+            ->orderBy('id')
+            ->paginate((int) ($filters['per_page'] ?? 15));
+    }
+
     public function activate(User $target, User $actor): User
     {
         return DB::transaction(function () use ($target, $actor): User {
@@ -177,6 +195,113 @@ class UserManagementService
         });
     }
 
+    public function createStaff(array $data, User $actor): User
+    {
+        $this->ensureActorCanManageStaffRole($actor, (string) $data['role_code'], (int) $data['university_id']);
+
+        return DB::transaction(function () use ($data, $actor): User {
+            $role = Role::query()->where('code', $data['role_code'])->where('is_active', true)->firstOrFail();
+            $user = User::query()->create([
+                'role_id' => $role->id,
+                'university_id' => $data['university_id'],
+                'name' => trim((string) $data['name']),
+                'email' => mb_strtolower(trim((string) $data['email'])),
+                'nip' => trim((string) $data['nip']),
+                'phone_number' => $data['phone_number'] ?? null,
+                'password' => $data['password'],
+                'is_active' => true,
+            ]);
+
+            $this->auditLogService->record(
+                action: AuditAction::UserStaffCreated,
+                category: AuditCategory::System,
+                severity: AuditSeverity::Info,
+                actor: $actor,
+                subject: $user,
+                metadata: ['role_code' => $role->code]
+            );
+
+            return $user->refresh()->load(['role', 'university']);
+        });
+    }
+
+    public function updateStaff(User $target, array $data, User $actor): User
+    {
+        $this->ensureActorCanManageExistingStaff($actor, $target);
+
+        return DB::transaction(function () use ($target, $data, $actor): User {
+            $before = [
+                'name' => $target->name,
+                'email' => $target->email,
+                'nip' => $target->nip,
+                'phone_number' => $target->phone_number,
+            ];
+            $target->forceFill([
+                'name' => trim((string) $data['name']),
+                'email' => mb_strtolower(trim((string) $data['email'])),
+                'nip' => trim((string) $data['nip']),
+                'phone_number' => $data['phone_number'] ?? null,
+            ])->save();
+
+            $this->auditLogService->record(
+                action: AuditAction::UserStaffUpdated,
+                category: AuditCategory::System,
+                severity: AuditSeverity::Info,
+                actor: $actor,
+                subject: $target,
+                beforeChanges: [
+                    'name_changed' => $before['name'] !== $target->name,
+                    'email_changed' => $before['email'] !== $target->email,
+                    'nip_changed' => $before['nip'] !== $target->nip,
+                    'phone_changed' => $before['phone_number'] !== $target->phone_number,
+                ],
+                afterChanges: [
+                    'name_changed' => $before['name'] !== $target->name,
+                    'email_changed' => $before['email'] !== $target->email,
+                    'nip_changed' => $before['nip'] !== $target->nip,
+                    'phone_changed' => $before['phone_number'] !== $target->phone_number,
+                ]
+            );
+
+            return $target->refresh()->load(['role', 'university']);
+        });
+    }
+
+    public function resetStaffPassword(User $target, array $data, User $actor): User
+    {
+        $this->ensureActorCanManageExistingStaff($actor, $target);
+
+        return DB::transaction(function () use ($target, $data, $actor): User {
+            $target->forceFill(['password' => Hash::make((string) $data['password'])])->save();
+            $target->tokens()->delete();
+
+            $this->auditLogService->record(
+                action: AuditAction::UserPasswordReset,
+                category: AuditCategory::System,
+                severity: AuditSeverity::Warning,
+                actor: $actor,
+                subject: $target,
+                metadata: ['password_set_by_admin' => true]
+            );
+
+            return $target->refresh()->load(['role', 'university']);
+        });
+    }
+
+    public function activateStaff(User $target, User $actor): User
+    {
+        $this->ensureActorCanManageExistingStaff($actor, $target);
+
+        return $this->activate($target, $actor);
+    }
+
+    public function deactivateStaff(User $target, User $actor): User
+    {
+        $this->ensureActorCanManageExistingStaff($actor, $target);
+
+        return $this->deactivate($target, $actor);
+    }
+
     /**
      * @return array{user: User, temporary_password: string}
      */
@@ -262,6 +387,30 @@ class UserManagementService
         }
 
         throw $this->unprocessable('You cannot manage users for this university');
+    }
+
+    private function ensureActorCanManageStaffRole(User $actor, string $roleCode, int $universityId): void
+    {
+        if ($actor->hasRole('super_admin') && in_array($roleCode, ['admin', 'satgas_ppks'], true)) {
+            return;
+        }
+
+        if ($actor->hasRole('admin') && $roleCode === 'satgas_ppks' && $actor->university_id !== null && (int) $actor->university_id === $universityId) {
+            return;
+        }
+
+        throw $this->unprocessable('You cannot manage this staff account');
+    }
+
+    private function ensureActorCanManageExistingStaff(User $actor, User $target): void
+    {
+        $target->loadMissing('role');
+
+        if ((int) $target->id === (int) $actor->id) {
+            throw $this->unprocessable('You cannot manage your own staff account');
+        }
+
+        $this->ensureActorCanManageStaffRole($actor, (string) $target->role?->code, (int) $target->university_id);
     }
 
     private function ensureNoReporterDuplicate(string $email, string $nim, int $universityId): void

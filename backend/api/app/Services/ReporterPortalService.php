@@ -74,6 +74,7 @@ class ReporterPortalService
                 'reporter.faculty',
                 'reporter.studyProgram',
                 'case.status',
+                'case.closureDocument',
                 'case.finalSummary',
                 'activeWithdrawal.attachments',
                 'latestFormalWithdrawal.attachments',
@@ -147,6 +148,11 @@ class ReporterPortalService
                 'internal_evidence_count' => (int) ($investigation?->evidences_count ?? 0),
             ],
             'final_summary' => $this->finalSummaryProjection($caseCompleted, $case?->finalSummary),
+            'closure_document' => $caseCompleted && $case?->closureDocument !== null ? [
+                'available' => true,
+                'document_number' => $case->closureDocument->document_number,
+                'issued_at' => $case->closureDocument->issued_at?->toJSON(),
+            ] : ['available' => false],
         ];
     }
 

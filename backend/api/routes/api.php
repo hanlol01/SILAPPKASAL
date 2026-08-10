@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BreakGlassController;
 use App\Http\Controllers\Api\V1\CampusMasterDataController;
 use App\Http\Controllers\Api\V1\CaseController;
+use App\Http\Controllers\Api\V1\CaseClosureDocumentController;
 use App\Http\Controllers\Api\V1\CaseFinalSummaryController;
 use App\Http\Controllers\Api\V1\CaseMinuteController;
 use App\Http\Controllers\Api\V1\ContentAttachmentController;
@@ -371,6 +372,10 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/evidence-files/{uuid}/preview', [ReportEvidenceSubmissionController::class, 'previewForReporter']);
         Route::get('/reports/{registrationNumber}/timeline', [PortalController::class, 'reportTimeline']);
         Route::get('/reports/{registrationNumber}/handling-progress', [PortalController::class, 'reportHandlingProgress']);
+        Route::get('/reports/{registrationNumber}/closure-document/download', [CaseClosureDocumentController::class, 'downloadForReporter'])
+            ->middleware('private.no-store');
+        Route::get('/reports/{registrationNumber}/closure-document/preview', [CaseClosureDocumentController::class, 'previewForReporter'])
+            ->middleware('private.no-store');
         Route::post('/reports/{registrationNumber}/cancel', [ReportWithdrawalController::class, 'cancel'])
             ->middleware(['private.no-store', 'throttle:reporter.cancellation'])
             ->name('portal.reports.cancel');
@@ -411,6 +416,18 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/notifications', [PortalController::class, 'notifications']);
     });
 
+    Route::middleware(['private.no-store', 'auth:sanctum'])->prefix('cases')->group(function (): void {
+        Route::get('/{case}/closure-document', [CaseClosureDocumentController::class, 'showForCase']);
+        Route::post('/{case}/closure-document', [CaseClosureDocumentController::class, 'issue']);
+    });
+
+    Route::middleware(['private.no-store', 'auth:sanctum'])->prefix('case-closure-documents')->group(function (): void {
+        Route::get('/{caseClosureDocument}/download', [CaseClosureDocumentController::class, 'download'])
+            ->whereUuid('caseClosureDocument');
+        Route::get('/{caseClosureDocument}/preview', [CaseClosureDocumentController::class, 'preview'])
+            ->whereUuid('caseClosureDocument');
+    });
+
     Route::middleware('auth:sanctum')->prefix('reporter-evidence-files')->group(function (): void {
         Route::get('/{uuid}/download', [ReportEvidenceSubmissionController::class, 'downloadForSatgas'])->name('reporter_evidence.download');
         Route::get('/{uuid}/preview', [ReportEvidenceSubmissionController::class, 'previewForSatgas'])->name('reporter_evidence.preview');
@@ -419,8 +436,14 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware('auth:sanctum')->prefix('users')->group(function (): void {
         Route::get('/', [UserController::class, 'index']);
         Route::post('/reporters', [UserController::class, 'storeReporter']);
+        Route::get('/staff', [UserController::class, 'staffIndex']);
+        Route::post('/staff', [UserController::class, 'storeStaff']);
         Route::get('/lookup', [UserController::class, 'lookup']);
         Route::get('/{user}', [UserController::class, 'show']);
+        Route::put('/{user}/staff', [UserController::class, 'updateStaff']);
+        Route::patch('/{user}/staff/activate', [UserController::class, 'activateStaff']);
+        Route::patch('/{user}/staff/deactivate', [UserController::class, 'deactivateStaff']);
+        Route::patch('/{user}/staff/reset-password', [UserController::class, 'resetStaffPassword']);
         Route::patch('/{user}/activate', [UserController::class, 'activate']);
         Route::patch('/{user}/deactivate', [UserController::class, 'deactivate']);
         Route::patch('/{user}/reset-password', [UserController::class, 'resetPassword']);

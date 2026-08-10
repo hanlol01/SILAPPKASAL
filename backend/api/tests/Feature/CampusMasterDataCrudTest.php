@@ -59,6 +59,7 @@ class CampusMasterDataCrudTest extends TestCase
             'website' => 'https://qa.example.test',
             'email' => 'info@qa.example.test',
             'hotline' => '0800-1111',
+            'address' => 'Jalan Kampus QA Nomor 1',
         ])->assertCreated()
             ->assertJsonPath('data.code', 'QA-UNIV')
             ->assertJsonPath('data.is_active', true);
@@ -80,6 +81,7 @@ class CampusMasterDataCrudTest extends TestCase
             'website' => 'https://qa.example.test',
             'email' => 'info@qa.example.test',
             'hotline' => '0800-1111',
+            'address' => 'Jalan Kampus QA Nomor 2',
         ])->assertOk()
             ->assertJsonPath('data.name', 'Universitas QA Updated');
 
@@ -110,6 +112,7 @@ class CampusMasterDataCrudTest extends TestCase
             'name' => 'Universitas Registrasi',
             'type' => 'sekolah_tinggi',
             'has_faculties' => false,
+            'address' => 'Jalan Kampus Registrasi Nomor 1',
         ])->assertCreated();
 
         $universityId = $response->json('data.id');

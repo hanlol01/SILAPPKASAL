@@ -20,6 +20,8 @@ enum AuditAction: string
     case UserDeactivated = 'user.deactivated';
     case UserRoleChanged = 'user.role_changed';
     case UserReporterCreated = 'user.reporter_created';
+    case UserStaffCreated = 'user.staff_created';
+    case UserStaffUpdated = 'user.staff_updated';
     case UserPasswordReset = 'user.password_reset';
 
     case CampusUniversityCreated = 'university.created';
@@ -67,6 +69,9 @@ enum AuditAction: string
     case CaseMinuteRevisionCreated = 'case_minutes.revision_created';
     case CaseMinuteSuperseded = 'case_minutes.superseded';
     case CaseClosed = 'case.closed';
+    case CaseClosureDocumentIssued = 'case_closure_document.issued';
+    case CaseClosureDocumentDownloaded = 'case_closure_document.downloaded';
+    case CaseClosureDocumentPreviewed = 'case_closure_document.previewed';
     case CaseMarkedWithdrawn = 'case.marked_withdrawn';
 
     case InvestigationCreated = 'investigation.created';

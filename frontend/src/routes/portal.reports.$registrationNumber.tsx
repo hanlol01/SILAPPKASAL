@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   CheckCircle2,
+  Download,
   Eye,
   FileCheck2,
   Gavel,
@@ -48,6 +49,7 @@ import { PortalReportTypeBadge } from "@/components/portal/portal-report-type-ba
 import { ReporterEvidenceSubmissions } from "@/components/portal/reporter-evidence-submissions";
 import { CancelComplaintDialog } from "@/components/portal/cancel-complaint-dialog";
 import { FormalWithdrawalWizard } from "@/components/portal/formal-withdrawal-wizard";
+import { SecureFilePreviewDialog } from "@/components/secure-file-preview-dialog";
 import {
   ProgressTimeline,
   ProgressTimelineSkeleton,
@@ -58,6 +60,8 @@ import {
   getPortalReport,
   getPortalReportHandlingProgress,
   getPortalReportTimeline,
+  downloadPortalCaseClosureDocument,
+  previewPortalCaseClosureDocument,
 } from "@/lib/portal-api";
 import type { PortalHandlingState, PortalTimelineEvent } from "@/lib/portal-types";
 import { formatDate, formatDateTime } from "@/lib/format";
@@ -65,6 +69,7 @@ import { formatReportCategory } from "@/lib/format-labels";
 import { useAuth } from "@/hooks/use-auth";
 import { hasPortalAccess } from "@/lib/auth-roles";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/portal/reports/$registrationNumber")({
   component: PortalReportDetailPage,
@@ -540,7 +545,68 @@ function HandlingProgressSection({
     {progress?.final_summary && (
       <PortalFinalSummaryCard summary={progress.final_summary} language={i18n.language} t={t} />
     )}
+    {progress?.closure_document?.available && (
+      <PortalClosureDocumentCard
+        registrationNumber={progress.registration_number}
+        documentNumber={progress.closure_document.document_number}
+        issuedAt={progress.closure_document.issued_at}
+        language={i18n.language}
+        t={t}
+      />
+    )}
     </div>
+  );
+}
+
+function PortalClosureDocumentCard({
+  registrationNumber,
+  documentNumber,
+  issuedAt,
+  language,
+  t,
+}: {
+  registrationNumber: string;
+  documentNumber?: string | null;
+  issuedAt?: string | null;
+  language: string;
+  t: TFunction;
+}) {
+  const downloadMutation = useMutation({
+    mutationFn: () => downloadPortalCaseClosureDocument(registrationNumber),
+    onError: () => toast.error(t("closureDocument.downloadError")),
+  });
+
+  return (
+    <CollapsibleDataCard
+      icon={FileCheck2}
+      title={t("closureDocument.title")}
+      description={t("closureDocument.description")}
+      expandLabel={t("collapsible.expand")}
+      collapseLabel={t("collapsible.collapse")}
+    >
+      <div className="flex min-w-0 flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          {documentNumber && <p className="break-words text-sm font-medium [overflow-wrap:anywhere]">{documentNumber}</p>}
+          {issuedAt && <p className="mt-1 text-xs text-muted-foreground">{t("closureDocument.issuedAt", { date: formatDateTime(issuedAt, language) })}</p>}
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <SecureFilePreviewDialog
+            fileKey={`closure-${registrationNumber}`}
+            expectedMimeType="application/pdf"
+            loadPreview={(signal) => previewPortalCaseClosureDocument(registrationNumber, signal)}
+            onDownload={() => downloadMutation.mutate()}
+            downloadPending={downloadMutation.isPending}
+            labels={{
+              preview: t("closureDocument.preview"), title: t("closureDocument.title"), description: t("closureDocument.description"),
+              loading: t("common.loading"), error: t("closureDocument.downloadError"), retry: t("common.retry"), close: t("common.close"),
+              download: t("closureDocument.download"), downloading: t("common.loading"), imageAlt: t("closureDocument.title"),
+              pdfTitle: t("closureDocument.title"), pdfFallback: t("closureDocument.pdfFallback"), zoomIn: t("closureDocument.zoomIn"), zoomOut: t("closureDocument.zoomOut"), resetZoom: t("closureDocument.reset"), fit: t("closureDocument.fit"), controls: t("closureDocument.controls"),
+            }}
+          />
+          <Button variant="outline" onClick={() => downloadMutation.mutate()} disabled={downloadMutation.isPending}><Download className="h-4 w-4" />{t("closureDocument.download")}</Button>
+        </div>
+      </div>
+    </CollapsibleDataCard>
   );
 }
 

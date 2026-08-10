@@ -86,6 +86,9 @@ async function list<T>(path: string, query?: Record<string, QueryValue>): Promis
 export const getCampusUniversities = (query?: Record<string, QueryValue>) =>
   list<CampusUniversity>("/campus-admin/universities", query);
 
+export const getCampusUniversity = (id: number | string) =>
+  apiRequest<CampusUniversity>(`/campus-admin/universities/${id}`);
+
 export const createCampusUniversity = (payload: UniversityPayload) =>
   apiRequest<CampusUniversity>("/campus-admin/universities", {
     method: "POST",

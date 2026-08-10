@@ -200,6 +200,20 @@ export function getPortalReportHandlingProgress(registrationNumber: string) {
   );
 }
 
+export function downloadPortalCaseClosureDocument(registrationNumber: string) {
+  return apiDownload(
+    `/portal/reports/${encodeURIComponent(registrationNumber)}/closure-document/download`,
+    "Berita Acara Hasil Pelaporan Kekerasan Seksual.pdf",
+  );
+}
+
+export function previewPortalCaseClosureDocument(registrationNumber: string, signal?: AbortSignal) {
+  return apiFetchBlob(
+    `/portal/reports/${encodeURIComponent(registrationNumber)}/closure-document/preview`,
+    { signal },
+  );
+}
+
 /** GET /api/v1/portal/reports/{registrationNumber}/evidence-files */
 export async function getPortalReportEvidenceFiles(
   registrationNumber: string,
