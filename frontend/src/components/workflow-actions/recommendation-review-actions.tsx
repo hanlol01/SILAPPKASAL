@@ -41,7 +41,7 @@ export function RecommendationSubmitAction({
   recommendation: Recommendation;
   caseId: string | number;
 }) {
-  const { t } = useTranslation(["dashboard"]);
+  const { t } = useTranslation(["dashboard", "common"]);
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const mutation = useMutation({
@@ -105,7 +105,7 @@ export function RecommendationReviewActions({
         revision_note: z
           .string()
           .trim()
-          .min(10, t("dashboard:workflow.revisionNoteMin"))
+          .min(1, t("common:validation.required"))
           .max(5000, t("dashboard:workflow.revisionNoteMax")),
       }),
     [t],

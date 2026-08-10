@@ -18,7 +18,7 @@ class StoreInvestigationRequest extends FormRequest
     {
         return [
             'lead_investigator_id' => ['prohibited'],
-            'plan_summary' => ['required', 'string', 'min:50', 'max:5000'],
+            'plan_summary' => ['required', 'string', 'max:5000'],
         ];
     }
 }

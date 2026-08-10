@@ -48,7 +48,12 @@ test("institutional support component is stateless, accessible, and free of remo
   assert.doesNotMatch(component, /grid-cols-1/);
   assert.match(component, /max-h-7 max-w-\[4\.5rem\] sm:max-h-10 sm:max-w-40/);
 
-  assert.doesNotMatch(component, /https?:\/\/|data:image|base64|<svg|<a\b|<Link\b/);
+  assert.match(component, /https:\/\/kemenag\.go\.id\//);
+  assert.match(component, /https:\/\/lpdp\.kemenkeu\.go\.id\/en\//);
+  assert.match(component, /https:\/\/uniga\.ac\.id\//);
+  assert.match(component, /target="_blank"/);
+  assert.match(component, /rel="noopener noreferrer"/);
+  assert.doesNotMatch(component, /data:image|base64|<svg|<Link\b/);
   assert.doesNotMatch(component, /Tooltip|useState|ArrowUp|ArrowDown|hoveredImage/);
   assert.doesNotMatch(component, /testimonial|percentage|companies|employees|compensation/i);
   assert.doesNotMatch(component, /upload|pdf/i);
@@ -90,7 +95,8 @@ test("root footer fails closed during the initial route state and excludes login
   const root = await source("src/routes/__root.tsx");
 
   assert.doesNotMatch(root, /hasNestedShellFooter|const isLogin|!hasNestedShellFooter && !isLogin/);
-  assert.doesNotMatch(root, /useEffect|useState|window\.location|localStorage/);
+  assert.doesNotMatch(root, /useState|window\.location|localStorage/);
+  assert.match(root, /useEffect\(\(\) => \{\s*document\.title = localizedDocumentTitle/);
   assert.match(root, /const pathname = useRouterState\(\{ select: \(state\) => state\.location\.pathname \}\)/);
   assert.match(root, /<Outlet \/>[\s\S]*?\{shouldRenderPublicFooter \? \(/);
 });

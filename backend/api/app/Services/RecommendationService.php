@@ -270,8 +270,8 @@ class RecommendationService
             } else {
                 $revisionNote = trim((string) ($data['revision_note'] ?? ''));
 
-                if (mb_strlen($revisionNote) < 10 || mb_strlen($revisionNote) > 5000) {
-                    throw $this->unprocessable('A revision note between 10 and 5000 characters is required');
+                if ($revisionNote === '' || mb_strlen($revisionNote) > 5000) {
+                    throw $this->unprocessable('A revision note of up to 5000 characters is required');
                 }
 
                 $nextStatus = $this->statusByName(RecommendationStatusEnum::Revised);

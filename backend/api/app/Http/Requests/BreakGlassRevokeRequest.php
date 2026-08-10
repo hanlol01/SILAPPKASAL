@@ -24,7 +24,7 @@ class BreakGlassRevokeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'revocation_reason' => ['required', 'string', 'min:10', 'max:2000'],
+            'revocation_reason' => ['required', 'string', 'max:2000'],
         ];
     }
 }

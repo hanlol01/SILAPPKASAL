@@ -11,6 +11,7 @@ use App\Models\ContentItem;
 use App\Models\ContentSection;
 use App\Models\ContentVersion;
 use App\Models\FaqVersionContent;
+use App\Support\ContentCategoryName;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -33,13 +34,25 @@ class ContentFoundationSeeder extends Seeder
             $categories = collect(config('content_storyboard.categories'))
                 ->values()
                 ->mapWithKeys(function (array $definition, int $index) use ($sections): array {
-                    $category = ContentCategory::query()->firstOrCreate(
-                        ['stable_seed_key' => 'storyboard.category.'.$definition['code']],
-                        [
+                    $stableSeedKey = 'storyboard.category.'.$definition['code'];
+                    $section = $sections[$definition['section']];
+                    $category = ContentCategory::query()
+                        ->where('stable_seed_key', $stableSeedKey)
+                        ->first()
+                        ?? ContentCategory::query()
+                            ->where('section_id', $section->id)
+                            ->where('scope_key', ContentScope::Global->value)
+                            ->where('normalized_name', ContentCategoryName::normalize($definition['name']))
+                            ->first();
+
+                    if ($category === null) {
+                        $category = ContentCategory::query()->create([
+                            'stable_seed_key' => $stableSeedKey,
                             'public_id' => (string) Str::uuid(),
-                            'section_id' => $sections[$definition['section']]->id,
+                            'section_id' => $section->id,
                             'code' => $definition['code'],
                             'name' => $definition['name'],
+                            'normalized_name' => ContentCategoryName::normalize($definition['name']),
                             'slug' => Str::slug($definition['name']),
                             'description' => $definition['description'],
                             'icon_code' => $definition['icon'],
@@ -49,8 +62,10 @@ class ContentFoundationSeeder extends Seeder
                             'university_id' => null,
                             'is_active' => true,
                             'creator_id' => null,
-                        ],
-                    );
+                        ]);
+                    } elseif (blank($category->stable_seed_key)) {
+                        $category->forceFill(['stable_seed_key' => $stableSeedKey])->save();
+                    }
 
                     return [$definition['code'] => $category];
                 });

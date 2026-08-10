@@ -4,6 +4,7 @@ import {
   Clock3,
   Eye,
   FileText,
+  ImageUp,
   ImageOff,
   Loader2,
   Paperclip,
@@ -87,6 +88,7 @@ const ArticleWysiwygEditor = lazy(() =>
 const DEFAULT_IMAGE_FORMATS = ["image/jpeg", "image/png", "image/webp"] as const;
 const DEFAULT_COVER_MAX_BYTES = 5 * 1024 * 1024;
 const DEFAULT_INLINE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+const DEFAULT_IMAGE_SOURCE_MAX_BYTES = 10 * 1024 * 1024;
 const DEFAULT_ALT_TEXT_MAX_LENGTH = 500;
 const IMAGE_EXTENSIONS_BY_MIME: Record<string, readonly string[]> = {
   "image/jpeg": ["jpg", "jpeg"],
@@ -225,6 +227,8 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
     capabilitiesQuery.data?.cover_max_bytes ?? DEFAULT_COVER_MAX_BYTES;
   const inlineImageMaxBytes =
     capabilitiesQuery.data?.inline_image_max_bytes ?? DEFAULT_INLINE_IMAGE_MAX_BYTES;
+  const imageSourceMaxBytes =
+    capabilitiesQuery.data?.max_image_source_bytes ?? DEFAULT_IMAGE_SOURCE_MAX_BYTES;
   const altTextMaxLength =
     capabilitiesQuery.data?.alt_text_max_length ?? DEFAULT_ALT_TEXT_MAX_LENGTH;
   const imageAccept = imageAcceptValue(imageFormats);
@@ -349,11 +353,11 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
       if (
         !matchesImageCapability(file, imageFormats) ||
         file.size < 1 ||
-        file.size > coverMaxBytes
+        file.size > imageSourceMaxBytes
       ) {
         throw new ClientValidationError(t("content:validation.cover", {
           formats: imageFormatLabel,
-          size: formatFileSize(coverMaxBytes),
+          size: formatFileSize(imageSourceMaxBytes),
         }));
       }
       return uploadContentCover(detail.version.public_id, file, state.coverAltText.trim());
@@ -363,7 +367,7 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
       toast.success(t("content:coverUploaded"));
       await invalidate(detail?.public_id);
     },
-    onError: (error) => toast.error(error instanceof ClientValidationError ? error.message : apiErrorMessage(error, t("content:loadError"))),
+    onError: (error) => toast.error(contentImageUploadError(error, t, imageSourceMaxBytes, coverMaxBytes)),
   });
 
   const inlineImageMutation = useMutation({
@@ -434,7 +438,7 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
             )}
           </div>
         </div>
-        <Button variant="outline" className="min-h-11" onClick={() => setPreviewOpen(true)}>
+        <Button className="min-h-11" onClick={() => setPreviewOpen(true)}>
           <Eye className="mr-2 h-4 w-4" />
           {t("content:preview")}
         </Button>
@@ -557,12 +561,19 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
         </Card>
 
         <div className="space-y-5">
+          {contentType === "article" && !detail && (
+            <Alert className="border-amber-300/70 bg-amber-50/80 text-amber-950 dark:border-amber-400/40 dark:bg-amber-950/30 dark:text-amber-100">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>{t("content:imageDraftRequiredTitle")}</AlertTitle>
+              <AlertDescription>{t("content:imageDraftRequiredDescription")}</AlertDescription>
+            </Alert>
+          )}
           {contentType === "article" && !capabilitiesQuery.data?.image_upload_available && (
             <Alert><ImageOff className="h-4 w-4" /><AlertDescription>{t("content:imageUnavailable")}</AlertDescription></Alert>
           )}
           {contentType === "article" && capabilitiesQuery.data?.image_upload_available && (
             <Card>
-              <CardHeader><CardTitle className="text-base">{t("content:coverTitle")}</CardTitle><CardDescription>{t("content:coverHelp", { formats: imageFormatLabel, size: formatFileSize(coverMaxBytes) })}</CardDescription></CardHeader>
+              <CardHeader><CardTitle className="text-base">{t("content:coverTitle")}</CardTitle><CardDescription>{t("content:coverHelp", { formats: imageFormatLabel, size: formatFileSize(imageSourceMaxBytes) })}</CardDescription></CardHeader>
               <CardContent className="space-y-3">
                 <Field label={t("content:coverAltText")} error={errors.coverAltText}><Input maxLength={altTextMaxLength} disabled={!editable} value={state.coverAltText} onChange={(event) => set("coverAltText", event.target.value)} /></Field>
                 {detail?.version.article?.cover ? (
@@ -578,7 +589,7 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
                     }
                   />
                 ) : null}
-                {editable && canManageAttachments && detail ? <><Input ref={coverInputRef} className="sr-only" id="content-cover" type="file" accept={imageAccept} onChange={(event) => { const file = event.target.files?.[0]; if (file) coverMutation.mutate(file); }} /><Button type="button" variant="outline" className="min-h-11 w-full" disabled={coverMutation.isPending} onClick={() => coverInputRef.current?.click()}>{coverMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{t("content:chooseCover")}</Button></> : <p className="text-sm text-muted-foreground">{t("content:saveDraft")}</p>}
+                {editable && canManageAttachments && detail ? <><Input ref={coverInputRef} className="sr-only" id="content-cover" type="file" accept={imageAccept} onChange={(event) => { const file = event.target.files?.[0]; if (file) coverMutation.mutate(file); }} /><Button type="button" className="min-h-11 w-full" disabled={coverMutation.isPending} onClick={() => coverInputRef.current?.click()}>{coverMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageUp className="mr-2 h-4 w-4" />}{t("content:chooseCover")}</Button></> : <p className="text-sm text-muted-foreground">{t("content:saveDraft")}</p>}
               </CardContent>
             </Card>
           )}
@@ -640,7 +651,6 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
                   />
                   <Button
                     type="button"
-                    variant="outline"
                     className="min-h-11 w-full"
                     disabled={uploadMutation.isPending}
                     onClick={() => fileInputRef.current?.click()}
@@ -671,7 +681,6 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
         <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur md:left-[var(--sidebar-width)]">
           <div className="mx-auto grid max-w-6xl grid-cols-2 gap-2 sm:flex sm:justify-end">
             <Button
-              variant="outline"
               className="min-h-11 w-full sm:w-auto"
               onClick={() => setPreviewOpen(true)}
             >
@@ -1514,4 +1523,29 @@ class ClientValidationError extends Error {
   constructor(message = "Validation failed") {
     super(message);
   }
+}
+
+function contentImageUploadError(
+  error: unknown,
+  t: ReturnType<typeof useTranslation>["t"],
+  sourceMaxBytes: number,
+  storedMaxBytes: number,
+) {
+  if (error instanceof ClientValidationError) return error.message;
+  if (error instanceof ApiError) {
+    if (error.status === 413) return t("content:validation.imageRequestTooLarge", { size: formatFileSize(sourceMaxBytes) });
+    if (error.status === 422) {
+      const message = error.errors?.file?.[0]?.toLowerCase() ?? "";
+      if (message.includes("source image") || message.includes("processing size")) {
+        return t("content:validation.cover", { formats: "JPG/JPEG, PNG, WebP", size: formatFileSize(sourceMaxBytes) });
+      }
+      if (message.includes("optimized image")) {
+        return t("content:validation.imageOutputTooLarge", { size: formatFileSize(storedMaxBytes) });
+      }
+      if (message.includes("dimension") || message.includes("memory")) return t("content:validation.imageDimensions");
+      return t("content:validation.imageProcessing");
+    }
+  }
+
+  return apiErrorMessage(error, t("content:loadError"));
 }

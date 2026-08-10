@@ -38,7 +38,7 @@ class BreakGlassStoreRequest extends FormRequest
         return [
             'case_id' => ['required', 'integer', Rule::exists('cases', 'id')],
             'reason_category' => ['required', 'string', Rule::in(BreakGlassRequest::REASON_CATEGORIES)],
-            'reason' => ['required', 'string', 'min:50', 'max:2000'],
+            'reason' => ['required', 'string', 'max:2000'],
             'requested_duration_minutes' => ['required', 'integer', Rule::in(BreakGlassRequest::ALLOWED_DURATIONS)],
             'acknowledgment' => ['required', 'accepted'],
         ];

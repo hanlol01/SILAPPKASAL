@@ -181,8 +181,7 @@ class ContentAttachmentService
             && $this->policy->viewEditableAttachment($actor, $item, $attachment->version);
         $governance = $activeReference
             && $this->policy->viewGovernanceAttachment($actor, $item, $attachment->version);
-        $published = $actor->hasRole('reporter')
-            && $this->policy->viewPublished($actor)
+        $published = $this->policy->viewPublished($actor)
             && $item->archived_at === null
             && (int) $item->published_version_id === (int) $attachment->content_version_id
             && $attachment->version->lifecycle_status === ContentLifecycleStatus::Published
@@ -365,8 +364,15 @@ class ContentAttachmentService
         };
         $sourceSize = (int) $file->getSize();
 
-        if ($sourceSize < 1 || $sourceSize > $maxBytes) {
-            throw ValidationException::withMessages(['file' => ['The attachment size is outside the allowed limit.']]);
+        $sourceMaxBytes = $imageAttempt
+            ? (int) config('content.attachments.max_image_source_bytes', $maxBytes)
+            : $maxBytes;
+        if ($sourceSize < 1 || $sourceSize > $sourceMaxBytes) {
+            throw ValidationException::withMessages(['file' => [
+                $imageAttempt
+                    ? 'The source image exceeds the processing size limit.'
+                    : 'The attachment size is outside the allowed limit.',
+            ]]);
         }
         if ($purpose === ContentAttachmentPurpose::Attachment && $imageAttempt) {
             throw ValidationException::withMessages([
@@ -398,7 +404,11 @@ class ContentAttachmentService
                 : ($processed ? ['jpg', 'png', 'webp'] : []);
 
             if ($size < 1 || $size > $maxBytes) {
-                throw ValidationException::withMessages(['file' => ['The attachment size is outside the allowed limit.']]);
+                throw ValidationException::withMessages(['file' => [
+                    $imageAttempt
+                        ? 'The optimized image exceeds the allowed storage limit.'
+                        : 'The attachment size is outside the allowed limit.',
+                ]]);
             }
             if (! in_array($extension, $allowedExtensions, true) || ! in_array($mime, self::MIME_BY_EXTENSION[$extension] ?? [], true)) {
                 throw ValidationException::withMessages(['file' => ['The attachment extension and detected MIME type do not match an allowed format.']]);
@@ -446,10 +456,20 @@ class ContentAttachmentService
 
     private function inReaderScope(ContentItem $item, User $actor): bool
     {
+        if ($this->canReadAllPublishedContent($actor)) {
+            return true;
+        }
+
         return $item->scope === ContentScope::Global
             || ($item->scope === ContentScope::Campus
                 && $actor->university_id !== null
                 && (int) $item->university_id === (int) $actor->university_id);
+    }
+
+    private function canReadAllPublishedContent(User $actor): bool
+    {
+        return $actor->hasRole('super_admin')
+            && $actor->hasPermission('content.read.management.all');
     }
 
     private function hasValidPdfEnvelope(string $path, int $size): bool

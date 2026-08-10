@@ -38,7 +38,10 @@ test("published reader API uses centralized private keys and propagates AbortSig
   assert.match(api, /getFeaturedContent\(filters: FeaturedContentFilters = \{\}, signal\?: AbortSignal\)/);
   assert.match(api, /getPublishedArticleBySlug[\s\S]+encodeURIComponent\(slug\)[\s\S]+\{ signal \}/);
   assert.match(api, /\/content\/articles\/slug\/\$\{section\}\/\$\{encodeURIComponent\(slug\)\}/);
-  assert.doesNotMatch(api, /export function getPublishedArticle\(publicId/);
+  assert.match(
+    api,
+    /export function getPublishedArticle\(publicId: string, signal\?: AbortSignal\)[\s\S]+encodeURIComponent\(publicId\)[\s\S]+\{ signal \}/,
+  );
   assert.match(api, /getPublishedArticleCategories/);
   assert.match(cache, /queryKey\[0\] === "published-content"/);
 });

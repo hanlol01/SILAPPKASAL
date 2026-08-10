@@ -121,6 +121,10 @@ export function getPublishedArticleBySlug(
   );
 }
 
+export function getPublishedArticle(publicId: string, signal?: AbortSignal) {
+  return apiRequest<PublishedArticle>(`/content/articles/${encodeURIComponent(publicId)}`, { signal });
+}
+
 export function getPublishedArticleCategories(section: "education" | "policy", signal?: AbortSignal) {
   return apiRequest<string[]>("/content/article-categories", { query: { section }, signal });
 }

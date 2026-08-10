@@ -156,6 +156,25 @@ class ContentFoundationTest extends TestCase
         $response->assertJsonMissing(['creator_id'])->assertJsonMissing(['published_version_id']);
     }
 
+    public function test_super_admin_published_reader_can_review_all_published_campus_scopes(): void
+    {
+        $superAdmin = $this->user('super_admin');
+        $global = $this->publishedArticle(ContentScope::Global, null, 'Artikel Global Pimpinan');
+        $campusA = $this->publishedArticle(ContentScope::Campus, $this->campusA, 'Artikel Kampus A');
+        $campusB = $this->publishedArticle(ContentScope::Campus, $this->campusB, 'Artikel Kampus B');
+
+        Sanctum::actingAs($superAdmin, ['*']);
+        $response = $this->getJson('/api/v1/content/articles')->assertOk();
+        $ids = collect($response->json('data'))->pluck('public_id');
+
+        $this->assertTrue($ids->contains($global->public_id));
+        $this->assertTrue($ids->contains($campusA->public_id));
+        $this->assertTrue($ids->contains($campusB->public_id));
+        $this->getJson('/api/v1/content/articles/'.$campusB->public_id)
+            ->assertOk()
+            ->assertJsonPath('data.public_id', $campusB->public_id);
+    }
+
     public function test_old_published_version_remains_visible_while_revision_is_draft(): void
     {
         $reader = $this->user('satgas_ppks', $this->campusA);
@@ -323,6 +342,7 @@ class ContentFoundationTest extends TestCase
         );
         $version = $item->currentDraftVersion;
         Sanctum::actingAs($admin, ['*']);
+        config()->set('content.attachments.image_uploads_enabled', false);
 
         $png = UploadedFile::fake()->createWithContent(
             'gambar rahasia.png',
@@ -574,6 +594,9 @@ class ContentFoundationTest extends TestCase
         $item = $service->startReview($item->currentDraftVersion, $super, (int) $item->lock_version);
         $item = $service->approve($item->currentDraftVersion, $super, (int) $item->lock_version);
         $service->publishApproved($item->currentDraftVersion, $super, (int) $item->lock_version);
+
+        Sanctum::actingAs($admin, ['*']);
+        $this->get('/api/v1/content/attachments/'.$attachmentId)->assertOk();
 
         Sanctum::actingAs($reader, ['*']);
         $download = $this->get('/api/v1/content/attachments/'.$attachmentId)->assertOk();

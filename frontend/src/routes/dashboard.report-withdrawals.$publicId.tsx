@@ -130,7 +130,7 @@ function ReportWithdrawalDetailPage() {
 
   const item = reviewQuery.data;
   const latestAttachment = item.attachments?.at(-1);
-  const reasonValid = rejectionReason.trim().length >= 20 && rejectionReason.trim().length <= 2000;
+  const reasonValid = Boolean(rejectionReason.trim()) && rejectionReason.trim().length <= 2000;
   const busy = approveMutation.isPending || rejectMutation.isPending;
 
   const openPreview = async () => {
@@ -297,7 +297,7 @@ function ReportWithdrawalDetailPage() {
             <div className="space-y-2">
               <Label htmlFor="withdrawal-rejection-reason">{t("dashboard:withdrawals.rejectionReason")}</Label>
               <Textarea id="withdrawal-rejection-reason" rows={7} value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} maxLength={2000} disabled={busy} />
-              <p className="text-xs text-muted-foreground">{rejectionReason.trim().length}/2.000 · {t("dashboard:withdrawals.reasonMinimum")}</p>
+              <p className="text-xs text-muted-foreground">{rejectionReason.trim().length}/2.000</p>
             </div>
             <label className="flex items-start gap-3 text-sm">
               <Checkbox checked={resubmissionAllowed} onCheckedChange={(checked) => setResubmissionAllowed(checked === true)} disabled={busy} aria-describedby="resubmit-help" />

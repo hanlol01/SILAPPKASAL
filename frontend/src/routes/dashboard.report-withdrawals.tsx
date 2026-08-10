@@ -47,7 +47,7 @@ function ReportWithdrawalsPage() {
   const isIndexRoute = Boolean(
     matchRoute({ to: "/dashboard/report-withdrawals", fuzzy: false }),
   );
-  const status = search.status ?? "pending_review";
+  const status = search.status ?? "all";
   const page = search.page ?? 1;
   const pageSize = search.per_page ?? DEFAULT_PAGE_SIZE;
   const canAccess =
@@ -63,7 +63,7 @@ function ReportWithdrawalsPage() {
   if (!canAccess) return <AccessDenied />;
   if (!isIndexRoute) return <Outlet />;
 
-  const filtered = status !== "pending_review" || Boolean(search.q);
+  const filtered = status !== "all" || Boolean(search.q);
 
   return (
     <div className="space-y-6">

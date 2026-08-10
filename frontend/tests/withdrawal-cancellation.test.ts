@@ -26,6 +26,7 @@ test("Reporter detail renders direct cancellation only from authoritative capabi
     /report\.withdrawal_capabilities\.can_cancel\s*\?\s*\(\s*<CancelComplaintDialog/,
   );
   assert.match(route, /can_request_withdrawal\s*\|\|\s*[\s\S]*active_withdrawal/);
+  assert.match(route, /report\.portal_status\s*!==\s*"withdrawn"/);
   assert.match(route, /<FormalWithdrawalWizard/);
   assert.match(route, /registrationNumber=\{report\.registration_number\}/);
 });
@@ -103,7 +104,8 @@ test("Admin withdrawal queue is URL-synchronized, permission-aware, and explicit
   assert.match(queue, /Route\.useNavigate\(\)/);
   assert.match(queue, /operationsQueryKeys\.withdrawalReviews\(query\)/);
   assert.match(queue, /reports\.withdraw\.review\.own_campus/);
-  assert.match(queue, /status\s*!==\s*"pending_review"\s*\|\|\s*Boolean\(search\.q\)/);
+  assert.match(queue, /const status = search\.status \?\? "all"/);
+  assert.match(queue, /status\s*!==\s*"all"\s*\|\|\s*Boolean\(search\.q\)/);
   assert.match(queue, /waitingDays/);
   assert.doesNotMatch(queue, /overdue|terlambat|SLA/);
   assert.doesNotMatch(queue, /placeholderData|keepPreviousData/);
@@ -115,7 +117,7 @@ test("Admin review detail is capability-gated and protects private document acce
   assert.match(detail, /item\.capabilities\.can_view_signed_document/);
   assert.match(detail, /item\.capabilities\.can_approve/);
   assert.match(detail, /item\.capabilities\.can_reject/);
-  assert.match(detail, /rejectionReason\.trim\(\)\.length\s*>=\s*20/);
+  assert.match(detail, /Boolean\(rejectionReason\.trim\(\)\)/);
   assert.match(detail, /rejectionReason\.trim\(\)\.length\s*<=\s*2000/);
   assert.match(detail, /resubmission_allowed:\s*resubmissionAllowed/);
   assert.match(detail, /roleCode\s*===\s*"super_admin"/);

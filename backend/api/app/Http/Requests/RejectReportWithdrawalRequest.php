@@ -34,7 +34,7 @@ class RejectReportWithdrawalRequest extends FormRequest
     {
         return [
             'lock_version' => ['required', 'integer', 'min:0'],
-            'rejection_reason' => ['required', 'string', 'min:20', 'max:2000'],
+            'rejection_reason' => ['required', 'string', 'max:2000'],
             'resubmission_allowed' => ['required', 'boolean'],
         ];
     }

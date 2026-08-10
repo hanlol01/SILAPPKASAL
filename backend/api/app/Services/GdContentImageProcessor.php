@@ -121,6 +121,7 @@ final class GdContentImageProcessor implements ContentImageProcessor
             if ($mime === 'image/jpeg') {
                 $image = $this->normalizeOrientation($image, $this->jpegOrientation($sourcePath));
             }
+            $image = $this->optimizeDimensions($image, $sourceSize);
 
             $outputPath = tempnam(sys_get_temp_dir(), 'silappkasal-content-image-');
             if (! is_string($outputPath) || $outputPath === '') {
@@ -269,11 +270,50 @@ final class GdContentImageProcessor implements ContentImageProcessor
         }
 
         return match ($mime) {
-            'image/jpeg' => imagejpeg($image, $path, 88),
-            'image/png' => imagepng($image, $path, 7),
-            'image/webp' => imagewebp($image, $path, 86),
+            'image/jpeg' => imagejpeg($image, $path, (int) config('content.attachments.jpeg_quality', 82)),
+            'image/png' => imagepng($image, $path, (int) config('content.attachments.png_compression', 8)),
+            'image/webp' => imagewebp($image, $path, (int) config('content.attachments.webp_quality', 80)),
             default => false,
         };
+    }
+
+    private function optimizeDimensions(GdImage $image, int $sourceSize): GdImage
+    {
+        $sourceWidth = imagesx($image);
+        $sourceHeight = imagesy($image);
+        $triggerBytes = (int) config('content.attachments.image_optimization_trigger_bytes', 2 * 1024 * 1024);
+        $maxDimension = (int) config('content.attachments.optimized_image_max_dimension', 2560);
+
+        if ($sourceSize <= $triggerBytes
+            && $sourceWidth <= $maxDimension
+            && $sourceHeight <= $maxDimension) {
+            return $image;
+        }
+
+        $scale = min(1, $maxDimension / $sourceWidth, $maxDimension / $sourceHeight);
+        if ($scale >= 1) {
+            return $image;
+        }
+
+        $targetWidth = max(1, (int) round($sourceWidth * $scale));
+        $targetHeight = max(1, (int) round($sourceHeight * $scale));
+        $resized = imagecreatetruecolor($targetWidth, $targetHeight);
+        if (! ($resized instanceof GdImage)) {
+            throw $this->invalidImage();
+        }
+
+        imagealphablending($resized, false);
+        imagesavealpha($resized, true);
+        $transparent = imagecolorallocatealpha($resized, 0, 0, 0, 127);
+        imagefill($resized, 0, 0, $transparent);
+        if (! imagecopyresampled($resized, $image, 0, 0, 0, 0, $targetWidth, $targetHeight, $sourceWidth, $sourceHeight)) {
+            imagedestroy($resized);
+            throw $this->invalidImage();
+        }
+
+        imagedestroy($image);
+
+        return $resized;
     }
 
     private function normalizeOrientation(GdImage $image, int $orientation): GdImage

@@ -1010,7 +1010,8 @@ test("editorial decisions preserve notes on conflict and render only server capa
     "utf8",
   );
 
-  assert.match(route, /note\.trim\(\)\.length < 10/);
+  assert.match(route, /mode !== "approve" && !note\.trim\(\)/);
+  assert.doesNotMatch(route, /note\.trim\(\)\.length < \d+/);
   assert.match(route, /content_stale_review/);
   assert.match(route, /void invalidate\(\)/);
   assert.doesNotMatch(route, /content_stale_review[\s\S]{0,250}setNote\(""\)/);
@@ -1057,6 +1058,19 @@ test("featured governance validates dates, uses concurrency token, and has safe 
   assert.match(route, /min-h-11 w-full sm:w-auto/);
 });
 
+test("review detail actions remain inside the Sheet footer without obscuring the preview", async () => {
+  const route = await readFile(
+    new URL("../src/routes/dashboard.content-governance.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(route, /SheetContent className="flex h-full w-full flex-col [^"]*overflow-hidden p-0/);
+  assert.match(route, /className="min-h-0 flex-1 overflow-y-auto"/);
+  assert.match(route, /className="shrink-0 border-t/);
+  assert.doesNotMatch(route, /fixed inset-x-0 bottom-0/);
+  assert.doesNotMatch(route, /sm:absolute/);
+});
+
 test("governance translations and stable error mappings remain complete in both locales", async () => {
   const [id, en, errors] = await Promise.all([
     readFile(new URL("../src/locales/id/contentGovernance.json", import.meta.url), "utf8").then(JSON.parse),
@@ -1090,6 +1104,8 @@ test("REV-MEDIA-01 keeps media references server-owned and object URLs ephemeral
   assert.match(managementApi, /uploadContentInlineImage/);
   assert.match(contentEditor, /inlineImageMutation\.mutateAsync/);
   assert.match(contentEditor, /capabilitiesQuery\.data\?\.image_upload_available/);
+  assert.match(contentEditor, /content:imageDraftRequiredTitle/);
+  assert.match(contentEditor, /content:imageDraftRequiredDescription/);
   assert.match(editor, /collectAuthorizedImageReferences/);
   assert.match(editor, /insertContent\(imageNode\)/);
   assert.match(editor, /clipboardContainsFile/);

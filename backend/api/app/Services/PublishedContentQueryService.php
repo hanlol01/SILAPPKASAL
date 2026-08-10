@@ -164,14 +164,14 @@ class PublishedContentQueryService
     {
         $this->authorizeReader($actor);
         $now = now();
-        $scopeKeys = ['global'];
-        if ($actor->university_id !== null) {
+        $scopeKeys = $this->canReadAllCampuses($actor) ? null : ['global'];
+        if ($scopeKeys !== null && $actor->university_id !== null) {
             array_unshift($scopeKeys, 'campus:'.$actor->university_id);
         }
 
         $placements = FeaturedContent::query()
             ->with(['item' => fn ($query) => $query->with($this->articleRelations())])
-            ->whereIn('scope_key', $scopeKeys)
+            ->when($scopeKeys !== null, fn (Builder $query) => $query->whereIn('scope_key', $scopeKeys))
             ->where('is_active', true)
             ->where(fn (Builder $query) => $query->whereNull('active_from')->orWhere('active_from', '<=', $now))
             ->where(fn (Builder $query) => $query->whereNull('active_until')->orWhere('active_until', '>=', $now))
@@ -226,6 +226,15 @@ class PublishedContentQueryService
 
     private function scopeQuery(Builder $query, User $actor, string $prefix = ''): void
     {
+        if ($this->canReadAllCampuses($actor)) {
+            $query->whereIn($prefix.'scope', [
+                ContentScope::Global->value,
+                ContentScope::Campus->value,
+            ]);
+
+            return;
+        }
+
         $query->where($prefix.'scope', ContentScope::Global->value);
         if ($actor->university_id !== null) {
             $query->orWhere(fn (Builder $campus) => $campus
@@ -292,5 +301,11 @@ class PublishedContentQueryService
                 'errors' => null,
             ], 403));
         }
+    }
+
+    private function canReadAllCampuses(User $actor): bool
+    {
+        return $actor->hasRole('super_admin')
+            && $actor->hasPermission('content.read.management.all');
     }
 }

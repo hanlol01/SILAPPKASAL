@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { AuthenticatedContentCover } from "@/components/content/authenticated-content-cover";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import type { PublishedArticle } from "@/lib/published-content-api";
 
@@ -37,6 +38,7 @@ export function PublishedArticleCard({
   area,
 }: PublishedArticleCardProps) {
   const { t, i18n } = useTranslation("informationCenter");
+  const { roleCode } = useAuth();
   const [coverUnavailable, setCoverUnavailable] = useState(false);
   const handleCoverUnavailable = useCallback(() => setCoverUnavailable(true), []);
   const visual = sectionVisuals[article.section.code as keyof typeof sectionVisuals] ?? {
@@ -59,11 +61,14 @@ export function PublishedArticleCard({
     ? "/dashboard/information-center/policies/$slug"
     : "/dashboard/information-center/education/$slug";
   const inPortal = area ? area === "portal" : portal;
+  const detailIdentifier = !inPortal && roleCode === "super_admin"
+    ? article.public_id
+    : article.slug;
 
   return (
     <Link
       to={inPortal ? portalDetailTo : dashboardDetailTo}
-      params={{ slug: article.slug }}
+      params={{ slug: detailIdentifier }}
       aria-label={t("article.open", { title: article.title })}
       className={cn(
         "group flex min-h-11 min-w-0 flex-col overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-sm",

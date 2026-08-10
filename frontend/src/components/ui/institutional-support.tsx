@@ -11,6 +11,7 @@ export type InstitutionalSupportProps = {
 type Institution = {
   id: "kemenag" | "lpdp" | "uniga";
   alt: string;
+  href: string;
   src: string;
   width: number;
   height: number;
@@ -21,6 +22,7 @@ const INSTITUTIONS: readonly Institution[] = [
   {
     id: "kemenag",
     alt: "Kementerian Agama Republik Indonesia",
+    href: "https://kemenag.go.id/",
     src: "/brand/institutional-support/kemenag.png",
     width: 708,
     height: 635,
@@ -29,6 +31,7 @@ const INSTITUTIONS: readonly Institution[] = [
   {
     id: "lpdp",
     alt: "Lembaga Pengelola Dana Pendidikan",
+    href: "https://lpdp.kemenkeu.go.id/en/",
     src: "/brand/institutional-support/lpdp.png",
     width: 1600,
     height: 777,
@@ -37,6 +40,7 @@ const INSTITUTIONS: readonly Institution[] = [
   {
     id: "uniga",
     alt: "Universitas Garut",
+    href: "https://uniga.ac.id/",
     src: "/brand/institutional-support/uniga.png",
     width: 526,
     height: 526,
@@ -145,10 +149,14 @@ export function InstitutionalSupport({
 
       <div className="grid grid-cols-3 divide-x divide-border/70 overflow-hidden rounded-lg">
         {INSTITUTIONS.map((institution) => (
-          <div
+          <a
             key={institution.id}
+            href={institution.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={institution.alt}
             className={cn(
-              "flex h-14 min-w-0 items-center justify-center px-1 sm:h-[4.5rem] sm:px-3",
+              "flex h-14 min-w-0 items-center justify-center px-1 transition-colors hover:bg-muted/70 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:h-[4.5rem] sm:px-3",
               logoSurfaceClassName,
             )}
           >
@@ -164,7 +172,7 @@ export function InstitutionalSupport({
                 className={cn("h-auto w-auto object-contain", institution.imageClassName)}
               />
             )}
-          </div>
+          </a>
         ))}
       </div>
     </section>

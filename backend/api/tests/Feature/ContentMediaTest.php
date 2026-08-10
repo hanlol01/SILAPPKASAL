@@ -163,6 +163,36 @@ final class ContentMediaTest extends TestCase
         }
     }
 
+    public function test_gd_processor_reduces_large_editorial_image_dimensions(): void
+    {
+        $this->requireGd();
+        config()->set('content.attachments.optimized_image_max_dimension', 2560);
+
+        $source = tempnam(sys_get_temp_dir(), 'content-media-large-');
+        $this->assertIsString($source);
+        $image = imagecreatetruecolor(2700, 200);
+        $this->assertInstanceOf(GdImage::class, $image);
+        $background = imagecolorallocate($image, 32, 160, 190);
+        imagefill($image, 0, 0, $background);
+        imagejpeg($image, $source, 95);
+        imagedestroy($image);
+
+        $processor = new GdContentImageProcessor;
+        $processed = $processor->reencode(new UploadedFile(
+            $source,
+            'large.jpg',
+            'image/jpeg',
+            UPLOAD_ERR_OK,
+            true,
+        ));
+        $dimensions = getimagesize((string) $processed->getRealPath());
+        $this->assertIsArray($dimensions);
+        $this->assertSame([2560, 190], [(int) $dimensions[0], (int) $dimensions[1]]);
+
+        $processor->release($processed);
+        @unlink($source);
+    }
+
     public function test_cover_and_inline_media_stay_private_until_the_owning_version_is_published(): void
     {
         $this->requireGd();
@@ -192,7 +222,8 @@ final class ContentMediaTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.image_upload_available', true)
             ->assertJsonPath('data.cover_max_bytes', 5 * 1024 * 1024)
-            ->assertJsonPath('data.inline_image_max_bytes', 10 * 1024 * 1024);
+            ->assertJsonPath('data.inline_image_max_bytes', 10 * 1024 * 1024)
+            ->assertJsonPath('data.max_image_source_bytes', 10 * 1024 * 1024);
 
         $coverId = $this->uploadImage($version->public_id, 'cover', 'cover.png', 'Sampul aman');
         $inlineId = $this->uploadImage($version->public_id, 'inline_image', 'inline.png', 'Ilustrasi isi');
@@ -350,6 +381,40 @@ final class ContentMediaTest extends TestCase
             $marker,
             (string) Storage::disk('content')->get($attachment->storage_path),
         );
+        @unlink($source);
+    }
+
+    public function test_cover_source_above_storage_limit_is_optimized_before_storage(): void
+    {
+        $this->requireGd();
+        Storage::fake('content');
+        config()->set('content.attachments.image_uploads_enabled', true);
+        $admin = $this->user('admin', $this->campusA);
+        $version = app(ContentPublicationService::class)
+            ->createDraft($admin, $this->articlePayload('Sampul Besar'))
+            ->currentDraftVersion;
+        Sanctum::actingAs($admin, ['*']);
+
+        $source = tempnam(sys_get_temp_dir(), 'content-media-source-limit-');
+        $this->assertIsString($source);
+        $image = imagecreatetruecolor(32, 18);
+        $this->assertInstanceOf(GdImage::class, $image);
+        imagejpeg($image, $source, 95);
+        imagedestroy($image);
+        $bytes = file_get_contents($source);
+        $this->assertIsString($bytes);
+
+        $response = $this->postJson('/api/v1/content-management/versions/'.$version->public_id.'/attachments', [
+            'purpose' => ContentAttachmentPurpose::Cover->value,
+            'file' => UploadedFile::fake()->createWithContent(
+                'large-source.jpg',
+                $bytes.str_repeat("\0", (6 * 1024 * 1024) - strlen($bytes)),
+            ),
+            'alt_text' => 'Sampul besar yang dioptimalkan',
+        ])->assertCreated();
+        $attachment = ContentAttachment::query()->where('public_id', $response->json('data.public_id'))->firstOrFail();
+        $this->assertLessThan(5 * 1024 * 1024, $attachment->file_size);
+
         @unlink($source);
     }
 
@@ -527,8 +592,14 @@ final class ContentMediaTest extends TestCase
         $this->assertNotNull($reviewPermissionId);
         $super->role->permissions()->detach($reviewPermissionId);
         $super->unsetRelation('role');
+        $this->get('/api/v1/content/attachments/'.$cover->public_id)->assertOk();
+        $readerPermissionId = Permission::query()->where('code', 'content.read.management.all')->value('id');
+        $this->assertNotNull($readerPermissionId);
+        $super->role->permissions()->detach($readerPermissionId);
+        $super->unsetRelation('role');
         $this->get('/api/v1/content/attachments/'.$cover->public_id)->assertNotFound();
         $super->role->permissions()->attach($reviewPermissionId);
+        $super->role->permissions()->attach($readerPermissionId);
         $super->unsetRelation('role');
         Sanctum::actingAs($reporter, ['*']);
         $this->get('/api/v1/content/attachments/'.$cover->public_id)->assertOk();

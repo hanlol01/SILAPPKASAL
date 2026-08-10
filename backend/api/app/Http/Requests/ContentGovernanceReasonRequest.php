@@ -8,7 +8,7 @@ class ContentGovernanceReasonRequest extends ContentGovernanceActionRequest
     {
         return [
             ...parent::rules(),
-            'reason' => ['required', 'string', 'min:10', 'max:2000'],
+            'reason' => ['required', 'string', 'max:2000'],
         ];
     }
 }

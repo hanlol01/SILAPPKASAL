@@ -360,7 +360,7 @@ class ContentGovernanceTest extends TestCase
         $this->assertTrue($projectedVersion->relationLoaded('latestApprovalDecision'));
     }
 
-    public function test_revision_request_requires_reason_detects_stale_state_and_returns_feedback_to_campus(): void
+    public function test_revision_request_requires_non_empty_reason_detects_stale_state_and_returns_feedback_to_campus(): void
     {
         $item = $this->submittedCampusArticle('Perlu Perbaikan');
         Sanctum::actingAs($this->reviewer, ['*']);
@@ -373,7 +373,7 @@ class ContentGovernanceTest extends TestCase
 
         $this->postJson('/api/v1/content-governance/versions/'.$versionId.'/request-revision', [
             'lock_version' => $item->lock_version,
-            'reason' => 'Pendek',
+            'reason' => '',
         ])->assertUnprocessable()->assertJsonValidationErrors('reason');
 
         $this->postJson('/api/v1/content-governance/versions/'.$versionId.'/request-revision', [
@@ -383,7 +383,7 @@ class ContentGovernanceTest extends TestCase
 
         $this->postJson('/api/v1/content-governance/versions/'.$versionId.'/request-revision', [
             'lock_version' => $item->lock_version,
-            'reason' => 'Tambahkan sumber yang dapat diverifikasi oleh editor.',
+            'reason' => 'Pendek',
         ])->assertOk()->assertJsonPath('data.lifecycle_status', 'revision_requested');
 
         $this->assertDatabaseHas('content_review_decisions', [
@@ -393,7 +393,7 @@ class ContentGovernanceTest extends TestCase
         Sanctum::actingAs($this->admin, ['*']);
         $this->getJson('/api/v1/content-management/items/'.$item->public_id)
             ->assertOk()
-            ->assertJsonPath('data.review_feedback.reason', 'Tambahkan sumber yang dapat diverifikasi oleh editor.');
+            ->assertJsonPath('data.review_feedback.reason', 'Pendek');
     }
 
     public function test_resubmission_keeps_both_submission_events_and_latest_submitter_attribution(): void

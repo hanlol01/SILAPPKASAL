@@ -64,7 +64,7 @@ class BreakGlassFoundationTest extends TestCase
         $this->assertSame(1, $this->notificationsByType($admin, 'break_glass_request')->count());
     }
 
-    public function test_request_validation_rejects_invalid_duration_short_reason_and_non_anonymous_case(): void
+    public function test_request_validation_rejects_invalid_duration_empty_reason_and_non_anonymous_case(): void
     {
         [$case, $satgas] = $this->anonymousCase();
 
@@ -75,8 +75,13 @@ class BreakGlassFoundationTest extends TestCase
 
         $this->postJson('/api/v1/break-glass/request', [
             ...$this->requestPayload($case, 30),
-            'reason' => 'Terlalu singkat',
+            'reason' => '',
         ])->assertUnprocessable()->assertJsonValidationErrors('reason');
+
+        $this->postJson('/api/v1/break-glass/request', [
+            ...$this->requestPayload($case, 30),
+            'reason' => 'Singkat',
+        ])->assertCreated();
 
         $case->report()->update(['report_type' => 'confidential', 'tracking_code' => null]);
         $this->postJson('/api/v1/break-glass/request', $this->requestPayload($case, 30))

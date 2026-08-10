@@ -49,7 +49,7 @@ export function BreakGlassRequestDialog({
   registrationNumber,
   disabled = false,
 }: BreakGlassRequestDialogProps) {
-  const { t } = useTranslation(["dashboard"]);
+  const { t } = useTranslation(["dashboard", "common"]);
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [reasonCategory, setReasonCategory] =
@@ -85,8 +85,8 @@ export function BreakGlassRequestDialog({
   });
 
   function submit() {
-    if (reason.trim().length < 50) {
-      setFieldError(t("dashboard:breakGlass.request.reasonMin"));
+    if (!reason.trim()) {
+      setFieldError(t("common:validation.required"));
       return;
     }
 
@@ -172,7 +172,6 @@ export function BreakGlassRequestDialog({
               id="break-glass-reason"
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              minLength={50}
               maxLength={2000}
               disabled={mutation.isPending}
               placeholder={t("dashboard:breakGlass.request.reasonPlaceholder")}

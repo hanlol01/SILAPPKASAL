@@ -124,11 +124,12 @@ final class ContentImageFailClosedTest extends TestCase
             ->assertJsonPath('data.image_formats', []);
     }
 
-    public function test_request_and_capability_share_configured_cover_limit(): void
+    public function test_request_and_capability_share_configured_image_source_limit(): void
     {
         Storage::fake('content');
         config()->set('content.attachments.image_uploads_enabled', true);
         config()->set('content.attachments.cover_max_bytes', 1024);
+        config()->set('content.attachments.max_image_source_bytes', 1024);
         $this->app->instance(
             ContentImageProcessor::class,
             new CapabilityOnlyImageProcessor(['image/png']),
@@ -139,7 +140,8 @@ final class ContentImageFailClosedTest extends TestCase
 
         $this->getJson('/api/v1/content-management/capabilities')
             ->assertOk()
-            ->assertJsonPath('data.cover_max_bytes', 1024);
+            ->assertJsonPath('data.cover_max_bytes', 1024)
+            ->assertJsonPath('data.max_image_source_bytes', 1024);
         $this->postJson('/api/v1/content-management/versions/'.$version->public_id.'/attachments', [
             'purpose' => ContentAttachmentPurpose::Cover->value,
             'file' => UploadedFile::fake()->createWithContent(

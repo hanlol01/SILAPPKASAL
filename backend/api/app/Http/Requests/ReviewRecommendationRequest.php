@@ -29,7 +29,6 @@ class ReviewRecommendationRequest extends FormRequest
             'revision_note' => [
                 'nullable',
                 'string',
-                'min:10',
                 'max:5000',
                 Rule::requiredIf(fn (): bool => $this->input('action') === 'return_for_revision'),
                 Rule::prohibitedIf(fn (): bool => $this->input('action') === 'approve'),

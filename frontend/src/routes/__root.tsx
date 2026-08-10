@@ -9,9 +9,11 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { Toaster } from "sonner";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { AuthProvider } from "@/components/auth-provider";
 import { InstitutionalSupport } from "@/components/ui/institutional-support";
+import { localizedDocumentTitle } from "@/lib/page-title";
 
 import "@/i18n";
 
@@ -128,11 +130,16 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const { t, i18n } = useTranslation("common");
   const shouldRenderPublicFooter =
     pathname === "/information-center" ||
     pathname.startsWith("/information-center/") ||
     pathname === "/register" ||
     pathname === "/track";
+
+  useEffect(() => {
+    document.title = localizedDocumentTitle(t, pathname);
+  }, [i18n.language, pathname, t]);
 
   return (
     <QueryClientProvider client={queryClient}>

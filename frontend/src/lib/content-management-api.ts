@@ -316,6 +316,7 @@ export function getContentManagementCapabilities() {
     image_formats: string[];
     cover_max_bytes: number;
     inline_image_max_bytes: number;
+    max_image_source_bytes: number;
     alt_text_max_length: number;
   }>("/content-management/capabilities");
 }

@@ -89,8 +89,8 @@ export function BreakGlassPendingList({
   function submitDenial() {
     if (!denyTarget) return;
 
-    if (denialReason.trim().length < 10) {
-      toast.error(t("dashboard:breakGlass.errors.denialReasonMin"));
+    if (!denialReason.trim()) {
+      toast.error(t("common:validation.required"));
       return;
     }
 
@@ -103,8 +103,8 @@ export function BreakGlassPendingList({
   function submitRevocation() {
     if (!revokeTarget) return;
 
-    if (revocationReason.trim().length < 10) {
-      toast.error(t("dashboard:breakGlass.errors.revocationReasonMin"));
+    if (!revocationReason.trim()) {
+      toast.error(t("common:validation.required"));
       return;
     }
 

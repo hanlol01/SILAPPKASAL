@@ -16,7 +16,7 @@ class StoreContentAttachmentRequest extends FormRequest
     public function rules(): array
     {
         $purpose = ContentAttachmentPurpose::tryFrom((string) $this->input('purpose'));
-        $maxBytes = match ($purpose) {
+        $storedMaxBytes = match ($purpose) {
             ContentAttachmentPurpose::Cover => (int) config('content.attachments.cover_max_bytes'),
             ContentAttachmentPurpose::InlineImage => (int) config('content.attachments.inline_image_max_bytes'),
             ContentAttachmentPurpose::Attachment => (int) config('content.attachments.attachment_max_bytes'),
@@ -26,6 +26,9 @@ class StoreContentAttachmentRequest extends FormRequest
                 (int) config('content.attachments.attachment_max_bytes'),
             ),
         };
+        $maxBytes = in_array($purpose, [ContentAttachmentPurpose::Cover, ContentAttachmentPurpose::InlineImage], true)
+            ? (int) config('content.attachments.max_image_source_bytes', $storedMaxBytes)
+            : $storedMaxBytes;
         $maxKilobytes = max(1, (int) ceil($maxBytes / 1024));
 
         return [

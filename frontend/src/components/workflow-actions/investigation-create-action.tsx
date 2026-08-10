@@ -31,7 +31,6 @@ import { synchronizeWorkflowCaches } from "@/lib/workflow-cache-sync";
 
 function createInvestigationCreateSchema(messages: {
   planSummaryRequired: string;
-  planSummaryMin: string;
   planSummaryMax: string;
 }) {
   return z.object({
@@ -39,7 +38,6 @@ function createInvestigationCreateSchema(messages: {
       .string()
       .trim()
       .min(1, messages.planSummaryRequired)
-      .min(50, messages.planSummaryMin)
       .max(5000, messages.planSummaryMax),
   });
 }
@@ -58,7 +56,6 @@ export function InvestigationCreateAction({
     () =>
       createInvestigationCreateSchema({
         planSummaryRequired: t("dashboard:workflow.planSummaryRequired"),
-        planSummaryMin: t("dashboard:workflow.planSummaryMin"),
         planSummaryMax: t("dashboard:workflow.planSummaryMax"),
       }),
     [t],
@@ -116,8 +113,6 @@ export function InvestigationCreateAction({
               name="plan_summary"
               render={({ field }) => {
                 const length = (field.value ?? "").length;
-                const belowMinimum = length < 50;
-
                 return (
                   <FormItem>
                     <FormLabel>{t("dashboard:workflow.planSummary")}</FormLabel>
@@ -129,14 +124,14 @@ export function InvestigationCreateAction({
                       />
                     </FormControl>
                     <div className="flex items-center justify-between gap-2 text-xs">
-                      <p className={belowMinimum ? "text-warning" : "text-muted-foreground"}>
+                      <p className="text-muted-foreground">
                         {t("dashboard:workflow.planSummaryHelp")}
                       </p>
                       <span
                         aria-live="polite"
-                        className={belowMinimum ? "tabular-nums text-warning" : "tabular-nums text-muted-foreground"}
+                        className="tabular-nums text-muted-foreground"
                       >
-                        {belowMinimum ? `${length}/50` : `${length}/5000`}
+                        {length}/5000
                       </span>
                     </div>
                     <FormMessage />

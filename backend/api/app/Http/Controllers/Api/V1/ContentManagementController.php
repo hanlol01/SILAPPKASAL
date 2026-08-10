@@ -100,6 +100,7 @@ class ContentManagementController extends Controller
             'image_formats' => $this->attachments->supportedImageMimeTypes(),
             'cover_max_bytes' => (int) config('content.attachments.cover_max_bytes'),
             'inline_image_max_bytes' => (int) config('content.attachments.inline_image_max_bytes'),
+            'max_image_source_bytes' => (int) config('content.attachments.max_image_source_bytes'),
             'alt_text_max_length' => (int) config('content.attachments.alt_text_max_length', 500),
         ], 'Content management capabilities retrieved successfully');
     }

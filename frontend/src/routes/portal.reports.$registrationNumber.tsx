@@ -198,7 +198,7 @@ function ReportDetail({ report }: ReportDetailProps) {
         <PortalReportTypeBadge reportType={report.report_type} />
         {report.withdrawal_capabilities.can_cancel ? (
           <CancelComplaintDialog registrationNumber={report.registration_number} />
-        ) : (
+        ) : report.portal_status !== "withdrawn" ? (
           (report.withdrawal_capabilities.can_request_withdrawal ||
             report.withdrawal_capabilities.active_withdrawal ||
             report.withdrawal_capabilities.latest_withdrawal) && (
@@ -211,7 +211,7 @@ function ReportDetail({ report }: ReportDetailProps) {
               }
             />
           )
-        )}
+        ) : null}
       </div>
 
       {/* Safe final completion message — shown only for the reporter-safe Completed status */}

@@ -18,12 +18,15 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import { ApiError } from "@/lib/api-client";
-import { getPublishedArticleBySlug, publishedContentKeys } from "@/lib/published-content-api";
+import { getPublishedArticle, getPublishedArticleBySlug, publishedContentKeys } from "@/lib/published-content-api";
 
 export function ReporterArticleDetailPage({ slug, section, area = "portal" }: { slug: string; section: "education" | "policy"; area?: "portal" | "dashboard" }) {
   const { t, i18n } = useTranslation("informationCenter");
-  const { user } = useAuth();
-  const query = useQuery({ queryKey: publishedContentKeys.article(user?.id, `slug:${section}:${slug}`), queryFn: ({ signal }) => getPublishedArticleBySlug(section, slug, signal), staleTime: 2 * 60 * 1000, retry: (count, error) => !(error instanceof ApiError && error.status === 404) && count < 2 });
+  const { roleCode, user } = useAuth();
+  const isSuperAdminPublicId = area === "dashboard"
+    && roleCode === "super_admin"
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(slug);
+  const query = useQuery({ queryKey: publishedContentKeys.article(user?.id, `${isSuperAdminPublicId ? "public" : "slug"}:${section}:${slug}`), queryFn: ({ signal }) => isSuperAdminPublicId ? getPublishedArticle(slug, signal) : getPublishedArticleBySlug(section, slug, signal), staleTime: 2 * 60 * 1000, retry: (count, error) => !(error instanceof ApiError && error.status === 404) && count < 2 });
   const listTo = area === "portal"
     ? (section === "education" ? "/portal/information-center/education" : "/portal/information-center/policies")
     : (section === "education" ? "/dashboard/information-center/education" : "/dashboard/information-center/policies");

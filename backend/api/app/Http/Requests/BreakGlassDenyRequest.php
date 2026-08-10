@@ -28,7 +28,7 @@ class BreakGlassDenyRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'denial_reason' => ['required', 'string', 'min:10', 'max:2000'],
+            'denial_reason' => ['required', 'string', 'max:2000'],
         ];
     }
 }

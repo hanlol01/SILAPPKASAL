@@ -141,7 +141,7 @@ function RegistrationDetailPage() {
                       <AlertDialogTrigger asChild>
                         <Button
                           variant="destructive"
-                          disabled={rejectMutation.isPending || reason.trim().length < 10}
+                          disabled={rejectMutation.isPending || !reason.trim()}
                         >
                           {t("dashboard:registrations.reject")}
                         </Button>

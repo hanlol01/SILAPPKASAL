@@ -644,7 +644,7 @@ function ReviewDetail({ publicId, onClose }: { publicId: string | null; onClose:
     },
   });
   const submitDecision = () => {
-    if (mode !== "approve" && note.trim().length < 10) {
+    if (mode !== "approve" && !note.trim()) {
       toast.error(t("contentGovernance:review.noteRequired"));
       return;
     }
@@ -654,29 +654,31 @@ function ReviewDetail({ publicId, onClose }: { publicId: string | null; onClose:
   return (
     <>
       <Sheet open={Boolean(publicId)} onOpenChange={(open) => { if (!open) onClose(); }}>
-        <SheetContent className="w-full overflow-y-auto p-0 sm:max-w-2xl lg:max-w-4xl">
-          <SheetHeader className="border-b p-5">
+        <SheetContent className="flex h-full w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl lg:max-w-4xl">
+          <SheetHeader className="shrink-0 border-b p-5 pr-14">
             <SheetTitle>{t("contentGovernance:review.detailTitle")}</SheetTitle>
             <SheetDescription>{t("contentGovernance:review.detailDescription")}</SheetDescription>
           </SheetHeader>
-          {query.isLoading && <div className="space-y-3 p-5"><Skeleton className="h-8 w-2/3" /><Skeleton className="h-64 w-full" /></div>}
-          {query.isError && <div className="p-5"><QueryErrorState message={t("contentGovernance:review.loadError")} onRetry={() => query.refetch()} /></div>}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {query.isLoading && <div className="space-y-3 p-5"><Skeleton className="h-8 w-2/3" /><Skeleton className="h-64 w-full" /></div>}
+            {query.isError && <div className="p-5"><QueryErrorState message={t("contentGovernance:review.loadError")} onRetry={() => query.refetch()} /></div>}
+            {query.data && (
+              <div className="space-y-6 p-5">
+                <ReviewMetadata item={query.data} />
+                <Alert>
+                  <ShieldCheck className="h-4 w-4" />
+                  <AlertTitle>{query.data.scope === "campus" ? t("contentGovernance:review.readOnlyCampus") : t("contentGovernance:global.secondReview")}</AlertTitle>
+                </Alert>
+                <VersionPreview title={t("contentGovernance:review.currentVersion")} item={query.data} version={query.data.version} />
+                {query.data.previous_published_version ? (
+                  <VersionPreview title={t("contentGovernance:review.previousVersion")} item={query.data} version={query.data.previous_published_version} />
+                ) : <p className="text-sm text-muted-foreground">{t("contentGovernance:review.noPrevious")}</p>}
+                <DecisionHistory item={query.data} />
+              </div>
+            )}
+          </div>
           {query.data && (
-            <div className="space-y-6 p-5 pb-28">
-              <ReviewMetadata item={query.data} />
-              <Alert>
-                <ShieldCheck className="h-4 w-4" />
-                <AlertTitle>{query.data.scope === "campus" ? t("contentGovernance:review.readOnlyCampus") : t("contentGovernance:global.secondReview")}</AlertTitle>
-              </Alert>
-              <VersionPreview title={t("contentGovernance:review.currentVersion")} item={query.data} version={query.data.version} />
-              {query.data.previous_published_version ? (
-                <VersionPreview title={t("contentGovernance:review.previousVersion")} item={query.data} version={query.data.previous_published_version} />
-              ) : <p className="text-sm text-muted-foreground">{t("contentGovernance:review.noPrevious")}</p>}
-              <DecisionHistory item={query.data} />
-            </div>
-          )}
-          {query.data && (
-            <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur sm:absolute">
+            <div className="shrink-0 border-t bg-background/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur">
               <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:justify-end">
                 {query.data.capabilities.start_review && <Button className="min-h-11 w-full sm:w-auto" disabled={action.isPending} onClick={() => action.mutate({ kind: "start" })}><Clock3 className="mr-2 h-4 w-4" />{t("contentGovernance:review.start")}</Button>}
                 {query.data.capabilities.request_revision && <Button variant="outline" className="min-h-11 w-full sm:w-auto" onClick={() => setMode("revision")}><FileCheck2 className="mr-2 h-4 w-4" />{t("contentGovernance:review.requestRevision")}</Button>}

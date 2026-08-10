@@ -250,7 +250,7 @@ class InvestigationFoundationTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_investigation_creation_requires_plan_summary_minimum_length(): void
+    public function test_investigation_creation_requires_non_empty_plan_summary_without_minimum_length(): void
     {
         $admin = $this->makeUser('admin', 'admin@university.ac.id');
         $satgas = $this->makeUser('satgas_ppks', 'satgas@university.ac.id');
@@ -265,8 +265,8 @@ class InvestigationFoundationTest extends TestCase
         $this->postJson("/api/v1/cases/{$case->id}/investigations", [
             'plan_summary' => 'Terlalu pendek.',
         ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('plan_summary');
+            ->assertCreated()
+            ->assertJsonPath('data.plan_summary', 'Terlalu pendek.');
     }
 
     public function test_investigation_actions_dispatch_audit_logs_and_notifications(): void
