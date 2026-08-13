@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\IssueCaseClosureDocumentRequest;
 use App\Http\Resources\CaseClosureDocumentResource;
 use App\Models\CaseClosureDocument;
 use App\Models\CaseRecord;
@@ -24,12 +25,13 @@ class CaseClosureDocumentController extends Controller
         return response()->json(['success' => true, 'message' => 'Case closure document retrieved successfully', 'data' => [
             'document' => $details['document'] ? new CaseClosureDocumentResource($details['document']) : null,
             'capabilities' => $details['capabilities'],
+            'signer_options' => $details['signer_options'],
         ]]);
     }
 
-    public function issue(Request $request, CaseRecord $case): JsonResponse
+    public function issue(IssueCaseClosureDocumentRequest $request, CaseRecord $case): JsonResponse
     {
-        $document = $this->service->issue($case, $request->user());
+        $document = $this->service->issue($case, $request->user(), $request->validated('signer_id'));
         return response()->json(['success' => true, 'message' => 'Case closure document issued successfully', 'data' => new CaseClosureDocumentResource($document)], 201);
     }
 

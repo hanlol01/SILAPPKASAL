@@ -43,7 +43,19 @@ class CaseClosureDocumentTest extends TestCase
             ->assertJsonPath('data.document_number', 'BAHPKS/'.now('Asia/Jakarta')->format('Y').'/'.$case->case_number);
 
         $document = $issued->json('data');
-        $this->assertDatabaseHas('case_closure_documents', ['case_id' => $case->id, 'public_id' => $document['public_id']]);
+        $this->assertDatabaseHas('case_closure_documents', [
+            'case_id' => $case->id,
+            'public_id' => $document['public_id'],
+            'signer_id' => $satgas->id,
+            'signer_name' => 'Satgas Penandatangan',
+            'signer_identity_number' => '198001012026041001',
+        ]);
+        $satgas->forceFill(['name' => 'Nama Satgas Diperbarui', 'nip' => 'NIP-BARU'])->save();
+        $this->assertDatabaseHas('case_closure_documents', [
+            'case_id' => $case->id,
+            'signer_name' => 'Satgas Penandatangan',
+            'signer_identity_number' => '198001012026041001',
+        ]);
         Storage::disk('case_documents')->assertExists(CaseRecord::query()->findOrFail($case->id)->closureDocument->storage_path);
         $issueAudit = AuditLog::query()->where('action', 'case_closure_document.issued')->firstOrFail();
         $auditMetadata = json_encode($issueAudit->metadata, JSON_THROW_ON_ERROR);
@@ -73,7 +85,7 @@ class CaseClosureDocumentTest extends TestCase
             ->assertHeader('Cross-Origin-Resource-Policy', 'same-origin');
     }
 
-    public function test_issue_requires_closed_case_and_complete_lead_signer_data(): void
+    public function test_issue_requires_closed_case_and_an_eligible_assigned_signer(): void
     {
         [$admin, $satgas, $reporter, $case] = $this->closedCase();
         $case->forceFill(['closed_at' => null, 'status_code' => CaseStatus::query()->where('name', CaseStatusEnum::Recovery->value)->firstOrFail()->code])->save();
@@ -86,7 +98,96 @@ class CaseClosureDocumentTest extends TestCase
         $satgas->forceFill(['nip' => null])->save();
         $this->postJson("/api/v1/cases/{$case->id}/closure-document")
             ->assertUnprocessable()
-            ->assertJsonPath('error_code', 'case_closure_document_prerequisites_missing');
+            ->assertJsonPath('error_code', 'case_closure_document_signer_missing');
+        $this->assertDatabaseMissing('case_closure_documents', ['case_id' => $case->id]);
+        $this->assertDatabaseMissing('audit_logs', ['action' => 'case_closure_document.issued']);
+    }
+
+    public function test_multiple_eligible_signers_require_an_explicit_active_assignment_selection(): void
+    {
+        [$admin, $satgas, $reporter, $case] = $this->closedCase();
+        $secondSatgas = $this->user(
+            'satgas_ppks',
+            'second-signer@example.test',
+            $reporter->university,
+            'Satgas Penandatangan Kedua',
+            '198202022026042002',
+        );
+        CaseAssignment::query()->create([
+            'case_id' => $case->id,
+            'satgas_id' => $secondSatgas->id,
+            'assigned_by' => $admin->id,
+            'is_lead' => false,
+            'is_active' => true,
+            'assigned_at' => now()->subWeeks(2),
+        ]);
+
+        Sanctum::actingAs($admin, ['*']);
+        $this->getJson("/api/v1/cases/{$case->id}/closure-document")
+            ->assertOk()
+            ->assertJsonPath('data.capabilities.issue', true)
+            ->assertJsonPath('data.signer_options.selection_required', true)
+            ->assertJsonCount(2, 'data.signer_options.eligible_signers');
+
+        $this->postJson("/api/v1/cases/{$case->id}/closure-document")
+            ->assertUnprocessable()
+            ->assertJsonPath('error_code', 'case_closure_document_signer_selection_required');
+        $this->assertDatabaseMissing('case_closure_documents', ['case_id' => $case->id]);
+
+        $this->postJson("/api/v1/cases/{$case->id}/closure-document", ['signer_id' => $secondSatgas->id])
+            ->assertCreated();
+        $this->assertDatabaseHas('case_closure_documents', [
+            'case_id' => $case->id,
+            'signer_id' => $secondSatgas->id,
+            'signer_name' => 'Satgas Penandatangan Kedua',
+            'signer_identity_number' => '198202022026042002',
+        ]);
+    }
+
+    public function test_selected_signer_must_be_active_assigned_and_have_an_identity_number(): void
+    {
+        [$admin, $satgas, $reporter, $case] = $this->closedCase();
+        $unassigned = $this->user(
+            'satgas_ppks',
+            'unassigned-signer@example.test',
+            $reporter->university,
+            'Satgas Tidak Ditugaskan',
+            '198303032026043003',
+        );
+        $inactive = $this->user(
+            'satgas_ppks',
+            'inactive-signer@example.test',
+            $reporter->university,
+            'Satgas Tidak Aktif',
+            '198404042026044004',
+        );
+        $inactive->forceFill(['is_active' => false])->save();
+        $missingIdentity = $this->user(
+            'satgas_ppks',
+            'missing-identity@example.test',
+            $reporter->university,
+            'Satgas Tanpa Identitas',
+        );
+        foreach ([$inactive, $missingIdentity] as $candidate) {
+            CaseAssignment::query()->create([
+                'case_id' => $case->id,
+                'satgas_id' => $candidate->id,
+                'assigned_by' => $admin->id,
+                'is_lead' => false,
+                'is_active' => true,
+                'assigned_at' => now()->subWeek(),
+            ]);
+        }
+
+        Sanctum::actingAs($admin, ['*']);
+        foreach ([$unassigned, $inactive, $missingIdentity] as $candidate) {
+            $this->postJson("/api/v1/cases/{$case->id}/closure-document", ['signer_id' => $candidate->id])
+                ->assertUnprocessable()
+                ->assertJsonPath('error_code', 'case_closure_document_signer_invalid');
+        }
+
+        $this->assertDatabaseMissing('case_closure_documents', ['case_id' => $case->id]);
+        $this->assertDatabaseMissing('audit_logs', ['action' => 'case_closure_document.issued']);
     }
 
     public function test_pdf_template_preserves_fixed_copy_and_only_projects_declared_placeholders(): void
@@ -103,8 +204,8 @@ class CaseClosureDocumentTest extends TestCase
             'issuedYear' => '2026',
             'issuedDateLong' => 'Kamis, 13 Agustus 2026',
             'caseStatus' => 'Ditutup',
-            'leadName' => 'Ketua Satgas Template',
-            'leadNip' => '198001012026041001',
+            'signerName' => 'Penandatangan Berita Acara Template',
+            'signerIdentityNumber' => '198001012026041001',
         ])->render();
 
         $this->assertStringContainsString('HASIL AKHIR REKAPITULASI PELAPORAN DUGAAN KASUS KEKERASAN', $html);
@@ -113,7 +214,7 @@ class CaseClosureDocumentTest extends TestCase
         $this->assertStringContainsString('SLP-TEMPLATE-001', $html);
         $this->assertStringContainsString('Rekapitulasi ini merupakan dokumen administrasi', $html);
         $this->assertStringContainsString('tidak dimaksudkan sebagai putusan hukum', $html);
-        $this->assertStringContainsString('Ketua Satgas Template', $html);
+        $this->assertStringContainsString('Penandatangan Berita Acara Template', $html);
         $this->assertStringContainsString('198001012026041001', $html);
         $this->assertStringNotContainsString('officialStatement', $html);
         $this->assertStringNotContainsString('closingExplanation', $html);
@@ -139,7 +240,7 @@ class CaseClosureDocumentTest extends TestCase
             'report_id' => $report->id, 'registration_number' => $report->registration_number, 'case_number' => 'CASE-DOC-001',
             'status_code' => $closed->code, 'current_stage' => $closed->workflow_stage, 'forwarded_at' => now()->subWeeks(3), 'closed_at' => now(),
         ]);
-        CaseAssignment::query()->create(['case_id' => $case->id, 'satgas_id' => $satgas->id, 'assigned_by' => $admin->id, 'is_lead' => true, 'is_active' => true, 'assigned_at' => now()->subWeeks(3)]);
+        CaseAssignment::query()->create(['case_id' => $case->id, 'satgas_id' => $satgas->id, 'assigned_by' => $admin->id, 'is_lead' => false, 'is_active' => true, 'assigned_at' => now()->subWeeks(3)]);
         CaseFinalSummary::query()->create([
             'case_id' => $case->id, 'outcome_code' => 'resolved', 'completion_date' => now()->toDateString(),
             'official_statement' => 'Penanganan laporan telah selesai sesuai prosedur.', 'closing_explanation' => 'Kasus ditutup setelah prasyarat terpenuhi.',

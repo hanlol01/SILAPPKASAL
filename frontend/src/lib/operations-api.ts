@@ -135,8 +135,11 @@ export function getCaseClosureDocument(caseId: string | number) {
   return apiRequest<CaseClosureDocumentEnvelope>(`/cases/${caseId}/closure-document`);
 }
 
-export function issueCaseClosureDocument(caseId: string | number) {
-  return apiRequest<CaseClosureDocument>(`/cases/${caseId}/closure-document`, { method: "POST" });
+export function issueCaseClosureDocument(caseId: string | number, payload?: { signer_id?: number }) {
+  return apiRequest<CaseClosureDocument>(`/cases/${caseId}/closure-document`, {
+    method: "POST",
+    body: JSON.stringify(payload ?? {}),
+  });
 }
 
 export function downloadCaseClosureDocument(publicId: string) {

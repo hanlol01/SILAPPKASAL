@@ -30,30 +30,57 @@ class CaseClosureDocumentService
         private readonly CaseClosureDocumentPolicy $policy,
     ) {}
 
-    /** @return array{document: ?CaseClosureDocument, capabilities: array{manage: bool, issue: bool, preview: bool, download: bool}} */
+    /**
+     * @return array{
+     *     document: ?CaseClosureDocument,
+     *     capabilities: array{manage: bool, issue: bool, preview: bool, download: bool},
+     *     signer_options: array{selection_required: bool, eligible_signers: list<array{id: int, name: string, identity_number: string}>}
+     * }
+     */
     public function details(CaseRecord $case, User $actor): array
     {
-        $case->loadMissing('closureDocument.case.report.reporter');
+        $case->loadMissing([
+            'closureDocument.case.report.reporter',
+            'status',
+            'finalSummary',
+            'report.reporter.university',
+            'activeAssignments.satgas',
+        ]);
         $document = $case->closureDocument;
         $canRead = $document !== null && $this->policy->view($actor, $document);
+        $canManage = $this->policy->issue($actor, $case);
+        $eligibleSigners = $canManage && $document === null
+            ? $this->eligibleSigners($case)
+            : collect();
 
         return [
             'document' => $canRead ? $document : null,
             'capabilities' => [
-                'manage' => $this->policy->issue($actor, $case),
-                'issue' => $this->policy->issue($actor, $case) && $this->canIssue($case),
+                'manage' => $canManage,
+                'issue' => $canManage && $this->canIssue($case, $eligibleSigners->isNotEmpty()),
                 'preview' => $canRead,
                 'download' => $canRead,
+            ],
+            'signer_options' => [
+                'selection_required' => $eligibleSigners->count() > 1,
+                'eligible_signers' => $eligibleSigners
+                    ->map(fn (User $signer): array => [
+                        'id' => $signer->id,
+                        'name' => $signer->name,
+                        'identity_number' => $this->identityNumber($signer),
+                    ])
+                    ->values()
+                    ->all(),
             ],
         ];
     }
 
-    public function issue(CaseRecord $case, User $actor): CaseClosureDocument
+    public function issue(CaseRecord $case, User $actor, ?int $signerId = null): CaseClosureDocument
     {
         $storedPath = null;
 
         try {
-            return DB::transaction(function () use ($case, $actor, &$storedPath): CaseClosureDocument {
+            return DB::transaction(function () use ($case, $actor, $signerId, &$storedPath): CaseClosureDocument {
                 $case = CaseRecord::query()
                     ->with([
                         'status',
@@ -71,16 +98,12 @@ class CaseClosureDocumentService
                     return CaseClosureDocument::query()->where('case_id', $case->id)->firstOrFail();
                 }
                 $this->assertIssuable($case);
-
-                $lead = $case->activeAssignments
-                    ->first(fn (CaseAssignment $assignment): bool => $assignment->is_lead && $assignment->satgas?->is_active);
-                if ($lead?->satgas === null || blank($lead->satgas->nip)) {
-                    throw $this->unprocessableCode(ApiErrorCode::CaseClosureDocumentSignerMissing);
-                }
+                $signer = $this->resolveSigner($case, $signerId);
+                $signerIdentityNumber = $this->identityNumber($signer);
 
                 $issuedAt = now('Asia/Jakarta');
                 $documentNumber = sprintf('BAHPKS/%s/%s', $issuedAt->format('Y'), $case->case_number);
-                $pdf = $this->renderPdf($case, $lead->satgas, $issuedAt, $documentNumber);
+                $pdf = $this->renderPdf($case, $signer->name, $signerIdentityNumber, $issuedAt, $documentNumber);
                 $storedPath = sprintf('%s/%s.pdf', $case->id, (string) \Illuminate\Support\Str::uuid());
 
                 if (! Storage::disk(self::FILE_DISK)->put($storedPath, $pdf, ['visibility' => 'private'])) {
@@ -90,6 +113,9 @@ class CaseClosureDocumentService
                 $document = CaseClosureDocument::query()->create([
                     'case_id' => $case->id,
                     'final_summary_id' => $case->finalSummary->id,
+                    'signer_id' => $signer->id,
+                    'signer_name' => $signer->name,
+                    'signer_identity_number' => $signerIdentityNumber,
                     'document_number' => $documentNumber,
                     'storage_disk' => self::FILE_DISK,
                     'storage_path' => $storedPath,
@@ -130,25 +156,79 @@ class CaseClosureDocumentService
         return $this->stream($document, $actor, $preview);
     }
 
-    private function canIssue(CaseRecord $case): bool
+    private function canIssue(CaseRecord $case, ?bool $hasEligibleSigner = null): bool
     {
         $case->loadMissing(['status', 'finalSummary', 'report.reporter.university', 'activeAssignments.satgas']);
 
-        return $case->closureDocument === null
-            && $case->isClosed()
-            && $case->finalSummary?->isPublished() === true
-            && filled($case->report?->reporter?->university?->address)
-            && $case->activeAssignments->contains(fn (CaseAssignment $assignment): bool => $assignment->is_lead && $assignment->satgas?->is_active && filled($assignment->satgas?->nip));
+        return $this->hasIssuancePrerequisites($case)
+            && ($hasEligibleSigner ?? $this->eligibleSigners($case)->isNotEmpty());
     }
 
     private function assertIssuable(CaseRecord $case): void
     {
-        if (! $this->canIssue($case)) {
+        if (! $this->hasIssuancePrerequisites($case)) {
             throw $this->unprocessableCode(ApiErrorCode::CaseClosureDocumentPrerequisitesMissing);
         }
     }
 
-    private function renderPdf(CaseRecord $case, User $lead, \Carbon\CarbonInterface $issuedAt, string $documentNumber): string
+    private function hasIssuancePrerequisites(CaseRecord $case): bool
+    {
+        return $case->closureDocument === null
+            && $case->isClosed()
+            && $case->finalSummary?->isPublished() === true
+            && filled($case->report?->reporter?->university?->address);
+    }
+
+    /** @return \Illuminate\Database\Eloquent\Collection<int, User> */
+    private function eligibleSigners(CaseRecord $case): \Illuminate\Database\Eloquent\Collection
+    {
+        $case->loadMissing('activeAssignments.satgas');
+
+        return $case->activeAssignments
+            ->map(fn (CaseAssignment $assignment): ?User => $assignment->satgas)
+            ->filter(fn (?User $satgas): bool => $satgas?->is_active === true
+                && $satgas->hasRole('satgas_ppks')
+                && filled($this->identityNumber($satgas)))
+            ->unique('id')
+            ->sortBy(fn (User $satgas): string => sprintf('%s-%020d', mb_strtolower($satgas->name), $satgas->id))
+            ->values();
+    }
+
+    private function resolveSigner(CaseRecord $case, ?int $signerId): User
+    {
+        $eligibleSigners = $this->eligibleSigners($case);
+        if ($eligibleSigners->isEmpty()) {
+            throw $this->unprocessableCode(ApiErrorCode::CaseClosureDocumentSignerMissing);
+        }
+
+        if ($signerId === null) {
+            if ($eligibleSigners->count() > 1) {
+                throw $this->unprocessableCode(ApiErrorCode::CaseClosureDocumentSignerSelectionRequired);
+            }
+
+            return $eligibleSigners->firstOrFail();
+        }
+
+        $signer = $eligibleSigners->first(fn (User $candidate): bool => $candidate->id === $signerId);
+        if ($signer === null) {
+            throw $this->unprocessableCode(ApiErrorCode::CaseClosureDocumentSignerInvalid);
+        }
+
+        return $signer;
+    }
+
+    private function identityNumber(User $signer): string
+    {
+        return trim((string) $signer->nip);
+    }
+
+    private function renderPdf(
+        CaseRecord $case,
+        string $signerName,
+        string $signerIdentityNumber,
+        \Carbon\CarbonInterface $issuedAt,
+        string $documentNumber,
+    ): string
     {
         $university = $case->report?->reporter?->university;
         $options = new Options;
@@ -169,8 +249,8 @@ class CaseClosureDocumentService
             'issuedYear' => $issuedAt->format('Y'),
             'issuedDateLong' => $issuedAt->copy()->locale('id')->translatedFormat('l, d F Y'),
             'caseStatus' => 'Ditutup',
-            'leadName' => $lead->name,
-            'leadNip' => $lead->nip,
+            'signerName' => $signerName,
+            'signerIdentityNumber' => $signerIdentityNumber,
         ])->render(), 'UTF-8');
         $pdf->render();
 

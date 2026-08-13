@@ -138,5 +138,9 @@ final class ApiErrorCode
 
     public const CaseClosureDocumentSignerMissing = 'case_closure_document_signer_missing';
 
+    public const CaseClosureDocumentSignerSelectionRequired = 'case_closure_document_signer_selection_required';
+
+    public const CaseClosureDocumentSignerInvalid = 'case_closure_document_signer_invalid';
+
     private function __construct() {}
 }

@@ -103,8 +103,8 @@
         <p>Ketua Satuan Tugas Pencegahan dan Penanganan Kekerasan</p>
         <p>{{ $universityName }}</p>
         <div class="signature-space"></div>
-        <p class="signer-name">{{ $leadName }}</p>
-        <p>NIP/NIK {{ $leadNip }}</p>
+        <p class="signer-name">{{ $signerName }}</p>
+        <p>NIP/NIK {{ $signerIdentityNumber }}</p>
     </div>
 </body>
 </html>

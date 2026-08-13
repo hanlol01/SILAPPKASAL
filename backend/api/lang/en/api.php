@@ -58,7 +58,9 @@ return [
         'case_minute_revision_source_invalid' => 'A revision can only be created from the active finalized Case Minute.',
         'case_minute_update_required' => 'Provide at least one change for the Case Minute draft.',
         'case_closure_document_prerequisites_missing' => 'The Case Closure Document can only be issued after the Case is closed, its final summary is published, and the signer data is complete.',
-        'case_closure_document_signer_missing' => 'An active lead Satgas with an employee or identity number is required before issuing the Case Closure Document.',
+        'case_closure_document_signer_missing' => 'The Case Closure Document cannot be issued because no active assigned Satgas has an employee or identity number. Assign an active Satgas and complete the number first.',
+        'case_closure_document_signer_selection_required' => 'Select one Penandatangan Berita Acara from the active Satgas assigned to this Case before issuing the document.',
+        'case_closure_document_signer_invalid' => 'The Penandatangan Berita Acara must be an active Satgas assigned to this Case and have an employee or identity number.',
     ],
     'messages' => [
         'report_cancelled' => 'The complaint was cancelled successfully.',

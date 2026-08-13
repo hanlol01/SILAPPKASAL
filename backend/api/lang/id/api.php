@@ -58,7 +58,9 @@ return [
         'case_minute_revision_source_invalid' => 'Revisi hanya dapat dibuat dari Berita Acara final aktif.',
         'case_minute_update_required' => 'Sertakan setidaknya satu perubahan untuk draf Berita Acara.',
         'case_closure_document_prerequisites_missing' => 'Berita Acara Hasil Pelaporan hanya dapat diterbitkan setelah Kasus ditutup, rangkuman akhir diterbitkan, dan data penandatangan lengkap.',
-        'case_closure_document_signer_missing' => 'Ketua Satgas aktif dengan NIP/NIK wajib tersedia sebelum Berita Acara Hasil Pelaporan diterbitkan.',
+        'case_closure_document_signer_missing' => 'Berita Acara Hasil Pelaporan belum dapat diterbitkan karena tidak ada Satgas aktif yang ditugaskan dengan NIP/NIK. Tugaskan Satgas aktif dan lengkapi NIP/NIK terlebih dahulu.',
+        'case_closure_document_signer_selection_required' => 'Pilih satu Penandatangan Berita Acara dari Satgas aktif yang ditugaskan sebelum menerbitkan dokumen.',
+        'case_closure_document_signer_invalid' => 'Penandatangan Berita Acara harus merupakan Satgas aktif yang ditugaskan pada Kasus ini dan memiliki NIP/NIK.',
     ],
     'messages' => [
         'report_cancelled' => 'Pengaduan berhasil dibatalkan.',

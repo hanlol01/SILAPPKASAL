@@ -14,6 +14,9 @@ class CaseClosureDocument extends Model
     protected $fillable = [
         'case_id',
         'final_summary_id',
+        'signer_id',
+        'signer_name',
+        'signer_identity_number',
         'document_number',
         'storage_disk',
         'storage_path',
@@ -55,5 +58,10 @@ class CaseClosureDocument extends Model
     public function issuer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'issued_by');
+    }
+
+    public function signer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'signer_id');
     }
 }

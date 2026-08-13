@@ -405,6 +405,17 @@ export interface CaseClosureDocument {
   issued_at: string | null;
 }
 
+export interface CaseClosureSignerOption {
+  id: number;
+  name: string;
+  identity_number: string;
+}
+
+export interface CaseClosureSignerOptions {
+  selection_required: boolean;
+  eligible_signers: CaseClosureSignerOption[];
+}
+
 export interface CaseClosureDocumentEnvelope {
   document: CaseClosureDocument | null;
   capabilities: {
@@ -413,6 +424,7 @@ export interface CaseClosureDocumentEnvelope {
     preview: boolean;
     download: boolean;
   };
+  signer_options: CaseClosureSignerOptions;
 }
 
 export type CaseFinalSummaryPayload = Omit<
