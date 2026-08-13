@@ -42,6 +42,8 @@ final class ApiErrorCode
 
     public const ReportWithdrawalDocumentInvalid = 'report_withdrawal_document_invalid';
 
+    public const ReportWithdrawalDraftProfileIncomplete = 'report_withdrawal_draft_profile_incomplete';
+
     public const ReportWithdrawalStorageFailed = 'report_withdrawal_storage_failed';
 
     public const ReportWithdrawalNotFound = 'report_withdrawal_not_found';

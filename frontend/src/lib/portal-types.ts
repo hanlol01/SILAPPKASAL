@@ -291,12 +291,20 @@ export interface PortalProfile {
   phone_number: string | null;
   nim: string | null;
   nip: string | null;
+  profile_status: ProfileStatusCode | null;
+  profile_status_other: string | null;
+  address: string | null;
 }
 
 /** Payload for PATCH /api/v1/me/profile — only name and phone_number are editable. */
+export type ProfileStatusCode = "student" | "lecturer" | "education_staff" | "employee" | "other";
+
 export interface PortalProfileUpdatePayload {
-  name: string;
-  phone_number: string | null;
+  name?: string;
+  phone_number?: string | null;
+  profile_status?: ProfileStatusCode | null;
+  profile_status_other?: string | null;
+  address?: string | null;
 }
 
 // ---------------------------------------------------------------------------

@@ -14,10 +14,18 @@ class UpdateOwnProfileRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->exists('name')) {
-            $this->merge([
-                'name' => $this->filled('name') ? trim((string) $this->input('name')) : $this->input('name'),
-            ]);
+        $normalized = [];
+
+        foreach (['name', 'profile_status', 'profile_status_other', 'address'] as $field) {
+            if ($this->exists($field)) {
+                $normalized[$field] = $this->filled($field)
+                    ? trim((string) $this->input($field))
+                    : $this->input($field);
+            }
+        }
+
+        if ($normalized !== []) {
+            $this->merge($normalized);
         }
     }
 
@@ -29,6 +37,9 @@ class UpdateOwnProfileRequest extends FormRequest
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'phone_number' => ['sometimes', 'nullable', 'string', new PhoneNumber],
+            'profile_status' => ['sometimes', 'nullable', 'string', 'in:student,lecturer,education_staff,employee,other'],
+            'profile_status_other' => ['nullable', 'string', 'max:100', 'required_if:profile_status,other'],
+            'address' => ['sometimes', 'nullable', 'string', 'max:160'],
             'email' => ['prohibited'],
             'nim' => ['prohibited'],
             'nip' => ['prohibited'],

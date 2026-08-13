@@ -57,6 +57,11 @@ class CaseClosureDocumentTest extends TestCase
         $this->assertStringContainsString('private', (string) $download->headers->get('Cache-Control'));
         $this->assertStringContainsString('no-store', (string) $download->headers->get('Cache-Control'));
 
+        $this->getJson("/api/v1/portal/reports/{$case->registration_number}/handling-progress")
+            ->assertOk()
+            ->assertJsonPath('data.closure_document.available', true)
+            ->assertJsonPath('data.closure_document.document_number', $document['document_number']);
+
         $otherReporter = $this->user('reporter', 'other-reporter@example.test', $reporter->university);
         Sanctum::actingAs($otherReporter, ['*']);
         $this->getJson("/api/v1/portal/reports/{$case->registration_number}/closure-document/download")->assertNotFound();
@@ -82,6 +87,37 @@ class CaseClosureDocumentTest extends TestCase
         $this->postJson("/api/v1/cases/{$case->id}/closure-document")
             ->assertUnprocessable()
             ->assertJsonPath('error_code', 'case_closure_document_prerequisites_missing');
+    }
+
+    public function test_pdf_template_preserves_fixed_copy_and_only_projects_declared_placeholders(): void
+    {
+        $html = view('pdf.case-closure-document', [
+            'universityName' => 'Universitas Template',
+            'universityAddress' => 'Alamat Kampus Template',
+            'registrationNumber' => 'SLP-TEMPLATE-001',
+            'documentNumber' => 'BAHPKS/2026/CASE-TEMPLATE-001',
+            'receivedDate' => '01 Agustus 2026',
+            'issuedDay' => 'Kamis',
+            'issuedDateNumber' => '13',
+            'issuedMonth' => 'Agustus',
+            'issuedYear' => '2026',
+            'issuedDateLong' => 'Kamis, 13 Agustus 2026',
+            'caseStatus' => 'Ditutup',
+            'leadName' => 'Ketua Satgas Template',
+            'leadNip' => '198001012026041001',
+        ])->render();
+
+        $this->assertStringContainsString('HASIL AKHIR REKAPITULASI PELAPORAN DUGAAN KASUS KEKERASAN', $html);
+        $this->assertStringContainsString('Universitas Template', $html);
+        $this->assertStringContainsString('BAHPKS/2026/CASE-TEMPLATE-001', $html);
+        $this->assertStringContainsString('SLP-TEMPLATE-001', $html);
+        $this->assertStringContainsString('Rekapitulasi ini merupakan dokumen administrasi', $html);
+        $this->assertStringContainsString('tidak dimaksudkan sebagai putusan hukum', $html);
+        $this->assertStringContainsString('Ketua Satgas Template', $html);
+        $this->assertStringContainsString('198001012026041001', $html);
+        $this->assertStringNotContainsString('officialStatement', $html);
+        $this->assertStringNotContainsString('closingExplanation', $html);
+        $this->assertStringNotContainsString('followUp', $html);
     }
 
     /** @return array{User, User, User, CaseRecord} */

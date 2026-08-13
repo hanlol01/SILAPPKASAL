@@ -133,7 +133,7 @@ export function CaseFinalSummaryActions({
       {canOpen && (
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="w-full" variant="outline">
+            <Button className="w-full" variant="default">
               <FileCheck2 className="mr-2 h-4 w-4" />
               {summary ? t("dashboard:workflow.editFinalSummary") : t("dashboard:workflow.createFinalSummary")}
             </Button>

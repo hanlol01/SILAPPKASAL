@@ -7,6 +7,7 @@ import {
   BriefcaseMedical,
   CheckCircle2,
   ClipboardList,
+  FileCheck2,
   FileArchive,
   FileSearch,
   Gavel,
@@ -511,7 +512,11 @@ function CaseDetail() {
             />
           )}
           <CaseFinalSummaryCard caseId={c.id} language={i18n.language} />
-          <CaseClosureDocumentCard caseId={c.id} language={i18n.language} />
+          {["closed", "csts_14"].includes(caseStatusToken) && (
+            <div id="case-closure-document">
+              <CaseClosureDocumentCard caseId={c.id} language={i18n.language} />
+            </div>
+          )}
           <CaseMinuteCard caseId={c.id} language={i18n.language} />
           <Tabs
             value={activeWorkflowTab}
@@ -790,6 +795,17 @@ function CaseDetail() {
                 {c.current_stage_label ??
                   formatCaseStatus(t, c.current_stage ?? c.status ?? c.status_code)}
               </div>
+              {["closed", "csts_14"].includes(caseStatusToken) && (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="mt-2 w-full"
+                  onClick={() => document.getElementById("case-closure-document")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                >
+                  <FileCheck2 className="h-4 w-4" />
+                  {t("dashboard:workflow.viewClosureDocument")}
+                </Button>
+              )}
             </CardContent>
           </Card>
 
@@ -865,15 +881,23 @@ function InvestigationsSection({
     >
       {investigations.map((item) => (
         <div key={item.id} className="min-w-0 rounded-lg border p-3 text-sm">
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-            <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere] whitespace-pre-wrap">
-              {t("dashboard:sections.investigationNumber")}
+          <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(21rem,0.9fr)]">
+            <div className="min-w-0 space-y-3">
+              <div className="min-w-0 break-words font-medium [overflow-wrap:anywhere]">
+                {t("dashboard:sections.investigationNumber")}
+              </div>
+              <div className="min-w-0 break-words text-muted-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">
+                {t("dashboard:sections.lead")}:{" "}
+                {item.lead_investigator?.name ?? t("dashboard:common.metadataUnavailable")}
+              </div>
             </div>
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <WorkflowStatusBadge family="investigation" status={item.status} />
-              {canAddActivity && (
-                <InvestigationActivityAction investigation={item} caseId={caseId} />
-              )}
+            <div className="min-w-0 space-y-3 lg:justify-self-end lg:text-right">
+              <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
+                <WorkflowStatusBadge family="investigation" status={item.status} />
+                {canAddActivity && (
+                  <InvestigationActivityAction investigation={item} caseId={caseId} />
+                )}
+              </div>
               {item.status !== "completed" && (
                 <InvestigationStatusAction
                   investigation={item}
@@ -882,19 +906,13 @@ function InvestigationsSection({
                   reason={transitionReason}
                 />
               )}
-            </div>
-          </div>
-          <div className="mt-2 grid min-w-0 gap-2 text-muted-foreground sm:grid-cols-2">
-            <div className="min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
-              {t("dashboard:sections.lead")}:{" "}
-              {item.lead_investigator?.name ?? t("dashboard:common.metadataUnavailable")}
-            </div>
-            <div className="min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
-              {t("dashboard:sections.started")}: {formatDateTime(item.started_at, language)}
+              <div className="min-w-0 break-words text-muted-foreground [overflow-wrap:anywhere] whitespace-pre-wrap">
+                {t("dashboard:sections.started")}: {formatDateTime(item.started_at, language)}
+              </div>
             </div>
           </div>
           {item.plan_summary || item.findings || item.conclusion ? (
-            <div className="mt-3 min-w-0 space-y-2">
+            <div className="mt-4 min-w-0 space-y-2 border-t pt-4">
               {item.plan_summary && (
                 <Field label={t("dashboard:sections.planSummary")}>{item.plan_summary}</Field>
               )}

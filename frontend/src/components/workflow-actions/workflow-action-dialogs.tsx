@@ -212,7 +212,7 @@ export function CaseStatusAction({
 
   if (statusesQuery.isPending) {
     return (
-      <Button className="w-full" variant="outline" disabled>
+      <Button className="w-full" variant="default" disabled>
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         {t("dashboard:workflow.loadingStatuses")}
       </Button>
@@ -225,7 +225,7 @@ export function CaseStatusAction({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="w-full" variant="outline" disabled={statusesQuery.isLoading || options.length === 0}>
+        <Button className="w-full" variant="default" disabled={statusesQuery.isLoading || options.length === 0}>
           <History className="mr-2 h-4 w-4" /> {t("dashboard:workflow.updateCaseStatus")}
         </Button>
       </DialogTrigger>
@@ -326,7 +326,7 @@ export function InvestigationActivityAction({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
+        <Button size="sm" variant="default">
           <FilePlus2 className="mr-2 h-4 w-4" /> {t("dashboard:workflow.addActivity")}
         </Button>
       </DialogTrigger>
@@ -399,7 +399,7 @@ export function RecommendationUpdateAction({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
+        <Button size="sm" variant="default">
           <PenLine className="mr-2 h-4 w-4" /> {t("dashboard:common.edit")}
         </Button>
       </DialogTrigger>
@@ -473,7 +473,7 @@ export function DecisionUpdateAction({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
+        <Button size="sm" variant="default">
           <ClipboardEdit className="mr-2 h-4 w-4" /> {t("dashboard:common.edit")}
         </Button>
       </DialogTrigger>
@@ -546,7 +546,7 @@ export function RecoveryMonitoringAction({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
+        <Button size="sm" variant="default">
           <FilePlus2 className="mr-2 h-4 w-4" /> {t("dashboard:workflow.addMonitoring")}
         </Button>
       </DialogTrigger>
@@ -631,7 +631,7 @@ export function EvidenceMetadataAction({ evidence }: { evidence: EvidenceMetadat
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
+        <Button size="sm" variant="default">
           <PenLine className="mr-2 h-4 w-4" /> {t("dashboard:workflow.editMetadata")}
         </Button>
       </DialogTrigger>
@@ -720,7 +720,7 @@ export function EvidenceStatusAction({ evidence }: { evidence: EvidenceMetadata 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
+        <Button size="sm" variant="default">
           <History className="mr-2 h-4 w-4" /> {t("dashboard:workflow.status")}
         </Button>
       </DialogTrigger>

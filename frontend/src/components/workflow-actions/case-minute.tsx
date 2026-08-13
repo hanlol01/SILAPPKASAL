@@ -185,7 +185,7 @@ export function CaseMinuteCard({ caseId, language }: { caseId: number | string; 
                   {minute.capabilities.create_revision && (
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="default"
                       disabled={revisionMutation.isPending}
                       onClick={() => revisionMutation.mutate(minute.public_id)}
                     >
@@ -203,7 +203,7 @@ export function CaseMinuteCard({ caseId, language }: { caseId: number | string; 
       </div>
 
       {canOpenEditor && (
-        <Button className="w-full" variant="outline" onClick={() => setEditorOpen(true)}>
+        <Button className="w-full" variant="default" onClick={() => setEditorOpen(true)}>
           {draft ? <Pencil className="mr-2 h-4 w-4" /> : <ClipboardPenLine className="mr-2 h-4 w-4" />}
           {draft ? t("dashboard:workflow.caseMinuteEditDraft") : t("dashboard:workflow.caseMinuteCreateDraft")}
         </Button>

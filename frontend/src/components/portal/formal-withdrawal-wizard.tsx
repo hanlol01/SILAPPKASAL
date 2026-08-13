@@ -2,15 +2,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Download,
-  ExternalLink,
   FileCheck2,
-  FileText,
   Loader2,
   RotateCcw,
   Send,
   Upload,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -33,10 +31,14 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Form,
   FormControl,
@@ -53,19 +55,20 @@ import { apiErrorMessage, applyLaravelErrors } from "@/lib/form-errors";
 import {
   cancelPortalFormalWithdrawal,
   createPortalFormalWithdrawal,
-  downloadPortalWithdrawalDraftDocument,
   downloadPortalWithdrawalSignedDocument,
   getPortalFormalWithdrawal,
-  getPortalWithdrawalDraftDocument,
-  getPortalWithdrawalDraftDocumentExample,
+  getPortalWithdrawalDraftDocumentPdf,
+  getMyProfile,
   portalQueryKeys,
   resubmitPortalFormalWithdrawal,
   submitPortalFormalWithdrawal,
   uploadPortalWithdrawalSignedDocument,
+  updateMyProfile,
 } from "@/lib/portal-api";
 import type {
   ActiveWithdrawalSummary,
   FormalWithdrawalDetail,
+  ProfileStatusCode,
 } from "@/lib/portal-types";
 import {
   validateWithdrawalDocumentFile,
@@ -96,7 +99,6 @@ function withdrawalReasonSchema(messages: {
 }
 
 type WithdrawalReasonValues = z.infer<ReturnType<typeof withdrawalReasonSchema>>;
-
 export function FormalWithdrawalWizard({
   registrationNumber,
   canRequestWithdrawal,
@@ -106,12 +108,14 @@ export function FormalWithdrawalWizard({
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
-  const [documentHtml, setDocumentHtml] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [resubmitReason, setResubmitReason] = useState("");
-  const [isOpeningExample, setIsOpeningExample] = useState(false);
+  const [draftProfileOpen, setDraftProfileOpen] = useState(false);
+  const [draftProfileStatus, setDraftProfileStatus] = useState<ProfileStatusCode | null>(null);
+  const [draftProfileStatusOther, setDraftProfileStatusOther] = useState("");
+  const [draftProfileAddress, setDraftProfileAddress] = useState("");
   const schema = useMemo(
     () =>
       withdrawalReasonSchema({
@@ -132,6 +136,19 @@ export function FormalWithdrawalWizard({
     enabled: open && activeWithdrawal !== null,
     retry: false,
   });
+  const profileQuery = useQuery({
+    queryKey: portalQueryKeys.profile(),
+    queryFn: getMyProfile,
+    enabled: open,
+  });
+
+  useEffect(() => {
+    if (!profileQuery.data) return;
+
+    setDraftProfileStatus(profileQuery.data.profile_status);
+    setDraftProfileStatusOther(profileQuery.data.profile_status_other ?? "");
+    setDraftProfileAddress(profileQuery.data.address ?? "");
+  }, [profileQuery.data]);
 
   async function invalidateWithdrawalState() {
     await Promise.all([
@@ -187,18 +204,40 @@ export function FormalWithdrawalWizard({
       handleMutationError(error, t("withdrawal.createError"));
     },
   });
-  const documentMutation = useMutation({
-    mutationFn: (publicId: string) => getPortalWithdrawalDraftDocument(publicId),
-    onSuccess: (html) => {
-      setDocumentHtml(html);
-      toast.success(t("withdrawal.documentLoaded"));
-    },
-    onError: (error) => handleMutationError(error, t("withdrawal.documentError")),
-  });
   const draftDownloadMutation = useMutation({
-    mutationFn: (publicId: string) => downloadPortalWithdrawalDraftDocument(publicId),
+    mutationFn: async ({ publicId, target }: { publicId: string; target: Window }) => {
+      try {
+        const { blob, contentType } = await getPortalWithdrawalDraftDocumentPdf(publicId);
+
+        if (contentType !== "application/pdf") {
+          throw new Error("Unexpected DRAFT document content type.");
+        }
+
+        const objectUrl = URL.createObjectURL(blob);
+        const revokeObjectUrl = () => URL.revokeObjectURL(objectUrl);
+        target.addEventListener("beforeunload", revokeObjectUrl, { once: true });
+        window.setTimeout(revokeObjectUrl, 5 * 60 * 1000);
+        target.location.replace(objectUrl);
+      } catch (error) {
+        target.close();
+        throw error;
+      }
+    },
     onSuccess: () => toast.success(t("withdrawal.downloadSuccess")),
     onError: (error) => handleMutationError(error, t("withdrawal.downloadError")),
+  });
+  const draftProfileMutation = useMutation({
+    mutationFn: () => updateMyProfile({
+      profile_status: draftProfileStatus,
+      profile_status_other: draftProfileStatus === "other" ? draftProfileStatusOther.trim() || null : null,
+      address: draftProfileAddress.trim() || null,
+    }),
+    onSuccess: async (profile) => {
+      queryClient.setQueryData(portalQueryKeys.profile(), profile);
+      setDraftProfileOpen(false);
+      toast.success(t("withdrawal.draftProfileSaved"));
+    },
+    onError: (error) => handleMutationError(error, t("withdrawal.draftProfileSaveError")),
   });
   const uploadMutation = useMutation({
     mutationFn: ({
@@ -249,7 +288,6 @@ export function FormalWithdrawalWizard({
     onSuccess: async (data) => {
       cacheWithdrawal(data);
       setResubmitReason("");
-      setDocumentHtml(null);
       clearSelectedFile();
       await invalidateWithdrawalState();
       toast.success(t("withdrawal.resubmitSuccess"));
@@ -272,19 +310,19 @@ export function FormalWithdrawalWizard({
   const currentStep = withdrawalStep(effectiveStatus, effectiveAttachment !== null);
   const isBusy =
     createMutation.isPending ||
-    documentMutation.isPending ||
+    draftDownloadMutation.isPending ||
     uploadMutation.isPending ||
     submitMutation.isPending ||
     cancelMutation.isPending ||
-    resubmitMutation.isPending;
+    resubmitMutation.isPending ||
+    draftProfileMutation.isPending;
 
   function resetLocalState() {
     form.reset();
-    setDocumentHtml(null);
     setResubmitReason("");
     clearSelectedFile();
     createMutation.reset();
-    documentMutation.reset();
+    draftDownloadMutation.reset();
     uploadMutation.reset();
     submitMutation.reset();
     cancelMutation.reset();
@@ -321,41 +359,41 @@ export function FormalWithdrawalWizard({
     setFileError(null);
   }
 
-  async function openDraftDocumentExample() {
-    if (!effectiveReference) {
-      toast.error(t("withdrawal.exampleError"));
+  function isDraftProfileComplete() {
+    return draftProfileStatus !== null
+      && draftProfileAddress.trim() !== ""
+      && (draftProfileStatus !== "other" || draftProfileStatusOther.trim() !== "");
+  }
+
+  function openDraftPdf() {
+    if (!effectiveReference) return;
+    const target = window.open("", "_blank");
+
+    if (!target) {
+      toast.error(t("withdrawal.downloadBlocked"));
       return;
     }
 
-    const exampleWindow = window.open("", "_blank");
+    target.opener = null;
+    target.document.title = t("withdrawal.documentTitle");
+    target.document.body.textContent = t("withdrawal.downloadLoading");
+    draftDownloadMutation.mutate({ publicId: effectiveReference, target });
+  }
 
-    if (!exampleWindow) {
-      toast.error(t("withdrawal.exampleBlocked"));
+  function requestDraftDownload() {
+    if (!effectiveReference) return;
+
+    if (profileQuery.isLoading || profileQuery.isFetching) {
+      toast.message(t("withdrawal.draftProfileLoading"));
       return;
     }
 
-    setIsOpeningExample(true);
-    exampleWindow.document.title = t("withdrawal.exampleDocumentTitle");
-    exampleWindow.document.body.textContent = t("withdrawal.exampleLoading");
-
-    try {
-      const { blob, contentType } = await getPortalWithdrawalDraftDocumentExample(effectiveReference);
-
-      if (contentType !== "application/pdf") {
-        throw new Error("Unexpected example document content type.");
-      }
-
-      const objectUrl = URL.createObjectURL(blob);
-      const revokeObjectUrl = () => URL.revokeObjectURL(objectUrl);
-      exampleWindow.addEventListener("beforeunload", revokeObjectUrl, { once: true });
-      window.setTimeout(revokeObjectUrl, 5 * 60 * 1000);
-      exampleWindow.location.replace(objectUrl);
-    } catch (error) {
-      exampleWindow.close();
-      handleMutationError(error, t("withdrawal.exampleError"));
-    } finally {
-      setIsOpeningExample(false);
+    if (profileQuery.isError || !profileQuery.data || !isDraftProfileComplete()) {
+      setDraftProfileOpen(true);
+      return;
     }
+
+    openDraftPdf();
   }
 
   const hasActiveRequest = activeWithdrawal !== null || withdrawal !== null;
@@ -366,7 +404,7 @@ export function FormalWithdrawalWizard({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" className="min-h-11">
+        <Button type="button" variant="destructive" className="min-h-11">
           <RotateCcw className="h-4 w-4" aria-hidden="true" />
           {hasActiveRequest
             ? t("withdrawal.continueTrigger")
@@ -528,22 +566,9 @@ export function FormalWithdrawalWizard({
                 <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
-                    variant="outline"
-                    disabled={documentMutation.isPending}
-                    onClick={() => documentMutation.mutate(effectiveReference)}
-                  >
-                    {documentMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <FileText className="h-4 w-4" aria-hidden="true" />
-                    )}
-                    {t("withdrawal.viewDraft")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={draftDownloadMutation.isPending}
-                    onClick={() => draftDownloadMutation.mutate(effectiveReference)}
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    disabled={draftDownloadMutation.isPending || draftProfileMutation.isPending}
+                    onClick={requestDraftDownload}
                   >
                     {draftDownloadMutation.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -552,28 +577,7 @@ export function FormalWithdrawalWizard({
                     )}
                     {t("withdrawal.downloadDraft")}
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={isOpeningExample}
-                    onClick={() => void openDraftDocumentExample()}
-                  >
-                    {isOpeningExample ? (
-                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                    )}
-                    {t("withdrawal.exampleAction")}
-                  </Button>
                 </div>
-                {documentHtml && (
-                  <iframe
-                    title={t("withdrawal.documentFrameTitle")}
-                    srcDoc={documentHtml}
-                    sandbox="allow-modals allow-same-origin"
-                    className="aspect-[210/297] w-full rounded-md border bg-white"
-                  />
-                )}
               </section>
             )}
 
@@ -790,6 +794,59 @@ export function FormalWithdrawalWizard({
           </div>
         )}
       </DialogContent>
+      <Dialog open={draftProfileOpen} onOpenChange={(nextOpen) => {
+        if (!draftProfileMutation.isPending) {
+          setDraftProfileOpen(nextOpen);
+        }
+      }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t("withdrawal.draftProfileTitle")}</DialogTitle>
+            <DialogDescription>{t("withdrawal.draftProfileDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="withdrawal-profile-status">{t("withdrawal.draftProfileStatusLabel")}</Label>
+              <Select
+                value={draftProfileStatus ?? ""}
+                onValueChange={(value) => {
+                  const nextStatus = value as ProfileStatusCode;
+                  setDraftProfileStatus(nextStatus);
+                  if (nextStatus !== "other") setDraftProfileStatusOther("");
+                }}
+                disabled={draftProfileMutation.isPending}
+              >
+                <SelectTrigger id="withdrawal-profile-status"><SelectValue placeholder={t("withdrawal.draftProfileStatusPlaceholder")} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="student">{t("profileStatuses.student")}</SelectItem>
+                  <SelectItem value="lecturer">{t("profileStatuses.lecturer")}</SelectItem>
+                  <SelectItem value="education_staff">{t("profileStatuses.educationStaff")}</SelectItem>
+                  <SelectItem value="employee">{t("profileStatuses.employee")}</SelectItem>
+                  <SelectItem value="other">{t("profileStatuses.other")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {draftProfileStatus === "other" && (
+              <div className="space-y-2">
+                <Label htmlFor="withdrawal-profile-status-other">{t("withdrawal.draftProfileStatusOtherLabel")}</Label>
+                <Input id="withdrawal-profile-status-other" value={draftProfileStatusOther} onChange={(event) => setDraftProfileStatusOther(event.target.value)} disabled={draftProfileMutation.isPending} />
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="withdrawal-profile-address">{t("withdrawal.draftProfileAddressLabel")}</Label>
+              <Textarea id="withdrawal-profile-address" rows={3} maxLength={160} value={draftProfileAddress} onChange={(event) => setDraftProfileAddress(event.target.value)} placeholder={t("withdrawal.draftProfileAddressPlaceholder")} disabled={draftProfileMutation.isPending} />
+              <p className="text-xs text-muted-foreground">{t("withdrawal.draftProfileAddressHelp")}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={draftProfileMutation.isPending} onClick={() => setDraftProfileOpen(false)}>{t("common:cancel")}</Button>
+            <Button type="button" disabled={!isDraftProfileComplete() || draftProfileMutation.isPending} onClick={() => draftProfileMutation.mutate()}>
+              {draftProfileMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+              {t("withdrawal.draftProfileSaveAction")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

@@ -115,7 +115,7 @@ export function CaseAssessmentAction({
       if (!mutation.isPending) setOpen(nextOpen);
     }}>
       <DialogTrigger asChild>
-        <Button className="w-full" variant="outline" disabled={optionsLoading}>
+        <Button className="w-full" variant="default" disabled={optionsLoading}>
           <ShieldAlert className="mr-2 h-4 w-4" />
           {t(`dashboard:workflow.assessment.${isUpdate ? "updateTrigger" : "createTrigger"}`)}
         </Button>

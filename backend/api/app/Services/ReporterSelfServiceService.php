@@ -27,8 +27,17 @@ class ReporterSelfServiceService
         return DB::transaction(function () use ($user, $data): User {
             $nameChanged = array_key_exists('name', $data) && $data['name'] !== $user->name;
             $phoneChanged = array_key_exists('phone_number', $data) && $data['phone_number'] !== $user->phone_number;
+            $profileStatusChanged = array_key_exists('profile_status', $data) && $data['profile_status'] !== $user->profile_status;
+            $profileStatusOtherChanged = array_key_exists('profile_status_other', $data) && $data['profile_status_other'] !== $user->profile_status_other;
+            $addressChanged = array_key_exists('address', $data) && $data['address'] !== $user->address;
 
-            $user->forceFill(collect($data)->only(['name', 'phone_number'])->all())->save();
+            $user->forceFill(collect($data)->only([
+                'name',
+                'phone_number',
+                'profile_status',
+                'profile_status_other',
+                'address',
+            ])->all())->save();
 
             $this->auditLogService->record(
                 action: AuditAction::ReporterSelfServiceProfileUpdated,
@@ -39,6 +48,9 @@ class ReporterSelfServiceService
                 afterChanges: [
                     'name_changed' => $nameChanged,
                     'phone_changed' => $phoneChanged,
+                    'profile_status_changed' => $profileStatusChanged,
+                    'profile_status_other_changed' => $profileStatusOtherChanged,
+                    'address_changed' => $addressChanged,
                 ]
             );
 

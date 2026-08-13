@@ -104,7 +104,7 @@ export function RecommendationCreateAction({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="w-full" variant="outline">
+        <Button className="w-full" variant="default">
           <ClipboardList className="mr-2 h-4 w-4" /> {t("dashboard:workflow.createRecommendation")}
         </Button>
       </DialogTrigger>

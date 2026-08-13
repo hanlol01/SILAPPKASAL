@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { ContentDocumentPreview } from "@/components/content/content-document-preview";
 import { ContentCategoryCombobox } from "@/components/content/content-category-combobox";
 import { AuthenticatedContentCover } from "@/components/content/authenticated-content-cover";
+import { CollapsibleDataCard } from "@/components/collapsible-data-card";
 import type { ArticleEditorSaveStatus } from "@/components/content/article-wysiwyg-editor";
 import { StructuredDocumentEditor } from "@/components/content/structured-document-editor";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -458,15 +459,11 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
         </Alert>
       )}
       {detail && detail.editorial_timeline.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Clock3 className="h-4 w-4" />
-              {t("content:editorialTimeline")}
-            </CardTitle>
-            <CardDescription>{t("content:editorialTimelineDescription")}</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <CollapsibleDataCard
+          title={t("content:editorialTimeline")}
+          description={t("content:editorialTimelineDescription")}
+          icon={Clock3}
+        >
             <ol className="space-y-4">
               {detail.editorial_timeline.map((event) => {
                 const actor = event.actor.label === "central_team"
@@ -501,8 +498,7 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
             {detail.editorial_timeline_truncated && (
               <p className="mt-4 text-xs text-muted-foreground">{t("content:timelineTruncated")}</p>
             )}
-          </CardContent>
-        </Card>
+        </CollapsibleDataCard>
       )}
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -704,7 +700,6 @@ export function ContentEditor({ contentType, detail, scope = "campus", onBack, o
             {detail && canSubmit && (
               <Button
                 className="col-span-2 min-h-11 w-full sm:col-auto sm:w-auto"
-                variant="secondary"
                 disabled={
                   saveMutation.isPending ||
                   submitMutation.isPending ||

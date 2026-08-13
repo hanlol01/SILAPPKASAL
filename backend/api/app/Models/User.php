@@ -33,6 +33,9 @@ class User extends Authenticatable
         'nim',
         'nip',
         'phone_number',
+        'profile_status',
+        'profile_status_other',
+        'address',
         'password',
         'is_active',
     ];
@@ -58,6 +61,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'is_active' => 'boolean',
             'password' => 'hashed',
+            'profile_status_other' => 'encrypted',
+            'address' => 'encrypted',
         ];
     }
 

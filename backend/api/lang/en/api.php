@@ -21,6 +21,7 @@ return [
         'report_cancellation_conflict' => 'The complaint is no longer eligible for direct cancellation.',
         'report_withdrawal_conflict' => 'The withdrawal request cannot be processed in the complaint\'s current state.',
         'report_withdrawal_document_invalid' => 'The withdrawal document is invalid or does not meet the security requirements.',
+        'report_withdrawal_draft_profile_incomplete' => 'Complete your account status and short address before viewing or downloading the DRAFT.',
         'report_withdrawal_storage_failed' => 'The withdrawal document could not be stored securely.',
         'audit_export.too_many_rows' => 'The audit export exceeds the 10,000-row limit. Narrow the date range or filters.',
         'case_assessment_required' => 'Record the risk level and priority before advancing the case to investigation.',

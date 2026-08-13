@@ -45,6 +45,7 @@ use App\Services\FormalReportWithdrawalService;
 use App\Services\InvestigationService;
 use App\Services\RecommendationService;
 use App\Services\RecoveryService;
+use App\Services\WithdrawalDraftPdfConverter;
 use Database\Seeders\CampusMasterDataSeeder;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RbacSeeder;
@@ -61,7 +62,6 @@ use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use RuntimeException;
 use Tests\TestCase;
-use ZipArchive;
 
 class ReportFormalWithdrawalTest extends TestCase
 {
@@ -203,7 +203,7 @@ class ReportFormalWithdrawalTest extends TestCase
         )->assertNotFound();
     }
 
-    public function test_authenticated_anonymous_owner_can_view_blank_draft_template_without_identity(): void
+    public function test_authenticated_anonymous_owner_can_view_draft_with_their_current_account_profile(): void
     {
         $reporter = $this->makeUser('reporter', 'anonymous@example.test');
         $report = $this->makeReport(
@@ -223,7 +223,9 @@ class ReportFormalWithdrawalTest extends TestCase
             ->assertHeader('X-Content-Type-Options', 'nosniff')
             ->assertSee('SURAT PERNYATAAN')
             ->assertSee('DRAFT/SLP-20260724-1010')
-            ->assertDontSee($reporter->name)
+            ->assertSee($reporter->name)
+            ->assertSee('Mahasiswa')
+            ->assertSee('Jl. Pengujian No. 1')
             ->assertDontSee('report_id')
             ->assertDontSee('case_id')
             ->assertDontSee('respondent');
@@ -231,6 +233,30 @@ class ReportFormalWithdrawalTest extends TestCase
             'no-store',
             (string) $response->headers->get('Cache-Control'),
         );
+    }
+
+    public function test_draft_document_requires_reporter_status_and_short_address(): void
+    {
+        $reporter = $this->makeUser('reporter', 'draft-profile-required@example.test');
+        $reporter->forceFill([
+            'profile_status' => null,
+            'profile_status_other' => null,
+            'address' => null,
+        ])->save();
+        $report = $this->makeReport($reporter);
+        $this->makeCase($report, CaseStatusEnum::Assessment);
+        Sanctum::actingAs($reporter, ['*']);
+        $publicId = $this->createFormal($report);
+
+        $this->getJson("/api/v1/portal/withdrawals/{$publicId}/draft-document")
+            ->assertUnprocessable()
+            ->assertJsonPath('error_code', 'report_withdrawal_draft_profile_incomplete');
+        $this->getJson("/api/v1/portal/withdrawals/{$publicId}/draft-document/download")
+            ->assertUnprocessable()
+            ->assertJsonPath('error_code', 'report_withdrawal_draft_profile_incomplete');
+        $this->assertDatabaseMissing('audit_logs', [
+            'action' => AuditAction::ReportWithdrawalDraftDocumentViewed->value,
+        ]);
     }
 
     public function test_reason_normalization_and_boundaries_are_enforced(): void
@@ -279,7 +305,7 @@ class ReportFormalWithdrawalTest extends TestCase
             ->assertOk()
             ->assertSee('SURAT PERNYATAAN')
             ->assertSee('PERMOHONAN PENGHENTIAN PENANGANAN LAPORAN')
-            ->assertSee('Nomor: DRAFT/SLP-20260724-1001')
+            ->assertSee('DRAFT/SLP-20260724-1001')
             ->assertSee('Materai Rp10.000')
             ->assertDontSee('Alasan pencabutan:', false);
 
@@ -332,8 +358,23 @@ class ReportFormalWithdrawalTest extends TestCase
         $this->assertStringContainsString("frame-ancestors 'none'", $csp);
     }
 
-    public function test_owner_can_download_numbered_docx_draft_and_open_private_example(): void
+    public function test_owner_can_open_a_private_pdf_draft_and_private_example(): void
     {
+        $converter = new class extends WithdrawalDraftPdfConverter
+        {
+            /** @var array<string, string> */
+            public array $replacements = [];
+
+            /** @param array<string, string> $replacements */
+            public function convert(array $replacements): string
+            {
+                $this->replacements = $replacements;
+
+                return "%PDF-1.4\n% test withdrawal draft\n";
+            }
+        };
+        $this->app->instance(WithdrawalDraftPdfConverter::class, $converter);
+
         $reporter = $this->makeUser('reporter', 'draft-download@example.test');
         $report = $this->makeReport($reporter);
         $report->forceFill(['registration_number' => 'SLP-DEMO-2026-0810-0001'])->save();
@@ -344,28 +385,15 @@ class ReportFormalWithdrawalTest extends TestCase
         $download = $this->get("/api/v1/portal/withdrawals/{$publicId}/draft-document/download");
         $download
             ->assertOk()
-            ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            ->assertHeader('Content-Type', 'application/pdf')
             ->assertHeader('X-Content-Type-Options', 'nosniff');
-        $this->assertStringContainsString('attachment;', (string) $download->headers->get('Content-Disposition'));
+        $this->assertStringContainsString('inline;', (string) $download->headers->get('Content-Disposition'));
         $this->assertStringContainsString('no-store', (string) $download->headers->get('Cache-Control'));
-
-        $temporaryPath = tempnam(sys_get_temp_dir(), 'withdrawal-docx-test-');
-        $this->assertNotFalse($temporaryPath);
-        file_put_contents($temporaryPath, $download->streamedContent());
-
-        $archive = new ZipArchive();
-        $this->assertTrue($archive->open($temporaryPath) === true);
-        $documentXml = $archive->getFromName('word/document.xml');
-        $coreProperties = $archive->getFromName('docProps/core.xml');
-        $archive->close();
-        @unlink($temporaryPath);
-
-        $this->assertIsString($documentXml);
-        $this->assertIsString($coreProperties);
-        $this->assertStringContainsString('DRAFT/SLP-2026-0810-0001', $documentXml);
-        $this->assertStringNotContainsString('DRAFT/SLP-DEMO-', $documentXml);
-        $this->assertStringNotContainsString('{{generate_system}}', $documentXml);
-        $this->assertStringNotContainsString('richard mills', $coreProperties);
+        $pdf = $download->streamedContent();
+        $this->assertStringStartsWith('%PDF-', $pdf);
+        $this->assertStringNotContainsString('DRAFT/SLP-DEMO-', $pdf);
+        $this->assertSame('DRAFT/SLP-2026-0810-0001', $converter->replacements['generate_system']);
+        $this->assertSame('Mahasiswa', $converter->replacements['status_akun_pelapor']);
         $this->assertDatabaseHas('audit_logs', [
             'action' => AuditAction::ReportWithdrawalDraftDocumentDownloaded->value,
         ]);
@@ -381,6 +409,30 @@ class ReportFormalWithdrawalTest extends TestCase
         Sanctum::actingAs($otherReporter, ['*']);
         $this->get("/api/v1/portal/withdrawals/{$publicId}/draft-document/download")->assertNotFound();
         $this->get("/api/v1/portal/withdrawals/{$publicId}/draft-document/example")->assertNotFound();
+    }
+
+    public function test_draft_pdf_converter_stamps_the_static_pdf_template_with_reporter_data(): void
+    {
+        $converter = new WithdrawalDraftPdfConverter();
+
+        $pdf = $converter->convert([
+            'generate_system' => 'DRAFT/SLP-2026-0810-0001',
+            'nama_akun_pelapor' => 'Reporter Test',
+            'nim_pelapor' => '2026101',
+            'status_akun_pelapor' => 'Mahasiswa',
+            'program_studi_pelapor' => 'Pendidikan Agama Islam',
+            'alamat_pelapor' => 'Jl. Pengujian No. 1',
+            'nomor_telepon_pelapor' => '08310000011',
+            'nomor_laporan' => 'SLP-2026-0810-0001',
+            'tanggal_pelaporan' => '10 Agustus 2026',
+            'hari, tanggal bulan tahun' => 'Kamis, 13 Agustus 2026',
+            'nama_pelapor' => 'Reporter Test',
+        ]);
+
+        $this->assertStringStartsWith('%PDF-', $pdf);
+        $this->assertStringContainsString('DRAFT/SLP-2026-0810-0001', $pdf);
+        $this->assertStringContainsString('Jl. Pengujian No. 1, Kamis, 13 Agustus 2026', $pdf);
+        $this->assertStringContainsString('Reporter Test', $pdf);
     }
 
     public function test_formal_mutations_reject_stale_lock_versions_without_partial_changes(): void
@@ -1363,6 +1415,8 @@ class ReportFormalWithdrawalTest extends TestCase
             'email' => $email,
             'password' => 'SecurePass123',
             'is_active' => $active,
+            'profile_status' => 'student',
+            'address' => 'Jl. Pengujian No. 1',
         ]);
     }
 

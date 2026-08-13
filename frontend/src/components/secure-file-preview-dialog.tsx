@@ -80,6 +80,8 @@ export function SecureFilePreviewDialog({
   onPreviewLoaded,
   onDownload,
   downloadPending = false,
+  triggerVariant = "outline",
+  triggerSize = "sm",
   labels,
 }: {
   fileKey: string;
@@ -88,6 +90,8 @@ export function SecureFilePreviewDialog({
   onPreviewLoaded?: () => void;
   onDownload?: () => void;
   downloadPending?: boolean;
+  triggerVariant?: "default" | "outline";
+  triggerSize?: "default" | "sm";
   labels: SecureFilePreviewLabels;
 }) {
   const [open, setOpen] = useState(false);
@@ -440,8 +444,8 @@ export function SecureFilePreviewDialog({
     return (
       <Button
         type="button"
-        variant="outline"
-        size="sm"
+        variant={triggerVariant}
+        size={triggerSize}
         disabled={pdfOpening}
         onClick={() => void openPdfPreview()}
       >
@@ -458,7 +462,7 @@ export function SecureFilePreviewDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" size="sm">
+        <Button type="button" variant={triggerVariant} size={triggerSize}>
           <Eye className="h-4 w-4" aria-hidden="true" />
           {labels.preview}
         </Button>

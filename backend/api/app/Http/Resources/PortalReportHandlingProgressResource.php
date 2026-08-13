@@ -22,6 +22,7 @@ class PortalReportHandlingProgressResource extends JsonResource
             'monitoring' => $this->resource['monitoring'],
             'evidence' => $this->resource['evidence'],
             'final_summary' => $this->resource['final_summary'],
+            'closure_document' => $this->resource['closure_document'],
         ];
     }
 }

@@ -35,12 +35,14 @@ class ReporterSelfServiceFoundationTest extends TestCase
             ->assertJsonPath('data.id', $reporter->id)
             ->assertJsonPath('data.email', 'reporter@example.test')
             ->assertJsonPath('data.nim', '230001')
+            ->assertJsonPath('data.profile_status', null)
+            ->assertJsonPath('data.address', null)
             ->assertJsonPath('data.role.code', 'reporter')
             ->assertJsonMissingPath('data.permissions')
             ->assertJsonMissingPath('data.is_active');
     }
 
-    public function test_reporter_can_update_only_name_and_phone_number(): void
+    public function test_reporter_can_update_safe_profile_fields(): void
     {
         $reporter = $this->makeUser('reporter', 'reporter@example.test', '230001');
 
@@ -49,9 +51,13 @@ class ReporterSelfServiceFoundationTest extends TestCase
         $this->patchJson('/api/v1/me/profile', [
             'name' => 'Nama Reporter Baru',
             'phone_number' => '+628129990001',
+            'profile_status' => 'student',
+            'address' => 'Jl. Melati No. 12',
         ])->assertOk()
             ->assertJsonPath('data.name', 'Nama Reporter Baru')
             ->assertJsonPath('data.phone_number', '+628129990001')
+            ->assertJsonPath('data.profile_status', 'student')
+            ->assertJsonPath('data.address', 'Jl. Melati No. 12')
             ->assertJsonMissingPath('data.permissions');
 
         $this->assertDatabaseHas('users', [
@@ -61,6 +67,9 @@ class ReporterSelfServiceFoundationTest extends TestCase
             'email' => 'reporter@example.test',
             'nim' => '230001',
         ]);
+        $reporter->refresh();
+        $this->assertSame('student', $reporter->profile_status);
+        $this->assertSame('Jl. Melati No. 12', $reporter->address);
 
         $this->assertDatabaseHas('audit_logs', [
             'action' => AuditAction::ReporterSelfServiceProfileUpdated->value,
@@ -80,6 +89,11 @@ class ReporterSelfServiceFoundationTest extends TestCase
         $this->patchJson('/api/v1/me/profile', ['phone_number' => null])
             ->assertOk()
             ->assertJsonPath('data.phone_number', null);
+
+        $this->patchJson('/api/v1/me/profile', [
+            'profile_status' => 'other',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['profile_status_other']);
     }
 
     public function test_reporter_cannot_update_identity_or_privilege_fields(): void
@@ -195,7 +209,7 @@ class ReporterSelfServiceFoundationTest extends TestCase
             ->assertJsonValidationErrors(['password']);
     }
 
-    public function test_only_reporter_role_can_access_self_service_endpoints(): void
+    public function test_every_active_role_can_access_its_own_safe_profile_fields(): void
     {
         foreach ([
             $this->makeUser('admin', 'admin@example.test'),
@@ -204,14 +218,18 @@ class ReporterSelfServiceFoundationTest extends TestCase
         ] as $user) {
             Sanctum::actingAs($user, ['*']);
 
-            $this->getJson('/api/v1/me/profile')->assertForbidden();
-            $this->patchJson('/api/v1/me/profile', ['name' => 'Blocked User'])->assertForbidden();
+            $this->getJson('/api/v1/me/profile')->assertOk();
+            $this->patchJson('/api/v1/me/profile', [
+                'profile_status' => 'employee',
+                'address' => 'Jl. Pegawai No. 1',
+            ])->assertOk()
+                ->assertJsonPath('data.profile_status', 'employee');
             $this->patchJson('/api/v1/me/change-password', [
                 'current_password' => 'SecurePass123',
                 'password' => 'NewSecurePass123',
                 'password_confirmation' => 'NewSecurePass123',
-            ])->assertForbidden();
-            $this->getJson('/api/v1/me/account-status')->assertForbidden();
+            ])->assertOk();
+            $this->getJson('/api/v1/me/account-status')->assertOk();
         }
     }
 

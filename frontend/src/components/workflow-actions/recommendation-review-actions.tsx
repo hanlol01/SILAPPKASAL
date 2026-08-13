@@ -59,7 +59,7 @@ export function RecommendationSubmitAction({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
+        <Button size="sm" variant="default">
           <Send className="mr-2 h-4 w-4" />
           {t("dashboard:workflow.submitRecommendation")}
         </Button>
@@ -168,7 +168,7 @@ export function RecommendationReviewActions({
 
       <Dialog open={returnOpen} onOpenChange={setReturnOpen}>
         <DialogTrigger asChild>
-          <Button size="sm" variant="outline">
+          <Button size="sm" variant="default">
             <RotateCcw className="mr-2 h-4 w-4" />
             {t("dashboard:workflow.returnRecommendation")}
           </Button>

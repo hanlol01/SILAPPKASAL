@@ -21,6 +21,7 @@ return [
         'report_cancellation_conflict' => 'Pengaduan tidak lagi memenuhi syarat untuk dibatalkan langsung.',
         'report_withdrawal_conflict' => 'Permohonan pencabutan tidak dapat diproses pada kondisi Pengaduan saat ini.',
         'report_withdrawal_document_invalid' => 'Dokumen pencabutan tidak valid atau tidak memenuhi persyaratan keamanan.',
+        'report_withdrawal_draft_profile_incomplete' => 'Lengkapi status akun dan alamat singkat sebelum menampilkan atau mengunduh DRAF.',
         'report_withdrawal_storage_failed' => 'Dokumen pencabutan tidak dapat disimpan dengan aman.',
         'audit_export.too_many_rows' => 'Hasil ekspor audit melebihi batas 10.000 baris. Persempit rentang tanggal atau filter.',
         'case_assessment_required' => 'Catat tingkat risiko dan prioritas sebelum melanjutkan kasus ke tahap investigasi.',

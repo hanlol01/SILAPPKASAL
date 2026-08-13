@@ -129,7 +129,7 @@ export function PortalReportDetailContent({
       </Breadcrumb>
       {/* Back navigation */}
       <Button
-        variant="outline"
+        variant="default"
         size="sm"
         className="gap-1.5"
         asChild
@@ -180,6 +180,13 @@ interface ReportDetailProps {
 function ReportDetail({ report }: ReportDetailProps) {
   const { t, i18n } = useTranslation(["portal", "dashboard"]);
   const isCompleted = report.portal_status.toLowerCase() === "completed";
+  const closureDocumentQuery = useQuery({
+    queryKey: portalQueryKeys.reportHandlingProgress(report.registration_number),
+    queryFn: () => getPortalReportHandlingProgress(report.registration_number),
+    enabled: isCompleted,
+    retry: false,
+  });
+  const closureDocument = closureDocumentQuery.data?.closure_document;
   const collapseLabels = {
     expandLabel: t("portal:collapsible.expand"),
     collapseLabel: t("portal:collapsible.collapse"),
@@ -216,15 +223,26 @@ function ReportDetail({ report }: ReportDetailProps) {
 
       {/* Safe final completion message — shown only for the reporter-safe Completed status */}
       {isCompleted && (
-        <Card className="border-success/30 bg-success/10">
-          <CardContent className="flex items-start gap-3 p-4">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden="true" />
-            <div>
-              <p className="text-sm font-medium">{t("completionTitle")}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{t("completionMessage")}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <>
+          <Card className="border-success/30 bg-success/10">
+            <CardContent className="flex items-start gap-3 p-4">
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden="true" />
+              <div>
+                <p className="text-sm font-medium">{t("completionTitle")}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{t("completionMessage")}</p>
+              </div>
+            </CardContent>
+          </Card>
+          {closureDocument?.available && (
+            <PortalClosureDocumentCard
+              registrationNumber={report.registration_number}
+              documentNumber={closureDocument.document_number}
+              issuedAt={closureDocument.issued_at}
+              language={i18n.language}
+              t={t}
+            />
+          )}
+        </>
       )}
 
       <CollapsibleDataCard
@@ -545,15 +563,6 @@ function HandlingProgressSection({
     {progress?.final_summary && (
       <PortalFinalSummaryCard summary={progress.final_summary} language={i18n.language} t={t} />
     )}
-    {progress?.closure_document?.available && (
-      <PortalClosureDocumentCard
-        registrationNumber={progress.registration_number}
-        documentNumber={progress.closure_document.document_number}
-        issuedAt={progress.closure_document.issued_at}
-        language={i18n.language}
-        t={t}
-      />
-    )}
     </div>
   );
 }
@@ -596,6 +605,8 @@ function PortalClosureDocumentCard({
             loadPreview={(signal) => previewPortalCaseClosureDocument(registrationNumber, signal)}
             onDownload={() => downloadMutation.mutate()}
             downloadPending={downloadMutation.isPending}
+            triggerVariant="default"
+            triggerSize="default"
             labels={{
               preview: t("closureDocument.preview"), title: t("closureDocument.title"), description: t("closureDocument.description"),
               loading: t("common.loading"), error: t("closureDocument.downloadError"), retry: t("common.retry"), close: t("common.close"),
@@ -603,7 +614,7 @@ function PortalClosureDocumentCard({
               pdfTitle: t("closureDocument.title"), pdfFallback: t("closureDocument.pdfFallback"), zoomIn: t("closureDocument.zoomIn"), zoomOut: t("closureDocument.zoomOut"), resetZoom: t("closureDocument.reset"), fit: t("closureDocument.fit"), controls: t("closureDocument.controls"),
             }}
           />
-          <Button variant="outline" onClick={() => downloadMutation.mutate()} disabled={downloadMutation.isPending}><Download className="h-4 w-4" />{t("closureDocument.download")}</Button>
+          <Button onClick={() => downloadMutation.mutate()} disabled={downloadMutation.isPending}><Download className="h-4 w-4" />{t("closureDocument.download")}</Button>
         </div>
       </div>
     </CollapsibleDataCard>

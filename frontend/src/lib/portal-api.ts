@@ -134,10 +134,10 @@ export function getPortalWithdrawalDraftDocument(publicId: string, signal?: Abor
 }
 
 /** GET /api/v1/portal/withdrawals/{publicId}/draft-document/download */
-export function downloadPortalWithdrawalDraftDocument(publicId: string) {
-  return apiDownload(
+export function getPortalWithdrawalDraftDocumentPdf(publicId: string, signal?: AbortSignal) {
+  return apiFetchBlob(
     `/portal/withdrawals/${encodeURIComponent(publicId)}/draft-document/download`,
-    "Surat Pernyataan Permohonan Penghentian Penanganan Laporan.docx",
+    { signal },
   );
 }
 
@@ -289,7 +289,7 @@ export function getMyProfile() {
   return apiRequest<PortalProfile>("/me/profile");
 }
 
-/** PATCH /api/v1/me/profile — only name and phone_number are editable. */
+/** PATCH /api/v1/me/profile — own non-privileged profile fields only. */
 export function updateMyProfile(data: PortalProfileUpdatePayload) {
   return apiRequest<PortalProfile>("/me/profile", {
     method: "PATCH",

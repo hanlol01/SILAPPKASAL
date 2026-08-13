@@ -130,7 +130,7 @@ export function SatgasAssignmentAction({
       if (!mutation.isPending) setOpen(nextOpen);
     }}>
       <DialogTrigger asChild>
-        <Button className="w-full" variant="outline">
+        <Button className="w-full" variant="default">
           <UserRoundSearch className="mr-2 h-4 w-4" /> {copy.trigger}
         </Button>
       </DialogTrigger>

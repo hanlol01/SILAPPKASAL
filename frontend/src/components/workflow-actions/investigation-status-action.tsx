@@ -125,11 +125,15 @@ export function InvestigationStatusAction({
 
   if (!allowed) {
     return (
-      <div className="min-w-0 space-y-1">
-        <Button size="sm" variant="outline" disabled>
+      <div className="flex min-w-0 flex-col items-start gap-1 lg:items-end">
+        <Button size="sm" variant="default" className="w-full sm:w-auto" disabled>
           <History className="mr-2 h-4 w-4" /> {t("dashboard:workflow.status")}
         </Button>
-        {reason && <p className="max-w-sm break-words text-xs text-muted-foreground">{reason}</p>}
+        {reason && (
+          <p className="max-w-xl break-words text-left text-xs text-muted-foreground lg:text-right">
+            {reason}
+          </p>
+        )}
       </div>
     );
   }
@@ -141,7 +145,8 @@ export function InvestigationStatusAction({
       <DialogTrigger asChild>
         <Button
           size="sm"
-          variant="outline"
+          variant="default"
+          className="w-full sm:w-auto"
           disabled={optionsQuery.isFetching}
           onClick={(event) => {
             event.preventDefault();

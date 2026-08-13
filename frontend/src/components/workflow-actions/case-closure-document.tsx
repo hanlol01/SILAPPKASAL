@@ -68,6 +68,8 @@ export function CaseClosureDocumentCard({ caseId, language }: { caseId: string |
                 loadPreview={(signal) => previewCaseClosureDocument(document.public_id, signal)}
                 onDownload={() => downloadMutation.mutate()}
                 downloadPending={downloadMutation.isPending}
+                triggerVariant="default"
+                triggerSize="default"
                 labels={{
                   preview: t("workflow.previewClosureDocument"), title: t("workflow.closureDocumentTitle"), description: t("workflow.closureDocumentDescription"),
                   loading: t("common.loading"), error: t("workflow.closureDocumentDownloadError"), retry: t("common.retry"), close: t("common.close"),
@@ -76,7 +78,7 @@ export function CaseClosureDocumentCard({ caseId, language }: { caseId: string |
                 }}
               />
             )}
-            {capabilities?.download && <Button variant="outline" onClick={() => downloadMutation.mutate()} disabled={downloadMutation.isPending}><Download className="h-4 w-4" />{t("workflow.downloadClosureDocument")}</Button>}
+            {capabilities?.download && <Button onClick={() => downloadMutation.mutate()} disabled={downloadMutation.isPending}><Download className="h-4 w-4" />{t("workflow.downloadClosureDocument")}</Button>}
           </div>
         </div>
       )}

@@ -1,16 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/hooks/use-theme";
 import { getLocalStorageItem, setLocalStorageItem } from "@/lib/auth-storage";
 import { PageBreadcrumb } from "@/components/page-breadcrumb";
+import { apiErrorMessage } from "@/lib/form-errors";
+import { getMyProfile, portalQueryKeys, updateMyProfile } from "@/lib/portal-api";
+import type { ProfileStatusCode } from "@/lib/portal-types";
 
 export const Route = createFileRoute("/dashboard/settings")({
   component: SettingsPage,
@@ -62,9 +67,29 @@ function readStoredSettings(): Partial<Settings> | null {
 }
 
 function SettingsPage() {
-  const { t } = useTranslation(["dashboard", "common"]);
+  const { t } = useTranslation(["dashboard", "portal", "common"]);
   const { theme, toggle } = useTheme();
+  const queryClient = useQueryClient();
   const [settings, setSettings] = useState<Settings>(DEFAULTS);
+  const [profileStatus, setProfileStatus] = useState<ProfileStatusCode | null>(null);
+  const [profileStatusOther, setProfileStatusOther] = useState("");
+  const [address, setAddress] = useState("");
+  const profileQuery = useQuery({
+    queryKey: portalQueryKeys.profile(),
+    queryFn: getMyProfile,
+  });
+  const profileMutation = useMutation({
+    mutationFn: () => updateMyProfile({
+      profile_status: profileStatus,
+      profile_status_other: profileStatus === "other" ? profileStatusOther.trim() || null : null,
+      address: address.trim() || null,
+    }),
+    onSuccess: (profile) => {
+      queryClient.setQueryData(portalQueryKeys.profile(), profile);
+      toast.success(t("portal:profileUpdated"));
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, t("portal:profileLoadError"))),
+  });
 
   useEffect(() => {
     const stored = readStoredSettings();
@@ -72,6 +97,14 @@ function SettingsPage() {
       setSettings({ ...DEFAULTS, ...stored });
     }
   }, []);
+
+  useEffect(() => {
+    if (!profileQuery.data) return;
+
+    setProfileStatus(profileQuery.data.profile_status);
+    setProfileStatusOther(profileQuery.data.profile_status_other ?? "");
+    setAddress(profileQuery.data.address ?? "");
+  }, [profileQuery.data]);
 
   const save = () => {
     setLocalStorageItem(STORAGE_KEY, JSON.stringify(settings));
@@ -105,6 +138,76 @@ function SettingsPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("portal:profile")}</CardTitle>
+            <CardDescription>{t("portal:profileDesc")}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {profileQuery.isError ? (
+              <p role="alert" className="text-sm text-destructive">{t("portal:profileLoadError")}</p>
+            ) : (
+              <>
+                <div className="grid gap-2">
+                  <Label htmlFor="settings-profile-status">{t("portal:profileStatus")}</Label>
+                  <Select
+                    value={profileStatus ?? "unset"}
+                    onValueChange={(value) => {
+                      const nextStatus = value === "unset" ? null : value as ProfileStatusCode;
+                      setProfileStatus(nextStatus);
+                      if (nextStatus !== "other") setProfileStatusOther("");
+                    }}
+                    disabled={profileQuery.isPending || profileMutation.isPending}
+                  >
+                    <SelectTrigger id="settings-profile-status"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unset">{t("portal:optional")}</SelectItem>
+                      <SelectItem value="student">{t("portal:profileStatuses.student")}</SelectItem>
+                      <SelectItem value="lecturer">{t("portal:profileStatuses.lecturer")}</SelectItem>
+                      <SelectItem value="education_staff">{t("portal:profileStatuses.educationStaff")}</SelectItem>
+                      <SelectItem value="employee">{t("portal:profileStatuses.employee")}</SelectItem>
+                      <SelectItem value="other">{t("portal:profileStatuses.other")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {profileStatus === "other" && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="settings-profile-status-other">{t("portal:profileStatusOther")}</Label>
+                    <Input
+                      id="settings-profile-status-other"
+                      value={profileStatusOther}
+                      maxLength={100}
+                      onChange={(event) => setProfileStatusOther(event.target.value)}
+                      disabled={profileMutation.isPending}
+                    />
+                  </div>
+                )}
+                <div className="grid gap-2">
+                  <Label htmlFor="settings-profile-address">{t("portal:shortAddress")}</Label>
+                  <Textarea
+                    id="settings-profile-address"
+                    rows={3}
+                    maxLength={160}
+                    value={address}
+                    placeholder={t("portal:shortAddressHint")}
+                    onChange={(event) => setAddress(event.target.value)}
+                    disabled={profileQuery.isPending || profileMutation.isPending}
+                  />
+                  <p className="text-xs text-muted-foreground">{t("portal:shortAddressHelp")}</p>
+                </div>
+                <Button
+                  type="button"
+                  className="w-full sm:w-auto"
+                  disabled={profileQuery.isPending || profileMutation.isPending}
+                  onClick={() => profileMutation.mutate()}
+                >
+                  {t("dashboard:settings.saveChanges")}
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>{t("dashboard:settings.campusProfile.title")}</CardTitle>

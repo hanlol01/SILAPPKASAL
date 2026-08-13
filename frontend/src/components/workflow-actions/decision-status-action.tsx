@@ -140,7 +140,7 @@ export function DecisionStatusAction({
       <DialogTrigger asChild>
         <Button
           size="sm"
-          variant="outline"
+          variant="default"
           disabled={optionsQuery.isFetching}
           onClick={(event) => {
             event.preventDefault();

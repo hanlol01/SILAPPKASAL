@@ -549,6 +549,14 @@ systemctl restart php8.3-fpm
 systemctl reload nginx
 ```
 
+### Template PDF DRAFT Pencabutan
+
+Fitur Unduh DRAFT pencabutan formal memakai template PDF privat pada
+`backend/api/resources/templates/withdrawals/DRAFT.pdf`. Backend menempelkan
+data pelapor pada template tanpa LibreOffice, proses eksternal, atau konfigurasi
+tambahan di VPS. Ekstensi PHP `gd` harus aktif. Pastikan file template ikut
+dalam rilis sebelum menjalankan `composer install` dan build backend.
+
 Frontend update:
 
 ```bash

@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Card,
   CardContent,
@@ -31,6 +33,7 @@ import { optionalPhoneNumberError, phoneInputAttributes } from "@/lib/phone-vali
 import { useTranslation } from "react-i18next";
 import type {
   PortalProfileUpdatePayload,
+  ProfileStatusCode,
   PortalChangePasswordPayload,
 } from "@/lib/portal-types";
 
@@ -121,6 +124,9 @@ function ProfileSection({
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(data.name);
   const [phoneNumber, setPhoneNumber] = useState(data.phone_number ?? "");
+  const [profileStatus, setProfileStatus] = useState<ProfileStatusCode | null>(data.profile_status);
+  const [profileStatusOther, setProfileStatusOther] = useState(data.profile_status_other ?? "");
+  const [address, setAddress] = useState(data.address ?? "");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const mutation = useMutation({
@@ -145,6 +151,9 @@ function ProfileSection({
   function handleEdit() {
     setName(data.name);
     setPhoneNumber(data.phone_number ?? "");
+    setProfileStatus(data.profile_status);
+    setProfileStatusOther(data.profile_status_other ?? "");
+    setAddress(data.address ?? "");
     setFieldErrors({});
     setEditing(true);
   }
@@ -165,6 +174,9 @@ function ProfileSection({
     mutation.mutate({
       name: name.trim(),
       phone_number: phoneNumber || null,
+      profile_status: profileStatus,
+      profile_status_other: profileStatus === "other" ? profileStatusOther.trim() || null : null,
+      address: address.trim() || null,
     });
   }
 
@@ -220,6 +232,44 @@ function ProfileSection({
                 )}
               </div>
             </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="profile-status">{t("profileStatus")}</Label>
+                <Select
+                  value={profileStatus ?? "unset"}
+                  onValueChange={(value) => {
+                    const nextStatus = value === "unset" ? null : value as ProfileStatusCode;
+                    setProfileStatus(nextStatus);
+                    if (nextStatus !== "other") setProfileStatusOther("");
+                  }}
+                  disabled={mutation.isPending}
+                >
+                  <SelectTrigger id="profile-status"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unset">{t("optional")}</SelectItem>
+                    <SelectItem value="student">{t("profileStatuses.student")}</SelectItem>
+                    <SelectItem value="lecturer">{t("profileStatuses.lecturer")}</SelectItem>
+                    <SelectItem value="education_staff">{t("profileStatuses.educationStaff")}</SelectItem>
+                    <SelectItem value="employee">{t("profileStatuses.employee")}</SelectItem>
+                    <SelectItem value="other">{t("profileStatuses.other")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                {fieldErrors.profile_status && <p className="text-xs text-destructive">{fieldErrors.profile_status}</p>}
+              </div>
+              {profileStatus === "other" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="profile-status-other">{t("profileStatusOther")}</Label>
+                  <Input id="profile-status-other" value={profileStatusOther} onChange={(event) => setProfileStatusOther(event.target.value)} disabled={mutation.isPending} />
+                  {fieldErrors.profile_status_other && <p className="text-xs text-destructive">{fieldErrors.profile_status_other}</p>}
+                </div>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="profile-address">{t("shortAddress")}</Label>
+              <Textarea id="profile-address" rows={3} maxLength={160} value={address} onChange={(event) => setAddress(event.target.value)} placeholder={t("shortAddressHint")} disabled={mutation.isPending} />
+              <p className="text-xs text-muted-foreground">{t("shortAddressHelp")}</p>
+              {fieldErrors.address && <p className="text-xs text-destructive">{fieldErrors.address}</p>}
+            </div>
             {/* Read-only fields shown for context */}
             <div className="grid gap-4 text-sm sm:grid-cols-2">
               <ReadOnlyField label={t("email")} value={data.email} />
@@ -254,6 +304,8 @@ function ProfileSection({
           <div className="grid gap-4 text-sm sm:grid-cols-2">
             <ReadOnlyField label={t("name")} value={data.name} />
             <ReadOnlyField label={t("phoneNumber")} value={data.phone_number} />
+            <ReadOnlyField label={t("profileStatus")} value={profileStatusLabel(t, data.profile_status, data.profile_status_other)} />
+            <ReadOnlyField label={t("shortAddress")} value={data.address} />
             <ReadOnlyField label={t("email")} value={data.email} />
             {data.nim && <ReadOnlyField label="NIM" value={data.nim} />}
             {data.nip && <ReadOnlyField label="NIP" value={data.nip} />}
@@ -261,6 +313,24 @@ function ProfileSection({
         )}
     </CollapsibleDataCard>
   );
+}
+
+function profileStatusLabel(
+  t: (key: string) => string,
+  status: ProfileStatusCode | null,
+  other: string | null,
+) {
+  if (status === "other") return other || t("optional");
+  if (!status) return t("optional");
+
+  const labels: Record<Exclude<ProfileStatusCode, "other">, string> = {
+    student: t("profileStatuses.student"),
+    lecturer: t("profileStatuses.lecturer"),
+    education_staff: t("profileStatuses.educationStaff"),
+    employee: t("profileStatuses.employee"),
+  };
+
+  return labels[status];
 }
 
 // ---------------------------------------------------------------------------

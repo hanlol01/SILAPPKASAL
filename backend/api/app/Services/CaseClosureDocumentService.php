@@ -150,7 +150,6 @@ class CaseClosureDocumentService
 
     private function renderPdf(CaseRecord $case, User $lead, \Carbon\CarbonInterface $issuedAt, string $documentNumber): string
     {
-        $summary = $case->finalSummary;
         $university = $case->report?->reporter?->university;
         $options = new Options;
         $options->set('isRemoteEnabled', false);
@@ -161,15 +160,15 @@ class CaseClosureDocumentService
         $pdf->loadHtml(view('pdf.case-closure-document', [
             'universityName' => $university->name,
             'universityAddress' => $university->address,
-            'caseNumber' => $case->case_number,
             'registrationNumber' => $case->registration_number,
             'documentNumber' => $documentNumber,
             'receivedDate' => $case->report?->submitted_at?->copy()->timezone('Asia/Jakarta')->locale('id')->translatedFormat('d F Y'),
-            'issuedDate' => $issuedAt->copy()->locale('id')->translatedFormat('l, d F Y'),
-            'outcome' => $summary->outcome_code?->label('id') ?? 'Selesai',
-            'officialStatement' => $summary->official_statement,
-            'closingExplanation' => $summary->closing_explanation,
-            'followUp' => $summary->follow_up_or_referral,
+            'issuedDay' => $issuedAt->copy()->locale('id')->translatedFormat('l'),
+            'issuedDateNumber' => $issuedAt->format('d'),
+            'issuedMonth' => $issuedAt->copy()->locale('id')->translatedFormat('F'),
+            'issuedYear' => $issuedAt->format('Y'),
+            'issuedDateLong' => $issuedAt->copy()->locale('id')->translatedFormat('l, d F Y'),
+            'caseStatus' => 'Ditutup',
             'leadName' => $lead->name,
             'leadNip' => $lead->nip,
         ])->render(), 'UTF-8');
