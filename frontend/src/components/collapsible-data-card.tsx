@@ -52,7 +52,12 @@ export function CollapsibleDataCard({
     <Card className={cn("min-w-0 overflow-hidden", className)}>
       <Collapsible open={open} onOpenChange={setOpen}>
         <CardHeader className="min-w-0">
-          <div className="flex min-w-0 items-start justify-between gap-3">
+          <div
+            className={cn(
+              "flex min-w-0 items-start gap-3",
+              headerAction ? "flex-col sm:flex-row sm:justify-between" : "justify-between",
+            )}
+          >
             <div className="min-w-0 space-y-1.5">
               <CardTitle className="flex min-w-0 items-center gap-2 text-base">
                 {Icon && <Icon className="h-4 w-4 shrink-0" aria-hidden={true} />}
@@ -60,14 +65,19 @@ export function CollapsibleDataCard({
               </CardTitle>
               {description && <CardDescription>{description}</CardDescription>}
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div
+              className={cn(
+                "flex items-center gap-2",
+                headerAction ? "w-full justify-between sm:w-auto sm:shrink-0" : "shrink-0",
+              )}
+            >
               {headerAction}
               <CollapsibleTrigger asChild>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
+                  className="h-11 w-11 shrink-0 sm:h-8 sm:w-8"
                   aria-label={toggleLabel}
                   aria-expanded={open}
                   title={toggleLabel}

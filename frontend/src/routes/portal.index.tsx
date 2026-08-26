@@ -8,7 +8,7 @@ import {
   Info,
   Landmark,
   MessageCircleHeart,
-  PlusCircle,
+  ShieldPlus,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -63,57 +63,30 @@ function PortalOverview() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("overview")}</h1>
-        <p className="text-sm text-muted-foreground">{t("overviewSubtitle")}</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("overviewPageTitle")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("overviewPageSubtitle")}</p>
       </div>
 
-      {summaryQuery.isLoading && <PortalSummaryCardsSkeleton />}
-
-      {summaryQuery.isError && (
-        <QueryErrorState message={t("summaryLoadError")} onRetry={() => summaryQuery.refetch()} />
-      )}
-
-      {summaryQuery.isSuccess && <PortalSummaryCards data={summaryQuery.data} />}
-
-      <Card>
-        <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <PlusCircle className="h-5 w-5" />
+      <Card className="overflow-hidden border-primary/20 bg-primary/[0.04] shadow-sm">
+        <CardContent className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="flex min-w-0 items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+              <ShieldPlus className="h-6 w-6" aria-hidden="true" />
             </div>
-            <div>
-              <p className="font-medium">{t("overviewCtaTitle")}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{t("overviewCtaSubtitle")}</p>
+            <div className="min-w-0">
+              <p className="text-lg font-semibold tracking-tight">{t("overviewCtaTitle")}</p>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                {t("overviewCtaSubtitle")}
+              </p>
             </div>
           </div>
-          <Button asChild className="gap-1.5 sm:ml-4">
+          <Button asChild size="lg" className="w-full shrink-0 gap-2 sm:ml-4 sm:w-auto">
             <Link to="/portal/reports/new">
               {t("overviewCtaAction")} <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
         </CardContent>
       </Card>
-
-      {publishedContentAccessible && <EducationSpotlight />}
-
-      {publishedContentAccessible && (
-        <section aria-labelledby="portal-information-shortcuts" className="space-y-4">
-          <div>
-            <h2 id="portal-information-shortcuts" className="text-xl font-semibold">
-              {t("informationCenter:dashboard.title")}
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {t("informationCenter:dashboard.description")}
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <InformationShortcut icon={BookOpen} title={t("informationCenter:sections.education.title")} description={t("informationCenter:sections.education.description")} to="/portal/information-center/education" />
-            <InformationShortcut icon={Landmark} title={t("informationCenter:sections.policy.title")} description={t("informationCenter:sections.policy.description")} to="/portal/information-center/policies" />
-            <InformationShortcut icon={CircleHelp} title={t("informationCenter:sections.faq.title")} description={t("informationCenter:sections.faq.description")} to="/portal/information-center/faq" />
-            <InformationShortcut icon={MessageCircleHeart} title={t("informationCenter:sections.consultation.title")} description={t("informationCenter:sections.consultation.description")} to="/portal/information-center/consultation" />
-          </div>
-        </section>
-      )}
 
       <CollapsibleDataCard
         title={t("recentReports")}
@@ -123,7 +96,7 @@ function PortalOverview() {
         contentClassName="space-y-3"
         headerAction={
           reportsQuery.isSuccess && recentReports.length > 0 ? (
-            <Button asChild variant="outline" size="sm" className="gap-1.5">
+            <Button asChild size="sm" className="w-full gap-1.5 sm:w-auto">
               <Link to="/portal/reports">
                 <ExternalLink className="h-3.5 w-3.5" />
                 {t("viewAllReports")}
@@ -136,13 +109,15 @@ function PortalOverview() {
           <>
             {Array.from({ length: 3 }).map((_, index) => (
               <Card key={index}>
-                <CardContent className="flex items-center gap-4 p-4">
-                  <Skeleton className="h-10 w-10 rounded-lg" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-40" />
-                    <Skeleton className="h-3 w-64" />
+                <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+                  <div className="flex min-w-0 flex-1 items-center gap-4">
+                    <Skeleton className="h-10 w-10 shrink-0 rounded-lg" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <Skeleton className="h-4 w-4/5 max-w-40" />
+                      <Skeleton className="h-3 w-full max-w-64" />
+                    </div>
                   </div>
-                  <Skeleton className="h-8 w-14" />
+                  <Skeleton className="h-8 w-full sm:w-14" />
                 </CardContent>
               </Card>
             ))}
@@ -163,10 +138,68 @@ function PortalOverview() {
         )}
       </CollapsibleDataCard>
 
+      {publishedContentAccessible && <EducationSpotlight />}
+
+      {publishedContentAccessible && (
+        <section aria-labelledby="portal-information-shortcuts" className="space-y-4">
+          <div>
+            <h2 id="portal-information-shortcuts" className="text-xl font-semibold">
+              {t("informationCenter:dashboard.title")}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t("informationCenter:dashboard.description")}
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <InformationShortcut
+              icon={BookOpen}
+              title={t("informationCenter:sections.education.title")}
+              description={t("informationCenter:sections.education.description")}
+              to="/portal/information-center/education"
+            />
+            <InformationShortcut
+              icon={Landmark}
+              title={t("informationCenter:sections.policy.title")}
+              description={t("informationCenter:sections.policy.description")}
+              to="/portal/information-center/policies"
+            />
+            <InformationShortcut
+              icon={CircleHelp}
+              title={t("informationCenter:sections.faq.title")}
+              description={t("informationCenter:sections.faq.description")}
+              to="/portal/information-center/faq"
+            />
+            <InformationShortcut
+              icon={MessageCircleHeart}
+              title={t("informationCenter:sections.consultation.title")}
+              description={t("informationCenter:sections.consultation.description")}
+              to="/portal/information-center/consultation"
+            />
+          </div>
+        </section>
+      )}
+
       <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
         <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
         <p>{t("overviewSlaNotice")}</p>
       </div>
+
+      <section aria-labelledby="portal-activity-summary" className="space-y-4">
+        <div>
+          <h2 id="portal-activity-summary" className="text-xl font-semibold">
+            {t("activitySummary")}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t("activitySummarySubtitle")}</p>
+        </div>
+
+        {summaryQuery.isLoading && <PortalSummaryCardsSkeleton />}
+
+        {summaryQuery.isError && (
+          <QueryErrorState message={t("summaryLoadError")} onRetry={() => summaryQuery.refetch()} />
+        )}
+
+        {summaryQuery.isSuccess && <PortalSummaryCards data={summaryQuery.data} />}
+      </section>
     </div>
   );
 }
@@ -180,7 +213,11 @@ function InformationShortcut({
   icon: typeof BookOpen;
   title: string;
   description: string;
-  to: "/portal/information-center/education" | "/portal/information-center/policies" | "/portal/information-center/faq" | "/portal/information-center/consultation";
+  to:
+    | "/portal/information-center/education"
+    | "/portal/information-center/policies"
+    | "/portal/information-center/faq"
+    | "/portal/information-center/consultation";
 }) {
   return (
     <Link

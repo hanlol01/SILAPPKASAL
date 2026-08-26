@@ -48,6 +48,18 @@ const nav = [
   { titleKey: "account", url: "/portal/account" as const, icon: UserCog },
 ];
 
+function isPortalNavActive(path: string, url: (typeof nav)[number]["url"]) {
+  if (url === "/portal") {
+    return path === url;
+  }
+
+  if (url === "/portal/reports") {
+    return path === url || (path.startsWith(`${url}/`) && !path.startsWith("/portal/reports/new"));
+  }
+
+  return path === url || path.startsWith(`${url}/`);
+}
+
 function PortalNav() {
   const { t } = useTranslation(["portal"]);
   const { user } = useAuth();
@@ -61,7 +73,7 @@ function PortalNav() {
   return (
     <nav className="flex min-w-0 items-center gap-1 overflow-x-auto">
       {visibleNav.map((item) => {
-        const active = item.url === "/portal" ? path === "/portal" : path.startsWith(item.url);
+        const active = isPortalNavActive(path, item.url);
         return (
           <Button
             key={item.url}
@@ -116,7 +128,7 @@ function PortalMobileNav() {
         </SheetHeader>
         <nav className="grid gap-1 p-3">
           {visibleNav.map((item) => {
-            const active = item.url === "/portal" ? path === "/portal" : path.startsWith(item.url);
+            const active = isPortalNavActive(path, item.url);
             return (
               <Button
                 key={item.url}

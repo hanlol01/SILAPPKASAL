@@ -24,33 +24,32 @@ export function PortalReportCard({ report }: PortalReportCardProps) {
 
   return (
     <Card className="transition-colors hover:bg-muted/40">
-      <CardContent className="flex items-center gap-4 p-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <FileText className="h-5 w-5" />
+      <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center sm:gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <FileText className="h-5 w-5" aria-hidden="true" />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <span className="min-w-0 font-mono text-sm font-medium [overflow-wrap:anywhere]">
+                {report.registration_number}
+              </span>
+              <PortalStatusBadge portalStatus={report.portal_status} />
+              <PortalReportTypeBadge reportType={report.report_type} />
+            </div>
+            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs leading-5 text-muted-foreground">
+              {report.category && <span>{formatReportCategory(t, report.category)}</span>}
+              <span>
+                {t("portal:submittedDate", {
+                  date: formatDate(report.submitted_at, i18n.language),
+                })}
+              </span>
+            </div>
+          </div>
         </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-sm font-medium">
-              {report.registration_number}
-            </span>
-            <PortalStatusBadge
-              portalStatus={report.portal_status}
-            />
-            <PortalReportTypeBadge reportType={report.report_type} />
-          </div>
-          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-            {report.category && <span>{formatReportCategory(t, report.category)}</span>}
-            <span>{t("portal:submittedDate", { date: formatDate(report.submitted_at, i18n.language) })}</span>
-          </div>
-        </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          className="shrink-0 gap-1.5"
-          asChild
-        >
+        <Button size="sm" className="w-full shrink-0 gap-1.5 sm:w-auto" asChild>
           <Link
             to="/portal/reports/$registrationNumber"
             params={{ registrationNumber: report.registration_number }}
