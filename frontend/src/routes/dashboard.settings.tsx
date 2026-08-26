@@ -1,21 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentProps, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/hooks/use-theme";
 import { getLocalStorageItem, setLocalStorageItem } from "@/lib/auth-storage";
 import { PageBreadcrumb } from "@/components/page-breadcrumb";
-import { apiErrorMessage } from "@/lib/form-errors";
-import { getMyProfile, portalQueryKeys, updateMyProfile } from "@/lib/portal-api";
-import type { ProfileStatusCode } from "@/lib/portal-types";
+import { apiErrorMessage, laravelFieldErrors } from "@/lib/form-errors";
+import { optionalPhoneNumberError, phoneInputAttributes } from "@/lib/phone-validation";
+import { changeMyPassword, getMyProfile, portalQueryKeys, updateMyProfile } from "@/lib/portal-api";
+import type { PortalChangePasswordPayload, PortalProfile, PortalProfileUpdatePayload, ProfileStatusCode } from "@/lib/portal-types";
 
 export const Route = createFileRoute("/dashboard/settings")({
   component: SettingsPage,
@@ -46,6 +49,8 @@ const DEFAULTS: Settings = {
   notifyDigest: false,
 };
 
+type FieldErrors = Record<string, string>;
+
 function readStoredSettings(): Partial<Settings> | null {
   const current = getLocalStorageItem(STORAGE_KEY);
   if (current) {
@@ -66,30 +71,349 @@ function readStoredSettings(): Partial<Settings> | null {
   return null;
 }
 
-function SettingsPage() {
-  const { t } = useTranslation(["dashboard", "portal", "common"]);
-  const { theme, toggle } = useTheme();
+function ProfileSettingsCard() {
+  const { t } = useTranslation(["portal", "common"]);
   const queryClient = useQueryClient();
-  const [settings, setSettings] = useState<Settings>(DEFAULTS);
+  const [name, setName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [profileStatus, setProfileStatus] = useState<ProfileStatusCode | null>(null);
   const [profileStatusOther, setProfileStatusOther] = useState("");
   const [address, setAddress] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const profileQuery = useQuery({
     queryKey: portalQueryKeys.profile(),
     queryFn: getMyProfile,
   });
+
   const profileMutation = useMutation({
-    mutationFn: () => updateMyProfile({
+    mutationFn: (payload: PortalProfileUpdatePayload) => updateMyProfile(payload),
+    onSuccess: (profile) => {
+      queryClient.setQueryData(portalQueryKeys.profile(), profile);
+      toast.success(t("profileUpdated"));
+      setFieldErrors({});
+    },
+    onError: (error) => {
+      const errors = laravelFieldErrors(error);
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors);
+        return;
+      }
+
+      toast.error(apiErrorMessage(error, t("profileLoadError")));
+    },
+  });
+
+  useEffect(() => {
+    if (!profileQuery.data) return;
+
+    setName(profileQuery.data.name);
+    setPhoneNumber(profileQuery.data.phone_number ?? "");
+    setProfileStatus(profileQuery.data.profile_status);
+    setProfileStatusOther(profileQuery.data.profile_status_other ?? "");
+    setAddress(profileQuery.data.address ?? "");
+  }, [profileQuery.data]);
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const phoneError = optionalPhoneNumberError(
+      phoneNumber,
+      t("common:validation.phoneNumber"),
+    );
+
+    if (phoneError) {
+      setFieldErrors((current) => ({ ...current, phone_number: phoneError }));
+      return;
+    }
+
+    setFieldErrors({});
+    profileMutation.mutate({
+      name: name.trim(),
+      phone_number: phoneNumber || null,
       profile_status: profileStatus,
       profile_status_other: profileStatus === "other" ? profileStatusOther.trim() || null : null,
       address: address.trim() || null,
-    }),
-    onSuccess: (profile) => {
-      queryClient.setQueryData(portalQueryKeys.profile(), profile);
-      toast.success(t("portal:profileUpdated"));
+    });
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("profile")}</CardTitle>
+        <CardDescription>{t("profileDesc")}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {profileQuery.isPending ? (
+          <p className="text-sm text-muted-foreground">{t("common:loading")}</p>
+        ) : profileQuery.isError ? (
+          <div className="space-y-3">
+            <p role="alert" className="text-sm text-destructive">{t("profileLoadError")}</p>
+            <Button type="button" variant="outline" onClick={() => profileQuery.refetch()}>
+              {t("common:retry")}
+            </Button>
+          </div>
+        ) : (
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ProfileTextField
+                id="settings-profile-name"
+                label={t("name")}
+                value={name}
+                onChange={setName}
+                disabled={profileMutation.isPending}
+                error={fieldErrors.name}
+              />
+              <ProfileTextField
+                id="settings-profile-phone"
+                label={t("phoneNumber")}
+                value={phoneNumber}
+                onChange={(value) => {
+                  setPhoneNumber(value);
+                  setFieldErrors((current) => ({ ...current, phone_number: "" }));
+                }}
+                disabled={profileMutation.isPending}
+                error={fieldErrors.phone_number}
+                inputProps={phoneInputAttributes}
+                placeholder={t("optional")}
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="settings-profile-status">{t("profileStatus")}</Label>
+                <Select
+                  value={profileStatus ?? "unset"}
+                  onValueChange={(value) => {
+                    const nextStatus = value === "unset" ? null : value as ProfileStatusCode;
+                    setProfileStatus(nextStatus);
+                    if (nextStatus !== "other") setProfileStatusOther("");
+                  }}
+                  disabled={profileMutation.isPending}
+                >
+                  <SelectTrigger id="settings-profile-status"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unset">{t("optional")}</SelectItem>
+                    <SelectItem value="student">{t("profileStatuses.student")}</SelectItem>
+                    <SelectItem value="lecturer">{t("profileStatuses.lecturer")}</SelectItem>
+                    <SelectItem value="education_staff">{t("profileStatuses.educationStaff")}</SelectItem>
+                    <SelectItem value="employee">{t("profileStatuses.employee")}</SelectItem>
+                    <SelectItem value="other">{t("profileStatuses.other")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                {fieldErrors.profile_status && <p className="text-xs text-destructive">{fieldErrors.profile_status}</p>}
+              </div>
+              {profileStatus === "other" && (
+                <ProfileTextField
+                  id="settings-profile-status-other"
+                  label={t("profileStatusOther")}
+                  value={profileStatusOther}
+                  onChange={setProfileStatusOther}
+                  disabled={profileMutation.isPending}
+                  error={fieldErrors.profile_status_other}
+                  maxLength={100}
+                />
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="settings-profile-address">{t("shortAddress")}</Label>
+              <Textarea
+                id="settings-profile-address"
+                rows={3}
+                maxLength={160}
+                value={address}
+                placeholder={t("shortAddressHint")}
+                onChange={(event) => setAddress(event.target.value)}
+                disabled={profileMutation.isPending}
+              />
+              <p className="text-xs text-muted-foreground">{t("shortAddressHelp")}</p>
+              {fieldErrors.address && <p className="text-xs text-destructive">{fieldErrors.address}</p>}
+            </div>
+            {profileQuery.data && <ProfileReadOnlyFields data={profileQuery.data} />}
+            <Button type="submit" className="w-full sm:w-auto" disabled={profileMutation.isPending}>
+              {t("common:save")}
+            </Button>
+          </form>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ChangePasswordSettingsCard() {
+  const { t } = useTranslation(["portal", "common"]);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const passwordMutation = useMutation({
+    mutationFn: (payload: PortalChangePasswordPayload) => changeMyPassword(payload),
+    onSuccess: () => {
+      toast.success(t("passwordChanged"));
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setFieldErrors({});
     },
-    onError: (error) => toast.error(apiErrorMessage(error, t("portal:profileLoadError"))),
+    onError: (error) => {
+      const errors = laravelFieldErrors(error);
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors);
+        return;
+      }
+
+      toast.error(apiErrorMessage(error, t("common:unexpectedError")));
+    },
   });
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFieldErrors({});
+    passwordMutation.mutate({
+      current_password: currentPassword,
+      password: newPassword,
+      password_confirmation: confirmPassword,
+    });
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("changePassword")}</CardTitle>
+        <CardDescription>{t("changePasswordDesc")}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form className="max-w-md space-y-4" onSubmit={handleSubmit}>
+          <PasswordField
+            id="settings-current-password"
+            label={t("currentPassword")}
+            value={currentPassword}
+            onChange={setCurrentPassword}
+            disabled={passwordMutation.isPending}
+            autoComplete="current-password"
+            error={fieldErrors.current_password}
+          />
+          <Separator />
+          <PasswordField
+            id="settings-new-password"
+            label={t("newPassword")}
+            value={newPassword}
+            onChange={setNewPassword}
+            disabled={passwordMutation.isPending}
+            autoComplete="new-password"
+            error={fieldErrors.password}
+          />
+          <PasswordField
+            id="settings-confirm-password"
+            label={t("confirmNewPassword")}
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            disabled={passwordMutation.isPending}
+            autoComplete="new-password"
+            error={fieldErrors.password_confirmation}
+          />
+          <Button type="submit" className="w-full sm:w-auto" disabled={passwordMutation.isPending}>
+            {t("changePassword")}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProfileTextField({
+  id,
+  label,
+  value,
+  onChange,
+  disabled,
+  error,
+  inputProps,
+  placeholder,
+  maxLength,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+  error?: string;
+  inputProps?: ComponentProps<typeof Input>;
+  placeholder?: string;
+  maxLength?: number;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        disabled={disabled}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        {...inputProps}
+      />
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+function PasswordField({
+  id,
+  label,
+  value,
+  onChange,
+  disabled,
+  autoComplete,
+  error,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+  autoComplete: string;
+  error?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <PasswordInput
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        disabled={disabled}
+        autoComplete={autoComplete}
+      />
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+function ProfileReadOnlyFields({ data }: { data: PortalProfile }) {
+  const { t } = useTranslation(["portal"]);
+
+  return (
+    <div className="grid gap-4 border-t pt-4 text-sm sm:grid-cols-2">
+      <ProfileReadOnlyField label={t("email")} value={data.email} />
+      {data.nim && <ProfileReadOnlyField label="NIM" value={data.nim} />}
+      {data.nip && <ProfileReadOnlyField label="NIP" value={data.nip} />}
+    </div>
+  );
+}
+
+function ProfileReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-1 break-words text-sm">{value}</p>
+    </div>
+  );
+}
+
+function SettingsPage() {
+  const { t } = useTranslation(["dashboard", "portal", "common"]);
+  const { theme, toggle } = useTheme();
+  const [settings, setSettings] = useState<Settings>(DEFAULTS);
 
   useEffect(() => {
     const stored = readStoredSettings();
@@ -97,14 +421,6 @@ function SettingsPage() {
       setSettings({ ...DEFAULTS, ...stored });
     }
   }, []);
-
-  useEffect(() => {
-    if (!profileQuery.data) return;
-
-    setProfileStatus(profileQuery.data.profile_status);
-    setProfileStatusOther(profileQuery.data.profile_status_other ?? "");
-    setAddress(profileQuery.data.address ?? "");
-  }, [profileQuery.data]);
 
   const save = () => {
     setLocalStorageItem(STORAGE_KEY, JSON.stringify(settings));
@@ -138,75 +454,8 @@ function SettingsPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("portal:profile")}</CardTitle>
-            <CardDescription>{t("portal:profileDesc")}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {profileQuery.isError ? (
-              <p role="alert" className="text-sm text-destructive">{t("portal:profileLoadError")}</p>
-            ) : (
-              <>
-                <div className="grid gap-2">
-                  <Label htmlFor="settings-profile-status">{t("portal:profileStatus")}</Label>
-                  <Select
-                    value={profileStatus ?? "unset"}
-                    onValueChange={(value) => {
-                      const nextStatus = value === "unset" ? null : value as ProfileStatusCode;
-                      setProfileStatus(nextStatus);
-                      if (nextStatus !== "other") setProfileStatusOther("");
-                    }}
-                    disabled={profileQuery.isPending || profileMutation.isPending}
-                  >
-                    <SelectTrigger id="settings-profile-status"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unset">{t("portal:optional")}</SelectItem>
-                      <SelectItem value="student">{t("portal:profileStatuses.student")}</SelectItem>
-                      <SelectItem value="lecturer">{t("portal:profileStatuses.lecturer")}</SelectItem>
-                      <SelectItem value="education_staff">{t("portal:profileStatuses.educationStaff")}</SelectItem>
-                      <SelectItem value="employee">{t("portal:profileStatuses.employee")}</SelectItem>
-                      <SelectItem value="other">{t("portal:profileStatuses.other")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {profileStatus === "other" && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="settings-profile-status-other">{t("portal:profileStatusOther")}</Label>
-                    <Input
-                      id="settings-profile-status-other"
-                      value={profileStatusOther}
-                      maxLength={100}
-                      onChange={(event) => setProfileStatusOther(event.target.value)}
-                      disabled={profileMutation.isPending}
-                    />
-                  </div>
-                )}
-                <div className="grid gap-2">
-                  <Label htmlFor="settings-profile-address">{t("portal:shortAddress")}</Label>
-                  <Textarea
-                    id="settings-profile-address"
-                    rows={3}
-                    maxLength={160}
-                    value={address}
-                    placeholder={t("portal:shortAddressHint")}
-                    onChange={(event) => setAddress(event.target.value)}
-                    disabled={profileQuery.isPending || profileMutation.isPending}
-                  />
-                  <p className="text-xs text-muted-foreground">{t("portal:shortAddressHelp")}</p>
-                </div>
-                <Button
-                  type="button"
-                  className="w-full sm:w-auto"
-                  disabled={profileQuery.isPending || profileMutation.isPending}
-                  onClick={() => profileMutation.mutate()}
-                >
-                  {t("dashboard:settings.saveChanges")}
-                </Button>
-              </>
-            )}
-          </CardContent>
-        </Card>
+        <ProfileSettingsCard />
+        <ChangePasswordSettingsCard />
 
         <Card>
           <CardHeader>
